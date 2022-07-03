@@ -1,13 +1,15 @@
 import SystemRelationship from './SystemRelationship';
+import Thread from '../utils/Thread';
 import Mut, { type Mutable } from './Mut';
 import { createStore, type SchemaClass } from '../Components';
-import type { default as Parameter, Descriptor } from './Parameter';
+import type { default as Parameter } from './Parameter';
 import type { WorldConfig } from '../World/config';
 import type { Class } from '../utilTypes';
+import type { SendableClass, SendableInstance } from '../utils/Thread';
 
 const type = Symbol();
 export default class ResourceParameter
-	implements Parameter<ResourceDescriptor, object[]>
+	implements Parameter<ResourceDescriptor>
 {
 	get type() {
 		return type;
@@ -16,6 +18,8 @@ export default class ResourceParameter
 	#nextId = 0;
 	#stores: object[] = [];
 	#schemaResources: SchemaClass[] = [];
+	#sendableClasses: SendableClass[] = [];
+	#sendableInstances: SendableInstance[] = [];
 
 	#config: WorldConfig;
 	constructor(config: WorldConfig) {
@@ -29,17 +33,30 @@ export default class ResourceParameter
 				isShared: this.#config.threads > 1,
 			}),
 		);
+		this.#sendableInstances = this.#sendableClasses.map(
+			SendClass => new SendClass(),
+		);
 	}
 	onAddSystem({ data: { resource } }: ResourceDescriptor) {
 		if (isSchemaClass(resource)) {
 			this.#schemaResources.push(resource);
+		} else if (Thread.isSendableClass(resource)) {
+			this.#sendableClasses.push(resource);
 		}
 	}
-	sendToThread() {
-		return this.#stores;
+
+	extendSendable() {
+		return this.#sendableClasses;
 	}
-	receiveOnThread(stores: object[]) {
+	sendToThread() {
+		return [this.#stores, this.#sendableInstances];
+	}
+	receiveOnThread([stores, instances]: [object[], SendableInstance[]]) {
 		this.#stores = stores;
+		for (const instance of instances) {
+			//@ts-ignore: Constructor is definitely a class, not just a Function.
+			this.#resources.set(instance.constructor, instance);
+		}
 	}
 
 	//@ts-ignore

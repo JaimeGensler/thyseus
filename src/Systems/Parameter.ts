@@ -1,4 +1,4 @@
-import type { SendableType } from '../utils/Thread';
+import type { SendableClass, SendableType } from '../utils/Thread';
 import type SystemRelationship from './SystemRelationship';
 
 export type DescriptorToArgument<T extends Descriptor> = T['__T'];
@@ -8,15 +8,13 @@ export interface Descriptor {
 	__T: unknown;
 }
 
-export default interface Parameter<
-	T extends Descriptor = Descriptor,
-	S extends SendableType = SendableType,
-> {
+export default interface Parameter<T extends Descriptor = Descriptor> {
 	get type(): symbol;
 
 	// Utility methods
 	isLocalToThread(descriptor: T): boolean;
 	getRelationship(left: T, right: T): SystemRelationship;
+	extendSendable?(): SendableClass[];
 
 	// Lifecycle methods
 	onAddSystem?(descriptor: T): void;
@@ -26,6 +24,6 @@ export default interface Parameter<
 
 	onBuildSystem(descriptor: T): DescriptorToArgument<T>;
 
-	sendToThread?(): S;
-	receiveOnThread?(data: S): void;
+	sendToThread?(): SendableType;
+	receiveOnThread?(data: SendableType): void;
 }

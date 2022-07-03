@@ -1,8 +1,5 @@
-import SparseSet from '../DataTypes/SparseSet';
 import World from './World';
 import Thread from '../utils/Thread';
-import Mutex from '../DataTypes/Mutex';
-import BigUintArray from '../DataTypes/BigUintArray';
 import Executor from './Executor/MultiExecutor';
 import {
 	QueryParameter,
@@ -13,8 +10,7 @@ import {
 } from '../Systems';
 import type { WorldConfig } from './config';
 import type { System } from '../utilTypes';
-
-Thread.globalSendableTypes = [SparseSet, Mutex, BigUintArray, Executor];
+import getSendableTypes from './getSendableTypes';
 
 export default class ThreadWorldBuilder {
 	#systems: SystemDefinition[] = [];
@@ -41,6 +37,8 @@ export default class ThreadWorldBuilder {
 	}
 
 	async build(): Promise<World> {
+		Thread.globalSendableTypes = getSendableTypes(this.#parameters);
+
 		for (const parameter of this.#parameters) {
 			if (parameter.receiveOnThread) {
 				parameter.receiveOnThread(await Thread.receive());

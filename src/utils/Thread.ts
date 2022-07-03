@@ -1,10 +1,10 @@
 // Symbols can't be sent to/from workers
 const IsSentByThread = '@IS_SENT_BY_THREAD';
 
-interface SendableInstance<T extends SendableType = SendableType> {
+export interface SendableInstance<T extends SendableType = SendableType> {
 	[Thread.Send](): T;
 }
-interface SendableClass<T extends SendableType = SendableType> {
+export interface SendableClass<T extends SendableType = SendableType> {
 	new (...args: any[]): SendableInstance<T>;
 	[Thread.Receive](data: T): SendableInstance<T>;
 }
@@ -70,6 +70,9 @@ export default class Thread extends Worker {
 			};
 			globalThis.addEventListener('message', handler);
 		});
+	}
+	static isSendableClass(x: Function): x is SendableClass {
+		return Thread.Receive in x && Thread.Send in x.prototype;
 	}
 
 	constructor(scriptURL: string | URL, sendableTypes: SendableClass[]) {

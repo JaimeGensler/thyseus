@@ -8,9 +8,7 @@ import type { WorldConfig } from '../World/config';
 import type Parameter from './Parameter';
 
 const type = Symbol();
-export default class QueryParameter
-	implements Parameter<QueryDescriptor<any>, SentData>
-{
+export default class QueryParameter implements Parameter<QueryDescriptor<any>> {
 	get type() {
 		return type;
 	}
@@ -64,10 +62,10 @@ export default class QueryParameter
 		return query;
 	}
 
-	sendToThread(): SentData {
+	sendToThread() {
 		return [this.#sparseSets, this.stores];
 	}
-	receiveOnThread([sparseSets, stores]: SentData) {
+	receiveOnThread([sparseSets, stores]: [SparseSet[], SchemaData[]]) {
 		this.#sparseSets = sparseSets;
 		this.stores = stores;
 	}
@@ -119,7 +117,6 @@ export default class QueryParameter
 	}
 }
 
-type SentData = [SparseSet[], SchemaData[]];
 type QueryMember = SchemaClass<any, any> | Mutable<SchemaClass<any, any>>;
 interface QueryDescriptor<T extends QueryMember[]> {
 	type: typeof type;

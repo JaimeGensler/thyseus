@@ -1,10 +1,7 @@
-import SparseSet from '../DataTypes/SparseSet';
 import World from './World';
 import Thread from '../utils/Thread';
 import getSystemIntersections from '../Systems/getSystemIntersections';
-import Mutex from '../DataTypes/Mutex';
-import BigUintArray from '../DataTypes/BigUintArray';
-import Executor from './Executor/MultiExecutor';
+import { MultiExecutor } from './Executor';
 import {
 	QueryParameter,
 	ResourceParameter,
@@ -15,8 +12,7 @@ import validateWorldConfig, { type WorldConfig } from './config';
 import type { SystemDefinition } from '../Systems';
 import type { System } from '../utilTypes';
 import isSystemLocalToThread from '../Systems/isSystemLocalToThread';
-
-const SHAREABLES = [SparseSet, Mutex, BigUintArray, Executor];
+import getSendableTypes from './getSendableTypes';
 
 export default class WorldBuilder {
 	#systems: SystemDefinition[] = [];
@@ -60,13 +56,14 @@ export default class WorldBuilder {
 			this.#buildSystem(system),
 		);
 
-		const executor = Executor.from(
+		const executor = MultiExecutor.from(
 			getSystemIntersections(this.#systems, this.#parameters),
 		);
 
+		const sendable = getSendableTypes(this.#parameters);
 		if (this.#config.threads > 1) {
 			for (let i = 1; i < this.#config.threads; i++) {
-				const thread = new Thread(this.#workerURL!, SHAREABLES);
+				const thread = new Thread(this.#workerURL!, sendable);
 				for (const parameter of this.#parameters) {
 					if (parameter.sendToThread) {
 						this.#threads.push(
@@ -78,7 +75,7 @@ export default class WorldBuilder {
 				this.#threads.push(thread);
 			}
 		}
-		await Promise.all(this.#threads.map(thread => thread.receive()));
+		await Promise.all(this.#threads.map(thread => thread.receive<0>()));
 
 		for (const { execute, args } of starters) {
 			execute(...args);
