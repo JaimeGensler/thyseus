@@ -7,7 +7,7 @@ export default function isSystemLocalToThread(
 ) {
 	return system.parameters!.some((systemParam: Descriptor) =>
 		parameters
-			.find(p => p.recognizesDescriptor(systemParam))!
+			.find(p => p.type === systemParam.type)!
 			.isLocalToThread(systemParam),
 	);
 }

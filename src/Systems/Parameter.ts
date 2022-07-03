@@ -12,8 +12,9 @@ export default interface Parameter<
 	T extends Descriptor = Descriptor,
 	S extends SendableType = SendableType,
 > {
+	get type(): symbol;
+
 	// Utility methods
-	recognizesDescriptor(descriptor: T): boolean;
 	isLocalToThread(descriptor: T): boolean;
 	getRelationship(left: T, right: T): SystemRelationship;
 

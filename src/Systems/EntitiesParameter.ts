@@ -4,10 +4,13 @@ import QueryParameter from './QueryParameter';
 import type { WorldConfig } from '../World/config';
 import type { default as Parameter, Descriptor } from './Parameter';
 
-const ENTITIES_DESCRIPTOR = Symbol();
+const type = Symbol();
 export default class EntitiesParameter
 	implements Parameter<EntitiesDescriptor>
 {
+	get type() {
+		return type;
+	}
 	entityManager: EntityManager | null = null;
 
 	#config: WorldConfig;
@@ -15,7 +18,6 @@ export default class EntitiesParameter
 		this.#config = config;
 	}
 
-	onAddSystem({ data }: EntitiesDescriptor) {}
 	onBuildMainWorld(parameters: Parameter[]) {
 		const qp = parameters.find(
 			x => x instanceof QueryParameter,
@@ -32,27 +34,20 @@ export default class EntitiesParameter
 	}
 
 	// Util
-	recognizesDescriptor(x: Descriptor): x is EntitiesDescriptor {
-		return x.type === ENTITIES_DESCRIPTOR;
-	}
 	isLocalToThread() {
 		return true;
 	}
 	getRelationship(left: EntitiesDescriptor, right: EntitiesDescriptor) {
 		return SystemRelationship.Intersecting;
 	}
-
 	static createDescriptor(): EntitiesDescriptor {
 		return DESCRIPTOR as any;
 	}
 }
-const DESCRIPTOR = {
-	type: ENTITIES_DESCRIPTOR,
-	data: null,
-};
+const DESCRIPTOR = { type, data: null };
 
 export interface EntitiesDescriptor {
-	type: typeof ENTITIES_DESCRIPTOR;
+	type: typeof type;
 	data: null;
 	__T: EntityManager;
 }

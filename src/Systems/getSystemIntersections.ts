@@ -12,7 +12,7 @@ function getSystemRelationship(
 			if (
 				pL.type === pR.type &&
 				parameterTypes
-					.find(p => p.recognizesDescriptor(pL))
+					.find(p => p.type === pL.type)
 					?.getRelationship(pL, pR) ===
 					SystemRelationship.Intersecting
 			) {

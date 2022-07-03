@@ -106,7 +106,7 @@ export default class WorldBuilder {
 	#processSystem(system: SystemDefinition): void {
 		for (const descriptor of system.parameters!) {
 			for (const parameter of this.#parameters) {
-				if (parameter.recognizesDescriptor(descriptor)) {
+				if (parameter.type === descriptor.type) {
 					parameter.onAddSystem?.(descriptor);
 					break;
 				}
@@ -118,8 +118,8 @@ export default class WorldBuilder {
 		return {
 			execute: system,
 			args: system.parameters!.map((descriptor: any) => {
-				const parameter = this.#parameters.find(p =>
-					p.recognizesDescriptor(descriptor),
+				const parameter = this.#parameters.find(
+					p => p.type === descriptor.type,
 				);
 				if (!parameter) {
 					throw new Error('Unrecognized parameter.');

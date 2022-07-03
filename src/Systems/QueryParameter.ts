@@ -7,10 +7,14 @@ import { TupleQuery, type Query } from '../Queries';
 import type { WorldConfig } from '../World/config';
 import type Parameter from './Parameter';
 
-const QUERY_DESCRIPTOR = Symbol();
+const type = Symbol();
 export default class QueryParameter
 	implements Parameter<QueryDescriptor<any>, SentData>
 {
+	get type() {
+		return type;
+	}
+
 	queries: TupleQuery<any>[] = [];
 	components: SchemaClass[] = [];
 	stores: SchemaData[] = [];
@@ -68,10 +72,6 @@ export default class QueryParameter
 		this.stores = stores;
 	}
 
-	recognizesDescriptor(x: object): x is QueryDescriptor<[]> {
-		//@ts-ignore: x.type exists.
-		return 'type' in x && x.type === QUERY_DESCRIPTOR;
-	}
 	isLocalToThread() {
 		return false;
 	}
@@ -102,7 +102,7 @@ export default class QueryParameter
 		components: [...C],
 	): QueryDescriptor<C> {
 		return {
-			type: QUERY_DESCRIPTOR,
+			type,
 			data: components.reduce(
 				(acc, comp) => {
 					const isMut = Mut.is<SchemaClass<any, any>>(comp);
@@ -122,7 +122,7 @@ export default class QueryParameter
 type SentData = [SparseSet[], SchemaData[]];
 type QueryMember = SchemaClass<any, any> | Mutable<SchemaClass<any, any>>;
 interface QueryDescriptor<T extends QueryMember[]> {
-	type: typeof QUERY_DESCRIPTOR;
+	type: typeof type;
 	data: {
 		components: SchemaClass<any, any>[];
 		accessType: (0 | 1)[];

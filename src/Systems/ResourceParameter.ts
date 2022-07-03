@@ -5,10 +5,13 @@ import type { default as Parameter, Descriptor } from './Parameter';
 import type { WorldConfig } from '../World/config';
 import type { Class } from '../utilTypes';
 
-const RESOURCE_DESCRIPTOR = Symbol();
+const type = Symbol();
 export default class ResourceParameter
 	implements Parameter<ResourceDescriptor, object[]>
 {
+	get type() {
+		return type;
+	}
 	#resources = new Map<Class, object>();
 	#nextId = 0;
 	#stores: object[] = [];
@@ -54,9 +57,6 @@ export default class ResourceParameter
 		return this.#resources.get(resource)!;
 	}
 
-	recognizesDescriptor(x: Descriptor): x is ResourceDescriptor {
-		return x.type === RESOURCE_DESCRIPTOR;
-	}
 	isLocalToThread({ data: { resource } }: ResourceDescriptor) {
 		return !isSchemaClass(resource);
 	}
@@ -75,7 +75,7 @@ export default class ResourceParameter
 	>(resource: T): ResourceDescriptor<T> {
 		const isMut = Mut.is<Class | SchemaClass>(resource);
 		return {
-			type: RESOURCE_DESCRIPTOR,
+			type,
 			data: {
 				resource: isMut ? resource[0] : (resource as Class),
 				accessType: isMut ? 1 : 0,
@@ -90,7 +90,7 @@ function isSchemaClass(val: unknown): val is SchemaClass {
 
 type AnyResource = Class | SchemaClass<any, any> | Mutable<Class | SchemaClass>;
 export interface ResourceDescriptor<T extends AnyResource = AnyResource> {
-	type: typeof RESOURCE_DESCRIPTOR;
+	type: typeof type;
 	data: {
 		resource: Class | SchemaClass<any, any>;
 		accessType: 0 | 1;
