@@ -13,6 +13,7 @@ out of the box, including:
     a little bit of ✨ magic ✨) to do what it needs to, and _will never use
     unsafe code_.
 -   First class Singletons - or Resources, as we like to call them!
+-   Zero dependencies.
 -   _And more to come!_
 
 **Please note: Thyseus is in early development and is far from feature-complete.
