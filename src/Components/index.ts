@@ -1,4 +1,4 @@
 export { default as Component } from './Component';
 export { Type } from './Type';
-
-export type { SchemaClass } from './types';
+export { default as createStore } from './createStore';
+export type { SchemaClass, SchemaData } from './types';
