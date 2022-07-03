@@ -1,18 +1,17 @@
 // Symbols can't be sent to/from workers
-const IsShared = '@IS_SHARED';
+const IsSentByThread = '@IS_SENT_BY_THREAD';
 
-interface ShareableInstance<T extends ShareableType = ShareableType> {
+interface SendableInstance<T extends SendableType = SendableType> {
 	[Thread.Send](): T;
 }
-interface ShareableClass<T extends ShareableType = ShareableType> {
-	// If I want constructors to be able to be marked as private, then...
-	new (...args: any[]): ShareableInstance<T>;
-	[Thread.Receive](data: T): ShareableInstance<T>;
+interface SendableClass<T extends SendableType = SendableType> {
+	new (...args: any[]): SendableInstance<T>;
+	[Thread.Receive](data: T): SendableInstance<T>;
 }
-interface SharedInstance {
-	[IsShared]: [number, ShareableType];
+interface SentInstance {
+	[IsSentByThread]: [number, SendableType];
 }
-export type ShareableType =
+export type SendableType =
 	| null
 	| undefined
 	| boolean
@@ -41,21 +40,21 @@ export type ShareableType =
 	| ImageBitmap
 	| ImageData
 	| object
-	| ShareableType[]
-	| { [key: string]: ShareableType }
-	| Map<ShareableType, ShareableType>
-	| Set<ShareableType>
-	| ShareableInstance;
+	| SendableType[]
+	| { [key: string]: SendableType }
+	| Map<SendableType, SendableType>
+	| Set<SendableType>
+	| SentInstance;
 
 export default class Thread extends Worker {
 	static readonly Send = Symbol();
 	static readonly Receive = Symbol();
 
-	static globalSharedTypes: ShareableClass[] = [];
-	#sharedTypes: ShareableClass[] = [];
+	static globalSendableTypes: SendableClass[] = [];
+	#sendableTypes: SendableClass[] = [];
 
-	static send(message: ShareableType) {
-		globalThis.postMessage(serialize(message, this.globalSharedTypes));
+	static send(message: SendableType) {
+		globalThis.postMessage(serialize(message, this.globalSendableTypes));
 		return this;
 	}
 	static receive<T extends any = unknown>(timeout = 3000) {
@@ -64,22 +63,22 @@ export default class Thread extends Worker {
 				reject('Timed out.');
 				globalThis.removeEventListener('message', handler);
 			}, timeout);
-			const handler = (e: MessageEvent<ShareableType>) => {
+			const handler = (e: MessageEvent<SendableType>) => {
 				clearTimeout(timerId);
-				resolve(deserialize(e.data, this.globalSharedTypes) as T);
+				resolve(deserialize(e.data, this.globalSendableTypes) as T);
 				globalThis.removeEventListener('message', handler);
 			};
 			globalThis.addEventListener('message', handler);
 		});
 	}
 
-	constructor(scriptURL: string | URL, sharedTypes: ShareableClass[]) {
+	constructor(scriptURL: string | URL, sendableTypes: SendableClass[]) {
 		super(scriptURL, { type: 'module' });
-		this.#sharedTypes = sharedTypes;
+		this.#sendableTypes = sendableTypes;
 	}
 
-	send(message: ShareableType) {
-		super.postMessage(serialize(message, this.#sharedTypes));
+	send(message: SendableType) {
+		super.postMessage(serialize(message, this.#sendableTypes));
 		return this;
 	}
 	receive<T extends any = unknown>(timeout = 3000) {
@@ -88,9 +87,9 @@ export default class Thread extends Worker {
 				reject('Timed out.');
 				this.removeEventListener('message', handler);
 			}, timeout);
-			const handler = (e: MessageEvent<ShareableType>) => {
+			const handler = (e: MessageEvent<SendableType>) => {
 				clearTimeout(timerId);
-				resolve(deserialize(e.data, this.#sharedTypes) as T);
+				resolve(deserialize(e.data, this.#sendableTypes) as T);
 				this.removeEventListener('message', handler);
 			};
 			this.addEventListener('message', handler);
@@ -98,50 +97,50 @@ export default class Thread extends Worker {
 	}
 }
 
-function isShareableInstance(val: object): val is ShareableInstance {
+function isSendableInstance(val: object): val is SendableInstance {
 	return Thread.Send in val;
 }
-function isSharedInstance(val: object): val is SharedInstance {
-	return IsShared in val;
+function isSentInstance(val: object): val is SentInstance {
+	return IsSentByThread in val;
 }
 
 function serialize(
-	value: ShareableType,
-	sharedTypes: ShareableClass[],
+	value: SendableType,
+	sendableTypes: SendableClass[],
 ): unknown {
 	if (typeof value !== 'object' || value === null) {
 		return value;
 	}
-	if (isShareableInstance(value)) {
+	if (isSendableInstance(value)) {
 		return {
-			[IsShared]: [
-				sharedTypes.indexOf(Object.getPrototypeOf(value).constructor),
-				serialize(value[Thread.Send](), sharedTypes),
+			[IsSentByThread]: [
+				sendableTypes.indexOf(Object.getPrototypeOf(value).constructor),
+				serialize(value[Thread.Send](), sendableTypes),
 			],
 		};
 	}
 	for (const key in value) {
 		//@ts-ignore
-		value[key] = serialize(value[key], sharedTypes);
+		value[key] = serialize(value[key], sendableTypes);
 	}
 	return value;
 }
 function deserialize(
-	value: ShareableType,
-	sharedTypes: ShareableClass[],
+	value: SendableType,
+	sendableTypes: SendableClass[],
 ): unknown {
 	if (typeof value !== 'object' || value === null) {
 		return value;
 	}
-	if (isSharedInstance(value)) {
-		const [typeKey, data] = value[IsShared];
-		const deserializedData = deserialize(data, sharedTypes);
-		const TypeConstructor = sharedTypes[typeKey];
+	if (isSentInstance(value)) {
+		const [typeKey, data] = value[IsSentByThread];
+		const deserializedData = deserialize(data, sendableTypes);
+		const TypeConstructor = sendableTypes[typeKey];
 		return TypeConstructor[Thread.Receive](deserializedData as any);
 	}
 	for (const key in value) {
 		//@ts-ignore
-		value[key] = deserialize(value[key], sharedTypes);
+		value[key] = deserialize(value[key], sendableTypes);
 	}
 	return value;
 }

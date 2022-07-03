@@ -1,4 +1,4 @@
-import type { ShareableType } from '../utils/Thread';
+import type { SendableType } from '../utils/Thread';
 import type SystemRelationship from './SystemRelationship';
 
 export type DescriptorToArgument<T extends Descriptor> = T['__T'];
@@ -10,7 +10,7 @@ export interface Descriptor {
 
 export default interface Parameter<
 	T extends Descriptor = Descriptor,
-	S extends ShareableType = ShareableType,
+	S extends SendableType = SendableType,
 > {
 	// Utility methods
 	recognizesDescriptor(descriptor: T): boolean;

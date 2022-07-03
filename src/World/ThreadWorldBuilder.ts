@@ -14,7 +14,7 @@ import {
 import type { WorldConfig } from './config';
 import type { System } from '../utilTypes';
 
-Thread.globalSharedTypes = [SparseSet, Mutex, BigUintArray, Executor];
+Thread.globalSendableTypes = [SparseSet, Mutex, BigUintArray, Executor];
 
 export default class ThreadWorldBuilder {
 	#systems: SystemDefinition[] = [];
