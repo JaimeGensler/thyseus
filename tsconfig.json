@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"module": "esnext",
+		"target": "esnext",
+		"moduleResolution": "node",
+		"lib": ["dom", "DOM.Iterable", "ESNext"],
+		"strict": true,
+		"noImplicitAny": true,
+		"forceConsistentCasingInFileNames": true,
+		"isolatedModules": true,
+		"outDir": "build",
+		"types": ["vitest/importMeta"]
+	},
+	"exclude": ["node_modules"],
+	"include": ["src/**/*.d.ts", "src/**/*.ts"]
+}

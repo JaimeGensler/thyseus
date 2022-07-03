@@ -1,0 +1,28 @@
+{
+	"name": "thyseus",
+	"version": "0.1.0",
+	"description": "A multithreaded, DX-focused Typescript ECS",
+	"main": "src/index.ts",
+	"scripts": {
+		"start": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"test": "vitest",
+		"coverage": "vitest run --coverage"
+	},
+	"keywords": [
+		"ecs",
+		"entity component system",
+		"multithreaded",
+		"typescript",
+		"multithreading"
+	],
+	"author": "Jaime Gensler",
+	"license": "MIT",
+	"devDependencies": {
+		"@vitest/web-worker": "^0.16.0",
+		"typescript": "^4.7.4",
+		"vite": "^2.9.13",
+		"vitest": "^0.16.0"
+	}
+}
