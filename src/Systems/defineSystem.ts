@@ -5,15 +5,15 @@ type Parameters<T extends Descriptor[]> = {
 };
 
 export interface SystemDefinition<T extends Descriptor[] = any> {
-	(...args: Parameters<T>): void;
-	parameters?: T;
+	fn(...args: Parameters<T>): void;
+	parameters: T;
 }
 export default function defineSystem<T extends Descriptor[]>(
 	parameters: [...T],
-	definition: (...args: Parameters<T>) => void,
+	fn: (...args: Parameters<T>) => void,
 ): SystemDefinition<T> {
-	//@ts-ignore: You can add properties to functions.
-	definition.parameters = parameters;
-	//@ts-ignore: This is the correct type now.
-	return definition;
+	return {
+		fn,
+		parameters,
+	};
 }

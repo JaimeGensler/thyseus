@@ -101,7 +101,7 @@ export default class WorldBuilder {
 	}
 
 	#processSystem(system: SystemDefinition): void {
-		for (const descriptor of system.parameters!) {
+		for (const descriptor of system.parameters) {
 			for (const parameter of this.#parameters) {
 				if (parameter.type === descriptor.type) {
 					parameter.onAddSystem?.(descriptor);
@@ -111,10 +111,10 @@ export default class WorldBuilder {
 		}
 	}
 
-	#buildSystem(system: SystemDefinition): System {
+	#buildSystem({ fn, parameters }: SystemDefinition): System {
 		return {
-			execute: system,
-			args: system.parameters!.map((descriptor: any) => {
+			execute: fn,
+			args: parameters.map((descriptor: any) => {
 				const parameter = this.#parameters.find(
 					p => p.type === descriptor.type,
 				);

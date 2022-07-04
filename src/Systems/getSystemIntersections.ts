@@ -7,8 +7,8 @@ function getSystemRelationship(
 	right: SystemDefinition,
 	parameterTypes: Parameter[],
 ): SystemRelationship {
-	for (const pL of left.parameters!) {
-		for (const pR of right.parameters!) {
+	for (const pL of left.parameters) {
+		for (const pR of right.parameters) {
 			if (
 				pL.type === pR.type &&
 				parameterTypes
