@@ -1,3 +1,4 @@
+import type { Class } from '../utilTypes';
 import type { Type, TypeToTypedArray } from './Type';
 
 type SchemaField = Type | SchemaClass<any>;
@@ -17,7 +18,6 @@ export type SchemaData<T extends Schema = Schema> = {
 export interface SchemaClass<
 	T extends Schema = {},
 	I extends object = SchemaInstance<T>,
-> {
+> extends Class<I, [store: SchemaData<T>, index: number]> {
 	schema: T;
-	new (store: SchemaData<T>, index: number): I;
 }

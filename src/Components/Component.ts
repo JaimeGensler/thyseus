@@ -36,6 +36,10 @@ export default function Component(
 	}
 	return ComponentClass as any;
 }
+function isSchemaClass(val: unknown): val is SchemaClass {
+	return typeof val === 'function' && 'schema' in val;
+}
+Component.is = isSchemaClass;
 
 class TagComponent {
 	static schema = {};

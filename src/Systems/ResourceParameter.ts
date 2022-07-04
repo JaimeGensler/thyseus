@@ -1,7 +1,7 @@
 import SystemRelationship from './SystemRelationship';
 import Thread from '../utils/Thread';
 import Mut, { type Mutable } from './Mut';
-import { createStore, type SchemaClass } from '../Components';
+import { Component, createStore, type SchemaClass } from '../Components';
 import type { default as Parameter } from './Parameter';
 import type { WorldConfig } from '../World/config';
 import type { Class } from '../utilTypes';
@@ -14,7 +14,7 @@ export default class ResourceParameter
 	get type() {
 		return type;
 	}
-	#resources = new Map<Class, object>();
+	#resources = new Map<AnyResource, object>();
 	#nextId = 0;
 	#stores: object[] = [];
 	#schemaResources: SchemaClass[] = [];
@@ -38,7 +38,7 @@ export default class ResourceParameter
 		);
 	}
 	onAddSystem({ data: { resource } }: ResourceDescriptor) {
-		if (isSchemaClass(resource)) {
+		if (Component.is(resource)) {
 			this.#schemaResources.push(resource);
 		} else if (Thread.isSendableClass(resource)) {
 			this.#sendableClasses.push(resource);
@@ -61,11 +61,11 @@ export default class ResourceParameter
 
 	//@ts-ignore
 	onBuildSystem({ data: { resource } }: ResourceDescriptor) {
-		if (!globalThis.document && !isSchemaClass(resource)) return null;
+		if (!globalThis.document && !Component.is(resource)) return null;
 		if (!this.#resources.has(resource)) {
 			this.#resources.set(
 				resource,
-				isSchemaClass(resource)
+				Component.is(resource)
 					? new resource(this.#stores[this.#nextId++], 0)
 					: //@ts-ignore
 					  new resource(),
@@ -75,7 +75,7 @@ export default class ResourceParameter
 	}
 
 	isLocalToThread({ data: { resource } }: ResourceDescriptor) {
-		return !isSchemaClass(resource);
+		return !(Component.is(resource) || Thread.isSendableClass(resource));
 	}
 	getRelationship(left: ResourceDescriptor, right: ResourceDescriptor) {
 		if (
@@ -87,9 +87,9 @@ export default class ResourceParameter
 		return SystemRelationship.Intersecting;
 	}
 
-	static createDescriptor<
-		T extends Class | SchemaClass<any, any> | Mutable<any>,
-	>(resource: T): ResourceDescriptor<T> {
+	static createDescriptor<T extends AnyResource>(
+		resource: T,
+	): ResourceDescriptor<T> {
 		const isMut = Mut.is<Class | SchemaClass>(resource);
 		return {
 			type,
@@ -101,15 +101,15 @@ export default class ResourceParameter
 	}
 }
 
-function isSchemaClass(val: unknown): val is SchemaClass {
-	return typeof val === 'function' && 'schema' in val;
-}
-
-type AnyResource = Class | SchemaClass<any, any> | Mutable<Class | SchemaClass>;
+type AnyResource =
+	| Class<object, []>
+	| SchemaClass<any, any>
+	| SendableClass
+	| Mutable<Class | SchemaClass | SendableClass>;
 export interface ResourceDescriptor<T extends AnyResource = AnyResource> {
 	type: typeof type;
 	data: {
-		resource: Class | SchemaClass<any, any>;
+		resource: AnyResource;
 		accessType: 0 | 1;
 	};
 	__T: T extends Mutable<infer X>

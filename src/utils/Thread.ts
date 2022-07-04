@@ -1,11 +1,13 @@
+import type { Class } from '../utilTypes';
+
 // Symbols can't be sent to/from workers
 const IsSentByThread = '@IS_SENT_BY_THREAD';
 
 export interface SendableInstance<T extends SendableType = SendableType> {
 	[Thread.Send](): T;
 }
-export interface SendableClass<T extends SendableType = SendableType> {
-	new (...args: any[]): SendableInstance<T>;
+export interface SendableClass<T extends SendableType = undefined>
+	extends Class<SendableInstance<T>, any[]> {
 	[Thread.Receive](data: T): SendableInstance<T>;
 }
 interface SentInstance {
@@ -71,8 +73,14 @@ export default class Thread extends Worker {
 			globalThis.addEventListener('message', handler);
 		});
 	}
-	static isSendableClass(x: Function): x is SendableClass {
-		return Thread.Receive in x && Thread.Send in x.prototype;
+	static isSendableClass<T extends SendableType = undefined>(
+		x: unknown,
+	): x is SendableClass<T> {
+		return (
+			typeof x === 'function' &&
+			Thread.Receive in x &&
+			Thread.Send in x.prototype
+		);
 	}
 
 	constructor(scriptURL: string | URL, sendableTypes: SendableClass[]) {

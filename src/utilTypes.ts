@@ -1,4 +1,6 @@
-export type Class<T extends object = {}> = new (...args: any[]) => T;
+export interface Class<I extends object = {}, P extends any[] = []> {
+	new (...args: P): I;
+}
 
 export interface System {
 	args: any[];

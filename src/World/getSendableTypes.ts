@@ -10,7 +10,7 @@ const defaults = [SparseSet, Mutex, BigUintArray, MultiExecutor];
 export default function getSendableTypes(
 	parameters: Parameter[],
 ): SendableClass[] {
-	const sendable: SendableClass[] = [...defaults];
+	const sendable: SendableClass<any>[] = [...defaults];
 	for (const parameter of parameters) {
 		sendable.push(...(parameter.extendSendable?.() ?? []));
 	}
