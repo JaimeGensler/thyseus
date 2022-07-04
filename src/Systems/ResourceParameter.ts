@@ -6,6 +6,7 @@ import type { default as Parameter } from './Parameter';
 import type { WorldConfig } from '../World/config';
 import type { Class } from '../utilTypes';
 import type { SendableClass, SendableInstance } from '../utils/Thread';
+import AccessType from '../utils/AccessType';
 
 const type = Symbol();
 export default class ResourceParameter
@@ -85,7 +86,8 @@ export default class ResourceParameter
 	getRelationship(left: ResourceDescriptor, right: ResourceDescriptor) {
 		if (
 			left.data.resource !== right.data.resource ||
-			(left.data.accessType === 0 && right.data.accessType === 0)
+			(left.data.accessType === AccessType.Read &&
+				right.data.accessType === AccessType.Read)
 		) {
 			return SystemRelationship.Disjoint;
 		}
@@ -100,7 +102,7 @@ export default class ResourceParameter
 			type,
 			data: {
 				resource: isMut ? resource[0] : (resource as Class),
-				accessType: isMut ? 1 : 0,
+				accessType: isMut ? AccessType.Write : AccessType.Read,
 			},
 		} as any;
 	}
@@ -114,8 +116,8 @@ type AnyResource =
 export interface ResourceDescriptor<T extends AnyResource = AnyResource> {
 	type: typeof type;
 	data: {
-		resource: AnyResource;
-		accessType: 0 | 1;
+		resource: T;
+		accessType: AccessType;
 	};
 	__T: T extends Mutable<infer X>
 		? InstanceType<X>

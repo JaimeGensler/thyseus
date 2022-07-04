@@ -6,6 +6,7 @@ import { createStore, type SchemaClass, type SchemaData } from '../Components';
 import { TupleQuery, type Query } from '../Queries';
 import type { WorldConfig } from '../World/config';
 import type Parameter from './Parameter';
+import AccessType from '../utils/AccessType';
 
 const type = Symbol();
 export default class QueryParameter implements Parameter<QueryDescriptor<any>> {
@@ -80,14 +81,14 @@ export default class QueryParameter implements Parameter<QueryDescriptor<any>> {
 		for (let i = 0; i < left.data.components.length; i++) {
 			const Component = left.data.components[i];
 			const accessType = left.data.accessType[i];
-			(accessType === 0 ? cmp : cmpMut).add(Component);
+			(accessType === AccessType.Read ? cmp : cmpMut).add(Component);
 		}
 		for (let i = 0; i < right.data.components.length; i++) {
 			const Component = right.data.components[i];
 			const accessType = right.data.accessType[i];
 			if (
-				(accessType === 0 && cmpMut.has(Component)) ||
-				(accessType === 1 &&
+				(accessType === AccessType.Read && cmpMut.has(Component)) ||
+				(accessType === AccessType.Write &&
 					(cmp.has(Component) || cmpMut.has(Component)))
 			) {
 				return SystemRelationship.Intersecting;
@@ -105,12 +106,14 @@ export default class QueryParameter implements Parameter<QueryDescriptor<any>> {
 				(acc, comp) => {
 					const isMut = Mut.is<SchemaClass<any, any>>(comp);
 					acc.components.push(isMut ? comp[0] : comp);
-					acc.accessType.push(isMut ? 1 : 0);
+					acc.accessType.push(
+						isMut ? AccessType.Write : AccessType.Read,
+					);
 					return acc;
 				},
 				{
 					components: [] as SchemaClass<any, any>[],
-					accessType: [] as (0 | 1)[],
+					accessType: [] as AccessType[],
 				},
 			),
 		} as any;
@@ -122,7 +125,7 @@ interface QueryDescriptor<T extends QueryMember[]> {
 	type: typeof type;
 	data: {
 		components: SchemaClass<any, any>[];
-		accessType: (0 | 1)[];
+		accessType: AccessType[];
 	};
 	__T: Query<{
 		[Key in keyof T]: T[Key] extends SchemaClass<any, any>
