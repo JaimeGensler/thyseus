@@ -49,7 +49,7 @@ if (import.meta.vitest) {
 	const { P, defineSystem, Mut, QueryParameter, ResourceParameter } =
 		await import('.');
 
-	const sys = () => () => {};
+	const sys = () => {};
 
 	class AnyComponent {
 		static schema = {};
@@ -63,30 +63,30 @@ if (import.meta.vitest) {
 		describe('queries', () => {
 			const p = [new QueryParameter({} as any)];
 			it('that do not overlap return Disjoint', async () => {
-				const sys1 = defineSystem([P.Query([A, B])], sys());
-				const sys2 = defineSystem([P.Query([C, D])], sys());
+				const sys1 = defineSystem([P.Query([A, B])], sys);
+				const sys2 = defineSystem([P.Query([C, D])], sys);
 				expect(getSystemRelationship(sys1, sys2, p)).toBe(
 					SystemRelationship.Disjoint,
 				);
-				const sys3 = defineSystem([P.Query([Mut(A), Mut(B)])], sys());
-				const sys4 = defineSystem([P.Query([Mut(C), Mut(D)])], sys());
+				const sys3 = defineSystem([P.Query([Mut(A), Mut(B)])], sys);
+				const sys4 = defineSystem([P.Query([Mut(C), Mut(D)])], sys);
 				expect(getSystemRelationship(sys3, sys4, p)).toBe(
 					SystemRelationship.Disjoint,
 				);
 			});
 
 			it('that readonly overlap return Disjoint', () => {
-				const sys1 = defineSystem([P.Query([A, B])], sys());
-				const sys2 = defineSystem([P.Query([A, B])], sys());
+				const sys1 = defineSystem([P.Query([A, B])], sys);
+				const sys2 = defineSystem([P.Query([A, B])], sys);
 				expect(getSystemRelationship(sys1, sys2, p)).toBe(
 					SystemRelationship.Disjoint,
 				);
 			});
 
 			it('that read/write overlap return Intersecting', () => {
-				const sys1 = defineSystem([P.Query([Mut(A), B])], sys());
-				const sys2 = defineSystem([P.Query([A, D])], sys());
-				const sys3 = defineSystem([P.Query([C, Mut(B)])], sys());
+				const sys1 = defineSystem([P.Query([Mut(A), B])], sys);
+				const sys2 = defineSystem([P.Query([A, D])], sys);
+				const sys3 = defineSystem([P.Query([C, Mut(B)])], sys);
 
 				expect(getSystemRelationship(sys1, sys2, p)).toBe(
 					SystemRelationship.Intersecting,
@@ -100,31 +100,31 @@ if (import.meta.vitest) {
 		describe('resources', () => {
 			const p = [new ResourceParameter({} as any)];
 			it('that do not overlap return Disjoint', () => {
-				const sys1 = defineSystem([P.Res(A)], sys());
-				const sys2 = defineSystem([P.Res(B)], sys());
+				const sys1 = defineSystem([P.Res(A)], sys);
+				const sys2 = defineSystem([P.Res(B)], sys);
 				expect(getSystemRelationship(sys1, sys2, p)).toBe(
 					SystemRelationship.Disjoint,
 				);
 
-				const sys3 = defineSystem([P.Res(Mut(A))], sys());
-				const sys4 = defineSystem([P.Res(Mut(B))], sys());
+				const sys3 = defineSystem([P.Res(Mut(A))], sys);
+				const sys4 = defineSystem([P.Res(Mut(B))], sys);
 				expect(getSystemRelationship(sys3, sys4, p)).toBe(
 					SystemRelationship.Disjoint,
 				);
 			});
 
 			it('that readonly overlap return Disjoint', () => {
-				const sys1 = defineSystem([P.Res(A)], sys());
-				const sys2 = defineSystem([P.Res(A)], sys());
+				const sys1 = defineSystem([P.Res(A)], sys);
+				const sys2 = defineSystem([P.Res(A)], sys);
 				expect(getSystemRelationship(sys1, sys2, p)).toBe(
 					SystemRelationship.Disjoint,
 				);
 			});
 
 			it('that read/write overlap return Intersecting', () => {
-				const sys1 = defineSystem([P.Res(Mut(A))], sys());
-				const sys2 = defineSystem([P.Res(Mut(A))], sys());
-				const sys3 = defineSystem([P.Res(A)], sys());
+				const sys1 = defineSystem([P.Res(Mut(A))], sys);
+				const sys2 = defineSystem([P.Res(Mut(A))], sys);
+				const sys3 = defineSystem([P.Res(A)], sys);
 
 				expect(getSystemRelationship(sys1, sys2, p)).toBe(
 					SystemRelationship.Intersecting,
@@ -142,14 +142,14 @@ if (import.meta.vitest) {
 			new ResourceParameter({} as any),
 		];
 		it('returns bigint bitmasks indicating system intersection', () => {
-			const s0 = defineSystem([P.Query([Mut(A), B])], sys());
-			const s1 = defineSystem([P.Query([A, D])], sys());
-			const s2 = defineSystem([P.Query([Mut(B), C])], sys());
-			const s3 = defineSystem([P.Query([B, D])], sys());
+			const s0 = defineSystem([P.Query([Mut(A), B])], sys);
+			const s1 = defineSystem([P.Query([A, D])], sys);
+			const s2 = defineSystem([P.Query([Mut(B), C])], sys);
+			const s3 = defineSystem([P.Query([B, D])], sys);
 
-			const s4 = defineSystem([P.Res(B)], sys());
-			const s5 = defineSystem([P.Res(B)], sys());
-			const s6 = defineSystem([P.Res(Mut(B))], sys());
+			const s4 = defineSystem([P.Res(B)], sys);
+			const s5 = defineSystem([P.Res(B)], sys);
+			const s6 = defineSystem([P.Res(Mut(B))], sys);
 
 			const result = getSystemIntersections(
 				[s0, s1, s2, s3, s4, s5, s6],

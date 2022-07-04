@@ -61,7 +61,12 @@ export default class ResourceParameter
 
 	//@ts-ignore
 	onBuildSystem({ data: { resource } }: ResourceDescriptor) {
-		if (!globalThis.document && !Component.is(resource)) return null;
+		if (
+			!globalThis.document &&
+			!(Component.is(resource) || Thread.isSendableClass(resource))
+		) {
+			return null;
+		}
 		if (!this.#resources.has(resource)) {
 			this.#resources.set(
 				resource,
