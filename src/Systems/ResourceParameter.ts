@@ -69,12 +69,14 @@ export default class ResourceParameter
 			return null;
 		}
 		if (!this.#resources.has(resource)) {
+			const args: [object, 0] | [] = Component.is(resource)
+				? [this.#stores[this.#nextId++], 0]
+				: [];
 			this.#resources.set(
 				resource,
-				Component.is(resource)
-					? new resource(this.#stores[this.#nextId++], 0)
-					: //@ts-ignore
-					  new resource(),
+				hasCreateMethod(resource)
+					? resource.create(...args)
+					: new resource(...args),
 			);
 		}
 		return this.#resources.get(resource)!;
@@ -107,6 +109,11 @@ export default class ResourceParameter
 		} as any;
 	}
 }
+function hasCreateMethod(
+	x: Class,
+): x is Class & { create(...args: any[]): any } {
+	return 'create' in x;
+}
 
 type AnyResource =
 	| Class<object, []>
@@ -116,7 +123,7 @@ type AnyResource =
 export interface ResourceDescriptor<T extends AnyResource = AnyResource> {
 	type: typeof type;
 	data: {
-		resource: T;
+		resource: Class<object, any[]>;
 		accessType: AccessType;
 	};
 	__T: T extends Mutable<infer X>
