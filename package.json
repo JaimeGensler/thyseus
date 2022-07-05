@@ -3,6 +3,10 @@
 	"version": "0.1.0",
 	"description": "A multithreaded, DX-focused Typescript ECS",
 	"main": "src/index.ts",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/JaimeGensler/thyseus"
+	},
 	"scripts": {
 		"start": "vite",
 		"build": "vite build",

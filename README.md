@@ -1,5 +1,10 @@
 # Thyseus
 
+[![npm version](https://img.shields.io/npm/v/thyseus.svg?style=flat)](https://www.npmjs.com/package/thyseus)
+[![license: mit](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+[![pull requests: welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](./https://github.com/JaimeGensler/thyseus/pulls)
+[![code style: prettier](https://img.shields.io/badge/code%20style-prettier-ff69b4)](https://github.com/prettier/prettier)
+
 Thyseus is a multi-threaded, type-safe, DX-focused, and highly performant
 [Entity Component System](https://en.wikipedia.org/wiki/Entity_component_system)
 (ECS) built entirely in Typescript. It includes (or will include) many features
@@ -29,6 +34,12 @@ yarn add thyseus
 # or
 npm i thyseus
 ```
+
+## Contributing
+
+If you're interested in contributing, please have a look at the
+[code of conduct](./CODE_OF_CONDUCT.md) and the
+[contributing guide](./CONTRIBUTING.md) first. Cheers!
 
 ## Quick API Example:
 
@@ -129,7 +140,7 @@ export default await World.new({ threads: 2 }, import.meta.url)
 	...
 ```
 
-## Caveats
+### Caveats
 
 Multithreading with thyseus currently makes use of Atomics.waitAsync (Chrome
 only) and module workers (not yet implemented in Firefox). We're investigating
