@@ -106,6 +106,8 @@ if (import.meta.vitest) {
 			['greater than 64 bits', 75],
 		])('gets/sets elements when width is &s', (_, width) => {
 			const arr = BigUintArray.with(width, length);
+			expect(arr.width).toBe(width);
+			expect(arr.length).toBe(length);
 			expect(arr.bytesPerElement).toBe(Math.ceil(width / 8));
 			expect(arr.byteLength).toBe(arr.bytesPerElement * arr.length);
 			for (let i = 0; i < length; i++) {
@@ -126,7 +128,39 @@ if (import.meta.vitest) {
 			expect(arr.get(6)).toBe(BigInt(width * 5));
 		});
 
-		it.todo('correctly ors/ands/xors');
-		it.todo('desconstructs to and reconstructs from shareable interface');
+		it('correctly ORs/ANDs/XORs', () => {
+			const arr = BigUintArray.with(12, 3);
+			expect(arr.get(0)).toBe(0n);
+			arr.set(0, 0b1111_0000_1111n);
+			arr.orEquals(0, 0b0000_1111_0000n);
+			expect(arr.get(0)).toBe(0b1111_1111_1111n);
+
+			expect(arr.get(1)).toBe(0n);
+			arr.set(1, 0b1110_0000_0111n);
+			arr.andEquals(1, 0b1010_0101_1010n);
+			expect(arr.get(1)).toBe(0b1010_0000_0010n);
+
+			expect(arr.get(2)).toBe(0n);
+			arr.set(2, 0b1100_1010_0011n);
+			arr.xorEquals(2, 0b1111_0111_0111n);
+			expect(arr.get(2)).toBe(0b0011_1101_0100n);
+		});
+
+		it('desconstructs to and reconstructs from shareable interface', () => {
+			const arr = BigUintArray.with(13, 6);
+
+			const slots = [0b1n, 0n, 0n, 0b1011_1010n, 0b1_0000_0000_0000n, 0n];
+			slots.forEach((slot, i) => arr.set(i, slot));
+
+			const rec = BigUintArray[Thread.Receive](arr[Thread.Send]());
+			expect(arr.byteLength).toBe(rec.byteLength);
+			expect(arr.bytesPerElement).toBe(rec.bytesPerElement);
+			expect(arr.width).toBe(rec.width);
+			expect(arr.length).toBe(rec.length);
+
+			slots.forEach((slot, i) => expect(rec.get(i)).toBe(slot));
+			rec.set(1, 0b1001n);
+			expect(arr.get(1)).toBe(0b1001n);
+		});
 	});
 }
