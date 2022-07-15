@@ -43,7 +43,7 @@ Component.is = isSchemaClass;
 
 class TagComponent {
 	static schema = {};
-	constructor(store: null, eid: number) {
+	constructor(store: {}, eid: number) {
 		throw new Error('Tried to construct a Tag Component!');
 	}
 }

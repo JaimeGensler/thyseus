@@ -1,3 +1,5 @@
+import assert from '../utils/assert';
+
 export interface WorldConfig {
 	threads: number;
 	maxEntities: number;
@@ -17,28 +19,24 @@ export default function validateWorldConfig(
 	url: string | URL | undefined,
 ) {
 	if (threads > 1) {
-		if (!isSecureContext || typeof SharedArrayBuffer === 'undefined') {
-			throw new Error(
-				'Invalid config - Multithreading (threads > 1) requires SharedArrayBuffer, which requires a secure context.',
-			);
-		}
-		if (!url) {
-			throw new Error(
-				'Invalid config - Multithreading (threads > 1) requires a module URL parameter.',
-			);
-		}
+		assert(
+			isSecureContext && typeof SharedArrayBuffer !== 'undefined',
+			'Invalid config - Multithreading (threads > 1) requires SharedArrayBuffer, which requires a secure context.',
+		);
+		assert(
+			url,
+			'Invalid config - Multithreading (threads > 1) requires a module URL parameter.',
+		);
 	}
 	// TODO: Lower max threads?
-	if (threads < 1 || !Number.isSafeInteger(threads)) {
-		throw new Error(
-			"Invalid config - 'threads' must be a safe, positive integer (min 1).",
-		);
-	}
-	if (maxEntities < 0 || !Number.isSafeInteger(maxEntities)) {
-		throw new Error(
-			"Invalid config - 'maxEntities' must be a safe, positive integer.",
-		);
-	}
+	assert(
+		threads > 0 && Number.isSafeInteger(threads),
+		"Invalid config - 'threads' must be a safe, positive integer (min 1).",
+	);
+	assert(
+		maxEntities > 0 && Number.isSafeInteger(maxEntities),
+		"Invalid config - 'maxEntities' must be a safe, positive integer.",
+	);
 }
 
 /*---------*\

@@ -1,3 +1,4 @@
+import assert from '../utils/assert';
 import Thread from '../utils/Thread';
 
 enum LockState {
@@ -35,9 +36,10 @@ export default class Mutex {
 			LockState.Unlocked,
 		);
 		Atomics.notify(this.#state, 0);
-		if (oldValue !== LockState.Locked) {
-			throw new Error('Tried to unlock a mutex that was not locked.');
-		}
+		assert(
+			oldValue !== LockState.Locked,
+			'Tried to unlock a mutex that was not locked.',
+		);
 	}
 
 	[Thread.Send]() {

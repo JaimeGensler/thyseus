@@ -1,6 +1,7 @@
 import World from './World';
 import Thread from '../utils/Thread';
 import Executor from './Executor/MultiExecutor';
+import getSendableTypes from './getSendableTypes';
 import {
 	QueryParameter,
 	ResourceParameter,
@@ -10,7 +11,6 @@ import {
 } from '../Systems';
 import type { WorldConfig } from './config';
 import type { System } from '../utilTypes';
-import getSendableTypes from './getSendableTypes';
 
 export default class ThreadWorldBuilder {
 	#systems: SystemDefinition[] = [];
