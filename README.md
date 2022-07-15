@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/thyseus.svg?style=flat)](https://www.npmjs.com/package/thyseus)
 [![license: mit](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
-[![pull requests: welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](./https://github.com/JaimeGensler/thyseus/pulls)
+[![pull requests: welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/JaimeGensler/thyseus/pulls)
 [![code style: prettier](https://img.shields.io/badge/code%20style-prettier-ff69b4)](https://github.com/prettier/prettier)
 
 Thyseus is a multi-threaded, type-safe, DX-focused, and highly performant
@@ -14,10 +14,10 @@ out of the box, including:
 -   Hassle-free multithreading. Don't worry about `Atomic`s, Mutexes, or
     workers - just write your systems and we'll take care of the rest.
 -   _**A safety-first approach!**_ No `eval`, `new Function()`, or creating
-    workers from blobs - Thyseus leverages recent additions to the language (and
-    a little bit of ✨ magic ✨) to do what it needs to, and _will never use
+    workers from blobs - Thyseus leverages recent additions to the language and
+    a little bit of ✨ magic ✨ to do what it needs to, and _will never use
     unsafe code_.
--   First class Singletons - or Resources, as we like to call them!
+-   First-class Resources (singletons).
 -   Zero dependencies.
 -   _And more to come!_
 
@@ -43,8 +43,10 @@ If you're interested in contributing, please have a look at the
 
 ## Quick API Example:
 
-_This is an "quick & dirty" example to showcase the API - real docs and a better
-quickstart guide are in the works!_
+_This is a quick example to showcase the API - real docs and a better quickstart
+guide are in the works! For now, if you'd like to read about features, the
+[changelog](./CHANGELOG.md) is kept up-to-date and is probably the best place to
+find them._
 
 To get started, define a component:
 
