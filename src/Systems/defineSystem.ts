@@ -1,4 +1,4 @@
-import type { Descriptor, DescriptorToArgument } from './Parameter';
+import type { Descriptor, DescriptorToArgument } from './Parameters';
 
 type Parameters<T extends Descriptor[]> = {
 	[Index in keyof T]: DescriptorToArgument<T[Index]>;

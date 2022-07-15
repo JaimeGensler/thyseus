@@ -1,5 +1,5 @@
 import SystemRelationship from './SystemRelationship';
-import type Parameter from './Parameter';
+import type { Parameter } from './Parameters';
 import type { SystemDefinition } from './defineSystem';
 
 function getSystemRelationship(
@@ -46,8 +46,11 @@ export default function getSystemIntersections(
 \*---------*/
 if (import.meta.vitest) {
 	const { describe, it, expect } = import.meta.vitest;
-	const { P, defineSystem, Mut, QueryParameter, ResourceParameter } =
-		await import('.');
+	const { default: defineSystem } = await import('./defineSystem');
+	const { default: Mut } = await import('./Mut');
+	const { P, QueryParameter, ResourceParameter } = await import(
+		'./Parameters'
+	);
 
 	const sys = () => {};
 

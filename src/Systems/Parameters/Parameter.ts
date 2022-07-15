@@ -1,5 +1,5 @@
-import type { SendableClass, SendableType } from '../utils/Thread';
-import type SystemRelationship from './SystemRelationship';
+import type { SendableClass, SendableType } from '../../utils/Thread';
+import type SystemRelationship from '../SystemRelationship';
 
 export type DescriptorToArgument<T extends Descriptor> = T['__T'];
 export interface Descriptor {

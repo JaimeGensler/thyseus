@@ -1,12 +1,12 @@
-import SystemRelationship from './SystemRelationship';
-import Thread from '../utils/Thread';
-import Mut, { type Mutable } from './Mut';
-import { Component, createStore, type SchemaClass } from '../Components';
+import SystemRelationship from '../SystemRelationship';
+import Thread from '../../utils/Thread';
+import Mut, { type Mutable } from '../Mut';
+import { Component, createStore, type SchemaClass } from '../../Components';
 import type { default as Parameter } from './Parameter';
-import type { WorldConfig } from '../World/config';
-import type { Class } from '../utilTypes';
-import type { SendableClass, SendableInstance } from '../utils/Thread';
-import AccessType from '../utils/AccessType';
+import type { WorldConfig } from '../../World/config';
+import type { Class } from '../../utilTypes';
+import type { SendableClass, SendableInstance } from '../../utils/Thread';
+import AccessType from '../../utils/AccessType';
 
 const type = Symbol();
 export default class ResourceParameter

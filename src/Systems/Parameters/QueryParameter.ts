@@ -1,12 +1,16 @@
-import SystemRelationship from './SystemRelationship';
-import createFilter from '../utils/createFilter';
-import SparseSet from '../DataTypes/SparseSet';
-import Mut, { type Mutable } from './Mut';
-import { createStore, type SchemaClass, type SchemaData } from '../Components';
-import { TupleQuery, type Query } from '../Queries';
-import type { WorldConfig } from '../World/config';
+import SystemRelationship from '../SystemRelationship';
+import createFilter from '../../utils/createFilter';
+import SparseSet from '../../DataTypes/SparseSet';
+import Mut, { type Mutable } from '../Mut';
+import {
+	createStore,
+	type SchemaClass,
+	type SchemaData,
+} from '../../Components';
+import { TupleQuery, type Query } from '../../Queries';
+import type { WorldConfig } from '../../World/config';
 import type Parameter from './Parameter';
-import AccessType from '../utils/AccessType';
+import AccessType from '../../utils/AccessType';
 
 const type = Symbol();
 export default class QueryParameter implements Parameter<QueryDescriptor<any>> {

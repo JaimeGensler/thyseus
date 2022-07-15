@@ -1,5 +1,5 @@
 import type { SystemDefinition } from './defineSystem';
-import type { default as Parameter, Descriptor } from './Parameter';
+import type { Parameter, Descriptor } from './Parameters';
 
 export default function isSystemLocalToThread(
 	system: SystemDefinition,

@@ -1,8 +1,8 @@
-import SystemRelationship from './SystemRelationship';
-import EntityManager from '../utils/EntityManager';
+import SystemRelationship from '../SystemRelationship';
+import EntityManager from '../../utils/EntityManager';
 import QueryParameter from './QueryParameter';
-import type { WorldConfig } from '../World/config';
-import type { default as Parameter, Descriptor } from './Parameter';
+import type { WorldConfig } from '../../World/config';
+import type Parameter from './Parameter';
 
 const type = Symbol();
 export default class EntitiesParameter
