@@ -98,74 +98,75 @@ type SerializedSparseSet = [
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { describe, it, expect } = import.meta.vitest;
+	const { it, expect } = import.meta.vitest;
 
-	describe('SparseSet', () => {
-		const elements = [1, 7, 2, 15, 9, 0, 4];
+	const elements = [1, 7, 2, 15, 9, 0, 4];
 
-		it('adds elements', () => {
-			const set = SparseSet.with(16);
-			expect(set.size).toBe(0);
-			for (const element of elements) {
-				set.add(element);
-			}
-			for (const element of elements) {
-				expect(set.has(element)).toBe(true);
-			}
-			expect(set.size).toBe(elements.length);
-		});
+	it('adds elements', () => {
+		const set = SparseSet.with(16);
+		expect(set.size).toBe(0);
+		for (const element of elements) {
+			set.add(element);
+		}
+		for (const element of elements) {
+			expect(set.has(element)).toBe(true);
+		}
+		expect(set.size).toBe(elements.length);
+	});
 
-		it('deletes elements', () => {
-			const set = SparseSet.with(16);
-			for (let i = 0; i < 16; i++) {
-				set.add(i);
-			}
-			for (const element of elements) {
-				set.delete(element);
-			}
-			for (const element of elements) {
-				expect(set.has(element)).toBe(false);
-			}
-			expect(set.size).toBe(16 - elements.length);
-		});
+	it('deletes elements', () => {
+		const set = SparseSet.with(16);
+		for (let i = 0; i < 16; i++) {
+			set.add(i);
+		}
+		for (const element of elements) {
+			set.delete(element);
+		}
+		for (const element of elements) {
+			expect(set.has(element)).toBe(false);
+		}
+		expect(set.size).toBe(16 - elements.length);
+	});
 
-		it('iterates', () => {
-			const set = SparseSet.with(16);
-			for (const element of elements) {
-				set.add(element);
-			}
-			expect([...set]).toStrictEqual(elements);
-		});
+	it('iterates', () => {
+		const set = SparseSet.with(16);
+		for (const element of elements) {
+			set.add(element);
+		}
+		expect([...set]).toStrictEqual(elements);
+	});
 
-		it('throws a RangeError when trying to add an element out of range', () => {
-			const set = SparseSet.with(16);
-			set.add(3);
-			expect(set.has(3)).toBe(true);
-			expect(() => set.add(16)).toThrow(RangeError);
-			expect(() => set.add(64)).toThrow(RangeError);
-		});
-		it('returns false when checking presence of out of range elements', () => {
-			const set = SparseSet.with(16);
-			for (let i = 0; i < 16; i++) {
-				set.add(i);
-				expect(set.has(i)).toBe(true);
-			}
-			expect(set.has(16)).toBe(false);
-			expect(set.has(64)).toBe(false);
-		});
+	it('throws a RangeError when trying to add an element out of range', () => {
+		const set = SparseSet.with(16);
+		set.add(3);
+		expect(set.has(3)).toBe(true);
+		expect(() => set.add(16)).toThrow(RangeError);
+		expect(() => set.add(64)).toThrow(RangeError);
+	});
+	it('returns false when checking presence of out of range elements', () => {
+		const set = SparseSet.with(16);
+		for (let i = 0; i < 16; i++) {
+			set.add(i);
+			expect(set.has(i)).toBe(true);
+		}
+		expect(set.has(16)).toBe(false);
+		expect(set.has(64)).toBe(false);
+	});
 
-		it('desconstructs to and reconstructs from shareable interface', () => {
-			const set = SparseSet.with(8);
-
-			const shareableInterface = set[Thread.Send]();
-			expect(shareableInterface).toStrictEqual([
-				new Uint32Array(8),
-				new Uint32Array(8),
-				new Uint32Array(1),
-			]);
-
-			const reconstructed = SparseSet[Thread.Receive](shareableInterface);
-			expect(set).toStrictEqual(reconstructed);
-		});
+	it('desconstructs/reconstructs with Thread Send/Receive', () => {
+		const elements = [5, 2, 1, 0];
+		const set = SparseSet.with(8);
+		for (const el of elements) {
+			set.add(el);
+		}
+		const reconstructedSet = SparseSet[Thread.Receive](set[Thread.Send]());
+		expect(set.size).toBe(reconstructedSet.size);
+		expect(set.sparse).toBe(reconstructedSet.sparse);
+		expect(set.dense).toBe(reconstructedSet.dense);
+		for (const el of elements) {
+			expect(reconstructedSet.has(el)).toBe(true);
+		}
+		reconstructedSet.delete(2);
+		expect(set.has(2)).toBe(false);
 	});
 }
