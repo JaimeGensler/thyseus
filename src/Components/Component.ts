@@ -1,10 +1,8 @@
 import { Schema, SchemaClass, SchemaData } from './types';
 
-export default function Component(schema?: null | undefined): SchemaClass<{}>;
-export default function Component<T extends Schema>(schema: T): SchemaClass<T>;
-export default function Component(
-	schema?: null | undefined | object,
-): SchemaClass<any> {
+function Component(schema?: null | undefined): SchemaClass<{}>;
+function Component<T extends Schema>(schema: T): SchemaClass<T>;
+function Component(schema?: null | undefined | object): SchemaClass<any> {
 	if (!schema) {
 		//@ts-ignore
 		return TagComponent;
@@ -40,6 +38,7 @@ function isSchemaClass(val: unknown): val is SchemaClass {
 	return typeof val === 'function' && 'schema' in val;
 }
 Component.is = isSchemaClass;
+export default Component;
 
 class TagComponent {
 	static schema = {};

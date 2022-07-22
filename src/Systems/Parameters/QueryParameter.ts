@@ -12,10 +12,10 @@ import type { WorldConfig } from '../../World/config';
 import type Parameter from './Parameter';
 import AccessType from '../../utils/AccessType';
 
-const type = Symbol();
+const QUERY_TYPE = Symbol();
 export default class QueryParameter implements Parameter<QueryDescriptor<any>> {
 	get type() {
-		return type;
+		return QUERY_TYPE;
 	}
 
 	queries: TupleQuery<any>[] = [];
@@ -105,7 +105,7 @@ export default class QueryParameter implements Parameter<QueryDescriptor<any>> {
 		components: [...C],
 	): QueryDescriptor<C> {
 		return {
-			type,
+			type: QUERY_TYPE,
 			data: components.reduce(
 				(acc, comp) => {
 					const isMut = Mut.is<SchemaClass<any, any>>(comp);
@@ -126,7 +126,7 @@ export default class QueryParameter implements Parameter<QueryDescriptor<any>> {
 
 type QueryMember = SchemaClass<any, any> | Mutable<SchemaClass<any, any>>;
 interface QueryDescriptor<T extends QueryMember[]> {
-	type: typeof type;
+	type: typeof QUERY_TYPE;
 	data: {
 		components: SchemaClass<any, any>[];
 		accessType: AccessType[];

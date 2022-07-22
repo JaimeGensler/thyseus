@@ -8,12 +8,12 @@ import type { Class } from '../../utilTypes';
 import type { SendableClass, SendableInstance } from '../../utils/Thread';
 import AccessType from '../../utils/AccessType';
 
-const type = Symbol();
+const RESOURCE_TYPE = Symbol();
 export default class ResourceParameter
 	implements Parameter<ResourceDescriptor>
 {
 	get type() {
-		return type;
+		return RESOURCE_TYPE;
 	}
 	#resources = new Map<AnyResource, object>();
 	#nextId = 0;
@@ -60,18 +60,18 @@ export default class ResourceParameter
 		}
 	}
 
-	//@ts-ignore
-	onBuildSystem({ data: { resource } }: ResourceDescriptor) {
+	onBuildSystem({ data: { resource } }: ResourceDescriptor): object {
 		if (
 			!globalThis.document &&
 			!(Component.is(resource) || Thread.isSendableClass(resource))
 		) {
+			//@ts-ignore
 			return null;
 		}
 		if (!this.#resources.has(resource)) {
-			const args: [object, 0] | [] = Component.is(resource)
+			const args: [object, 0] | [WorldConfig] = Component.is(resource)
 				? [this.#stores[this.#nextId++], 0]
-				: [];
+				: [this.#config];
 			this.#resources.set(
 				resource,
 				hasCreateMethod(resource)
@@ -101,7 +101,7 @@ export default class ResourceParameter
 	): ResourceDescriptor<T> {
 		const isMut = Mut.is<Class | SchemaClass>(resource);
 		return {
-			type,
+			type: RESOURCE_TYPE,
 			data: {
 				resource: isMut ? resource[0] : (resource as Class),
 				accessType: isMut ? AccessType.Write : AccessType.Read,
@@ -121,7 +121,7 @@ type AnyResource =
 	| SendableClass
 	| Mutable<Class | SchemaClass | SendableClass>;
 export interface ResourceDescriptor<T extends AnyResource = AnyResource> {
-	type: typeof type;
+	type: typeof RESOURCE_TYPE;
 	data: {
 		resource: Class<object, any[]>;
 		accessType: AccessType;

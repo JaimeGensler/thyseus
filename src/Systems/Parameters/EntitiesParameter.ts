@@ -4,12 +4,12 @@ import QueryParameter from './QueryParameter';
 import type { WorldConfig } from '../../World/config';
 import type Parameter from './Parameter';
 
-const type = Symbol();
+const ENTITIES_TYPE = Symbol();
 export default class EntitiesParameter
 	implements Parameter<EntitiesDescriptor>
 {
 	get type() {
-		return type;
+		return ENTITIES_TYPE;
 	}
 	entityManager: EntityManager | null = null;
 
@@ -44,10 +44,10 @@ export default class EntitiesParameter
 		return DESCRIPTOR as any;
 	}
 }
-const DESCRIPTOR = { type, data: null };
+const DESCRIPTOR = { type: ENTITIES_TYPE, data: null };
 
 export interface EntitiesDescriptor {
-	type: typeof type;
+	type: typeof ENTITIES_TYPE;
 	data: null;
 	__T: EntityManager;
 }
