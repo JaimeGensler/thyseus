@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.0 (TBD)
+## v0.2.0 (July 31, 2022)
 
 ### 💥 Breaking Changes
 
