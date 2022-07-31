@@ -22,8 +22,7 @@ out of the box, including:
 -   _And more to come!_
 
 **Please note: Thyseus is in early development and is far from feature-complete.
-Pre-1.0.0 releases will not follow Semver and may have frequent breaking
-changes.**
+Pre-1.0.0 releases may have frequent breaking changes.**
 
 ## Installation
 
@@ -83,12 +82,12 @@ class Time extends Component({
 
 And then a couple systems:
 
+<!-- prettier-ignore -->
 ```ts
 import { defineSystem, P, Mut } from 'thyseus';
 import Time from './someModule';
 import { Position, Velocity } from './someOtherModule';
 
-//prettier-ignore
 const time = defineSystem(
 	[P.Res(Mut(Time))],
 	function updateTime(time) {
@@ -109,13 +108,13 @@ const mover = defineSystem(
 
 Sweet! Now let's make a world with these systems and get it started.
 
+<!-- prettier-ignore -->
 ```ts
 import World from 'thyseus';
 
 // Note that the .build() method returns a promise.
-// We think top-level await is the nicest way to handle this,
+// Top-level await is a convenient way to handle this,
 // but it's not a requirement.
-//prettier-ignore
 export default await World.new()
 	.addSystem(time)
 	.addSystem(mover)
@@ -127,16 +126,17 @@ And then run it!
 ```ts
 import myWorld from './worldModule';
 
-function loop() {
-	myWorld.update(); // This also returns a promise!
+async function loop() {
+	await myWorld.update(); // This also returns a promise!
 	requestAnimationFrame(loop);
 }
 loop();
 ```
 
-And if you'd like to run your system on two (or more) threads:
+If you'd like to run your systems on multiple threads:
 
 ```ts
+// Will use 2 threads (main thread and one worker)
 export default await World.new({ threads: 2 }, import.meta.url)
 	.addSystem(...)
 	...
@@ -144,6 +144,6 @@ export default await World.new({ threads: 2 }, import.meta.url)
 
 ### Caveats
 
-Multithreading with thyseus currently makes use of Atomics.waitAsync (Chrome
+Multithreading with thyseus currently makes use of `Atomics.waitAsync` (Chrome
 only) and module workers (not yet implemented in Firefox). We're investigating
 alternatives and closely monitoring browser implementation progress.
