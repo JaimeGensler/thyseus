@@ -1,14 +1,14 @@
 var L = (s, t, e) => {
   if (!t.has(s))
     throw TypeError("Cannot " + e);
-}, v = (s, t, e) => (L(s, t, "read from private field"), e ? e.call(s) : t.get(s)), F = (s, t, e) => {
+}, _ = (s, t, e) => (L(s, t, "read from private field"), e ? e.call(s) : t.get(s)), j = (s, t, e) => {
   if (t.has(s))
     throw TypeError("Cannot add the same private member more than once");
   t instanceof WeakSet ? t.add(s) : t.set(s, e);
 }, Y = (s, t, e, i) => (L(s, t, "write to private field"), i ? i.call(s, e) : t.set(s, e), e), m;
 const E = "@IS_SENT_BY_THREAD", B = class extends Worker {
   constructor(s, t) {
-    super(s, { type: "module" }), F(this, m, []), Y(this, m, t);
+    super(s, { type: "module" }), j(this, m, []), Y(this, m, t);
   }
   static send(s) {
     return globalThis.postMessage(S(s, this.globalSendableTypes)), this;
@@ -28,7 +28,7 @@ const E = "@IS_SENT_BY_THREAD", B = class extends Worker {
     return typeof s == "function" && B.Receive in s && B.Send in s.prototype;
   }
   send(s) {
-    return super.postMessage(S(s, v(this, m))), this;
+    return super.postMessage(S(s, _(this, m))), this;
   }
   receive(s = 3e3) {
     return new Promise((t, e) => {
@@ -36,7 +36,7 @@ const E = "@IS_SENT_BY_THREAD", B = class extends Worker {
         e("Timed out."), this.removeEventListener("message", n);
       }, s);
       const n = (r) => {
-        clearTimeout(i), t(b(r.data, v(this, m))), this.removeEventListener("message", n);
+        clearTimeout(i), t(b(r.data, _(this, m))), this.removeEventListener("message", n);
       };
       this.addEventListener("message", n);
     });
@@ -135,28 +135,37 @@ function l(s, t, e = Error) {
 }
 class k {
   #t;
-  constructor(t = new Int32Array(new SharedArrayBuffer(4))) {
-    this.#t = t;
+  #e;
+  constructor(t, e = new Int32Array(new SharedArrayBuffer(4))) {
+    this.#t = t, this.#e = e;
   }
   get isLocked() {
-    return this.#t[0] === 1;
+    return this.#e[0] === 1;
   }
-  async acquire() {
-    for (; ; ) {
-      if (Atomics.compareExchange(this.#t, 0, 0, 1) === 0)
-        return;
-      await Atomics.waitAsync(this.#t, 0, 1).value;
-    }
-  }
-  release() {
-    const t = Atomics.compareExchange(this.#t, 0, 1, 0);
-    Atomics.notify(this.#t, 0), l(t === 1, "Tried to unlock a mutex that was not locked.");
-  }
-  [c.Send]() {
+  UNSAFE_getData() {
     return this.#t;
   }
-  static [c.Receive](t) {
-    return new this(t);
+  async request(t) {
+    await this.#i();
+    const e = await t(this.#t);
+    return this.#s(), e;
+  }
+  async #i() {
+    for (; ; ) {
+      if (Atomics.compareExchange(this.#e, 0, 0, 1) === 0)
+        return;
+      await Atomics.waitAsync(this.#e, 0, 1).value;
+    }
+  }
+  #s() {
+    const t = Atomics.compareExchange(this.#e, 0, 1, 0);
+    Atomics.notify(this.#e, 0), l(t === 1, "Tried to unlock a mutex that was not locked.");
+  }
+  [c.Send]() {
+    return [this.#t, this.#e];
+  }
+  static [c.Receive]([t, e]) {
+    return new this(t, e);
   }
 }
 class T {
@@ -212,56 +221,53 @@ class T {
 }
 class q {
   static from(t, e) {
-    return new this(t, e, z.with(t.length, 2, !0), T.with(t.length, !0), new k());
+    return new this(t, e, T.with(t.length, !0), new k(z.with(t.length, 2, !0)));
   }
   #t;
   #e;
   #i;
   #s;
   #n;
-  #r;
-  constructor(t, e, i, n, r) {
-    this.#t = t, this.#e = e, this.#i = i, this.#s = n, this.#n = r, this.#r = new Int32Array(n[c.Send]()[2].buffer);
+  constructor(t, e, i, n) {
+    this.#e = t, this.#i = e, this.#s = i, this.#n = n, this.#t = new Int32Array(i[c.Send]()[2].buffer);
   }
   add(t) {
     this.#s.add(t);
   }
   start() {
-    Atomics.notify(this.#r, 0);
+    Atomics.notify(this.#t, 0);
   }
   reset() {
-    this.#i.set(0, 0n), this.#i.set(1, 0n);
+    const t = this.#n.UNSAFE_getData();
+    t.set(0, 0n), t.set(1, 0n);
   }
-  async whenReady(t) {
-    const { async: e, value: i } = Atomics.waitAsync(this.#r, 0, 0);
+  async onReady(t) {
+    const { async: e, value: i } = Atomics.waitAsync(this.#t, 0, 0);
     if (!e)
       throw new Error("Trying to wait while there are still systems to execute");
     await i, t();
-  }
-  async allSystemsDone() {
-    for (; ; ) {
-      if (this.#i.get(1) === 0n)
-        return;
-      await Atomics.waitAsync(this.#r, 0, this.#r[0]).value;
-    }
   }
   async *iter(t) {
     for (; this.#s.size + t.size > 0; ) {
       const e = this.#s.size;
       let i = -1;
-      await this.#n.acquire();
-      const n = this.#i.get(0), r = this.#i.get(1);
-      for (const o of [...t, ...this.#s])
-        if ((n & this.#t[o]) === 0n && (r & this.#e[o]) === this.#e[o]) {
-          i = o, this.#s.delete(o), t.delete(o), this.#i.orEquals(0, 1n << BigInt(o));
-          break;
-        }
-      this.#n.release(), i > -1 ? (yield i, await this.#n.acquire(), this.#i.xorEquals(0, 1n << BigInt(i)), this.#i.orEquals(1, 1n << BigInt(i)), this.#r[0] !== 0 && Atomics.notify(this.#r, 0), this.#n.release()) : e !== 0 && await Atomics.waitAsync(this.#r, 0, e).value;
+      await this.#n.request((n) => {
+        const r = n.get(0), o = n.get(1);
+        for (const h of [
+          ...t,
+          ...this.#s
+        ])
+          if ((r & this.#e[h]) === 0n && (o & this.#i[h]) === this.#i[h]) {
+            i = h, this.#s.delete(h), t.delete(h), n.orEquals(0, 1n << BigInt(h));
+            break;
+          }
+      }), i > -1 ? (yield i, await this.#n.request((n) => {
+        n.xorEquals(0, 1n << BigInt(i)), n.orEquals(1, 1n << BigInt(i)), (this.#t[0] !== 0 || this.#t[0] === 0 && n.get(0) === 0n) && Atomics.notify(this.#t, 0);
+      })) : e !== 0 && await Atomics.waitAsync(this.#t, 0, e).value;
     }
   }
   [c.Send]() {
     return [
-      this.#t,
       this.#e,
       this.#i,
       this.#s,
@@ -287,10 +293,7 @@ class V {
   start() {
     this.#t(0);
   }
-  allSystemsDone() {
-    return Promise.resolve();
-  }
-  async whenReady(t) {
+  async onReady(t) {
     await new Promise((e) => {
       this.#t = e;
     }), t();
@@ -357,7 +360,7 @@ function st(s) {
 I.is = st;
 function y(s) {
   if (!s)
-    return W;
+    return U;
   class t {
     constructor(i, n) {
       this.$ = i, this._ = n;
@@ -382,14 +385,14 @@ function it(s) {
   return typeof s == "function" && "schema" in s;
 }
 y.is = it;
-class W {
+class U {
   constructor(t, e) {
     throw new Error("Tried to construct a Tag Component!");
   }
 }
-W.schema = {};
+U.schema = {};
 var nt = /* @__PURE__ */ ((s) => (s[s.u8 = 0] = "u8", s[s.u16 = 1] = "u16", s[s.u32 = 2] = "u32", s[s.u64 = 3] = "u64", s[s.i8 = 4] = "i8", s[s.i16 = 5] = "i16", s[s.i32 = 6] = "i32", s[s.i64 = 7] = "i64", s[s.f32 = 8] = "f32", s[s.f64 = 9] = "f64", s))(nt || {});
-const P = {
+const W = {
   [0]: 1,
   [1]: 2,
   [2]: 4,
@@ -412,15 +415,15 @@ const P = {
   [8]: Float32Array,
   [9]: Float64Array
 };
-function U(s, { maxCount: t, isShared: e }) {
+function P(s, { maxCount: t, isShared: e }) {
   const i = $(s.schema), n = new (e ? SharedArrayBuffer : ArrayBuffer)(i * t);
   return N(s.schema, n, [0], t);
 }
-const $ = (s) => (Array.isArray(s) ? s : Object.values(s)).reduce((t, e) => t + (typeof e == "number" ? P[e] : $(e.schema)), 0), N = (s, t, e, i) => {
+const $ = (s) => (Array.isArray(s) ? s : Object.values(s)).reduce((t, e) => t + (typeof e == "number" ? W[e] : $(e.schema)), 0), N = (s, t, e, i) => {
   const n = Array.isArray(s);
   return Object.entries(s).reduce((r, [o, h], a) => {
     const d = n ? a : o;
-    return typeof h == "number" ? (r[d] = new rt[h](t, e[0], i), e[0] += i * P[h]) : r[d] = N(h.schema, t, e, i), r;
+    return typeof h == "number" ? (r[d] = new rt[h](t, e[0], i), e[0] += i * W[h]) : r[d] = N(h.schema, t, e, i), r;
   }, n ? [] : {});
 };
 class ot {
@@ -465,7 +468,7 @@ class g {
   }
   onBuildMainWorld() {
     for (const t of this.components)
-      this.stores.push(U(t, {
+      this.stores.push(P(t, {
         maxCount: this.#s.maxEntities,
         isShared: this.#s.threads > 1
       }));
@@ -510,13 +513,13 @@ class g {
     };
   }
 }
-const Q = Symbol();
+const F = Symbol();
 class p {
   constructor(t) {
     this.entityManager = null, this.#t = t;
   }
   get type() {
-    return Q;
+    return F;
   }
   #t;
   onBuildMainWorld(t) {
@@ -536,10 +539,10 @@ class p {
     return at;
   }
 }
-const at = { type: Q, data: null }, x = Symbol();
+const at = { type: F, data: null }, v = Symbol();
 class A {
   get type() {
-    return x;
+    return v;
   }
   #t = /* @__PURE__ */ new Map();
   #e = 0;
@@ -552,7 +555,7 @@ class A {
     this.#o = t;
   }
   onBuildMainWorld() {
-    this.#i = this.#s.map((t) => U(t, {
+    this.#i = this.#s.map((t) => P(t, {
       maxCount: 1,
       isShared: this.#o.threads > 1
     })), this.#r = this.#n.map((t) => new t());
@@ -589,7 +592,7 @@ class A {
   static createDescriptor(t) {
     const e = I.is(t);
     return {
-      type: x,
+      type: v,
       data: {
         resource: e ? t[0] : t,
         accessType: e ? u.Write : u.Read
@@ -629,15 +632,15 @@ function ct(s, t, e) {
   }), t.forEach((r, o) => {
     if (!!r) {
       if (r.beforeAll)
-        for (const h of _(e[o]))
+        for (const h of x(e[o]))
           h !== o && (i[o] & 1n << BigInt(h)) === 0n && (i[h] |= 1n << BigInt(o));
       if (r.afterAll)
-        for (const h of _(e[o]))
+        for (const h of x(e[o]))
           h !== o && (i[h] & 1n << BigInt(o)) === 0n && (i[o] |= 1n << BigInt(h));
     }
   }), i.forEach((r, o) => i[o] &= e[o]), i;
 }
-function* _(s) {
+function* x(s) {
   let t = 0;
   for (; s !== 0n; )
     (s & 1n) === 1n && (yield t), s >>= 1n, t++;
@@ -656,7 +659,7 @@ const ft = {
   threads: 1,
   maxEntities: 2 ** 16
 };
-function j({ threads: s, maxEntities: t }, e) {
+function Q({ threads: s, maxEntities: t }, e) {
   s > 1 && (l(isSecureContext && typeof SharedArrayBuffer < "u", "Invalid config - Multithreading (threads > 1) requires SharedArrayBuffer, which requires a secure context."), l(e, "Invalid config - Multithreading (threads > 1) requires a module URL parameter.")), l(s > 0 && Number.isSafeInteger(s), "Invalid config - 'threads' must be a safe, positive integer (min 1)."), l(t > 0 && Number.isSafeInteger(t), "Invalid config - 'maxEntities' must be a safe, positive integer.");
 }
 class lt {
@@ -668,7 +671,7 @@ class lt {
   #r;
   #o;
   constructor(t, e) {
-    j(t, e), this.#r = t, this.#o = e, this.#s = [
+    Q(t, e), this.#r = t, this.#o = e, this.#s = [
       new g(t),
       new A(t),
       new p(t)
@@ -725,7 +728,7 @@ class pt {
   #i;
   #s;
   constructor(t) {
-    j(t, void 0), this.#s = t, this.#i = [
+    Q(t, void 0), this.#s = t, this.#i = [
       new g(t),
       new A(t),
       new p(t)
@@ -822,19 +825,20 @@ class R {
   #n;
   #r;
   constructor(t, e, i, n, r) {
-    this.#e = t, this.#i = e, this.#s = i, this.#n = n, this.#r = r, D && this.#i.updateQueries(), this.#n.whenReady(() => this.#o());
+    this.#e = t, this.#i = e, this.#s = i, this.#n = n, this.#r = r, D && this.#i.updateQueries(), this.#n.onReady(() => this.#o());
   }
   async update() {
+    this.#n.reset();
     for (let t = 0; t < this.#e.length; t++)
       this.#r.has(t) ? this.#t.add(t) : this.#n.add(t);
-    this.#n.start(), await this.#n.allSystemsDone(), this.#n.reset();
+    this.#n.start();
   }
   async #o() {
     for await (const t of this.#n.iter(this.#t)) {
       const e = this.#e[t];
       e.execute(...e.args);
     }
-    this.#n.whenReady(() => this.#o());
+    this.#n.onReady(() => this.#o());
   }
 }
 export {
