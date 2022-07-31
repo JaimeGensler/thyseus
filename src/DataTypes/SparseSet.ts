@@ -114,6 +114,22 @@ if (import.meta.vitest) {
 		expect(set.size).toBe(elements.length);
 	});
 
+	it('does not double-add elements', () => {
+		const set = SparseSet.with(16);
+		set.add(1).add(1).add(3).add(3);
+		expect(set.has(1)).toBe(true);
+		expect(set.has(3)).toBe(true);
+		expect([...set]).toStrictEqual([1, 3]);
+	});
+	it('does not delete elements that the set does not contain', () => {
+		const set = SparseSet.with(16);
+		set.add(1).add(3);
+		set.delete(4);
+		expect(set.has(1)).toBe(true);
+		expect(set.has(3)).toBe(true);
+		expect([...set]).toStrictEqual([1, 3]);
+	});
+
 	it('deletes elements', () => {
 		const set = SparseSet.with(16);
 		for (let i = 0; i < 16; i++) {
@@ -126,6 +142,19 @@ if (import.meta.vitest) {
 			expect(set.has(element)).toBe(false);
 		}
 		expect(set.size).toBe(16 - elements.length);
+	});
+
+	it('clears all elements', () => {
+		const set = SparseSet.with(16);
+		for (const element of elements) {
+			set.add(element);
+		}
+		expect(set.size).toBe(elements.length);
+		set.clear();
+		expect(set.size).toBe(0);
+		expect([...set]).toStrictEqual([]);
+		set.add(1);
+		expect(set.has(1)).toBe(true);
 	});
 
 	it('iterates', () => {

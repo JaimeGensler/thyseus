@@ -49,42 +49,36 @@ if (import.meta.vitest) {
 		(config: Partial<WorldConfig>, url?: string | undefined) => () =>
 			validateWorldConfig({ ...DEFAULT_WORLD_CONFIG, ...config }, url);
 
-	describe('validateWorldConfig', () => {
-		afterEach(() => {
-			vi.restoreAllMocks();
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	describe('when threads > 1', () => {
+		it('throws if isSecureContext is false', () => {
+			vi.stubGlobal('isSecureContext', false);
+			expect(validate({ threads: 2 }, '/')).toThrow(/SharedArrayBuffer/);
 		});
 
-		describe('when threads > 1', () => {
-			it('throws if isSecureContext is false', () => {
-				vi.stubGlobal('isSecureContext', false);
-				expect(validate({ threads: 2 }, '/')).toThrow(
-					/SharedArrayBuffer/,
-				);
-			});
-
-			it('throws if a falsy module URL is provided', () => {
-				vi.stubGlobal('isSecureContext', true);
-				const expectedError = /module URL/;
-				expect(validate({ threads: 2 }, '')).toThrow(expectedError);
-				expect(validate({ threads: 2 }, undefined)).toThrow(
-					expectedError,
-				);
-			});
+		it('throws if a falsy module URL is provided', () => {
+			vi.stubGlobal('isSecureContext', true);
+			const expectedError = /module URL/;
+			expect(validate({ threads: 2 }, '')).toThrow(expectedError);
+			expect(validate({ threads: 2 }, undefined)).toThrow(expectedError);
 		});
+	});
 
-		it('throws if threads < 1, or not a safe, positive integer', () => {
-			expect(validate({ threads: 0 }, '/')).toThrow(
-				/'threads' must be a safe/,
-			);
-		});
+	it('throws if threads < 1, or not a safe, positive integer', () => {
+		expect(validate({ threads: 0 }, '/')).toThrow(
+			/'threads' must be a safe/,
+		);
+	});
 
-		it('throws if maxEntities is not a safe, positive integer', () => {
-			const expectedError = /'maxEntities' must be a safe/;
-			expect(
-				validate({ maxEntities: Number.MAX_SAFE_INTEGER + 1 }),
-			).toThrow(expectedError);
-			expect(validate({ maxEntities: Math.PI })).toThrow(expectedError);
-			expect(validate({ maxEntities: -1 })).toThrow(expectedError);
-		});
+	it('throws if maxEntities is not a safe, positive integer', () => {
+		const expectedError = /'maxEntities' must be a safe/;
+		expect(validate({ maxEntities: Number.MAX_SAFE_INTEGER + 1 })).toThrow(
+			expectedError,
+		);
+		expect(validate({ maxEntities: Math.PI })).toThrow(expectedError);
+		expect(validate({ maxEntities: -1 })).toThrow(expectedError);
 	});
 }
