@@ -52,10 +52,11 @@ export default class World {
 			//@ts-ignore
 			this.#entityManager.updateQueries();
 		}
-		this.#executor.whenReady(() => this.#runSystems());
+		this.#executor.onReady(() => this.#runSystems());
 	}
 
 	async update() {
+		this.#executor.reset();
 		for (let i = 0; i < this.#systems.length; i++) {
 			if (this.#localSystems.has(i)) {
 				this.#mutLocalSystems.add(i);
@@ -71,6 +72,6 @@ export default class World {
 			const system = this.#systems[sid];
 			system.execute(...system.args);
 		}
-		this.#executor.whenReady(() => this.#runSystems());
+		this.#executor.onReady(() => this.#runSystems());
 	}
 }

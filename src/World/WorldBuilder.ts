@@ -1,20 +1,23 @@
 import World from './World';
 import Thread from '../utils/Thread';
-import getSystemIntersections from '../Systems/getSystemIntersections';
 import { MultiExecutor } from './Executor';
+import isSystemLocalToThread from '../Systems/isSystemLocalToThread';
+import getSendableTypes from './getSendableTypes';
 import {
 	QueryParameter,
 	ResourceParameter,
 	EntitiesParameter,
+	getSystemDependencies,
+	getSystemIntersections,
+	type Dependencies,
 	type Parameter,
+	type SystemDefinition,
 } from '../Systems';
 import validateWorldConfig, { type WorldConfig } from './config';
-import type { SystemDefinition } from '../Systems';
 import type { System } from '../utilTypes';
-import isSystemLocalToThread from '../Systems/isSystemLocalToThread';
-import getSendableTypes from './getSendableTypes';
 
 export default class WorldBuilder {
+	#systemDependencies: (Dependencies | undefined)[] = [];
 	#systems: SystemDefinition[] = [];
 	#startupSystems: SystemDefinition[] = [];
 	#parameters: Parameter[];
@@ -33,8 +36,9 @@ export default class WorldBuilder {
 		];
 	}
 
-	addSystem(system: SystemDefinition): this {
+	addSystem(system: SystemDefinition, dependencies?: Dependencies): this {
 		this.#systems.push(system);
+		this.#systemDependencies.push(dependencies);
 		this.#processSystem(system);
 		return this;
 	}
@@ -56,9 +60,16 @@ export default class WorldBuilder {
 			this.#buildSystem(system),
 		);
 
-		const executor = MultiExecutor.from(
-			getSystemIntersections(this.#systems, this.#parameters),
+		const intersections = getSystemIntersections(
+			this.#systems,
+			this.#parameters,
 		);
+		const dependencies = getSystemDependencies(
+			this.#systems,
+			this.#systemDependencies,
+			intersections,
+		);
+		const executor = MultiExecutor.from(intersections, dependencies);
 
 		const sendable = getSendableTypes(this.#parameters);
 		if (this.#config.threads > 1) {

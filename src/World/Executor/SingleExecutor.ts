@@ -11,11 +11,12 @@ export default class SingleExecutor implements Executor {
 	}
 
 	add() {}
+	reset() {}
 	start() {
 		this.#wait(0);
 	}
 
-	async whenReady(fn: () => void) {
+	async onReady(fn: () => void) {
 		await new Promise(resolve => {
 			this.#wait = resolve;
 		});
