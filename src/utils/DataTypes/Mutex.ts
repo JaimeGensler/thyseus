@@ -1,5 +1,5 @@
-import assert from '../utils/assert';
-import Thread from '../utils/Thread';
+import assert from '../assert';
+import Thread from '../Thread';
 
 enum LockState {
 	Unlocked,

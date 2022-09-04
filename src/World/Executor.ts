@@ -1,16 +1,20 @@
-import BigUintArray from '../../DataTypes/BigUintArray';
-import Mutex from '../../DataTypes/Mutex';
-import Thread from '../../utils/Thread';
-import SparseSet from '../../DataTypes/SparseSet';
-import Executor from './type';
+import BigUintArray from '../utils/DataTypes/BigUintArray';
+import Mutex from '../utils/DataTypes/Mutex';
+import Thread from '../utils/Thread';
+import SparseSet from '../utils/DataTypes/SparseSet';
 
-export default class MultiExecutor implements Executor {
-	static from(intersections: bigint[], dependencies: bigint[]) {
+export default class Executor {
+	static from(
+		intersections: bigint[],
+		dependencies: bigint[],
+		local: Set<number>,
+	) {
 		return new this(
 			intersections,
 			dependencies,
 			SparseSet.with(intersections.length, true),
 			new Mutex(BigUintArray.with(intersections.length, 2, true)),
+			local,
 		);
 	}
 
@@ -20,11 +24,13 @@ export default class MultiExecutor implements Executor {
 	#dependencies: bigint[];
 	#systemsToExecute: SparseSet;
 	#lock: Mutex<BigUintArray>; // [ SystemsRunning, SystemsCompleted ]
+	#local: Set<number>;
 	constructor(
 		intersections: bigint[],
 		dependencies: bigint[],
 		systemsToExecute: SparseSet,
 		lock: Mutex<BigUintArray>,
+		local: Set<number>,
 	) {
 		this.#intersections = intersections;
 		this.#dependencies = dependencies;
@@ -33,6 +39,7 @@ export default class MultiExecutor implements Executor {
 		this.#signal = new Int32Array(
 			systemsToExecute[Thread.Send]()[2].buffer,
 		);
+		this.#local = local;
 	}
 
 	add(system: number) {
@@ -58,18 +65,16 @@ export default class MultiExecutor implements Executor {
 		fn();
 	}
 
-	async *iter(additional: Set<number>) {
-		while (this.#systemsToExecute.size + additional.size > 0) {
+	async *[Symbol.asyncIterator]() {
+		const local = new Set(this.#local);
+		while (this.#systemsToExecute.size + local.size > 0) {
 			const size = this.#systemsToExecute.size;
 			let runningSystem = -1;
 
 			await this.#lock.request(status => {
 				const active = status.get(0);
 				const deps = status.get(1);
-				for (const systemId of [
-					...additional,
-					...this.#systemsToExecute,
-				]) {
+				for (const systemId of [...local, ...this.#systemsToExecute]) {
 					if (
 						(active & this.#intersections[systemId]) === 0n &&
 						(deps & this.#dependencies[systemId]) ===
@@ -77,8 +82,8 @@ export default class MultiExecutor implements Executor {
 					) {
 						runningSystem = systemId;
 						this.#systemsToExecute.delete(systemId);
-						additional.delete(systemId);
-						status.orEquals(0, 1n << BigInt(systemId));
+						local.delete(systemId);
+						status.OR(0, 1n << BigInt(systemId));
 						break;
 					}
 				}
@@ -88,8 +93,8 @@ export default class MultiExecutor implements Executor {
 				yield runningSystem;
 
 				await this.#lock.request(status => {
-					status.xorEquals(0, 1n << BigInt(runningSystem));
-					status.orEquals(1, 1n << BigInt(runningSystem));
+					status.XOR(0, 1n << BigInt(runningSystem));
+					status.OR(1, 1n << BigInt(runningSystem));
 					if (
 						this.#signal[0] !== 0 ||
 						(this.#signal[0] === 0 && status.get(0) === 0n)
@@ -112,7 +117,7 @@ export default class MultiExecutor implements Executor {
 		];
 	}
 	static [Thread.Receive](data: SerializedExecutor) {
-		return new this(...data);
+		return new this(...data, new Set());
 	}
 }
 type SerializedExecutor = [
@@ -131,9 +136,10 @@ if (import.meta.vitest) {
 	const emptyMask = [0b0000n, 0b0000n, 0b0000n, 0b0000n];
 
 	it('calls whenReady callback when started', async () => {
-		const exec = MultiExecutor.from(
+		const exec = Executor.from(
 			[0b110n, 0b000n, 0b000n],
 			[0b000n, 0b000n, 0b000n],
+			new Set(),
 		);
 		const spy = vi.fn();
 		const promise = exec.onReady(spy);
@@ -144,13 +150,13 @@ if (import.meta.vitest) {
 	});
 
 	it('iterates all elements with no intersections, no dependencies)', async () => {
-		const exec = MultiExecutor.from(emptyMask, emptyMask);
+		const exec = Executor.from(emptyMask, emptyMask, new Set());
 		for (let i = 0; i < 4; i++) {
 			exec.add(i);
 		}
 
 		const visited: number[] = [];
-		for await (const id of exec.iter(new Set())) {
+		for await (const id of exec) {
 			expect(visited).not.toContain(id);
 			visited.push(id);
 		}
@@ -160,16 +166,17 @@ if (import.meta.vitest) {
 	});
 
 	it('iterates elements with intersections', async () => {
-		const exec = MultiExecutor.from(
+		const exec = Executor.from(
 			[0b1000n, 0b0000n, 0b0000n, 0b0001n],
 			emptyMask,
+			new Set(),
 		);
 		for (let i = 0; i < 4; i++) {
 			exec.add(i);
 		}
 
-		const iter1 = exec.iter(new Set());
-		const iter2 = exec.iter(new Set());
+		const iter1 = exec[Symbol.asyncIterator]();
+		const iter2 = exec[Symbol.asyncIterator]();
 		let res1 = await iter1.next();
 		let res2 = await iter2.next();
 		expect(res1.value).not.toBe(res2.value);
@@ -189,18 +196,17 @@ if (import.meta.vitest) {
 	});
 
 	it('iterates elements with dependencies', async () => {
-		const exec = MultiExecutor.from(emptyMask, [
-			0b0000n,
-			0b0000n,
-			0b0000n,
-			0b0001n,
-		]);
+		const exec = Executor.from(
+			emptyMask,
+			[0b0000n, 0b0000n, 0b0000n, 0b0001n],
+			new Set(),
+		);
 		for (let i = 0; i < 4; i++) {
 			exec.add(i);
 		}
 
-		const iter1 = exec.iter(new Set());
-		const iter2 = exec.iter(new Set());
+		const iter1 = exec[Symbol.asyncIterator]();
+		const iter2 = exec[Symbol.asyncIterator]();
 		let res1 = await iter1.next();
 		let res2 = await iter2.next();
 		expect(res1.value).not.toBe(res2.value);
@@ -220,18 +226,17 @@ if (import.meta.vitest) {
 	});
 
 	it('does not run callbacks in whenReady queue when iterating', async () => {
-		const exec = MultiExecutor.from(emptyMask, [
-			0b0000n,
-			0b0000n,
-			0b0000n,
-			0b0001n,
-		]);
+		const exec = Executor.from(
+			emptyMask,
+			[0b0000n, 0b0000n, 0b0000n, 0b0001n],
+			new Set(),
+		);
 		for (let i = 0; i < 4; i++) {
 			exec.add(i);
 		}
 
-		const iter1 = exec.iter(new Set());
-		const iter2 = exec.iter(new Set());
+		const iter1 = exec[Symbol.asyncIterator]();
+		const iter2 = exec[Symbol.asyncIterator]();
 		await iter1.next();
 		await iter2.next();
 		await iter2.next();

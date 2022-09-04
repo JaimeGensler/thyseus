@@ -1,18 +1,18 @@
-import type { SchemaClass, SchemaData } from '../Components/types';
+import type { ComponentType, ComponentStore } from '../Components/types';
 import type { Query } from '../Queries';
 
 export default class EntityManager {
-	#nextId: number = 0;
-	#unusedIds: number[] = [];
+	#nextId = 0;
+	#unusedIds = [] as number[];
 	#entityData = [] as bigint[];
-	#dirtyEntities: Set<number> = new Set();
+	#dirtyEntities = new Set<number>();
 
-	#stores: SchemaData[];
-	#components: SchemaClass[];
+	#stores: ComponentStore[];
+	#components: ComponentType[];
 	#queries: Query<any>[];
 	constructor(
-		stores: SchemaData[],
-		components: SchemaClass[],
+		stores: ComponentStore[],
+		components: ComponentType[],
 		queries: Query<any>[],
 	) {
 		this.#stores = stores;
@@ -30,7 +30,7 @@ export default class EntityManager {
 		this.#dirtyEntities.clear();
 	}
 
-	spawn(...components: SchemaClass<any, any>[]): number {
+	spawn(...components: ComponentType<any>[]): number {
 		const id = this.#unusedIds.pop() ?? this.#nextId++;
 		this.#entityData[id] = 0n;
 		this.insert(id, ...components);
@@ -42,14 +42,14 @@ export default class EntityManager {
 		this.#entityData[entity] = 0n;
 	}
 
-	insert(entity: number, ...components: SchemaClass<any, any>[]): void {
+	insert(entity: number, ...components: ComponentType<any>[]): void {
 		for (const component of components) {
 			this.#dirtyEntities.add(entity);
 			this.#entityData[entity] |=
 				1n << BigInt(this.#components.indexOf(component as any));
 		}
 	}
-	remove(entity: number, ...components: SchemaClass[]): void {
+	remove(entity: number, ...components: ComponentType[]): void {
 		for (const component of components) {
 			this.#dirtyEntities.add(entity);
 			this.#entityData[entity] &= ~(

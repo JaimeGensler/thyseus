@@ -11,12 +11,12 @@ Thyseus is a multi-threaded, type-safe, DX-focused, and highly performant
 out of the box, including:
 
 -   A simple yet expressive and type-safe API.
--   Hassle-free multithreading. Don't worry about `Atomic`s, Mutexes, or
+-   Hassle-free multithreading. Don't worry about scheduling, Mutexes, or
     workers - just write your systems and we'll take care of the rest.
 -   _**A safety-first approach!**_ No `eval`, `new Function()`, or creating
     workers from blobs - Thyseus leverages recent additions to the language and
-    a little bit of ✨ magic ✨ to do what it needs to, and _will never use
-    unsafe code_.
+    a little bit of ✨ magic ✨ to do what it needs to, and _**will never use
+    unsafe code**_.
 -   First-class Resources (singletons).
 -   Zero dependencies.
 -   _And more to come!_
@@ -65,19 +65,13 @@ class Velocity extends Vec2 {}
 Let's add a resource to track the time:
 
 ```ts
-import { Component, Type } from 'thyseus';
+import { Resource, Type } from 'thyseus';
 
-class Time extends Component({
+class Time extends Resource({
 	current: Type.f64,
 	previous: Type.f64,
 	delta: Type.f64,
-}) {
-	update() {
-		this.previous = this.current;
-		this.current = Date.now();
-		this.delta = (this.current - this.previous) / 1000;
-	}
-}
+}) {}
 ```
 
 And then a couple systems:
@@ -88,9 +82,9 @@ import { defineSystem, P, Mut } from 'thyseus';
 import Time from './someModule';
 import { Position, Velocity } from './someOtherModule';
 
-const time = defineSystem(
+const updateTime = defineSystem(
 	[P.Res(Mut(Time))],
-	function updateTime(time) {
+	function updateTimeSystem(time) {
 		time.previous = time.current;
 		time.current = Date.now();
 		time.delta = (time.current - time.previous) / 1000;
@@ -98,7 +92,7 @@ const time = defineSystem(
 );
 const mover = defineSystem(
 	[P.Query([Mut(Position), Velocity]), P.Res(Time)],
-	function move(query, time) {
+	function moverSystem(query, time) {
 		for (const [pos, vel] of query) {
 			pos.addScaled(vel, time.delta);
 		}
@@ -116,7 +110,7 @@ import World from 'thyseus';
 // Top-level await is a convenient way to handle this,
 // but it's not a requirement.
 export default await World.new()
-	.addSystem(time)
+	.addSystem(updateTime)
 	.addSystem(mover)
 	.build();
 ```
@@ -124,7 +118,7 @@ export default await World.new()
 And then run it!
 
 ```ts
-import myWorld from './worldModule';
+import myWorld from './someOtherModule';
 
 async function loop() {
 	await myWorld.update(); // This also returns a promise!
@@ -142,8 +136,9 @@ export default await World.new({ threads: 2 }, import.meta.url)
 	...
 ```
 
-### Caveats
+### Notes on Multithreading
 
-Multithreading with thyseus currently makes use of `Atomics.waitAsync` (Chrome
-only) and module workers (not yet implemented in Firefox). We're investigating
-alternatives and closely monitoring browser implementation progress.
+Full documentation and caveats for multithreading will be provided when
+documentation is completed. Currently, multithreading makes use of
+`SharedArrayBuffer`, module workers (not yet implemented in Firefox), and
+`Atomics.waitAsync` (Chrome only, alternatives being investigated).

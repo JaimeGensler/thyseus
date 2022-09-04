@@ -1,19 +1,7 @@
-import Thread from '../utils/Thread';
+import Thread from '../Thread';
 
 const b255 = 0b1111_1111n;
 export default class BigUintArray {
-	width: number;
-	length: number;
-	#data: Uint8Array;
-	#bytesPerElement: number;
-
-	get bytesPerElement() {
-		return this.#bytesPerElement;
-	}
-	get byteLength() {
-		return this.#data.byteLength;
-	}
-
 	static with(
 		width: number,
 		length: number,
@@ -27,12 +15,23 @@ export default class BigUintArray {
 		);
 	}
 
+	#bytesPerElement: number;
+
+	width: number;
+	length: number;
+	#data: Uint8Array;
 	constructor(width: number, length: number, data: Uint8Array) {
 		this.width = width;
 		this.length = length;
 		this.#data = data;
 
 		this.#bytesPerElement = Math.ceil(this.width / 8);
+	}
+	get bytesPerElement() {
+		return this.#bytesPerElement;
+	}
+	get byteLength() {
+		return this.#data.byteLength;
 	}
 
 	get(element: number): bigint {
@@ -49,19 +48,19 @@ export default class BigUintArray {
 			this.#data[index + i] = Number((value >> BigInt(i * 8)) & b255);
 		}
 	}
-	orEquals(element: number, value: bigint) {
+	OR(element: number, value: bigint) {
 		const index = this.#bytesPerElement * element;
 		for (let i = 0; i < this.#bytesPerElement; i++) {
 			this.#data[index + i] |= Number((value >> BigInt(i * 8)) & b255);
 		}
 	}
-	andEquals(element: number, value: bigint) {
+	AND(element: number, value: bigint) {
 		const index = this.#bytesPerElement * element;
 		for (let i = 0; i < this.#bytesPerElement; i++) {
 			this.#data[index + i] &= Number((value >> BigInt(i * 8)) & b255);
 		}
 	}
-	xorEquals(element: number, value: bigint) {
+	XOR(element: number, value: bigint) {
 		const index = this.#bytesPerElement * element;
 		for (let i = 0; i < this.#bytesPerElement; i++) {
 			this.#data[index + i] ^= Number((value >> BigInt(i * 8)) & b255);
@@ -85,7 +84,7 @@ type SerializedBigUintNArray = [
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { describe, it, expect } = import.meta.vitest;
+	const { it, expect } = import.meta.vitest;
 
 	const getMaxValue = (width: number) => {
 		let result = 1n;
@@ -131,17 +130,17 @@ if (import.meta.vitest) {
 		const arr = BigUintArray.with(12, 3);
 		expect(arr.get(0)).toBe(0n);
 		arr.set(0, 0b1111_0000_1111n);
-		arr.orEquals(0, 0b0000_1111_0000n);
+		arr.OR(0, 0b0000_1111_0000n);
 		expect(arr.get(0)).toBe(0b1111_1111_1111n);
 
 		expect(arr.get(1)).toBe(0n);
 		arr.set(1, 0b1110_0000_0111n);
-		arr.andEquals(1, 0b1010_0101_1010n);
+		arr.AND(1, 0b1010_0101_1010n);
 		expect(arr.get(1)).toBe(0b1010_0000_0010n);
 
 		expect(arr.get(2)).toBe(0n);
 		arr.set(2, 0b1100_1010_0011n);
-		arr.xorEquals(2, 0b1111_0111_0111n);
+		arr.XOR(2, 0b1111_0111_0111n);
 		expect(arr.get(2)).toBe(0b0011_1101_0100n);
 	});
 

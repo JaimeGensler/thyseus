@@ -1,41 +1,30 @@
-import SystemRelationship from './SystemRelationship';
-import type { Parameter } from './Parameters';
 import type { SystemDefinition } from './defineSystem';
 
+enum SystemRelationship {
+	Disjoint,
+	Intersecting,
+}
 function getSystemRelationship(
 	left: SystemDefinition,
 	right: SystemDefinition,
-	parameterTypes: Parameter[],
 ): SystemRelationship {
-	for (const pL of left.parameters) {
-		for (const pR of right.parameters) {
-			if (
-				pL.type === pR.type &&
-				parameterTypes
-					.find(p => p.type === pL.type)
-					?.getRelationship(pL, pR) ===
-					SystemRelationship.Intersecting
-			) {
-				return SystemRelationship.Intersecting;
-			}
-		}
-	}
-	return SystemRelationship.Disjoint;
+	return left.parameters.some(pL =>
+		right.parameters.some(
+			pR => pL.intersectsWith(pR) || pR.intersectsWith(pL),
+		),
+	)
+		? SystemRelationship.Intersecting
+		: SystemRelationship.Disjoint;
 }
 
-// NOTE: This may mark a system as self-intersecting,
-// if that system does anything more than read.
-// At present, that should be fine, and possibly desireable.
 export default function getSystemIntersections(
 	systems: SystemDefinition[],
-	parameters: Parameter[],
 ): bigint[] {
 	return systems.map(current =>
 		systems.reduce(
 			(acc, other, i) =>
 				acc |
-				(BigInt(getSystemRelationship(current, other, parameters)) <<
-					BigInt(i)),
+				(BigInt(getSystemRelationship(current, other)) << BigInt(i)),
 			0n,
 		),
 	);
@@ -45,105 +34,87 @@ export default function getSystemIntersections(
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { describe, it, expect } = import.meta.vitest;
+	const { describe, it, expect, vi } = import.meta.vitest;
 	const { default: defineSystem } = await import('./defineSystem');
 	const { default: Mut } = await import('./Mut');
-	const { P, QueryParameter, ResourceParameter } = await import(
-		'./Parameters'
-	);
+	const { P } = await import('./Descriptors');
+	const { Component } = await import('../Components');
 
 	const sys = () => {};
 
-	class AnyComponent {
-		static schema = {};
-	}
+	const AnyComponent = Component();
 	class A extends AnyComponent {}
 	class B extends AnyComponent {}
 	class C extends AnyComponent {}
 	class D extends AnyComponent {}
 
+	const getDescriptor = (ret: boolean = false) => ({
+		intersectsWith: vi.fn().mockReturnValue(ret),
+	});
+
 	describe('getSystemRelationship', () => {
-		describe('queries', () => {
-			const p = [new QueryParameter({} as any)];
-			it('that do not overlap return Disjoint', async () => {
-				const sys1 = defineSystem([P.Query([A, B])], sys);
-				const sys2 = defineSystem([P.Query([C, D])], sys);
-				expect(getSystemRelationship(sys1, sys2, p)).toBe(
-					SystemRelationship.Disjoint,
-				);
-				const sys3 = defineSystem([P.Query([Mut(A), Mut(B)])], sys);
-				const sys4 = defineSystem([P.Query([Mut(C), Mut(D)])], sys);
-				expect(getSystemRelationship(sys3, sys4, p)).toBe(
-					SystemRelationship.Disjoint,
-				);
-			});
-
-			it('that readonly overlap return Disjoint', () => {
-				const sys1 = defineSystem([P.Query([A, B])], sys);
-				const sys2 = defineSystem([P.Query([A, B])], sys);
-				expect(getSystemRelationship(sys1, sys2, p)).toBe(
-					SystemRelationship.Disjoint,
-				);
-			});
-
-			it('that read/write overlap return Intersecting', () => {
-				const sys1 = defineSystem([P.Query([Mut(A), B])], sys);
-				const sys2 = defineSystem([P.Query([A, D])], sys);
-				const sys3 = defineSystem([P.Query([C, Mut(B)])], sys);
-
-				expect(getSystemRelationship(sys1, sys2, p)).toBe(
-					SystemRelationship.Intersecting,
-				);
-				expect(getSystemRelationship(sys1, sys3, p)).toBe(
-					SystemRelationship.Intersecting,
-				);
-			});
+		it('returns Intersecting if any descriptor intersects', () => {
+			const d1 = Array.from({ length: 3 }, getDescriptor);
+			const d2 = Array.from({ length: 6 }, (_, i) =>
+				getDescriptor(i === 5),
+			);
+			expect(
+				getSystemRelationship(
+					{ parameters: d1 } as any,
+					{ parameters: d2 } as any,
+				),
+			).toBe(SystemRelationship.Intersecting);
+		});
+		it('returns Disjoint if no descriptors intersect', () => {
+			const d1 = Array.from({ length: 7 }, getDescriptor);
+			const d2 = Array.from({ length: 2 }, getDescriptor);
+			expect(
+				getSystemRelationship(
+					{ parameters: d1 } as any,
+					{ parameters: d2 } as any,
+				),
+			).toBe(SystemRelationship.Disjoint);
 		});
 
-		describe('resources', () => {
-			const p = [new ResourceParameter({} as any)];
-			it('that do not overlap return Disjoint', () => {
-				const sys1 = defineSystem([P.Res(A)], sys);
-				const sys2 = defineSystem([P.Res(B)], sys);
-				expect(getSystemRelationship(sys1, sys2, p)).toBe(
-					SystemRelationship.Disjoint,
-				);
+		it('checks all unique descriptor pairs', () => {
+			const d1 = Array.from({ length: 4 }, getDescriptor);
+			const d2 = Array.from({ length: 4 }, getDescriptor);
+			getSystemRelationship(
+				{ parameters: d1 } as any,
+				{ parameters: d2 } as any,
+			);
+			for (let i = 0; i < 4; i++) {
+				expect(d1[i].intersectsWith).toHaveBeenCalledWith(d2[0]);
+				expect(d1[i].intersectsWith).toHaveBeenCalledWith(d2[1]);
+				expect(d1[i].intersectsWith).toHaveBeenCalledWith(d2[2]);
+				expect(d1[i].intersectsWith).toHaveBeenCalledWith(d2[3]);
+			}
+		});
 
-				const sys3 = defineSystem([P.Res(Mut(A))], sys);
-				const sys4 = defineSystem([P.Res(Mut(B))], sys);
-				expect(getSystemRelationship(sys3, sys4, p)).toBe(
-					SystemRelationship.Disjoint,
-				);
-			});
+		it('checks both descriptors for intersection in case of asymmetric descriptor pairs', () => {
+			const nonInter1 = getDescriptor(false);
+			const inter1 = getDescriptor(true);
+			const result1 = getSystemRelationship(
+				{ parameters: [inter1] } as any,
+				{ parameters: [nonInter1] } as any,
+			);
+			expect(inter1.intersectsWith).toHaveBeenCalledWith(nonInter1);
+			expect(nonInter1.intersectsWith).not.toHaveBeenCalledWith(inter1);
+			expect(result1).toBe(SystemRelationship.Intersecting);
 
-			it('that readonly overlap return Disjoint', () => {
-				const sys1 = defineSystem([P.Res(A)], sys);
-				const sys2 = defineSystem([P.Res(A)], sys);
-				expect(getSystemRelationship(sys1, sys2, p)).toBe(
-					SystemRelationship.Disjoint,
-				);
-			});
-
-			it('that read/write overlap return Intersecting', () => {
-				const sys1 = defineSystem([P.Res(Mut(A))], sys);
-				const sys2 = defineSystem([P.Res(Mut(A))], sys);
-				const sys3 = defineSystem([P.Res(A)], sys);
-
-				expect(getSystemRelationship(sys1, sys2, p)).toBe(
-					SystemRelationship.Intersecting,
-				);
-				expect(getSystemRelationship(sys1, sys3, p)).toBe(
-					SystemRelationship.Intersecting,
-				);
-			});
+			const nonInter2 = getDescriptor(false);
+			const inter2 = getDescriptor(true);
+			const result2 = getSystemRelationship(
+				{ parameters: [nonInter2] } as any,
+				{ parameters: [inter2] } as any,
+			);
+			expect(inter2.intersectsWith).toHaveBeenCalledWith(nonInter2);
+			expect(nonInter2.intersectsWith).toHaveBeenCalledWith(inter2);
+			expect(result2).toBe(SystemRelationship.Intersecting);
 		});
 	});
 
 	describe('getSystemIntersections', () => {
-		const p = [
-			new QueryParameter({} as any),
-			new ResourceParameter({} as any),
-		];
 		it('returns bigint bitmasks indicating system intersection', () => {
 			const s0 = defineSystem([P.Query([Mut(A), B])], sys);
 			const s1 = defineSystem([P.Query([A, D])], sys);
@@ -154,10 +125,7 @@ if (import.meta.vitest) {
 			const s5 = defineSystem([P.Res(B)], sys);
 			const s6 = defineSystem([P.Res(Mut(B))], sys);
 
-			const result = getSystemIntersections(
-				[s0, s1, s2, s3, s4, s5, s6],
-				p,
-			);
+			const result = getSystemIntersections([s0, s1, s2, s3, s4, s5, s6]);
 			expect(result[0]).toBe(0b0000_0111n);
 			expect(result[1]).toBe(0b0000_0001n);
 			expect(result[2]).toBe(0b0000_1101n);

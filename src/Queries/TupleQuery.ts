@@ -1,18 +1,17 @@
-import type { SchemaClass } from '../Components';
-import type { SchemaData } from '../Components/types';
-import type SparseSet from '../DataTypes/SparseSet';
+import type { ComponentType, ComponentStore } from '../Components';
+import type SparseSet from '../utils/DataTypes/SparseSet';
 import type Query from './Query';
 
 export default class TupleQuery<C extends object[]> implements Query<C> {
-	#elements: InstanceType<SchemaClass>[];
+	#elements: InstanceType<ComponentType>[];
 
-	#components: SchemaClass[];
-	#stores: SchemaData[];
+	#components: ComponentType[];
+	#stores: ComponentStore[];
 	entities: SparseSet;
 	#filter: bigint;
 	constructor(
-		components: SchemaClass[],
-		stores: SchemaData[],
+		components: ComponentType[],
+		stores: ComponentStore[],
 		entities: SparseSet,
 		filter: bigint,
 	) {

@@ -1,10 +1,6 @@
-import Thread from '../utils/Thread';
+import Thread from '../Thread';
 
 export default class SparseSet {
-	dense: Uint32Array;
-	sparse: Uint32Array;
-	#meta: Uint32Array;
-
 	static with(length: number, isShared = false) {
 		const BufferType = isShared ? SharedArrayBuffer : ArrayBuffer;
 		return new this(
@@ -14,6 +10,9 @@ export default class SparseSet {
 		);
 	}
 
+	sparse: Uint32Array;
+	dense: Uint32Array;
+	#meta: Uint32Array;
 	constructor(
 		sparse: Uint32Array,
 		dense: Uint32Array,

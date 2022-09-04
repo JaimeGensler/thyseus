@@ -1,18 +1,19 @@
-import { Schema, SchemaClass, SchemaData } from './types';
+import { Schema, ComponentType, ComponentStore } from './types';
 
-function Component(schema?: null | undefined): SchemaClass<{}>;
-function Component<T extends Schema>(schema: T): SchemaClass<T>;
-function Component(schema?: null | undefined | object): SchemaClass<any> {
+function Component(schema?: null | undefined): ComponentType<{}>;
+function Component<T extends Schema>(schema: T): ComponentType<T>;
+function Component(
+	schema?: null | undefined | object,
+): ComponentType<any, any> {
 	if (!schema) {
-		//@ts-ignore
 		return TagComponent;
 	}
 
 	class ComponentClass {
 		static schema = schema;
-		$: SchemaData;
+		$: ComponentStore;
 		_: number;
-		constructor(store: SchemaData, eid: number) {
+		constructor(store: ComponentStore, eid: number) {
 			this.$ = store;
 			this._ = eid;
 		}
@@ -34,15 +35,9 @@ function Component(schema?: null | undefined | object): SchemaClass<any> {
 	}
 	return ComponentClass as any;
 }
-function isSchemaClass(val: unknown): val is SchemaClass {
-	return typeof val === 'function' && 'schema' in val;
-}
-Component.is = isSchemaClass;
+
 export default Component;
 
 class TagComponent {
 	static schema = {};
-	constructor(store: {}, eid: number) {
-		throw new Error('Tried to construct a Tag Component!');
-	}
 }

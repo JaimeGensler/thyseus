@@ -1,23 +1,23 @@
-import type { Class } from '../utilTypes';
 import type { Type, TypeToTypedArray } from './Type';
 
-type SchemaField = Type | SchemaClass<any>;
+type SchemaField = Type | ComponentType<any>;
 export type Schema = SchemaField[] | { [key: string]: SchemaField };
+
+export type ComponentStore<T extends Schema = Schema> = {
+	[Key in keyof T]: T[Key] extends Type
+		? TypeToTypedArray<T[Key]>
+		: T extends ComponentType<infer X>
+		? ComponentStore<X>
+		: ComponentStore<T[Key] extends Schema ? T[Key] : never>;
+};
 
 export type SchemaInstance<T extends Schema> = {
 	[Key in keyof T]: T[Key] extends Type.u64 | Type.i64 ? bigint : number;
 };
-export type SchemaData<T extends Schema = Schema> = {
-	[Key in keyof T]: T[Key] extends Type
-		? TypeToTypedArray<T[Key]>
-		: T extends SchemaClass<infer X>
-		? SchemaData<X>
-		: SchemaData<T[Key] extends Schema ? T[Key] : never>;
-};
-
-export interface SchemaClass<
+export interface ComponentType<
 	T extends Schema = {},
 	I extends object = SchemaInstance<T>,
-> extends Class<I, [store: SchemaData<T>, index: number]> {
+> {
 	schema: T;
+	new (store: ComponentStore<T>, index: number): I;
 }

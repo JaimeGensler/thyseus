@@ -1,20 +1,18 @@
-import { Schema, SchemaClass, SchemaData } from './types';
+import { Schema, ComponentType, ComponentStore } from './types';
 import { typeToBytes, typeToConstructor } from './Type';
+import type { WorldConfig } from '../World/config';
 
-interface CreateStoreOptions {
-	maxCount: number;
-	isShared: boolean;
-}
 export default function createStore<T extends Schema>(
-	schemaClass: SchemaClass<T>,
-	{ maxCount, isShared }: CreateStoreOptions,
-): SchemaData<T> {
-	const bytesPerElement = getBytesPerElement(schemaClass.schema);
+	ComponentType: ComponentType<T>,
+	{ maxEntities, threads }: WorldConfig,
+): ComponentStore<T> {
+	const isShared = threads > 1;
+	const bytesPerElement = getBytesPerElement(ComponentType.schema);
 	const buffer: ArrayBufferLike = new (
 		isShared ? SharedArrayBuffer : ArrayBuffer
-	)(bytesPerElement * maxCount);
+	)(bytesPerElement * maxEntities);
 
-	return getSchemaStore(schemaClass.schema, buffer, [0], maxCount);
+	return getSchemaStore(ComponentType.schema, buffer, [0], maxEntities);
 }
 
 const getBytesPerElement = (schema: Schema): number =>
@@ -32,7 +30,7 @@ const getSchemaStore = (
 	buffer: ArrayBufferLike,
 	offset: [number],
 	length: number,
-): SchemaData<any> => {
+): ComponentStore<any> => {
 	const isArray = Array.isArray(schema);
 
 	return Object.entries(schema).reduce((acc, [stringKey, field], index) => {
@@ -44,5 +42,5 @@ const getSchemaStore = (
 			acc[key] = getSchemaStore(field.schema, buffer, offset, length);
 		}
 		return acc;
-	}, (isArray ? [] : {}) as SchemaData<any>);
+	}, (isArray ? [] : {}) as ComponentStore<any>);
 };

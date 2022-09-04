@@ -1,5 +1,5 @@
-export interface Class<I extends object = {}, P extends any[] = []> {
-	new (...args: P): I;
+export interface Class {
+	new (...args: any[]): object;
 }
 
 export interface System {

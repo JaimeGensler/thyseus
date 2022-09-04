@@ -8,20 +8,25 @@ export interface SingleThreadedWorldConfig extends WorldConfig {
 	threads: 1;
 }
 
-export const DEFAULT_WORLD_CONFIG: WorldConfig = {
-	threads: 1,
-	maxEntities: 2 ** 16, // 65_536
-};
+function getCompleteConfig(config: Partial<WorldConfig> | undefined = {}) {
+	return {
+		threads: 1,
+		maxEntities: 2 ** 16, // 65_536
+		...config,
+	};
+}
 
 // TODO: Provide better info on how to resolve these errors.
-export default function validateWorldConfig(
-	{ threads, maxEntities }: WorldConfig,
-	url: string | URL | undefined,
-) {
+function validateConfig(config: WorldConfig, url: string | URL | undefined) {
+	const { threads, maxEntities } = config;
 	if (threads > 1) {
 		assert(
-			isSecureContext && typeof SharedArrayBuffer !== 'undefined',
-			'Invalid config - Multithreading (threads > 1) requires SharedArrayBuffer, which requires a secure context.',
+			isSecureContext,
+			'Invalid config - Multithreading (threads > 1) requires a secure context.',
+		);
+		assert(
+			typeof SharedArrayBuffer !== 'undefined',
+			'Invalid config - Multithreading (threads > 1) requires SharedArrayBuffer.',
 		);
 		assert(
 			url,
@@ -38,6 +43,14 @@ export default function validateWorldConfig(
 		"Invalid config - 'maxEntities' must be a safe, positive integer.",
 	);
 }
+export default function validateAndCompleteConfig(
+	inConfig: Partial<WorldConfig> | undefined,
+	url: string | URL | undefined,
+) {
+	const completeConfig = getCompleteConfig(inConfig);
+	validateConfig(completeConfig, url);
+	return completeConfig;
+}
 
 /*---------*\
 |   TESTS   |
@@ -47,7 +60,7 @@ if (import.meta.vitest) {
 
 	const validate =
 		(config: Partial<WorldConfig>, url?: string | undefined) => () =>
-			validateWorldConfig({ ...DEFAULT_WORLD_CONFIG, ...config }, url);
+			validateConfig(getCompleteConfig(config), url);
 
 	afterEach(() => {
 		vi.restoreAllMocks();
@@ -56,11 +69,19 @@ if (import.meta.vitest) {
 	describe('when threads > 1', () => {
 		it('throws if isSecureContext is false', () => {
 			vi.stubGlobal('isSecureContext', false);
+			vi.stubGlobal('SharedArrayBuffer', ArrayBuffer);
+			expect(validate({ threads: 2 }, '/')).toThrow(/secure context/);
+		});
+
+		it('throws if SharedArrayBuffer is undefined', () => {
+			vi.stubGlobal('isSecureContext', true);
+			vi.stubGlobal('SharedArrayBuffer', undefined);
 			expect(validate({ threads: 2 }, '/')).toThrow(/SharedArrayBuffer/);
 		});
 
 		it('throws if a falsy module URL is provided', () => {
 			vi.stubGlobal('isSecureContext', true);
+			vi.stubGlobal('SharedArrayBuffer', ArrayBuffer);
 			const expectedError = /module URL/;
 			expect(validate({ threads: 2 }, '')).toThrow(expectedError);
 			expect(validate({ threads: 2 }, undefined)).toThrow(expectedError);
@@ -80,5 +101,24 @@ if (import.meta.vitest) {
 		);
 		expect(validate({ maxEntities: Math.PI })).toThrow(expectedError);
 		expect(validate({ maxEntities: -1 })).toThrow(expectedError);
+	});
+
+	it('completes partial config', () => {
+		const result = getCompleteConfig();
+		expect(result).toHaveProperty('threads');
+		expect(result.threads).toBe(1);
+		expect(result).toHaveProperty('maxEntities');
+
+		const result2 = getCompleteConfig({ threads: 2 });
+		expect(result2.threads).toBe(2);
+		expect(result2).toHaveProperty('maxEntities');
+	});
+
+	it('validates and completes partial config', () => {
+		expect(() => validateAndCompleteConfig({ threads: 0 }, '/')).toThrow();
+
+		expect(validateAndCompleteConfig({ threads: 2 }, '/')).toHaveProperty(
+			'maxEntities',
+		);
 	});
 }

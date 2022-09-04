@@ -3,9 +3,9 @@ import { Class } from '../utilTypes';
 export default function assert(
 	x: unknown,
 	errorMessage: string,
-	errorConstructor: Class<Error, [string]> = Error,
+	ErrorConstructor: Class = Error,
 ): asserts x {
 	if (!x) {
-		throw new errorConstructor(errorMessage);
+		throw new ErrorConstructor(errorMessage);
 	}
 }
