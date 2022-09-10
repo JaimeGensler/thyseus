@@ -1,22 +1,23 @@
 import World from './World';
 import Executor from './Executor';
 import getDefaultSendableClasses from './getDefaultSendableClasses';
-import applyCommands from '../Systems/applyCommands';
-import Thread, { type SendableClass } from '../utils/Thread';
+import zipIntoMap from '../utils/zipIntoMap';
+import WorldCommands from './WorldCommands';
+import Thread, { isSendableClass, type SendableClass } from '../utils/Thread';
+import { createStore, type ComponentType } from '../Components';
+import { createResource, type ResourceType } from '../Resources';
 import {
 	getSystemDependencies,
 	getSystemIntersections,
+	applyCommands,
 	type Dependencies,
 	type SystemDefinition,
 } from '../Systems';
 import type { WorldConfig } from './config';
 import type { System } from '../utilTypes';
-import { ComponentType, createStore } from '../Components';
-import type { ResourceType } from '../Resources/Resource';
 import type { Plugin } from './definePlugin';
-import createResource from '../Resources/createResource';
-import zipIntoMap from '../utils/zipIntoMap';
-import WorldCommands from './WorldCommands';
+import type QueryDescriptor from '../Systems/Descriptors/QueryDescriptor';
+import SparseSet from '../utils/DataTypes/SparseSet';
 
 export default class WorldBuilder {
 	#systems = [] as SystemDefinition[];
@@ -26,7 +27,7 @@ export default class WorldBuilder {
 	#sendableClasses = getDefaultSendableClasses();
 
 	#resources = new Set<ResourceType>();
-	#queries = new Map<unknown, unknown>();
+	#queries = new Set<QueryDescriptor<any>>();
 	#components = new Set<ComponentType>();
 
 	#config: WorldConfig;
@@ -112,9 +113,19 @@ export default class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	registerSendableClass(SendableClass: SendableClass<any>): this {
-		if (Thread.isSendableClass(SendableClass)) {
+		if (isSendableClass(SendableClass)) {
 			this.#sendableClasses.push(SendableClass);
 		}
+		return this;
+	}
+
+	/**
+	 * Registers a query in the world. Called automatically for all query parameters.
+	 * @param descriptor The query descriptor to register.
+	 * @returns `this`, for chaining.
+	 */
+	registerQuery(descriptor: QueryDescriptor<any>): this {
+		this.#queries.add(descriptor);
 		return this;
 	}
 
@@ -125,7 +136,7 @@ export default class WorldBuilder {
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
-		const threads = Thread.spawnBulk(
+		const threads = Thread.spawn(
 			this.#config.threads - 1,
 			this.#url,
 			this.#sendableClasses,
@@ -159,46 +170,81 @@ export default class WorldBuilder {
 				),
 			),
 		);
-		const resources = zipIntoMap(
+		const resources = zipIntoMap<ResourceType, object>(
 			this.#resources,
 			await Thread.createOrReceive(Thread.Context.Main, threads, () =>
 				Array.from(this.#resources, ResourceType =>
-					Thread.isSendableClass(ResourceType)
-						? createResource(ResourceType)
-						: null,
+					isSendableClass(ResourceType)
+						? createResource(ResourceType, this.#config)
+						: null!,
+				),
+			),
+		);
+		Thread.execute(Thread.Context.Main, () => {
+			this.#resources.forEach(ResourceType => {
+				if (!isSendableClass(ResourceType)) {
+					resources.set(
+						ResourceType,
+						createResource(ResourceType, this.#config),
+					);
+				}
+			});
+		});
+
+		const queries = zipIntoMap(
+			this.#queries,
+			await Thread.createOrReceive(Thread.Context.Main, threads, () =>
+				Array.from(this.#queries, () =>
+					SparseSet.with(
+						this.#config.maxEntities,
+						this.#config.threads > 1,
+					),
 				),
 			),
 		);
 
-		// TODO: Wait for confirmation that all threads are built
+		const commands = await Thread.createOrReceive(
+			Thread.Context.Main,
+			threads,
+			() => WorldCommands.fromWorld(this.#config, components),
+		);
 
-		const systems = this.#systems.map(system => this.#buildSystem(system));
-		const starters = this.#startupSystems.map(system =>
-			this.#buildSystem(system),
+		const systems: System[] = [];
+
+		const world = new World(
+			components,
+			resources,
+			queries,
+			threads,
+			systems,
+			executor,
+			commands,
+		);
+
+		this.#systems.forEach(
+			(system, i) => (systems[i] = this.#buildSystem(system, world)),
 		);
 
 		Thread.execute(Thread.Context.Main, () => {
-			for (const { execute, args } of starters) {
+			for (const { execute, args } of this.#startupSystems.map(system =>
+				this.#buildSystem(system, world),
+			)) {
 				execute(...args);
 			}
 		});
 
-		return new World(
-			components,
-			resources as any,
-			new Map(),
-			threads,
-			systems,
-			executor,
-			{} as any,
-		);
+		await Thread.createOrReceive(Thread.Context.Worker, threads, () => 0);
+
+		return world;
 	}
 
 	#processSystem(system: SystemDefinition): void {
 		system.parameters.forEach(descriptor => descriptor.onAddSystem(this));
 	}
-	#buildSystem({ fn, parameters }: SystemDefinition): System {
-		// TODO
-		return {} as any;
+	#buildSystem({ fn, parameters }: SystemDefinition, world: World): System {
+		return {
+			execute: fn,
+			args: parameters.map(descriptor => descriptor.intoArgument(world)),
+		};
 	}
 }

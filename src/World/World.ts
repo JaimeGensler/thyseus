@@ -5,10 +5,12 @@ import validateAndCompleteConfig, {
 } from './config';
 import type Thread from '../utils/Thread';
 import type Executor from './Executor';
+import type WorldCommands from './WorldCommands';
 import type { System } from '../utilTypes';
 import type { ResourceType } from '../Resources';
-import type { ComponentType } from '../Components';
-import WorldCommands from './WorldCommands';
+import type { ComponentStore, ComponentType } from '../Components';
+import type QueryDescriptor from '../Systems/Descriptors/QueryDescriptor';
+import type SparseSet from '../utils/DataTypes/SparseSet';
 
 export default class World {
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
@@ -20,17 +22,17 @@ export default class World {
 		return new WorldBuilder(validateAndCompleteConfig(config, url), url);
 	}
 
-	#components: Map<ComponentType, object>;
+	#components: Map<ComponentType, ComponentStore>;
 	#resources: Map<ResourceType, object>;
-	#queries: Map<unknown, unknown>;
+	#queries: Map<QueryDescriptor<any>, SparseSet>;
 	#threads: Thread[];
 	#systems: System[];
 	#executor: Executor;
 	#commands: WorldCommands;
 	constructor(
-		components: Map<ComponentType, object>,
+		components: Map<ComponentType, ComponentStore>,
 		resources: Map<ResourceType, object>,
-		queries: Map<unknown, unknown>,
+		queries: Map<QueryDescriptor<any>, SparseSet>,
 		threads: Thread[],
 		systems: System[],
 		executor: Executor,

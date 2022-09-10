@@ -1,12 +1,16 @@
 import { Schema, ComponentType, ComponentStore } from './types';
 
-function Component(schema?: null | undefined): ComponentType<{}>;
-function Component<T extends Schema>(schema: T): ComponentType<T>;
-function Component(
+export default function Component(schema?: null | undefined): ComponentType<{}>;
+export default function Component<T extends Schema>(
+	schema: T,
+): ComponentType<T>;
+export default function Component(
 	schema?: null | undefined | object,
 ): ComponentType<any, any> {
 	if (!schema) {
-		return TagComponent;
+		return class ComponentClass {
+			static schema = {};
+		};
 	}
 
 	class ComponentClass {
@@ -33,11 +37,5 @@ function Component(
 			},
 		});
 	}
-	return ComponentClass as any;
-}
-
-export default Component;
-
-class TagComponent {
-	static schema = {};
+	return ComponentClass;
 }

@@ -54,7 +54,7 @@ if (import.meta.vitest) {
 	});
 
 	describe('intoArgument', () => {
-		it('returns World.Commands', () => {
+		it("returns a World's Commands", () => {
 			const commands = {};
 			expect(
 				new CommandsDescriptor().intoArgument({ commands } as any),

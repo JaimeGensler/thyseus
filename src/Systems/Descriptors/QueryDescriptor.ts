@@ -1,9 +1,11 @@
 import AccessType from '../../utils/AccessType';
+import createFilter from '../../utils/createFilter';
 import Mut, { type Mutable } from '../Mut';
 import { TupleQuery, type Query } from '../../Queries';
 import type WorldBuilder from '../../World/WorldBuilder';
 import type Descriptor from './Descriptor';
 import type { ComponentType } from '../../Components';
+import type World from '../../World';
 
 type QueryMember = ComponentType<any, any> | Mutable<ComponentType<any, any>>;
 
@@ -37,20 +39,28 @@ export default class QueryDescriptor<C extends QueryMember[]>
 			: false;
 	}
 
-	onAddSystem(world: WorldBuilder) {
-		this.components.forEach(comp => world.registerComponent(comp));
+	onAddSystem(builder: WorldBuilder) {
+		this.components.forEach(comp => builder.registerComponent(comp));
+		builder.registerQuery(this);
 	}
 
-	intoArgument(): Query<{
+	intoArgument(world: World): Query<{
 		[Index in keyof C]: C[Index] extends Mutable<infer X>
 			? InstanceType<X>
 			: Readonly<
 					InstanceType<
-						C[Index] extends ComponentType ? C[Index] : never
+						C[Index] extends ComponentType<any, any>
+							? C[Index]
+							: never
 					>
 			  >;
 	}> {
-		return {} as any;
+		return new TupleQuery(
+			this.components,
+			this.components.map(c => world.components.get(c)!),
+			world.queries.get(this)!,
+			createFilter([...world.components.keys()], this.components),
+		);
 	}
 }
 
@@ -98,15 +108,23 @@ if (import.meta.vitest) {
 	});
 
 	describe('onAddSystem', () => {
-		it('registers all components', () => {
+		it('registers all components and the query', () => {
 			const registerComponent = vi.fn();
-			const builder: WorldBuilder = { registerComponent } as any;
-			new QueryDescriptor([A, Mut(B), Mut(C), D]).onAddSystem(builder);
+			const registerQuery = vi.fn();
+			const builder: WorldBuilder = {
+				registerComponent,
+				registerQuery,
+			} as any;
+
+			const descriptor = new QueryDescriptor([A, Mut(B), Mut(C), D]);
+			descriptor.onAddSystem(builder);
+
 			expect(registerComponent).toHaveBeenCalledTimes(4);
 			expect(registerComponent).toHaveBeenCalledWith(A);
 			expect(registerComponent).toHaveBeenCalledWith(B);
 			expect(registerComponent).toHaveBeenCalledWith(C);
 			expect(registerComponent).toHaveBeenCalledWith(D);
+			expect(registerQuery).toHaveBeenCalledWith(descriptor);
 		});
 	});
 
@@ -118,6 +136,21 @@ if (import.meta.vitest) {
 			expect(
 				new QueryDescriptor([Mut(A), Mut(B), Mut(C)]).isLocalToThread(),
 			).toBe(false);
+		});
+	});
+
+	describe('intoArgument', () => {
+		it('returns a query', () => {
+			const sparseSet = {};
+			const descriptor = new QueryDescriptor([A, B]);
+			const world: any = {
+				components: new Map<any, any>().set(A, {}),
+				queries: new Map<any, any>().set(descriptor, sparseSet),
+			};
+
+			const result = descriptor.intoArgument(world);
+			expect(result).toBeInstanceOf(TupleQuery);
+			expect((result as TupleQuery<any>).entities).toBe(sparseSet);
 		});
 	});
 }

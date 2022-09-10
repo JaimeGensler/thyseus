@@ -1,4 +1,4 @@
-import Thread from '../../utils/Thread';
+import { isSendableClass } from '../../utils/Thread';
 import AccessType from '../../utils/AccessType';
 import Mut, { type Mutable } from '../Mut';
 import type WorldBuilder from '../../World/WorldBuilder';
@@ -21,7 +21,7 @@ export default class ResourceDescriptor<
 	}
 
 	isLocalToThread() {
-		return !Thread.isSendableClass(this.resource);
+		return !isSendableClass(this.resource);
 	}
 
 	intersectsWith(other: unknown): boolean {
@@ -32,10 +32,10 @@ export default class ResourceDescriptor<
 			: false;
 	}
 
-	onAddSystem(world: WorldBuilder) {
-		world.registerResource(this.resource);
-		if (Thread.isSendableClass(this.resource)) {
-			world.registerSendableClass(this.resource);
+	onAddSystem(builder: WorldBuilder) {
+		builder.registerResource(this.resource);
+		if (isSendableClass(this.resource)) {
+			builder.registerSendableClass(this.resource);
 		}
 	}
 
@@ -53,12 +53,13 @@ export default class ResourceDescriptor<
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, vi } = import.meta.vitest;
+	const { ThreadProtocol } = await import('../../utils/Thread');
 
 	class A {}
 	class B {}
 	class C {
-		[Thread.Send]() {}
-		static [Thread.Receive]() {}
+		[ThreadProtocol.Send]() {}
+		static [ThreadProtocol.Receive]() {}
 	}
 
 	describe('intersectsWith', () => {

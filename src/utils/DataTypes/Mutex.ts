@@ -1,5 +1,5 @@
 import assert from '../assert';
-import Thread from '../Thread';
+import { ThreadProtocol } from '../Thread';
 
 enum LockState {
 	Unlocked,
@@ -60,10 +60,10 @@ export default class Mutex<T extends any> {
 		);
 	}
 
-	[Thread.Send](): [T, Int32Array] {
+	[ThreadProtocol.Send](): [T, Int32Array] {
 		return [this.#data, this.#state];
 	}
-	static [Thread.Receive]<T>([data, state]: [T, Int32Array]) {
+	static [ThreadProtocol.Receive]<T>([data, state]: [T, Int32Array]) {
 		return new this<T>(data, state);
 	}
 }
@@ -140,7 +140,7 @@ if (import.meta.vitest) {
 
 	it('is Thread sendable', async () => {
 		const mut1 = new Mutex(Symbol());
-		const mut2 = Mutex[Thread.Receive](mut1[Thread.Send]());
+		const mut2 = Mutex[ThreadProtocol.Receive](mut1[ThreadProtocol.Send]());
 		expect(mut1.UNSAFE_getData()).toBe(mut2.UNSAFE_getData());
 		expect(mut1.isLocked).toBe(false);
 		expect(mut2.isLocked).toBe(false);

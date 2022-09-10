@@ -1,6 +1,6 @@
 import BigUintArray from '../utils/DataTypes/BigUintArray';
 import Mutex from '../utils/DataTypes/Mutex';
-import Thread from '../utils/Thread';
+import { ThreadProtocol } from '../utils/Thread';
 import SparseSet from '../utils/DataTypes/SparseSet';
 
 export default class Executor {
@@ -37,7 +37,7 @@ export default class Executor {
 		this.#systemsToExecute = systemsToExecute;
 		this.#lock = lock;
 		this.#signal = new Int32Array(
-			systemsToExecute[Thread.Send]()[2].buffer,
+			systemsToExecute[ThreadProtocol.Send]()[2].buffer,
 		);
 		this.#local = local;
 	}
@@ -108,7 +108,7 @@ export default class Executor {
 		}
 	}
 
-	[Thread.Send](): SerializedExecutor {
+	[ThreadProtocol.Send](): SerializedExecutor {
 		return [
 			this.#intersections,
 			this.#dependencies,
@@ -116,7 +116,7 @@ export default class Executor {
 			this.#lock,
 		];
 	}
-	static [Thread.Receive](data: SerializedExecutor) {
+	static [ThreadProtocol.Receive](data: SerializedExecutor) {
 		return new this(...data, new Set());
 	}
 }

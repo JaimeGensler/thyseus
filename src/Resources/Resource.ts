@@ -2,7 +2,11 @@ import { Type } from '../Components';
 import { typeToBytes } from '../Components/Type';
 import { Schema, SchemaInstance } from '../Components/types';
 import assert from '../utils/assert';
-import Thread, { type SendableClass, type SendableType } from '../utils/Thread';
+import {
+	ThreadProtocol,
+	type SendableClass,
+	type SendableType,
+} from '../utils/Thread';
 import type { Class } from '../utilTypes';
 import type { WorldConfig } from '../World/config';
 
@@ -12,13 +16,12 @@ export default function Resource<T extends Schema>(
 	schema: T,
 ): SendableClass<DataView> & { new (dataView: DataView): SchemaInstance<T> } {
 	assert(
-		// NOTE: Nullish coalesce in case this is used like Component, where null | undefined | void is permitted
-		Object.keys(schema ?? []).length !== 0,
+		Object.keys(schema).length !== 0,
 		'Shareable Resources created with Resource() must pass a schema!',
 	);
 
 	class ResClass {
-		static fromWorld(config: WorldConfig) {
+		static create(config: WorldConfig) {
 			const BufferType =
 				config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
 
@@ -31,10 +34,10 @@ export default function Resource<T extends Schema>(
 			this.__$$ = data;
 		}
 
-		[Thread.Send]() {
+		[ThreadProtocol.Send]() {
 			return this.__$$;
 		}
-		static [Thread.Receive](data: DataView) {
+		static [ThreadProtocol.Receive](data: DataView) {
 			return new this(data);
 		}
 	}

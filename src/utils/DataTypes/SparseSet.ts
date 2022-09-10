@@ -1,4 +1,4 @@
-import Thread from '../Thread';
+import { ThreadProtocol } from '../Thread';
 
 export default class SparseSet {
 	static with(length: number, isShared = false) {
@@ -76,10 +76,10 @@ export default class SparseSet {
 		}
 	}
 
-	[Thread.Send](): SerializedSparseSet {
+	[ThreadProtocol.Send](): SerializedSparseSet {
 		return [this.sparse, this.dense, this.#meta];
 	}
-	static [Thread.Receive]([
+	static [ThreadProtocol.Receive]([
 		sparse,
 		dense,
 		meta,
@@ -187,7 +187,9 @@ if (import.meta.vitest) {
 		for (const el of elements) {
 			set.add(el);
 		}
-		const reconstructedSet = SparseSet[Thread.Receive](set[Thread.Send]());
+		const reconstructedSet = SparseSet[ThreadProtocol.Receive](
+			set[ThreadProtocol.Send](),
+		);
 		expect(set.size).toBe(reconstructedSet.size);
 		expect(set.sparse).toBe(reconstructedSet.sparse);
 		expect(set.dense).toBe(reconstructedSet.dense);

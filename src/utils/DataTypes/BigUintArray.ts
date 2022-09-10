@@ -1,4 +1,4 @@
-import Thread from '../Thread';
+import { ThreadProtocol } from '../Thread';
 
 const b255 = 0b1111_1111n;
 export default class BigUintArray {
@@ -67,10 +67,14 @@ export default class BigUintArray {
 		}
 	}
 
-	[Thread.Send](): SerializedBigUintNArray {
+	[ThreadProtocol.Send](): SerializedBigUintNArray {
 		return [this.width, this.length, this.#data];
 	}
-	static [Thread.Receive]([width, length, data]: SerializedBigUintNArray) {
+	static [ThreadProtocol.Receive]([
+		width,
+		length,
+		data,
+	]: SerializedBigUintNArray) {
 		return new this(width, length, data);
 	}
 }
@@ -150,7 +154,9 @@ if (import.meta.vitest) {
 		const slots = [0b1n, 0n, 0n, 0b1011_1010n, 0b1_0000_0000_0000n, 0n];
 		slots.forEach((slot, i) => arr.set(i, slot));
 
-		const rec = BigUintArray[Thread.Receive](arr[Thread.Send]());
+		const rec = BigUintArray[ThreadProtocol.Receive](
+			arr[ThreadProtocol.Send](),
+		);
 		expect(arr.byteLength).toBe(rec.byteLength);
 		expect(arr.bytesPerElement).toBe(rec.bytesPerElement);
 		expect(arr.width).toBe(rec.width);

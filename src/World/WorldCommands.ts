@@ -1,9 +1,25 @@
 import BigUintArray from '../utils/DataTypes/BigUintArray';
-import Thread from '../utils/Thread';
-import IndexAllocator from '../_EXPERIMENTAL/IndexAllocator';
+import { ThreadProtocol } from '../utils/Thread';
+import IndexAllocator from '../utils/DataTypes/IndexAllocator';
 import type { ComponentType } from '../Components';
+import type { WorldConfig } from './config';
 
 export default class WorldCommands {
+	static fromWorld(
+		config: WorldConfig,
+		components: Map<ComponentType, object>,
+	) {
+		return new this(
+			IndexAllocator.with(config.maxEntities, config.threads > 1),
+			components,
+			BigUintArray.with(
+				components.size,
+				config.maxEntities,
+				config.threads > 1,
+			),
+		);
+	}
+
 	#entityCommands: InternalEntityCommands;
 
 	#allocator: IndexAllocator;
@@ -51,11 +67,11 @@ export default class WorldCommands {
 	 * @returns `EntityCommands` to add/remove components from an entity.
 	 */
 	get(id: number): EntityCommands {
-		return (this.#entityCommands as any).__$$setId(id);
+		return this.#entityCommands.__$$setId(id);
 	}
 
-	[Thread.Send]() {}
-	static [Thread.Receive]() {}
+	[ThreadProtocol.Send]() {}
+	static [ThreadProtocol.Receive]() {}
 }
 
 type InternalEntityCommands = {

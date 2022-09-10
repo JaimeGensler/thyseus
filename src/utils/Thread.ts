@@ -2,11 +2,11 @@
 const IsSentByThread = '@IS_SENT_BY_THREAD';
 
 interface SendableInstance<T extends SendableType = SendableType> {
-	[Thread.Send](): T;
+	[ThreadProtocol.Send](): T;
 }
 export interface SendableClass<T extends SendableType = void> {
 	new (...args: any[]): SendableInstance<T>;
-	[Thread.Receive](data: T): SendableInstance<T>;
+	[ThreadProtocol.Receive](data: T): SendableInstance<T>;
 }
 type SentInstance = [typeof IsSentByThread, number, SendableType];
 
@@ -45,35 +45,40 @@ export type SendableType =
 	| Set<SendableType>
 	| SendableInstance;
 
-const IS_MAIN_THREAD = !!globalThis.document;
+interface WorkerOrGlobal {
+	postMessage(content: any): void;
+	addEventListener(type: 'message', fn: Function): void;
+	removeEventListener(type: 'message', fn: Function): void;
+}
+
+const Send = Symbol();
+const Receive = Symbol();
+
+export const ThreadProtocol = {
+	Send,
+	Receive,
+} as const;
 
 export default class Thread {
-	static readonly Send = Symbol();
-	static readonly Receive = Symbol();
-
 	static Context = {
-		Main: IS_MAIN_THREAD,
-		Worker: !IS_MAIN_THREAD,
+		Main: !!globalThis.document,
+		Worker: !globalThis.document,
 	};
 
-	static globalSendableTypes = [] as SendableClass[];
-	#sendableTypes = [] as SendableClass[];
-
-	static spawnBulk(
+	static spawn(
 		count: number,
 		url: string | URL | undefined,
 		sendableTypes: SendableClass[],
 	) {
-		if (!Thread.Context.Main) {
-			this.globalSendableTypes = sendableTypes;
+		if (!url || count === 0) {
 			return [];
 		}
-		if (!url) {
-			return [];
+		if (!Thread.Context.Main) {
+			return [new this(globalThis, sendableTypes)];
 		}
 		return Array.from(
 			{ length: count },
-			() => new Thread(url, sendableTypes),
+			() => new this(new Worker(url, { type: 'module' }), sendableTypes),
 		);
 	}
 	static execute(context: boolean, fn: () => void) {
@@ -92,66 +97,51 @@ export default class Thread {
 			threads.forEach(thread => thread.send(result));
 			return result;
 		} else {
-			return Thread.receive<T>();
+			const res = await Promise.all(
+				threads.map(thread => thread.receive<T>()),
+			);
+			return res[0];
 		}
 	}
 
-	static send(message: SendableType) {
-		globalThis.postMessage(serialize(message, this.globalSendableTypes));
-		return this;
-	}
-	static receive<T extends any = unknown>(timeout = 3000) {
-		return new Promise<T>((resolve, reject) => {
-			let timerId = setTimeout(() => {
-				reject('Timed out.');
-				globalThis.removeEventListener('message', handler);
-			}, timeout);
-			const handler = (e: MessageEvent<SendableType>) => {
-				clearTimeout(timerId);
-				resolve(deserialize(e.data, this.globalSendableTypes) as T);
-				globalThis.removeEventListener('message', handler);
-			};
-			globalThis.addEventListener('message', handler);
-		});
-	}
-	static isSendableClass<T extends SendableType = undefined>(
-		x: unknown,
-	): x is SendableClass<T> {
-		return (
-			typeof x === 'function' &&
-			Thread.Receive in x &&
-			Thread.Send in x.prototype
-		);
-	}
-
-	#worker: Worker;
-	constructor(scriptURL: string | URL, sendableTypes: SendableClass[]) {
-		this.#worker = new Worker(scriptURL, { type: 'module' });
+	#handler: WorkerOrGlobal;
+	#sendableTypes: SendableClass[];
+	constructor(handler: WorkerOrGlobal, sendableTypes: SendableClass[]) {
+		this.#handler = handler;
 		this.#sendableTypes = sendableTypes;
 	}
 
 	send(message: SendableType) {
-		this.#worker.postMessage(serialize(message, this.#sendableTypes));
+		this.#handler.postMessage(serialize(message, this.#sendableTypes));
 		return this;
 	}
 	receive<T extends any = unknown>(timeout = 3000) {
 		return new Promise<T>((resolve, reject) => {
 			let timerId = setTimeout(() => {
 				reject('Timed out.');
-				this.#worker.removeEventListener('message', handler);
+				this.#handler.removeEventListener('message', handler);
 			}, timeout);
 			const handler = (e: MessageEvent<SendableType>) => {
 				clearTimeout(timerId);
 				resolve(deserialize(e.data, this.#sendableTypes) as T);
-				this.#worker.removeEventListener('message', handler);
+				this.#handler.removeEventListener('message', handler);
 			};
-			this.#worker.addEventListener('message', handler);
+			this.#handler.addEventListener('message', handler);
 		});
 	}
 }
 
+export function isSendableClass<T extends SendableType = undefined>(
+	x: unknown,
+): x is SendableClass<T> {
+	return (
+		typeof x === 'function' &&
+		ThreadProtocol.Receive in x &&
+		ThreadProtocol.Send in x.prototype
+	);
+}
 function isSendableInstance(val: object): val is SendableInstance {
-	return Thread.Send in val;
+	return ThreadProtocol.Send in val;
 }
 function isSentInstance(val: object): val is SentInstance {
 	return Array.isArray(val) && val.length === 3 && val[0] === IsSentByThread;
@@ -168,7 +158,7 @@ function serialize(
 		return [
 			IsSentByThread,
 			sendableTypes.indexOf(Object.getPrototypeOf(value).constructor),
-			serialize(value[Thread.Send](), sendableTypes),
+			serialize(value[ThreadProtocol.Send](), sendableTypes),
 		];
 	}
 	for (const key in value) {
@@ -197,7 +187,7 @@ function deserialize(
 		const [, typeKey, data] = value;
 		const deserializedData = deserialize(data, sendableTypes);
 		const TypeConstructor = sendableTypes[typeKey];
-		return TypeConstructor[Thread.Receive](deserializedData as any);
+		return TypeConstructor[ThreadProtocol.Receive](deserializedData as any);
 	}
 	for (const key in value) {
 		//@ts-ignore

@@ -49,4 +49,13 @@ if (import.meta.vitest) {
 			expect(new WorldDescriptor().isLocalToThread()).toBe(true);
 		});
 	});
+
+	describe('intoArgument', () => {
+		it('returns the world', () => {
+			const mockWorld: any = {};
+			expect(new WorldDescriptor().intoArgument(mockWorld)).toBe(
+				mockWorld,
+			);
+		});
+	});
 }
