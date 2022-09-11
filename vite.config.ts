@@ -12,12 +12,6 @@ export default defineConfig({
 		},
 		rollupOptions: { output: { exports: 'named' } },
 	},
-	server: {
-		headers: {
-			'Cross-Origin-Opener-Policy': 'same-origin',
-			'Cross-Origin-Embedder-Policy': 'require-corp',
-		},
-	},
 	define: {
 		'import.meta.vitest': 'undefined',
 	},
