@@ -1,17 +1,17 @@
 var q = (e, t, s) => {
   if (!t.has(e))
     throw TypeError("Cannot " + s);
-}, y = (e, t, s) => (q(e, t, "read from private field"), s ? s.call(e) : t.get(e)), z = (e, t, s) => {
+}, y = (e, t, s) => (q(e, t, "read from private field"), s ? s.call(e) : t.get(e)), k = (e, t, s) => {
   if (t.has(e))
     throw TypeError("Cannot add the same private member more than once");
   t instanceof WeakSet ? t.add(e) : t.set(e, s);
-}, U = (e, t, s, i) => (q(e, t, "write to private field"), i ? i.call(e, s) : t.set(e, s), s), g, p;
-const D = "@IS_SENT_BY_THREAD", j = Symbol(), G = Symbol(), u = {
-  Send: j,
-  Receive: G
+}, v = (e, t, s, i) => (q(e, t, "write to private field"), i ? i.call(e, s) : t.set(e, s), s), g, w;
+const D = "@IS_SENT_BY_THREAD", G = Symbol(), H = Symbol(), u = {
+  Send: G,
+  Receive: H
 }, L = class {
   constructor(e, t) {
-    z(this, g, void 0), z(this, p, void 0), U(this, g, e), U(this, p, t);
+    k(this, g, void 0), k(this, w, void 0), v(this, g, e), v(this, w, t);
   }
   static spawn(e, t, s) {
     return !t || e === 0 ? [] : L.Context.Main ? Array.from(
@@ -32,7 +32,7 @@ const D = "@IS_SENT_BY_THREAD", j = Symbol(), G = Symbol(), u = {
       ))[0];
   }
   send(e) {
-    return y(this, g).postMessage(E(e, y(this, p))), this;
+    return y(this, g).postMessage(_(e, y(this, w))), this;
   }
   receive(e = 3e3) {
     return new Promise((t, s) => {
@@ -40,7 +40,7 @@ const D = "@IS_SENT_BY_THREAD", j = Symbol(), G = Symbol(), u = {
         s("Timed out."), y(this, g).removeEventListener("message", r);
       }, e);
       const r = (o) => {
-        clearTimeout(i), t(R(o.data, y(this, p))), y(this, g).removeEventListener("message", r);
+        clearTimeout(i), t(R(o.data, y(this, w))), y(this, g).removeEventListener("message", r);
       };
       y(this, g).addEventListener("message", r);
     });
@@ -48,7 +48,7 @@ const D = "@IS_SENT_BY_THREAD", j = Symbol(), G = Symbol(), u = {
 };
 let c = L;
 g = /* @__PURE__ */ new WeakMap();
-p = /* @__PURE__ */ new WeakMap();
+w = /* @__PURE__ */ new WeakMap();
 c.Context = {
   Main: !!globalThis.document,
   Worker: !globalThis.document
@@ -56,29 +56,29 @@ c.Context = {
 function A(e) {
   return typeof e == "function" && u.Receive in e && u.Send in e.prototype;
 }
-function H(e) {
+function Y(e) {
   return u.Send in e;
 }
-function Y(e) {
+function J(e) {
   return Array.isArray(e) && e.length === 3 && e[0] === D;
 }
-function E(e, t) {
+function _(e, t) {
   if (typeof e != "object" || e === null)
     return e;
-  if (H(e))
+  if (Y(e))
     return [
       D,
       t.indexOf(Object.getPrototypeOf(e).constructor),
-      E(e[u.Send](), t)
+      _(e[u.Send](), t)
     ];
   for (const s in e)
-    e[s] = E(e[s], t);
+    e[s] = _(e[s], t);
   return e;
 }
 function R(e, t) {
   if (typeof e != "object" || e === null || e instanceof Object.getPrototypeOf(Uint8Array) || e instanceof DataView || e instanceof ArrayBuffer || typeof SharedArrayBuffer !== void 0 && e instanceof SharedArrayBuffer)
     return e;
-  if (Y(e)) {
+  if (J(e)) {
     const [, s, i] = e, r = R(i, t);
     return t[s][u.Receive](r);
   }
@@ -162,11 +162,11 @@ class P {
     return this.#t;
   }
   async request(t) {
-    await this.#i();
+    await this.#r();
     const s = await t(this.#t);
     return this.#s(), s;
   }
-  async #i() {
+  async #r() {
     for (; ; ) {
       if (Atomics.compareExchange(
         this.#e,
@@ -197,7 +197,7 @@ class P {
     return new this(t, s);
   }
 }
-class W {
+class C {
   static with(t, s = !1) {
     const i = s ? SharedArrayBuffer : ArrayBuffer;
     return new this(
@@ -257,19 +257,19 @@ class N {
     return new this(
       t,
       s,
-      W.with(t.length, !0),
+      C.with(t.length, !0),
       new P(M.with(t.length, 2, !0)),
       i
     );
   }
   #t;
   #e;
-  #i;
-  #s;
   #r;
+  #s;
+  #i;
   #n;
   constructor(t, s, i, r, o) {
-    this.#e = t, this.#i = s, this.#s = i, this.#r = r, this.#t = new Int32Array(
+    this.#e = t, this.#r = s, this.#s = i, this.#i = r, this.#t = new Int32Array(
       i[u.Send]()[2].buffer
     ), this.#n = o;
   }
@@ -280,8 +280,10 @@ class N {
     Atomics.notify(this.#t, 0);
   }
   reset() {
-    const t = this.#r.UNSAFE_getData();
+    const t = this.#i.UNSAFE_getData();
     t.set(0, 0n), t.set(1, 0n);
+    for (let s = 0; s < this.#r.length; s++)
+      this.#n.has(s) || this.#s.add(s);
   }
   async onReady(t) {
     const { async: s, value: i } = Atomics.waitAsync(this.#t, 0, 0);
@@ -296,14 +298,14 @@ class N {
     for (; this.#s.size + t.size > 0; ) {
       const s = this.#s.size;
       let i = -1;
-      await this.#r.request((r) => {
+      await this.#i.request((r) => {
         const o = r.get(0), n = r.get(1);
         for (const a of [...t, ...this.#s])
-          if ((o & this.#e[a]) === 0n && (n & this.#i[a]) === this.#i[a]) {
+          if ((o & this.#e[a]) === 0n && (n & this.#r[a]) === this.#r[a]) {
             i = a, this.#s.delete(a), t.delete(a), r.OR(0, 1n << BigInt(a));
             break;
           }
-      }), i > -1 ? (yield i, await this.#r.request((r) => {
+      }), i > -1 ? (yield i, await this.#i.request((r) => {
         r.XOR(0, 1n << BigInt(i)), r.OR(1, 1n << BigInt(i)), (this.#t[0] !== 0 || this.#t[0] === 0 && r.get(0) === 0n) && Atomics.notify(this.#t, 0);
       })) : s !== 0 && await Atomics.waitAsync(this.#t, 0, s).value;
     }
@@ -311,27 +313,17 @@ class N {
   [u.Send]() {
     return [
       this.#e,
-      this.#i,
+      this.#r,
       this.#s,
-      this.#r
+      this.#i
     ];
   }
   static [u.Receive](t) {
     return new this(...t, /* @__PURE__ */ new Set());
   }
 }
-function J() {
-  return [W, P, M, N];
-}
-function C(e, t) {
-  const s = [...t];
-  return [...e].reduce(
-    (i, r, o) => i.set(r, s[o]),
-    /* @__PURE__ */ new Map()
-  );
-}
 const Z = (e) => (e >>>= 0, 31 - Math.clz32(e & -e));
-class tt {
+class T {
   #t;
   #e;
   static with(t, s) {
@@ -369,77 +361,99 @@ class tt {
     return new this(t, s);
   }
 }
+function tt() {
+  return [C, P, M, N, T];
+}
+function E(e, t) {
+  const s = [...t];
+  return [...e].reduce(
+    (i, r, o) => i.set(r, s[o]),
+    /* @__PURE__ */ new Map()
+  );
+}
 class et {
   static fromWorld(t, s) {
     return new this(
-      tt.with(t.maxEntities, t.threads > 1),
-      s,
+      T.with(t.maxEntities, t.threads > 1),
       M.with(
-        s.size,
+        s,
         t.maxEntities,
         t.threads > 1
-      )
+      ),
+      C.with(t.maxEntities, t.threads > 1)
     );
   }
   #t;
   #e;
-  #i;
   constructor(t, s, i) {
-    this.#e = t, this.#i = s, this.entityData = i, this.#t = new st(
+    this.#e = t, this.entityData = s, this.#t = new st(
       this,
       s,
       i
-    );
+    ), this.modifiedEntities = i;
+  }
+  __$$setComponents(t) {
+    this.#t.__$$setComponents(t);
   }
   spawn() {
     return this.#t.__$$setId(this.#e.get());
   }
   despawn(t) {
-    return this.#e.free(t), this.entityData.set(t, 0n), this;
+    return this.#e.free(t), this.entityData.set(t, 0n), this.modifiedEntities.add(t), this;
   }
   get(t) {
     return this.#t.__$$setId(t);
   }
   [u.Send]() {
+    return [this.#e, this.entityData, this.modifiedEntities];
   }
-  static [u.Receive]() {
+  static [u.Receive]([
+    t,
+    s,
+    i
+  ]) {
+    return new this(t, s, i);
   }
 }
 class st {
   __$$setId(t) {
     return this.#t = t, this;
   }
+  __$$setComponents(t) {
+    this.#e = t;
+  }
   #t = 0;
   #e;
-  #i;
+  #r;
   #s;
+  #i;
   constructor(t, s, i) {
-    this.#e = t, this.#i = s, this.#s = i;
+    this.#r = t, this.#e = null, this.#s = s, this.#i = i;
   }
   initialize(t) {
-    const s = b(this.#i, t);
+    const s = b(this.#e, t);
     return (this.#s.get(this.#t) & 1n << BigInt(s)) === 0n && this.insert(t), this;
   }
   insert(t) {
     return this.#s.OR(
       this.#t,
-      1n << BigInt(b(this.#i, t))
-    ), this;
+      1n << BigInt(b(this.#e, t))
+    ), this.#i.add(this.#t), this;
   }
   remove(t) {
     return this.#s.XOR(
       this.#t,
-      1n << BigInt(b(this.#i, t))
-    ), this;
+      1n << BigInt(b(this.#e, t))
+    ), this.#i.add(this.#t), this;
   }
   despawn() {
-    this.#e.despawn(this.#t);
+    this.#r.despawn(this.#t);
   }
 }
 function b(e, t) {
   return [...e.keys()].indexOf(t);
 }
-function It(e) {
+function Ct(e) {
   var t;
   if (!e)
     return t = class {
@@ -464,8 +478,8 @@ function It(e) {
   }
   return s;
 }
-var d = /* @__PURE__ */ ((e) => (e[e.u8 = 0] = "u8", e[e.u16 = 1] = "u16", e[e.u32 = 2] = "u32", e[e.u64 = 3] = "u64", e[e.i8 = 4] = "i8", e[e.i16 = 5] = "i16", e[e.i32 = 6] = "i32", e[e.i64 = 7] = "i64", e[e.f32 = 8] = "f32", e[e.f64 = 9] = "f64", e))(d || {});
-const T = {
+var f = /* @__PURE__ */ ((e) => (e[e.u8 = 0] = "u8", e[e.u16 = 1] = "u16", e[e.u32 = 2] = "u32", e[e.u64 = 3] = "u64", e[e.i8 = 4] = "i8", e[e.i16 = 5] = "i16", e[e.i32 = 6] = "i32", e[e.i64 = 7] = "i64", e[e.f32 = 8] = "f32", e[e.f64 = 9] = "f64", e))(f || {});
+const F = {
   [0]: 1,
   [1]: 2,
   [2]: 4,
@@ -489,21 +503,21 @@ const T = {
   [9]: Float64Array
 };
 function rt(e, { maxEntities: t, threads: s }) {
-  const i = s > 1, r = F(e.schema), o = new (i ? SharedArrayBuffer : ArrayBuffer)(r * t);
-  return Q(e.schema, o, [0], t);
+  const i = s > 1, r = Q(e.schema), o = new (i ? SharedArrayBuffer : ArrayBuffer)(r * t);
+  return V(e.schema, o, [0], t);
 }
-const F = (e) => (Array.isArray(e) ? e : Object.values(e)).reduce(
-  (t, s) => t + (typeof s == "number" ? T[s] : F(s.schema)),
+const Q = (e) => (Array.isArray(e) ? e : Object.values(e)).reduce(
+  (t, s) => t + (typeof s == "number" ? F[s] : Q(s.schema)),
   0
-), Q = (e, t, s, i) => {
+), V = (e, t, s, i) => {
   const r = Array.isArray(e);
-  return Object.entries(e).reduce((o, [n, a], f) => {
-    const h = r ? f : n;
-    return typeof a == "number" ? (o[h] = new it[a](t, s[0], i), s[0] += i * T[a]) : o[h] = Q(a.schema, t, s, i), o;
+  return Object.entries(e).reduce((o, [n, a], d) => {
+    const h = r ? d : n;
+    return typeof a == "number" ? (o[h] = new it[a](t, s[0], i), s[0] += i * F[a]) : o[h] = V(a.schema, t, s, i), o;
   }, r ? [] : {});
 };
-d.u8 + "", d.u16 + "", d.u32 + "", d.u64 + "", d.i8 + "", d.i16 + "", d.i32 + "", d.i64 + "", d.f32 + "", d.f64 + "";
-function v(e, t) {
+f.u8 + "", f.u16 + "", f.u32 + "", f.u64 + "", f.i8 + "", f.i16 + "", f.i32 + "", f.i64 + "", f.f32 + "", f.f64 + "";
+function z(e, t) {
   return nt(e) ? e.create(t) : new e();
 }
 function nt(e) {
@@ -530,20 +544,20 @@ const ht = (e, t) => t.reduce(
   (s, i) => s | 1n << BigInt(e.indexOf(i)),
   0n
 );
-function x(e) {
+function $(e) {
   return [e, 1];
 }
-x.isMut = function(e) {
+$.isMut = function(e) {
   return Array.isArray(e) && e.length === 2 && typeof e[0] == "function" && e[1] === 1;
 };
 class ct {
   #t;
   #e;
-  #i;
+  #r;
   #s;
   constructor(t, s, i, r) {
-    this.entities = i, this.#e = t, this.#i = s, this.#t = this.#e.map(
-      (o, n) => new o(this.#i[n], 0)
+    this.entities = i, this.#e = t, this.#r = s, this.#t = this.#e.map(
+      (o, n) => new o(this.#r[n], 0)
     ), this.#s = r;
   }
   *[Symbol.iterator]() {
@@ -554,17 +568,17 @@ class ct {
     }
   }
   testAdd(t, s) {
-    this.#r(s) && this.entities.add(t);
+    this.#i(s) && this.entities.add(t);
   }
-  #r(t) {
+  #i(t) {
     return (t & this.#s) === this.#s;
   }
 }
-class O {
+class x {
   constructor(t) {
     this.components = [], this.accessType = [];
     for (const s of t) {
-      const i = x.isMut(s);
+      const i = $.isMut(s);
       this.components.push(i ? s[0] : s), this.accessType.push(i ? l.Write : l.Read);
     }
   }
@@ -572,7 +586,7 @@ class O {
     return !1;
   }
   intersectsWith(t) {
-    return t instanceof O ? this.components.some(
+    return t instanceof x ? this.components.some(
       (s, i) => t.components.some(
         (r, o) => s === r && (this.accessType[i] === l.Write || t.accessType[o] === l.Write)
       )
@@ -582,24 +596,27 @@ class O {
     this.components.forEach((s) => t.registerComponent(s)), t.registerQuery(this);
   }
   intoArgument(t) {
-    return new ct(
-      this.components,
-      this.components.map((s) => t.components.get(s)),
-      t.queries.get(this),
-      at([...t.components.keys()], this.components)
-    );
+    return t.queries.set(
+      this,
+      new ct(
+        this.components,
+        this.components.map((s) => t.components.get(s)),
+        t.queries.get(this),
+        at([...t.components.keys()], this.components)
+      )
+    ), t.queries.get(this);
   }
 }
-class _ {
+class W {
   constructor(t) {
-    const s = x.isMut(t);
+    const s = $.isMut(t);
     this.resource = s ? t[0] : t, this.accessType = s ? l.Write : l.Read;
   }
   isLocalToThread() {
     return !A(this.resource);
   }
   intersectsWith(t) {
-    return t instanceof _ ? this.resource === t.resource && (this.accessType === l.Write || t.accessType === l.Write) : !1;
+    return t instanceof W ? this.resource === t.resource && (this.accessType === l.Write || t.accessType === l.Write) : !1;
   }
   onAddSystem(t) {
     t.registerResource(this.resource), A(this.resource) && t.registerSendableClass(this.resource);
@@ -624,13 +641,13 @@ class ut {
 function B(e) {
   return (...t) => new e(...t);
 }
-const ft = {
+const dt = {
   Commands: B(ot),
-  Query: B(O),
-  Res: B(_),
+  Query: B(x),
+  Res: B(W),
   World: B(ut)
 };
-function dt(e, t) {
+function ft(e, t) {
   return {
     fn: t,
     parameters: e
@@ -641,18 +658,18 @@ function mt(e, t, s) {
   return t.forEach((o, n) => {
     if (!!o) {
       for (const a of o.before ?? []) {
-        const f = e.indexOf(a);
-        f !== -1 && (m(
-          !r(n, f),
-          `Circular dependency detected: ${e[n].fn.name} (${n}) and ${e[f].fn.name} (${f}) depend on each other.`
-        ), i[f] |= 1n << BigInt(n));
+        const d = e.indexOf(a);
+        d !== -1 && (m(
+          !r(n, d),
+          `Circular dependency detected: ${e[n].fn.name} (${n}) and ${e[d].fn.name} (${d}) depend on each other.`
+        ), i[d] |= 1n << BigInt(n));
       }
       for (const a of o.after ?? []) {
-        const f = e.indexOf(a);
-        f !== -1 && (m(
-          !r(f, n),
-          `Circular dependency detected: ${e[n].fn.name} (${n}) and ${e[f].fn.name} (${f}) depend on each other.`
-        ), i[n] |= 1n << BigInt(f));
+        const d = e.indexOf(a);
+        d !== -1 && (m(
+          !r(d, n),
+          `Circular dependency detected: ${e[n].fn.name} (${n}) and ${e[d].fn.name} (${d}) depend on each other.`
+        ), i[n] |= 1n << BigInt(d));
       }
     }
   }), i.forEach((o, n) => {
@@ -663,15 +680,15 @@ function mt(e, t, s) {
   }), t.forEach((o, n) => {
     if (!!o) {
       if (o.beforeAll)
-        for (const a of $(s[n]))
+        for (const a of U(s[n]))
           a !== n && (i[n] & 1n << BigInt(a)) === 0n && (i[a] |= 1n << BigInt(n));
       if (o.afterAll)
-        for (const a of $(s[n]))
+        for (const a of U(s[n]))
           a !== n && (i[a] & 1n << BigInt(n)) === 0n && (i[n] |= 1n << BigInt(a));
     }
   }), i.forEach((o, n) => i[n] &= s[n]), i;
 }
-function* $(e) {
+function* U(e) {
   let t = 0;
   for (; e !== 0n; )
     (e & 1n) === 1n && (yield t), e >>= 1n, t++;
@@ -691,18 +708,18 @@ function gt(e) {
     )
   );
 }
-const yt = dt([ft.World()], function(t) {
+const yt = ft([dt.World()], function(t) {
   for (const s of t.commands.modifiedEntities)
-    for (const i of t.queries)
-      i.testAdd(s, t.commands.entityData);
+    for (const i of t.queries.values())
+      i.testAdd(s, t.commands.entityData.get(s));
   t.commands.modifiedEntities.clear();
 });
-class wt {
+class pt {
   #t = [];
   #e = [];
-  #i = [];
-  #s = J();
-  #r = /* @__PURE__ */ new Set();
+  #r = [];
+  #s = tt();
+  #i = /* @__PURE__ */ new Set();
   #n = /* @__PURE__ */ new Set();
   #a = /* @__PURE__ */ new Set();
   #o;
@@ -711,7 +728,7 @@ class wt {
     this.#o = t, this.#h = s, this.addSystem(yt, { afterAll: !0 });
   }
   get resources() {
-    return this.#r;
+    return this.#i;
   }
   get queries() {
     return this.#n;
@@ -729,7 +746,7 @@ class wt {
     return this.#t.push(t), this.#e.push(s), this.#c(t), this;
   }
   addStartupSystem(t) {
-    return this.#i.push(t), this.#c(t), this;
+    return this.#r.push(t), this.#c(t), this;
   }
   addPlugin(t) {
     return t(this), this;
@@ -738,7 +755,7 @@ class wt {
     return this.#a.add(t), this;
   }
   registerResource(t) {
-    return this.#r.add(t), this;
+    return this.#i.add(t), this;
   }
   registerSendableClass(t) {
     return A(t) && this.#s.push(t), this;
@@ -755,14 +772,14 @@ class wt {
       c.Context.Main,
       t,
       () => {
-        const h = gt(this.#t), w = mt(
+        const h = gt(this.#t), p = mt(
           this.#t,
           this.#e,
           h
-        ), I = this.#t.reduce((k, V, X) => (V.parameters.some((K) => K.isLocalToThread()) && k.add(X), k), /* @__PURE__ */ new Set());
-        return N.from(h, w, I);
+        ), I = this.#t.reduce((O, X, K) => (X.parameters.some((j) => j.isLocalToThread()) && O.add(K), O), /* @__PURE__ */ new Set());
+        return N.from(h, p, I);
       }
-    ), i = C(
+    ), i = E(
       this.#a,
       await c.createOrReceive(
         c.Context.Main,
@@ -772,33 +789,33 @@ class wt {
           (h) => rt(h, this.#o)
         )
       )
-    ), r = C(
-      this.#r,
+    ), r = E(
+      this.#i,
       await c.createOrReceive(
         c.Context.Main,
         t,
         () => Array.from(
-          this.#r,
-          (h) => A(h) ? v(h, this.#o) : null
+          this.#i,
+          (h) => A(h) ? z(h, this.#o) : null
         )
       )
     );
     c.execute(c.Context.Main, () => {
-      this.#r.forEach((h) => {
+      this.#i.forEach((h) => {
         A(h) || r.set(
           h,
-          v(h, this.#o)
+          z(h, this.#o)
         );
       });
     });
-    const o = C(
+    const o = E(
       this.#n,
       await c.createOrReceive(
         c.Context.Main,
         t,
         () => Array.from(
           this.#n,
-          () => W.with(
+          () => C.with(
             this.#o.maxEntities,
             this.#o.threads > 1
           )
@@ -807,8 +824,10 @@ class wt {
     ), n = await c.createOrReceive(
       c.Context.Main,
       t,
-      () => et.fromWorld(this.#o, i)
-    ), a = [], f = new Bt(
+      () => et.fromWorld(this.#o, i.size)
+    );
+    n.__$$setComponents(i);
+    const a = [], d = new Bt(
       i,
       r,
       o,
@@ -818,13 +837,13 @@ class wt {
       n
     );
     return this.#t.forEach(
-      (h, w) => a[w] = this.#u(h, f)
+      (h, p) => a[p] = this.#u(h, d)
     ), c.execute(c.Context.Main, () => {
-      for (const { execute: h, args: w } of this.#i.map(
-        (I) => this.#u(I, f)
+      for (const { execute: h, args: p } of this.#r.map(
+        (I) => this.#u(I, d)
       ))
-        h(...w);
-    }), await c.createOrReceive(c.Context.Worker, t, () => 0), f;
+        h(...p);
+    }), await c.createOrReceive(c.Context.Worker, t, () => 0), d;
   }
   #c(t) {
     t.parameters.forEach((s) => s.onAddSystem(this));
@@ -836,7 +855,7 @@ class wt {
     };
   }
 }
-function pt(e = {}) {
+function wt(e = {}) {
   return {
     threads: 1,
     maxEntities: 2 ** 16,
@@ -863,22 +882,22 @@ function At(e, t) {
   );
 }
 function St(e, t) {
-  const s = pt(e);
+  const s = wt(e);
   return At(s, t), s;
 }
 class Bt {
   static new(t, s) {
-    return new wt(St(t, s), s);
+    return new pt(St(t, s), s);
   }
   #t;
   #e;
-  #i;
-  #s;
   #r;
+  #s;
+  #i;
   #n;
   #a;
   constructor(t, s, i, r, o, n, a) {
-    this.#t = t, this.#e = s, this.#i = i, this.#r = o, this.#s = r, this.#n = n, this.#a = a, this.#n.onReady(() => this.#o());
+    this.#t = t, this.#e = s, this.#r = i, this.#i = o, this.#s = r, this.#n = n, this.#a = a, this.#n.onReady(() => this.#o());
   }
   get threads() {
     return this.#s;
@@ -887,7 +906,7 @@ class Bt {
     return this.#e;
   }
   get queries() {
-    return this.#i;
+    return this.#r;
   }
   get components() {
     return this.#t;
@@ -900,23 +919,23 @@ class Bt {
   }
   async #o() {
     for await (const t of this.#n) {
-      const s = this.#r[t];
+      const s = this.#i[t];
       s.execute(...s.args);
     }
     this.#n.onReady(() => this.#o());
   }
 }
-function Ct(e) {
+function It(e) {
   return e;
 }
 export {
-  It as Component,
-  x as Mut,
-  ft as P,
+  Ct as Component,
+  $ as Mut,
+  dt as P,
   u as ThreadProtocol,
-  d as Type,
+  f as Type,
   yt as applyCommands,
   Bt as default,
-  Ct as definePlugin,
-  dt as defineSystem
+  It as definePlugin,
+  ft as defineSystem
 };

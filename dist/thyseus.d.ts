@@ -124,12 +124,34 @@ declare type SerializedIA = [
 	Uint32Array,
 	Uint32Array
 ];
+declare class SparseSet {
+	#private;
+	static with(length: number, isShared?: boolean): SparseSet;
+	sparse: Uint32Array;
+	dense: Uint32Array;
+	constructor(sparse: Uint32Array, dense: Uint32Array, metadata: Uint32Array);
+	get size(): number;
+	set size(value: number);
+	has(value: number): boolean;
+	add(value: number): this;
+	delete(value: number): boolean;
+	clear(): void;
+	[Symbol.iterator](): Generator<number, void, unknown>;
+	[ThreadProtocol.Send](): SerializedSparseSet;
+	static [ThreadProtocol.Receive]([sparse, dense, meta,]: SerializedSparseSet): SparseSet;
+}
+declare type SerializedSparseSet = [
+	sparse: Uint32Array,
+	dense: Uint32Array,
+	meta: Uint32Array
+];
 declare class WorldCommands {
 	#private;
-	static fromWorld(config: WorldConfig, components: Map<ComponentType, object>): WorldCommands;
+	static fromWorld(config: WorldConfig, componentCount: number): WorldCommands;
 	entityData: BigUintArray;
-	modifiedEntities: any;
-	constructor(allocator: IndexAllocator, components: Map<ComponentType, object>, entityData: BigUintArray);
+	modifiedEntities: SparseSet;
+	constructor(allocator: IndexAllocator, entityData: BigUintArray, modifiedEntities: SparseSet);
+	private __$$setComponents;
 	/**
 	 * Queues an entity to be spawned.
 	 * @returns `EntityCommands` to add/remove components from an entity.
@@ -147,13 +169,19 @@ declare class WorldCommands {
 	 * @returns `EntityCommands` to add/remove components from an entity.
 	 */
 	get(id: number): EntityCommands;
-	[ThreadProtocol.Send](): void;
-	static [ThreadProtocol.Receive](): void;
+	[ThreadProtocol.Send](): SerializedWorldCommands;
+	static [ThreadProtocol.Receive]([alloc, entityData, modified,]: SerializedWorldCommands): WorldCommands;
 }
+declare type SerializedWorldCommands = [
+	IndexAllocator,
+	BigUintArray,
+	SparseSet
+];
 declare class EntityCommands {
 	#private;
 	private __$$setId;
-	constructor(worldCommands: WorldCommands, components: Map<ComponentType, object>, entityData: BigUintArray);
+	private __$$setComponents;
+	constructor(worldCommands: WorldCommands, entityData: BigUintArray, modifiedEntities: SparseSet);
 	initialize(Component: ComponentType<any, any>): this;
 	insert(Component: ComponentType<any, any>): this;
 	remove(Component: ComponentType): this;
@@ -184,27 +212,6 @@ export declare function Mut<T extends Class>(x: T): Mutable<T>;
 export declare namespace Mut {
 	var isMut: <T extends Class = Class>(x: unknown) => x is Mutable<T>;
 }
-declare class SparseSet {
-	#private;
-	static with(length: number, isShared?: boolean): SparseSet;
-	sparse: Uint32Array;
-	dense: Uint32Array;
-	constructor(sparse: Uint32Array, dense: Uint32Array, metadata: Uint32Array);
-	get size(): number;
-	set size(value: number);
-	has(value: number): boolean;
-	add(value: number): this;
-	delete(value: number): boolean;
-	clear(): void;
-	[Symbol.iterator](): Generator<number, void, unknown>;
-	[ThreadProtocol.Send](): SerializedSparseSet;
-	static [ThreadProtocol.Receive]([sparse, dense, meta,]: SerializedSparseSet): SparseSet;
-}
-declare type SerializedSparseSet = [
-	sparse: Uint32Array,
-	dense: Uint32Array,
-	meta: Uint32Array
-];
 interface Query<C extends object> {
 	[Symbol.iterator](): Iterator<C>;
 }
@@ -361,10 +368,10 @@ declare class World {
 	#private;
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
 	static new(config: Partial<WorldConfig>, url: string | URL): WorldBuilder;
-	constructor(components: Map<ComponentType, ComponentStore>, resources: Map<ResourceType, object>, queries: Map<QueryDescriptor<any>, SparseSet>, threads: Thread[], systems: System[], executor: Executor, commands: WorldCommands);
+	constructor(components: Map<ComponentType, ComponentStore>, resources: Map<ResourceType, object>, queries: Map<QueryDescriptor<any>, Query<any>>, threads: Thread[], systems: System[], executor: Executor, commands: WorldCommands);
 	get threads(): Thread[];
 	get resources(): Map<ResourceType, object>;
-	get queries(): Map<QueryDescriptor<any>, SparseSet>;
+	get queries(): Map<QueryDescriptor<any>, Query<any>>;
 	get components(): Map<ComponentType<{}, SchemaInstance<{}>>, ComponentStore<Schema>>;
 	get commands(): WorldCommands;
 	update(): Promise<void>;
