@@ -52,6 +52,11 @@ export default class Executor {
 		const status = this.#lock.UNSAFE_getData();
 		status.set(0, 0n);
 		status.set(1, 0n);
+		for (let i = 0; i < this.#dependencies.length; i++) {
+			if (!this.#local.has(i)) {
+				this.#systemsToExecute.add(i);
+			}
+		}
 	}
 
 	async onReady(fn: () => void) {

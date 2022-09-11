@@ -55,12 +55,16 @@ export default class QueryDescriptor<C extends QueryMember[]>
 					>
 			  >;
 	}> {
-		return new TupleQuery(
-			this.components,
-			this.components.map(c => world.components.get(c)!),
-			world.queries.get(this)!,
-			createFilter([...world.components.keys()], this.components),
+		world.queries.set(
+			this,
+			new TupleQuery(
+				this.components,
+				this.components.map(c => world.components.get(c)!),
+				world.queries.get(this) as any,
+				createFilter([...world.components.keys()], this.components),
+			),
 		);
+		return world.queries.get(this)!;
 	}
 }
 

@@ -1,6 +1,6 @@
 {
 	"name": "thyseus",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "A multithreaded, DX-focused Typescript ECS",
 	"type": "module",
 	"files": [
@@ -28,8 +28,11 @@
 	"keywords": [
 		"ecs",
 		"entity component system",
-		"multithreaded",
 		"typescript",
+		"game engine",
+		"game dev",
+		"thread",
+		"multithreaded",
 		"multithreading"
 	],
 	"author": "Jaime Gensler",

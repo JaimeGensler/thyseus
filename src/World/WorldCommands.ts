@@ -1,44 +1,45 @@
 import BigUintArray from '../utils/DataTypes/BigUintArray';
-import { ThreadProtocol } from '../utils/Thread';
 import IndexAllocator from '../utils/DataTypes/IndexAllocator';
+import SparseSet from '../utils/DataTypes/SparseSet';
+import { ThreadProtocol } from '../utils/Thread';
 import type { ComponentType } from '../Components';
 import type { WorldConfig } from './config';
 
 export default class WorldCommands {
-	static fromWorld(
-		config: WorldConfig,
-		components: Map<ComponentType, object>,
-	) {
+	static fromWorld(config: WorldConfig, componentCount: number) {
 		return new this(
 			IndexAllocator.with(config.maxEntities, config.threads > 1),
-			components,
 			BigUintArray.with(
-				components.size,
+				componentCount,
 				config.maxEntities,
 				config.threads > 1,
 			),
+			SparseSet.with(config.maxEntities, config.threads > 1),
 		);
 	}
 
 	#entityCommands: InternalEntityCommands;
 
 	#allocator: IndexAllocator;
-	#components: Map<ComponentType, object>;
 	entityData: BigUintArray;
-	modifiedEntities: any;
+	modifiedEntities: SparseSet;
 	constructor(
 		allocator: IndexAllocator,
-		components: Map<ComponentType, object>,
 		entityData: BigUintArray,
+		modifiedEntities: SparseSet,
 	) {
 		this.#allocator = allocator;
-		this.#components = components;
 		this.entityData = entityData;
 		this.#entityCommands = new EntityCommands(
 			this,
-			components,
 			entityData,
+			modifiedEntities,
 		) as any;
+		this.modifiedEntities = modifiedEntities;
+	}
+
+	private __$$setComponents(components: Map<ComponentType, object>) {
+		this.#entityCommands.__$$setComponents(components);
 	}
 
 	// === Entities ===
@@ -58,6 +59,7 @@ export default class WorldCommands {
 	despawn(id: number): this {
 		this.#allocator.free(id);
 		this.entityData.set(id, 0n);
+		this.modifiedEntities.add(id);
 		return this;
 	}
 
@@ -70,13 +72,23 @@ export default class WorldCommands {
 		return this.#entityCommands.__$$setId(id);
 	}
 
-	[ThreadProtocol.Send]() {}
-	static [ThreadProtocol.Receive]() {}
+	[ThreadProtocol.Send](): SerializedWorldCommands {
+		return [this.#allocator, this.entityData, this.modifiedEntities];
+	}
+	static [ThreadProtocol.Receive]([
+		alloc,
+		entityData,
+		modified,
+	]: SerializedWorldCommands) {
+		return new this(alloc, entityData, modified);
+	}
 }
+type SerializedWorldCommands = [IndexAllocator, BigUintArray, SparseSet];
 
 type InternalEntityCommands = {
 	[Key in keyof EntityCommands]: EntityCommands[Key];
 } & {
+	__$$setComponents(components: Map<ComponentType, object>): void;
 	__$$setId(id: number): EntityCommands;
 };
 
@@ -85,19 +97,25 @@ class EntityCommands {
 		this.#id = id;
 		return this;
 	}
+	private __$$setComponents(components: Map<ComponentType, object>) {
+		this.#components = components;
+	}
+
 	#id = 0;
+	#components: Map<ComponentType, object>;
 
 	#worldCommands: WorldCommands;
-	#components: Map<ComponentType, object>;
 	#entityData: BigUintArray;
+	#modifiedEntities: SparseSet;
 	constructor(
 		worldCommands: WorldCommands,
-		components: Map<ComponentType, object>,
 		entityData: BigUintArray,
+		modifiedEntities: SparseSet,
 	) {
 		this.#worldCommands = worldCommands;
-		this.#components = components;
+		this.#components = null!;
 		this.#entityData = entityData;
+		this.#modifiedEntities = modifiedEntities;
 	}
 
 	initialize(Component: ComponentType<any, any>): this {
@@ -114,6 +132,7 @@ class EntityCommands {
 			this.#id,
 			1n << BigInt(getMapIndex(this.#components, Component)),
 		);
+		this.#modifiedEntities.add(this.#id);
 		return this;
 	}
 
@@ -122,6 +141,7 @@ class EntityCommands {
 			this.#id,
 			1n << BigInt(getMapIndex(this.#components, Component)),
 		);
+		this.#modifiedEntities.add(this.#id);
 		return this;
 	}
 

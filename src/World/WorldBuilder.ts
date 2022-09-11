@@ -3,6 +3,7 @@ import Executor from './Executor';
 import getDefaultSendableClasses from './getDefaultSendableClasses';
 import zipIntoMap from '../utils/zipIntoMap';
 import WorldCommands from './WorldCommands';
+import SparseSet from '../utils/DataTypes/SparseSet';
 import Thread, { isSendableClass, type SendableClass } from '../utils/Thread';
 import { createStore, type ComponentType } from '../Components';
 import { createResource, type ResourceType } from '../Resources';
@@ -13,11 +14,10 @@ import {
 	type Dependencies,
 	type SystemDefinition,
 } from '../Systems';
+import type QueryDescriptor from '../Systems/Descriptors/QueryDescriptor';
 import type { WorldConfig } from './config';
 import type { System } from '../utilTypes';
 import type { Plugin } from './definePlugin';
-import type QueryDescriptor from '../Systems/Descriptors/QueryDescriptor';
-import SparseSet from '../utils/DataTypes/SparseSet';
 
 export default class WorldBuilder {
 	#systems = [] as SystemDefinition[];
@@ -206,8 +206,10 @@ export default class WorldBuilder {
 		const commands = await Thread.createOrReceive(
 			Thread.Context.Main,
 			threads,
-			() => WorldCommands.fromWorld(this.#config, components),
+			() => WorldCommands.fromWorld(this.#config, components.size),
 		);
+		//@ts-ignore
+		commands.__$$setComponents(components);
 
 		const systems: System[] = [];
 
