@@ -47,4 +47,6 @@ export type TypeToJSType<T extends Type> = T extends Type.u64 | Type.i64
 	? bigint
 	: number;
 
-export type TypeToTypedArray<T extends Type> = typeof typeToConstructor[T];
+export type TypeToTypedArray<T extends Type> = InstanceType<
+	typeof typeToConstructor[T]
+>;

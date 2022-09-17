@@ -7,16 +7,16 @@ import type Descriptor from './Descriptor';
 import type { ComponentType } from '../../Components';
 import type World from '../../World';
 
-type QueryMember = ComponentType<any, any> | Mutable<ComponentType<any, any>>;
+type QueryMember = ComponentType<any> | Mutable<ComponentType<any>>;
 
 export default class QueryDescriptor<C extends QueryMember[]>
 	implements Descriptor
 {
-	components: ComponentType<any, any>[] = [];
+	components: ComponentType<any>[] = [];
 	accessType: AccessType[] = [];
 	constructor(components: [...C]) {
 		for (const component of components) {
-			const isMut = Mut.isMut<ComponentType<any, any>>(component);
+			const isMut = Mut.isMut<ComponentType<any>>(component);
 			this.components.push(isMut ? component[0] : component);
 			this.accessType.push(isMut ? AccessType.Write : AccessType.Read);
 		}
@@ -49,9 +49,7 @@ export default class QueryDescriptor<C extends QueryMember[]>
 			? InstanceType<X>
 			: Readonly<
 					InstanceType<
-						C[Index] extends ComponentType<any, any>
-							? C[Index]
-							: never
+						C[Index] extends ComponentType<any> ? C[Index] : never
 					>
 			  >;
 	}> {
