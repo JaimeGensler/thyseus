@@ -1,7 +1,9 @@
 import { Type } from '../Components';
+import getSize from '../Components/getSize';
 import { typeToBytes } from '../Components/Type';
 import { Schema, SchemaInstance } from '../Components/types';
 import assert from '../utils/assert';
+import createBuffer from '../utils/createBuffer';
 import {
 	ThreadProtocol,
 	type SendableClass,
@@ -22,11 +24,9 @@ export default function Resource<T extends Schema>(
 
 	class ResClass {
 		static create(config: WorldConfig) {
-			const BufferType =
-				config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
-
-			const data = new DataView(new BufferType(0));
-			return new this(data);
+			return new this(
+				new DataView(createBuffer(config, getSize(schema))),
+			);
 		}
 
 		__$$: DataView;
