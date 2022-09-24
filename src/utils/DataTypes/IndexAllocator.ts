@@ -1,4 +1,4 @@
-import { ThreadProtocol } from '../Thread';
+import { ThreadProtocol } from '../Threads';
 
 // NOTE: Requires n is non-zero
 const ctz32 = (n: number) => {

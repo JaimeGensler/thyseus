@@ -1,6 +1,6 @@
 import BigUintArray from '../utils/DataTypes/BigUintArray';
 import Mutex from '../utils/DataTypes/Mutex';
-import { ThreadProtocol } from '../utils/Thread';
+import { ThreadProtocol } from '../utils/Threads';
 import SparseSet from '../utils/DataTypes/SparseSet';
 
 export default class Executor {

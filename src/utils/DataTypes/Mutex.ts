@@ -1,5 +1,5 @@
 import assert from '../assert';
-import { ThreadProtocol } from '../Thread';
+import { ThreadProtocol } from '../Threads';
 
 enum LockState {
 	Unlocked,

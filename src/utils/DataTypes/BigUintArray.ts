@@ -1,4 +1,4 @@
-import { ThreadProtocol } from '../Thread';
+import { ThreadProtocol } from '../Threads';
 
 const b255 = 0b1111_1111n;
 export default class BigUintArray {

@@ -1,10 +1,9 @@
-import { isSendableClass } from '../../utils/Thread';
+import { isSendableClass } from '../../utils/Threads';
 import AccessType from '../../utils/AccessType';
 import Mut, { type Mutable } from '../Mut';
 import type WorldBuilder from '../../World/WorldBuilder';
 import type Descriptor from './Descriptor';
-import type { Class } from '../../utilTypes';
-import type { ResourceType } from '../../Resources/Resource';
+import type { ResourceType, Class } from '../../Resources';
 import type World from '../../World';
 
 export default class ResourceDescriptor<
@@ -53,7 +52,7 @@ export default class ResourceDescriptor<
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, vi } = import.meta.vitest;
-	const { ThreadProtocol } = await import('../../utils/Thread');
+	const { ThreadProtocol } = await import('../../utils/Threads');
 
 	class A {}
 	class B {}

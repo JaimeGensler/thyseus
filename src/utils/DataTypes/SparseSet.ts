@@ -1,4 +1,4 @@
-import { ThreadProtocol } from '../Thread';
+import { ThreadProtocol } from '../Threads';
 
 export default class SparseSet {
 	static with(length: number, isShared = false) {
