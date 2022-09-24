@@ -3,32 +3,24 @@ import assert from '../utils/assert';
 export interface WorldConfig {
 	threads: number;
 	maxEntities: number;
-	tableSizes: number[];
+	getNewTableSize(prev: number): number;
 }
 export interface SingleThreadedWorldConfig extends WorldConfig {
 	threads: 1;
 }
 
-const DEFAULT_TABLE_SIZES = [
-	8, 16, 32, 64, 128, 256, 512, 1_024, 2_048, 4_096, 8_192, 16_384, 32_768,
-	65_536, 131_072, 262_144, 524_288, 1_048_576, 2_097_152, 4_194_304,
-	8_388_608, 16_777_216, 33_554_432, 67_108_864, 134_217_728, 268_435_456,
-	536_870_912, 1_073_741_824,
-];
-function getCompleteConfig(config: Partial<WorldConfig> | undefined = {}) {
-	return {
-		threads: 1,
-		maxEntities: 2 ** 16, // 65_536
-		tableSizes: DEFAULT_TABLE_SIZES,
-		...config,
-	};
-}
+const getCompleteConfig = (config: Partial<WorldConfig> | undefined = {}) => ({
+	threads: 1,
+	maxEntities: 2 ** 16, // 65_536
+	getNewTableSize: (prev: number) => (prev === 0 ? 8 : prev * 2),
+	...config,
+});
 
 // TODO: Provide better info on how to resolve these errors.
-function validateConfig(
-	{ threads, maxEntities, tableSizes }: WorldConfig,
+const validateConfig = (
+	{ threads, maxEntities, getNewTableSize }: WorldConfig,
 	url: string | URL | undefined,
-) {
+) => {
 	if (threads > 1) {
 		assert(
 			isSecureContext,
@@ -52,23 +44,7 @@ function validateConfig(
 		maxEntities > 0 && Number.isSafeInteger(maxEntities),
 		"Invalid config - 'maxEntities' must be a safe, positive integer.",
 	);
-	assert(
-		tableSizes.every(
-			(_, i) =>
-				i === tableSizes.length - 1 ||
-				tableSizes[i] < tableSizes[i + 1],
-		),
-		'Invalid config - `tableSizes` must be sorted ascending.',
-	);
-	assert(
-		tableSizes.every(x => x % 8 === 0),
-		'Invalid config - every values of `tableSizes` must be a multiple of 8.',
-	);
-	assert(
-		tableSizes[tableSizes.length - 1] >= maxEntities,
-		'Invalid config - the last value of `tableSizes` must be greater than or equal to `maxEntities`.',
-	);
-}
+};
 export default function validateAndCompleteConfig(
 	inConfig: Partial<WorldConfig> | undefined,
 	url: string | URL | undefined,
@@ -127,22 +103,6 @@ if (import.meta.vitest) {
 		);
 		expect(validate({ maxEntities: Math.PI })).toThrow(expectedError);
 		expect(validate({ maxEntities: -1 })).toThrow(expectedError);
-	});
-
-	it('throws if tableSizes is not sorted', () => {
-		expect(validate({ tableSizes: [16, 8] })).toThrow(/sorted ascending/);
-		expect(validate({ tableSizes: [8, 16, 32, 64, 256, 128] })).toThrow(
-			/sorted ascending/,
-		);
-	});
-	it('throws if any tableSize is not a multiple of 8', () => {
-		expect(validate({ tableSizes: [3] })).toThrow(/multiple of 8/);
-		expect(validate({ tableSizes: [8, 16, 33] })).toThrow(/multiple of 8/);
-	});
-	it('throws if the last value of tableSizes is less than maxEntities', () => {
-		expect(validate({ tableSizes: [8], maxEntities: 9 })).toThrow(
-			/greater than or equal to/,
-		);
 	});
 
 	it('completes partial config', () => {
