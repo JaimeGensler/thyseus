@@ -1,13 +1,4 @@
-export interface Class {
-	new (...args: any[]): object;
-}
-
-export interface System {
-	args: any[];
-	execute(...args: any[]): void;
-}
-
-type WaitAsyncResult =
+export type WaitAsyncResult =
 	| { async: false; value: 'ok' }
 	| { async: false; value: 'not-equal' }
 	| { async: false; value: 'timed-out' }

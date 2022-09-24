@@ -8,10 +8,12 @@ import {
 	ThreadProtocol,
 	type SendableClass,
 	type SendableType,
-} from '../utils/Thread';
-import type { Class } from '../utilTypes';
+} from '../utils/Threads';
 import type { WorldConfig } from '../World/config';
 
+export interface Class {
+	new (...args: any[]): object;
+}
 export type ResourceType = SendableClass<SendableType> | Class;
 
 export default function Resource<T extends Schema>(
