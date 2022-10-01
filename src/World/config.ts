@@ -41,8 +41,10 @@ const validateConfig = (
 		"Invalid config - 'threads' must be a safe, positive integer (min 1).",
 	);
 	assert(
-		maxEntities > 0 && Number.isSafeInteger(maxEntities),
-		"Invalid config - 'maxEntities' must be a safe, positive integer.",
+		Number.isInteger(maxEntities) &&
+			0 < maxEntities &&
+			maxEntities < 2 ** 32,
+		"Invalid config - 'maxEntities' must be an integer such that 0 < maxEntities < 2**32",
 	);
 };
 export default function validateAndCompleteConfig(
