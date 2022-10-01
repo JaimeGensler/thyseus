@@ -1,5 +1,5 @@
 import type { ComponentType, ComponentStore } from '../Components';
-import type SparseSet from '../utils/DataTypes/SparseSet';
+import type { SparseSet } from '../utils/DataTypes';
 import type Query from './Query';
 
 export default class TupleQuery<C extends object[]> implements Query<C> {
