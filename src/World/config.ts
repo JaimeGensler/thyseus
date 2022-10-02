@@ -33,18 +33,21 @@ const validateConfig = (
 		assert(
 			url,
 			'Invalid config - Multithreading (threads > 1) requires a module URL parameter.',
+			TypeError,
 		);
 	}
-	// TODO: Lower max threads?
+	// TODO: Lower max threads further? The "correct" max is navigator.hardwareConcurrency
 	assert(
-		threads > 0 && Number.isSafeInteger(threads),
-		"Invalid config - 'threads' must be a safe, positive integer (min 1).",
+		Number.isInteger(threads) && 0 < threads && threads < 64,
+		"Invalid config - 'threads' must be an integer such that 0 < threads < 64",
+		RangeError,
 	);
 	assert(
 		Number.isInteger(maxEntities) &&
 			0 < maxEntities &&
 			maxEntities < 2 ** 32,
 		"Invalid config - 'maxEntities' must be an integer such that 0 < maxEntities < 2**32",
+		RangeError,
 	);
 };
 export default function validateAndCompleteConfig(
@@ -92,17 +95,21 @@ if (import.meta.vitest) {
 		});
 	});
 
-	it('throws if threads < 1, or not a safe, positive integer', () => {
+	it('throws if threads < 1 or threads > 64, or not a safe, positive integer', () => {
 		expect(validate({ threads: 0 }, '/')).toThrow(
-			/'threads' must be a safe/,
+			/'threads' must be an integer/,
+		);
+		expect(validate({ threads: 1.2 }, '/')).toThrow(
+			/'threads' must be an integer/,
+		);
+		expect(validate({ threads: 64 }, '/')).toThrow(
+			/'threads' must be an integer/,
 		);
 	});
 
-	it('throws if maxEntities is not a safe, positive integer', () => {
-		const expectedError = /'maxEntities' must be a safe/;
-		expect(validate({ maxEntities: Number.MAX_SAFE_INTEGER + 1 })).toThrow(
-			expectedError,
-		);
+	it('throws if maxEntities is not a positive integer < 2**32', () => {
+		const expectedError = /'maxEntities' must be an integer/;
+		expect(validate({ maxEntities: 2 ** 32 })).toThrow(expectedError);
 		expect(validate({ maxEntities: Math.PI })).toThrow(expectedError);
 		expect(validate({ maxEntities: -1 })).toThrow(expectedError);
 	});
