@@ -5,13 +5,13 @@ export default class Entity {
 	static schema = [Type.u32];
 	static size = 4;
 
-	$$__s: Uint32Array;
-	$$__i: number;
-	$$__e: Entities;
+	__$$s: Uint32Array;
+	__$$i: number;
+	__$$e: Entities;
 	constructor([store]: [Uint32Array], index: number, entities: Entities) {
-		this.$$__s = store;
-		this.$$__i = index;
-		this.$$__e = entities;
+		this.__$$s = store;
+		this.__$$i = index;
+		this.__$$e = entities;
 	}
 
 	/**
@@ -20,7 +20,7 @@ export default class Entity {
 	 */
 	get id(): bigint {
 		return (
-			(BigInt(this.generation) << 32n) & BigInt(this.$$__s[this.$$__i])
+			(BigInt(this.generation) << 32n) & BigInt(this.__$$s[this.__$$i])
 		);
 	}
 
@@ -28,13 +28,13 @@ export default class Entity {
 	 * The index of this entity (uint32).
 	 */
 	get index(): number {
-		return this.$$__s[this.$$__i];
+		return this.__$$s[this.__$$i];
 	}
 
 	/**
 	 * The generation of this entity (uint32).
 	 */
 	get generation(): number {
-		return this.$$__e.generations[this.index];
+		return this.__$$e.generations[this.index];
 	}
 }

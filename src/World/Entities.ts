@@ -1,16 +1,17 @@
 import { BigUintArray } from '../utils/DataTypes';
+import type { WorldConfig } from './config';
 
 const fourBytes = 32n;
 const lo32 = 0x00_00_00_00_ff_ff_ff_ffn;
 // NOTE: If tableIds move to uint32s, tableIds/row can be transformed into entityLocation: BigUint64Array
 export default class Entities {
+	static async fromWorld(config: WorldConfig): Promise<Entities> {}
+
 	generations: Uint32Array;
 	tableIds: BigUintArray;
 	row: Uint32Array;
-
 	#data: Uint32Array;
 	#free: Uint32Array;
-
 	constructor(
 		generations: Uint32Array,
 		tableIds: BigUintArray,
@@ -49,7 +50,8 @@ export default class Entities {
 		const result = Atomics.add(this.#data, DataIndex.NextId, 1);
 		return BigInt(result);
 	}
-	despawn(id: bigint) {
+
+	despawn(id: bigint): void {
 		const index = getIndex(id);
 		const generation = getGeneration(id);
 		if (
@@ -63,6 +65,10 @@ export default class Entities {
 			Atomics.or(this.#free, index >> 5, 1 << (index & 0b0001_1111));
 			Atomics.add(this.#data, DataIndex.FreeCount, 1);
 		}
+	}
+
+	getTableId(id: bigint): bigint {
+		return this.tableIds.get(getIndex(id));
 	}
 }
 const getIndex = (id: bigint): number => Number(id & lo32);
