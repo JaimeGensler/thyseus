@@ -1,12 +1,22 @@
-import { P } from './Descriptors';
 import defineSystem from './defineSystem';
+import { P } from './Descriptors';
 
-export default defineSystem([P.World()], function applyCommands(world) {
-	for (const eid of world.commands.modifiedEntities) {
-		for (const query of world.queries.values()) {
-			//@ts-ignore
-			query.testAdd(eid, world.commands.entityData.get(eid));
-		}
+const mergeQueues = (a: Map<bigint, bigint>, b: Map<bigint, bigint>) => {
+	for (const [key, bVal] of b) {
+		a.set(key, (a.get(key) ?? 0n) & bVal);
 	}
-	world.commands.modifiedEntities.clear();
+	return a;
+};
+export default defineSystem([P.World()], async function applyCommands(world) {
+	const queue = (
+		await world.threads.send<Map<bigint, bigint>>(
+			'thyseus::getCommandQueue',
+		)
+	).reduce(mergeQueues, world.commands.queue);
+
+	for (const [entityId, tableId] of queue) {
+		world.moveEntity(entityId, tableId);
+	}
+
+	queue.clear();
 });
