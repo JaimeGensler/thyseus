@@ -3,9 +3,11 @@ import Executor from './Executor';
 import getDefaultSendableClasses from './getDefaultSendableClasses';
 import zipIntoMap from '../utils/zipIntoMap';
 import WorldCommands from './WorldCommands';
-import SparseSet from '../utils/DataTypes/SparseSet';
-import Thread, { isSendableClass, type SendableClass } from '../utils/Thread';
-import { createStore, type ComponentType } from '../Components';
+import Entities from './Entities';
+import ThreadGroup, {
+	isSendableClass,
+	type SendableClass,
+} from '../utils/Threads';
 import { createResource, type ResourceType } from '../Resources';
 import {
 	getSystemDependencies,
@@ -13,10 +15,10 @@ import {
 	applyCommands,
 	type Dependencies,
 	type SystemDefinition,
+	type System,
 } from '../Systems';
-import type QueryDescriptor from '../Systems/Descriptors/QueryDescriptor';
+import type { ComponentType } from '../Components';
 import type { WorldConfig } from './config';
-import type { System } from '../utilTypes';
 import type { Plugin } from './definePlugin';
 
 export default class WorldBuilder {
@@ -26,9 +28,8 @@ export default class WorldBuilder {
 
 	#sendableClasses = getDefaultSendableClasses();
 
-	#resources = new Set<ResourceType>();
-	#queries = new Set<QueryDescriptor<any>>();
 	#components = new Set<ComponentType>();
+	#resources = new Set<ResourceType>();
 
 	#config: WorldConfig;
 	#url: string | URL | undefined;
@@ -40,9 +41,6 @@ export default class WorldBuilder {
 
 	get resources() {
 		return this.#resources;
-	}
-	get queries() {
-		return this.#queries;
 	}
 	get components() {
 		return this.#components;
@@ -80,6 +78,7 @@ export default class WorldBuilder {
 
 	/**
 	 * Passes this WorldBuilder to the provided plugin function.
+	 * @param plugin The plugin to pass this WorldBuilder to.
 	 * @returns `this`, for chaining.
 	 */
 	addPlugin(plugin: Plugin): this {
@@ -89,7 +88,7 @@ export default class WorldBuilder {
 
 	/**
 	 * Registers a Component in the world. Called automatically for all queried components when a system is added.
-	 * @param Component The ComponentType to register.
+	 * @param ComponentType The ComponentType to register.
 	 * @returns `this`, for chaining.
 	 */
 	registerComponent(ComponentType: ComponentType<any>): this {
@@ -99,7 +98,7 @@ export default class WorldBuilder {
 
 	/**
 	 * Registers a Resource in the world. Called automatically for all accessed resources when a system is added.
-	 * @param Component The ResourceType to register.
+	 * @param ResourceType The ResourceType to register.
 	 * @returns `this`, for chaining.
 	 */
 	registerResource(ResourceType: ResourceType): this {
@@ -109,7 +108,7 @@ export default class WorldBuilder {
 
 	/**
 	 * Registers a Resource in the world. Called automatically for all used sendable classes when a system is added.
-	 * @param Component The SendableClass to register.
+	 * @param SendableClass The SendableClass to register.
 	 * @returns `this`, for chaining.
 	 */
 	registerSendableClass(SendableClass: SendableClass<any>): this {
@@ -120,59 +119,38 @@ export default class WorldBuilder {
 	}
 
 	/**
-	 * Registers a query in the world. Called automatically for all query parameters.
-	 * @param descriptor The query descriptor to register.
-	 * @returns `this`, for chaining.
-	 */
-	registerQuery(descriptor: QueryDescriptor<any>): this {
-		this.#queries.add(descriptor);
-		return this;
-	}
-
-	/**
 	 * Builds the world.
 	 * `World` instances cannot add new systems or register new types.
 	 * This method returns a promise for both single- _and_ multi-threaded worlds.
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
-		const threads = Thread.spawn(
+		const threads = ThreadGroup.spawn(
 			this.#config.threads - 1,
 			this.#url,
 			this.#sendableClasses,
 		);
 
-		const executor = await Thread.createOrReceive(
-			Thread.Context.Main,
-			threads,
-			() => {
-				const intersections = getSystemIntersections(this.#systems);
-				const dependencies = getSystemDependencies(
-					this.#systems,
-					this.#systemDependencies,
-					intersections,
-				);
-				const local = this.#systems.reduce((acc, val, i) => {
-					if (val.parameters.some(param => param.isLocalToThread())) {
-						acc.add(i);
-					}
-					return acc;
-				}, new Set<number>());
-				return Executor.from(intersections, dependencies, local);
-			},
-		);
+		const executor = await threads.sendOrReceive(() => {
+			const intersections = getSystemIntersections(this.#systems);
+			const dependencies = getSystemDependencies(
+				this.#systems,
+				this.#systemDependencies,
+				intersections,
+			);
+			const local = this.#systems.reduce(
+				(acc, val, i) =>
+					val.parameters.some(param => param.isLocalToThread())
+						? acc.add(i)
+						: acc,
+				new Set<number>(),
+			);
+			return Executor.from(intersections, dependencies, local);
+		});
 
-		const components = zipIntoMap(
-			this.#components,
-			await Thread.createOrReceive(Thread.Context.Main, threads, () =>
-				Array.from(this.#components, ComponentType =>
-					createStore(ComponentType, this.#config),
-				),
-			),
-		);
 		const resources = zipIntoMap<ResourceType, object>(
 			this.#resources,
-			await Thread.createOrReceive(Thread.Context.Main, threads, () =>
+			await threads.sendOrReceive(() =>
 				Array.from(this.#resources, ResourceType =>
 					isSendableClass(ResourceType)
 						? createResource(ResourceType, this.#config)
@@ -180,7 +158,7 @@ export default class WorldBuilder {
 				),
 			),
 		);
-		Thread.execute(Thread.Context.Main, () => {
+		if (ThreadGroup.isMainThread) {
 			this.#resources.forEach(ResourceType => {
 				if (!isSendableClass(ResourceType)) {
 					resources.set(
@@ -189,54 +167,42 @@ export default class WorldBuilder {
 					);
 				}
 			});
+		}
+
+		const entities = await Entities.fromWorld(this.#config);
+		const commands = new WorldCommands(entities, this.#components);
+
+		threads.setListener('thyseus::getCommandQueue', () => {
+			const ret = new Map(commands.queue);
+			commands.queue.clear();
+			return ret;
 		});
-
-		const queries = zipIntoMap(
-			this.#queries,
-			await Thread.createOrReceive(Thread.Context.Main, threads, () =>
-				Array.from(this.#queries, () =>
-					SparseSet.with(
-						this.#config.maxEntities,
-						this.#config.threads > 1,
-					),
-				),
-			),
-		);
-
-		const commands = await Thread.createOrReceive(
-			Thread.Context.Main,
-			threads,
-			() => WorldCommands.fromWorld(this.#config, components.size),
-		);
-		//@ts-ignore
-		commands.__$$setComponents(components);
 
 		const systems: System[] = [];
 
 		const world = new World(
-			components,
+			this.#config,
 			resources,
-			queries,
 			threads,
 			systems,
 			executor,
 			commands,
+			entities,
 		);
 
 		this.#systems.forEach(
 			(system, i) => (systems[i] = this.#buildSystem(system, world)),
 		);
 
-		Thread.execute(Thread.Context.Main, () => {
+		if (ThreadGroup.isMainThread) {
 			for (const { execute, args } of this.#startupSystems.map(system =>
 				this.#buildSystem(system, world),
 			)) {
 				execute(...args);
 			}
-		});
+		}
 
-		await Thread.createOrReceive(Thread.Context.Worker, threads, () => 0);
-
+		await threads.sendOrReceive(() => 0);
 		return world;
 	}
 
