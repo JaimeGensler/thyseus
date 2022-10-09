@@ -1,3 +1,4 @@
+import type WorldCommands from '../World/WorldCommands';
 import type { Type, TypeToTypedArray } from './Type';
 
 type SchemaField = Type;
@@ -13,5 +14,9 @@ export type SchemaInstance<T extends Schema> = {
 export interface ComponentType<T extends Schema = {}> {
 	schema: T;
 	size: number;
-	new (store: ComponentStore<T>, index: number): object;
+	new (
+		store: ComponentStore<T>,
+		index: number,
+		commands: WorldCommands,
+	): object;
 }
