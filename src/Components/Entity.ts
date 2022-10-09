@@ -1,17 +1,24 @@
-import Entities from '../World/Entities';
 import { Type } from './Type';
+import { getGeneration, getIndex } from '../utils/entityId';
+import type WorldCommands from '../World/WorldCommands';
+import type { ComponentType } from './types';
 
 export default class Entity {
-	static schema = [Type.u32];
+	static schema = [Type.u64] as [Type.u64];
 	static size = 4;
 
-	__$$s: Uint32Array;
+	__$$s: BigUint64Array;
 	__$$i: number;
-	__$$e: Entities;
-	constructor([store]: [Uint32Array], index: number, entities: Entities) {
-		this.__$$s = store;
+	__$$c: WorldCommands;
+	constructor(
+		store: [BigUint64Array],
+		index: number,
+		commands: WorldCommands,
+	) {
+		const [x] = store;
+		this.__$$s = x;
 		this.__$$i = index;
-		this.__$$e = entities;
+		this.__$$c = commands;
 	}
 
 	/**
@@ -19,22 +26,48 @@ export default class Entity {
 	 * Composed of an entity's generation & index.
 	 */
 	get id(): bigint {
-		return (
-			(BigInt(this.generation) << 32n) & BigInt(this.__$$s[this.__$$i])
-		);
+		return this.__$$s[this.__$$i];
 	}
 
 	/**
 	 * The index of this entity (uint32).
 	 */
 	get index(): number {
-		return this.__$$s[this.__$$i];
+		return getIndex(this.id);
 	}
 
 	/**
 	 * The generation of this entity (uint32).
 	 */
 	get generation(): number {
-		return this.__$$e.generations[this.index];
+		return getGeneration(this.id);
+	}
+
+	/**
+	 * Queues a component to be inserted into this entity.
+	 * @param Component The Component **class** to insert into the entity.
+	 * @returns `this`, for chaining.
+	 */
+	insert(Component: ComponentType<any>): this {
+		this.__$$c.insertInto(this.id, Component);
+		return this;
+	}
+
+	/**
+	 * Queues a component to be removed from this entity.
+	 * @param Component The Component **class** to remove from the entity.
+	 * @returns `this`, for chaining.
+	 */
+	remove(Component: ComponentType): this {
+		this.__$$c.removeFrom(this.id, Component);
+		return this;
+	}
+
+	/**
+	 * Queues this entity to be despawned.
+	 * @returns `void`
+	 */
+	despawn(): void {
+		this.__$$c.despawn(this.id);
 	}
 }
