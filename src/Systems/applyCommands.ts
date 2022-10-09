@@ -3,7 +3,12 @@ import { P } from './Descriptors';
 
 const mergeQueues = (a: Map<bigint, bigint>, b: Map<bigint, bigint>) => {
 	for (const [key, bVal] of b) {
-		a.set(key, (a.get(key) ?? 0n) & bVal);
+		const aVal = a.get(key);
+		if (aVal === undefined) {
+			a.set(key, bVal);
+		} else if (aVal !== 0n) {
+			a.set(key, aVal | bVal);
+		}
 	}
 	return a;
 };
