@@ -1,4 +1,3 @@
-import { beforeEach } from 'vitest';
 import ThreadProtocol, {
 	type SendableType,
 	type Primitive,
@@ -86,16 +85,33 @@ export default class ThreadGroup {
 		}
 	}
 
+	/**
+	 * Sets a callback to be called when a message is received on a particular channel.
+	 * **NOTE**: Only **one** listener can be set per channel.
+	 * @param channel The channel to listen to.
+	 * @param listener A callback that is called when a message is received on this channel. The callback receives the content of the message, and its return will be sent in response.
+	 */
 	setListener<I extends SendableType = void, O extends SendableType = void>(
 		channel: string,
 		listener: Listener<I, O>,
 	) {
 		this.#listeners[channel] = listener;
 	}
+
+	/**
+	 * Deletes the listener for a message channel.
+	 * @param channel The channel to unsubscribe from.
+	 */
 	deleteListener(channel: string) {
 		delete this.#listeners[channel];
 	}
 
+	/**
+	 * Sends a value to a channel.
+	 * @param channel The channel to send the value to.
+	 * @param message The value to send.
+	 * @returns A promise, resolves to an array of results from all threads.
+	 */
 	send<T extends SendableType = void>(
 		channel: string,
 		message: SendableType,
@@ -110,6 +126,17 @@ export default class ThreadGroup {
 		);
 	}
 
+	/**
+	 * **WARNING: This method is order-sensitive and should only be called while the main thread and worker threads are executing the same code (i.e., while a world is being built).**
+	 * **Use `send` and `setListener` for more flexible usage.**
+	 *
+	 * On the main thread, creates a value, sends it to all threads, and waits for them to receive it.
+	 *
+	 * On worker threads, waits to receive the value sent by the main thread.
+	 *
+	 * @param create A callback to create the value you wish to send - only invoked on the main thread.
+	 * @returns A promise resolving to the return of the `create` callback.
+	 */
 	async sendOrReceive<T extends SendableType>(create: () => T): Promise<T> {
 		const channel = '@@';
 		if (ThreadGroup.isMainThread) {
@@ -179,7 +206,7 @@ const isBinaryView = (value: unknown): value is BinaryView =>
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi } = import.meta.vitest;
+	const { it, expect, vi, beforeEach } = import.meta.vitest;
 
 	class MockWorker {
 		target?: MockWorker;
