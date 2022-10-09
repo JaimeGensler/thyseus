@@ -1,11 +1,19 @@
 import { BigUintArray } from '../utils/DataTypes';
+import { fourBytes, getGeneration, getIndex } from '../utils/entityId';
 import type { WorldConfig } from './config';
 
-const fourBytes = 32n;
-const lo32 = 0x00_00_00_00_ff_ff_ff_ffn;
 // NOTE: If tableIds move to uint32s, tableIds/row can be transformed into entityLocation: BigUint64Array
 export default class Entities {
-	static async fromWorld(config: WorldConfig): Promise<Entities> {}
+	static async fromWorld(config: WorldConfig): Promise<Entities> {
+		const length = config.maxEntities;
+		return new Entities(
+			new Uint32Array(length),
+			new BigUintArray(8, length, new Uint8Array(length)),
+			new Uint32Array(length),
+			new Uint32Array(3),
+			new Uint32Array(length),
+		);
+	}
 
 	generations: Uint32Array;
 	tableIds: BigUintArray;
@@ -70,9 +78,15 @@ export default class Entities {
 	getTableId(id: bigint): bigint {
 		return this.tableIds.get(getIndex(id));
 	}
+	getRow(id: bigint): number {
+		return this.row[getIndex(id)];
+	}
+
+	setLocation(entityId: bigint, tableId: bigint, row: number) {
+		this.tableIds.set(getIndex(entityId), tableId);
+		this.row[getIndex(entityId)] = row;
+	}
 }
-const getIndex = (id: bigint): number => Number(id & lo32);
-const getGeneration = (id: bigint): number => Number(id >> fourBytes);
 
 // NOTE: Requires n is non-zero
 const ctz32 = (n: number) => {
