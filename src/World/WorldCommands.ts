@@ -1,5 +1,5 @@
+import { Entity, type ComponentType } from '../Components';
 import type Entities from './Entities';
-import { ComponentType, Entity } from '../Components';
 
 export default class WorldCommands {
 	queue = new Map<bigint, bigint>(); // Map<eid, tableid>
@@ -20,7 +20,9 @@ export default class WorldCommands {
 	 * @returns `EntityCommands` to add/remove components from an entity.
 	 */
 	spawn(): Entity {
-		this.#store[0] = this.#entities.spawn();
+		const id = this.#entities.spawn();
+		this.#store[0] = id;
+		this.insertInto(id, Entity);
 		return this.#entity;
 	}
 
