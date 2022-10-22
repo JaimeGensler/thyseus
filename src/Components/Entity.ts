@@ -1,10 +1,9 @@
-import { Type } from './Type';
 import { getGeneration, getIndex } from '../utils/entityId';
 import type { WorldCommands } from '../World/WorldCommands';
 import type { ComponentType } from './types';
 
 export class Entity {
-	static schema = { val: Type.u64 } as { val: Type.u64 };
+	static schema = { val: BigUint64Array };
 	static size = 8;
 
 	store: { val: BigUint64Array };

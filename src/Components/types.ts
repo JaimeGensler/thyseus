@@ -1,16 +1,23 @@
 import type { WorldCommands } from '../World/WorldCommands';
-import type { Type, TypeToTypedArray } from './Type';
 
-type SchemaField = Type;
-export type Schema = { [key: string | symbol]: SchemaField };
+export type TypedArrayConstructor =
+	| Uint8ArrayConstructor
+	| Uint16ArrayConstructor
+	| Uint32ArrayConstructor
+	| BigUint64ArrayConstructor
+	| Int8ArrayConstructor
+	| Int16ArrayConstructor
+	| Int32ArrayConstructor
+	| BigInt64ArrayConstructor
+	| Float32ArrayConstructor
+	| Float64ArrayConstructor;
+
+export type Schema = { [key: string | symbol]: TypedArrayConstructor };
 
 export type ComponentStore<T extends Schema = any> = {
-	[Key in keyof T]: TypeToTypedArray[T[Key] extends Type ? T[Key] : never];
+	[Key in keyof T]: InstanceType<T[Key]>;
 };
 
-export type SchemaInstance<T extends Schema> = {
-	[Key in keyof T]: T[Key] extends Type.u64 | Type.i64 ? bigint : number;
-};
 export interface ComponentType<T extends Schema = any> {
 	schema: T;
 	size: number;

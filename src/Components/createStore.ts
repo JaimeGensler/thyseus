@@ -1,5 +1,5 @@
 import { createBuffer } from '../utils/createBuffer';
-import { typeToBytes, typeToConstructor } from './Type';
+import { typeToBytes } from './Type';
 import type { Schema, ComponentType, ComponentStore } from './types';
 import type { WorldConfig } from '../World/config';
 
@@ -10,17 +10,15 @@ export function createStore<T extends Schema>(
 ): ComponentStore<T> {
 	const buffer = createBuffer(config, ComponentType.size * count);
 
-	const isArray = Array.isArray(ComponentType.schema);
 	let offset = 0;
 
 	return Object.entries(ComponentType.schema).reduce(
-		(acc, [stringKey, field], index) => {
-			const key = isArray ? index : stringKey;
-			acc[key] = new typeToConstructor[field](buffer, offset, count);
-			offset += count * typeToBytes[field];
+		(acc, [key, FieldConstructor]) => {
+			acc[key] = new FieldConstructor(buffer, offset, count);
+			offset += count * typeToBytes.get(FieldConstructor)!;
 			return acc;
 		},
-		(isArray ? [] : {}) as ComponentStore<any>,
+		{} as ComponentStore<any>,
 	);
 }
 
