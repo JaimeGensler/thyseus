@@ -81,7 +81,7 @@ if (import.meta.vitest) {
 		expect(CompA.schema).not.toBe(CompB.schema);
 	});
 
-	it.only('creates a getter/setter around fields', () => {
+	it('creates a getter/setter around fields', () => {
 		@struct()
 		class Vec3 {
 			@struct.f64() declare x: number;
@@ -126,5 +126,34 @@ if (import.meta.vitest) {
 		expect(vec.y).toBe(8);
 	});
 
-	it.todo('works with any field decorator', () => {});
+	it('works with any field decorator', () => {
+		const fields = [
+			[struct.u8, 1, Uint8Array],
+			[struct.u16, 2, Uint16Array],
+			[struct.u32, 4, Uint32Array],
+			[struct.u64, 8, BigUint64Array],
+			[struct.i8, 1, Int8Array],
+			[struct.i16, 2, Int16Array],
+			[struct.i32, 4, Int32Array],
+			[struct.i64, 8, BigInt64Array],
+			[struct.f32, 4, Float32Array],
+			[struct.f64, 8, Float64Array],
+		] as const;
+
+		for (const [decorator, size, FieldConstructor] of fields) {
+			@struct()
+			class Comp {
+				@decorator() declare field: any;
+			}
+			//@ts-ignore
+			expect(Comp.size).toStrictEqual(size);
+			//@ts-ignore
+			expect(Comp.schema).toStrictEqual({ field: FieldConstructor });
+
+			const store = { field: new FieldConstructor(1) };
+
+			//@ts-ignore
+			const comp = new Comp(store, 0);
+		}
+	});
 }
