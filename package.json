@@ -1,6 +1,6 @@
 {
 	"name": "thyseus",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"description": "An archetypal Entity Component System for the modern web.",
 	"type": "module",
 	"files": [
@@ -32,19 +32,21 @@
 		"game engine",
 		"game dev",
 		"thread",
+		"threading",
 		"multithreaded",
 		"multithreading",
 		"archetype",
+		"archetypal",
 		"table"
 	],
 	"author": "Jaime Gensler",
 	"license": "MIT",
 	"devDependencies": {
-		"@vitest/coverage-c8": "^0.23.4",
-		"@vitest/web-worker": "^0.23.4",
-		"dts-bundle-generator": "^6.13.0",
-		"typescript": "^4.8.3",
-		"vite": "^3.1.3",
-		"vitest": "^0.23.4"
+		"@vitest/coverage-c8": "^0.24.3",
+		"@vitest/web-worker": "^0.24.3",
+		"dts-bundle-generator": "^7.0.0",
+		"typescript": "^4.8.4",
+		"vite": "^3.1.8",
+		"vitest": "^0.24.3"
 	}
 }
