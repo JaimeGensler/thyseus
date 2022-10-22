@@ -23,7 +23,8 @@
 		"start": "vite",
 		"build": "vite build && dts-bundle-generator ./src/index.ts -o ./dist/thyseus.d.ts --no-check --export-referenced-types=false",
 		"test": "vitest",
-		"test:coverage": "vitest run --coverage"
+		"test:coverage": "vitest run --coverage",
+		"typecheck": "tsc --noEmit"
 	},
 	"keywords": [
 		"ecs",
