@@ -1,4 +1,5 @@
 import assert from '../utils/assert';
+import bits from '../utils/bits';
 import type { SystemDefinition } from './defineSystem';
 
 export interface Dependencies {
@@ -83,17 +84,6 @@ export default function getSystemDependencies(
 
 	dependencyMasks.forEach((_, i) => (dependencyMasks[i] &= intersections[i]));
 	return dependencyMasks;
-}
-
-function* bits(val: bigint) {
-	let i = 0;
-	while (val !== 0n) {
-		if ((val & 1n) === 1n) {
-			yield i;
-		}
-		val >>= 1n;
-		i++;
-	}
 }
 
 /*---------*\
