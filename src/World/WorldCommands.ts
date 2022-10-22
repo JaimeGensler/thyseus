@@ -11,7 +11,7 @@ export default class WorldCommands {
 	constructor(entities: Entities, components: Set<ComponentType>) {
 		this.#entities = entities;
 		this.#store = new BigUint64Array(1);
-		this.#entity = new Entity([this.#store], 0, this);
+		this.#entity = new Entity({ val: this.#store }, 0, this);
 		this.#components = components;
 	}
 
@@ -49,7 +49,7 @@ export default class WorldCommands {
 	insertInto(id: bigint, Component: ComponentType) {
 		this.queue.set(
 			id,
-			(this.queue.get(id) ?? this.#entities.getTableId(id)) &
+			(this.queue.get(id) ?? this.#entities.getTableId(id)) |
 				(1n << BigInt(getSetIndex(this.#components, Component))),
 		);
 	}
