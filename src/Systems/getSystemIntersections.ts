@@ -34,11 +34,13 @@ export function getSystemIntersections(systems: SystemDefinition[]): bigint[] {
 if (import.meta.vitest) {
 	const { describe, it, expect, vi } = import.meta.vitest;
 	const { defineSystem } = await import('./defineSystem');
-	const { Component } = await import('../Components');
 
 	const sys = () => {};
 
-	const AnyComponent = Component();
+	class AnyComponent {
+		static size = 0;
+		static schema = {};
+	}
 	class A extends AnyComponent {}
 	class B extends AnyComponent {}
 	class C extends AnyComponent {}

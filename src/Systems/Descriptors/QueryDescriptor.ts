@@ -65,12 +65,25 @@ export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, vi } = import.meta.vitest;
-	const { Component, Type } = await import('../../Components');
+	const { struct } = await import('../../Components');
 
-	class A extends Component({ value: Type.f32 }) {}
-	class B extends Component({ value: Type.i64 }) {}
-	class C extends Component({}) {}
-	class D extends Component({}) {}
+	class Comp {
+		static size = 0;
+		static schema = 0;
+	}
+	@struct()
+	class A extends Comp {
+		@struct.f32() declare value: number;
+	}
+	@struct()
+	class B extends Comp {
+		@struct.i64() declare value: bigint;
+	}
+
+	@struct()
+	class C extends Comp {}
+	@struct()
+	class D extends Comp {}
 
 	describe('intersectsWith', () => {
 		it('returns false for queries that do not overlap', () => {

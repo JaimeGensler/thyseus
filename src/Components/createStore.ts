@@ -29,23 +29,25 @@ export function createStore<T extends Schema>(
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { Component } = await import('./Component');
-	const { Type } = await import('./Type');
+	const { struct } = await import('./struct');
 
 	it('returns an object with TypedArray keys for each field, using a single buffer', () => {
-		class MyComponent extends Component({
-			unsigned1: Type.u8,
-			unsigned2: Type.u16,
-			unsigned3: Type.u32,
-			unsigned4: Type.u64,
-			int1: Type.i8,
-			int2: Type.i16,
-			int3: Type.i32,
-			int4: Type.i64,
-			float1: Type.f32,
-			float2: Type.f64,
-		}) {}
-		const result = createStore(MyComponent, { threads: 1 } as any, 8);
+		@struct()
+		class MyComponent {
+			static size = 0;
+			static schema = {};
+			@struct.u8() declare unsigned1: number;
+			@struct.u16() declare unsigned3: number;
+			@struct.u32() declare unsigned2: number;
+			@struct.u64() declare unsigned4: bigint;
+			@struct.i8() declare int1: number;
+			@struct.i16() declare int2: number;
+			@struct.i32() declare int3: number;
+			@struct.i64() declare int4: bigint;
+			@struct.f32() declare float1: number;
+			@struct.f64() declare float2: number;
+		}
+		const result = createStore<any>(MyComponent, { threads: 1 } as any, 8);
 
 		expect(result.unsigned1).toBeInstanceOf(Uint8Array);
 		expect(result.unsigned2).toBeInstanceOf(Uint16Array);
@@ -60,30 +62,8 @@ if (import.meta.vitest) {
 
 		const buffer = result.unsigned1.buffer;
 		for (const key in result) {
-			expect(result[key as keyof typeof result].length).toBe(8);
-			expect(result[key as keyof typeof result].buffer).toBe(buffer);
-		}
-	});
-
-	it('returns an Array with TypedArray values, using a single buffer', () => {
-		class MyComponent extends Component([
-			Type.u8,
-			Type.i32,
-			Type.f64,
-			Type.i64,
-		]) {}
-		const result = createStore(MyComponent, { threads: 1 } as any, 16);
-
-		expect(Array.isArray(result)).toBe(true);
-		expect(result[0]).toBeInstanceOf(Uint8Array);
-		expect(result[1]).toBeInstanceOf(Int32Array);
-		expect(result[2]).toBeInstanceOf(Float64Array);
-		expect(result[3]).toBeInstanceOf(BigInt64Array);
-
-		const buffer = result[0].buffer;
-		for (const i of [0, 1, 2, 3]) {
-			expect(result[i].length).toBe(16);
-			expect(result[i].buffer).toBe(buffer);
+			expect(result[key].length).toBe(8);
+			expect(result[key].buffer).toBe(buffer);
 		}
 	});
 }

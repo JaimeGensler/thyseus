@@ -30,26 +30,28 @@ export function resizeStore<T extends Schema>(
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { Component } = await import('./Component');
-	const { Type } = await import('./Type');
+	const { struct } = await import('./struct');
 	const { createStore } = await import('./createStore');
 
-	class Vec3 extends Component({
-		x: Type.f64,
-		y: Type.f64,
-		z: Type.f64,
-	}) {}
+	@struct()
+	class Vec3 {
+		static schema = {};
+		static size = 0;
+		@struct.f64() declare x: number;
+		@struct.f64() declare y: number;
+		@struct.f64() declare z: number;
+	}
 
 	it('returns an object with the same shape', () => {
-		const initialStore = createStore(Vec3, { threads: 1 } as any, 8);
-		const resizedStore = resizeStore(
+		const initialStore = createStore<any>(Vec3, { threads: 1 } as any, 8);
+		const resizedStore = resizeStore<any>(
 			Vec3,
 			{ threads: 1 } as any,
 			16,
 			initialStore,
 		);
 
-		let key: keyof typeof initialStore & keyof typeof resizedStore;
+		let key: any;
 		for (key in initialStore) {
 			expect(initialStore[key].constructor).toBe(
 				resizedStore[key].constructor,
@@ -61,7 +63,7 @@ if (import.meta.vitest) {
 	});
 
 	it('copies previous items', () => {
-		const initialStore = createStore(Vec3, { threads: 1 } as any, 8);
+		const initialStore = createStore<any>(Vec3, { threads: 1 } as any, 8);
 
 		const values = [0, 1.2, Math.PI, 3.3, 4.4, 5.5, 6, 7.7];
 		values.forEach((val, i) => {

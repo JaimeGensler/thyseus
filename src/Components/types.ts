@@ -2,7 +2,7 @@ import type { WorldCommands } from '../World/WorldCommands';
 import type { Type, TypeToTypedArray } from './Type';
 
 type SchemaField = Type;
-export type Schema = SchemaField[] | { [key: string]: SchemaField };
+export type Schema = { [key: string | symbol]: SchemaField };
 
 export type ComponentStore<T extends Schema = any> = {
 	[Key in keyof T]: TypeToTypedArray[T[Key] extends Type ? T[Key] : never];

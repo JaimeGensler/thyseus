@@ -87,9 +87,16 @@ export class Table {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { Component, Type } = await import('../Components/');
+	const { struct } = await import('./struct');
 
-	class Vec3 extends Component({ x: Type.f32, y: Type.f32, z: Type.f32 }) {}
+	@struct()
+	class Vec3 {
+		static schema = {};
+		static size = 0;
+		@struct.f64() declare x: number;
+		@struct.f64() declare y: number;
+		@struct.f64() declare z: number;
+	}
 
 	it('adds an element', () => {
 		const table = Table.create([Entity], 8);
