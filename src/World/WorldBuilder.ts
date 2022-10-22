@@ -17,7 +17,7 @@ import {
 	type SystemDefinition,
 	type System,
 } from '../Systems';
-import type { ComponentType } from '../Components';
+import { ComponentType, Entity } from '../Components';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
 
@@ -36,6 +36,7 @@ export default class WorldBuilder {
 	constructor(config: WorldConfig, url: string | URL | undefined) {
 		this.#config = config;
 		this.#url = url;
+		this.registerComponent(Entity);
 		this.addSystem(applyCommands, { afterAll: true });
 	}
 
@@ -188,6 +189,7 @@ export default class WorldBuilder {
 			executor,
 			commands,
 			entities,
+			[...this.#components],
 		);
 
 		this.#systems.forEach(
