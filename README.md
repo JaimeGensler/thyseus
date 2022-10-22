@@ -5,23 +5,24 @@
 [![pull requests: welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/JaimeGensler/thyseus/pulls)
 [![code style: prettier](https://img.shields.io/badge/code%20style-prettier-ff69b4)](https://github.com/prettier/prettier)
 
-Thyseus is a multi-threaded, type-safe, DX-focused, and highly performant
+Thyseus is a multi-threadable, DX-focused, and highly performant
+[archetypal](https://github.com/SanderMertens/ecs-faq#archetypes-aka-dense-ecs-or-table-based-ecs)
 [Entity Component System](https://en.wikipedia.org/wiki/Entity_component_system)
-(ECS) built entirely in Typescript. It includes (or will include) many features
-out of the box, including:
+([ECS](https://github.com/SanderMertens/ecs-faq)) written in Typescript. It
+provides a simple, expressive, and type-safe API, and includes many features out
+of the box, including:
 
--   A simple yet expressive and type-safe API.
 -   Hassle-free multithreading. Don't worry about scheduling, Mutexes, or
-    workers - just write your systems and we'll take care of the rest.
--   _**A safety-first approach!**_ No `eval`, `new Function()`, or creating
+    workers - just write your systems and let Thyseus take care of the rest.
+-   A **safety-first** approach! No `eval`, `new Function()`, or creating
     workers from blobs - Thyseus leverages recent additions to the language and
-    a little bit of ✨ magic ✨ to do what it needs to, and _**will never use
-    unsafe code**_.
--   First-class Resources (singletons).
+    a little bit of ✨ magic ✨ to do what it needs to, and **_will never use
+    unsafe code_**.
+-   Archetypal storage for lean memory consumption and cache-friendly iteration.
+-   First-class Resources (i.e., singletons).
 -   Zero dependencies.
--   _And more to come!_
 
-**Please note: Thyseus is in early development and is far from feature-complete.
+**Please note: Thyseus is in early development and is not yet feature-complete.
 Pre-1.0.0 releases may have frequent breaking changes.**
 
 ## Installation
@@ -38,7 +39,7 @@ npm i thyseus
 
 If you're interested in contributing, please have a look at the
 [code of conduct](./CODE_OF_CONDUCT.md) and the
-[contributing guide](./CONTRIBUTING.md) first. Cheers!
+[contributing guide](./CONTRIBUTING.md) first.
 
 ## Quick API Example:
 
