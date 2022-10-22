@@ -112,18 +112,24 @@ export default class World {
 		} else {
 			targetTable.add(entityId);
 		}
-		this.entities.setLocation(entityId, targetTableId, targetTable.size);
+		this.entities.setLocation(
+			entityId,
+			targetTableId,
+			targetTable.size - 1,
+		);
 	}
 	#deleteEntity(entityId: bigint) {
 		const tableId = this.entities.getTableId(entityId);
 		const table = this.archetypes.get(tableId);
-		const entityRow = this.entities.getRow(entityId);
-		this.entities.setLocation(
-			table?.columns.get(Entity)?.val?.[0],
-			tableId,
-			entityRow,
-		);
-		table?.delete(this.entities.getRow(entityId));
+		if (table) {
+			const entityRow = this.entities.getRow(entityId);
+			this.entities.setLocation(
+				table.columns.get(Entity)?.val?.[table.size - 1],
+				tableId,
+				entityRow,
+			);
+			table.delete(this.entities.getRow(entityId));
+		}
 		this.entities.setLocation(entityId, 0n, 0);
 	}
 
