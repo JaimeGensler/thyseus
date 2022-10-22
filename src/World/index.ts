@@ -1,2 +1,2 @@
-export { default } from './World';
-export { default as definePlugin } from './definePlugin';
+export { World } from './World';
+export { definePlugin } from './definePlugin';

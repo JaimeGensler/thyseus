@@ -1,4 +1,4 @@
-import assert from '../assert';
+import { assert } from '../assert';
 import { ThreadProtocol } from '../Threads';
 
 enum LockState {
@@ -7,7 +7,7 @@ enum LockState {
 }
 // Locks adapted from https://v8.dev/features/atomics
 // TODO: Should this be removed in favor of the native LockManager API?
-export default class Mutex<T extends any> {
+export class Mutex<T extends any> {
 	#data: T;
 	#state: Int32Array; // [LockState]
 	constructor(

@@ -1,7 +1,7 @@
 import type { WorldConfig } from '../World/config';
 import type { ResourceType } from './Resource';
 
-export default function createResource<T extends ResourceType>(
+export function createResource<T extends ResourceType>(
 	Resource: T,
 	config: WorldConfig,
 ): InstanceType<T> {

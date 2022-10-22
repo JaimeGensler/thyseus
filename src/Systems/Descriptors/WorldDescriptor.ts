@@ -1,8 +1,8 @@
 import type World from '../../World';
-import type WorldBuilder from '../../World/WorldBuilder';
-import type Descriptor from './Descriptor';
+import type { WorldBuilder } from '../../World/WorldBuilder';
+import type { Descriptor } from './Descriptor';
 
-export default class WorldDescriptor implements Descriptor {
+export class WorldDescriptor implements Descriptor {
 	isLocalToThread() {
 		return true;
 	}

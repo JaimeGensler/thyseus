@@ -1,4 +1,4 @@
-import defineSystem from './defineSystem';
+import { defineSystem } from './defineSystem';
 import { P } from './Descriptors';
 
 const mergeQueues = (a: Map<bigint, bigint>, b: Map<bigint, bigint>) => {
@@ -12,16 +12,19 @@ const mergeQueues = (a: Map<bigint, bigint>, b: Map<bigint, bigint>) => {
 	}
 	return a;
 };
-export default defineSystem([P.World()], async function applyCommands(world) {
-	const queue = (
-		await world.threads.send<Map<bigint, bigint>>(
-			'thyseus::getCommandQueue',
-		)
-	).reduce(mergeQueues, world.commands.queue);
+export const applyCommands = defineSystem(
+	[P.World()],
+	async function applyCommands(world) {
+		const queue = (
+			await world.threads.send<Map<bigint, bigint>>(
+				'thyseus::getCommandQueue',
+			)
+		).reduce(mergeQueues, world.commands.queue);
 
-	for (const [entityId, tableId] of queue) {
-		world.moveEntity(entityId, tableId);
-	}
+		for (const [entityId, tableId] of queue) {
+			world.moveEntity(entityId, tableId);
+		}
 
-	queue.clear();
-});
+		queue.clear();
+	},
+);

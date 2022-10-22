@@ -1,4 +1,4 @@
-export { default as BigUintArray } from './BigUintArray';
-export { default as IndexAllocator } from './IndexAllocator';
-export { default as Mutex } from './Mutex';
-export { default as SparseSet } from './SparseSet';
+export { BigUintArray } from './BigUintArray';
+export { IndexAllocator } from './IndexAllocator';
+export { Mutex } from './Mutex';
+export { SparseSet } from './SparseSet';

@@ -1,9 +1,9 @@
 import { Type } from '../Components';
-import getSize from '../Components/getSize';
+import { getSize } from '../Components/getSize';
 import { typeToBytes } from '../Components/Type';
 import { Schema, SchemaInstance } from '../Components/types';
-import assert from '../utils/assert';
-import createBuffer from '../utils/createBuffer';
+import { assert } from '../utils/assert';
+import { createBuffer } from '../utils/createBuffer';
 import {
 	ThreadProtocol,
 	type SendableClass,
@@ -16,7 +16,7 @@ export interface Class {
 }
 export type ResourceType = SendableClass<SendableType> | Class;
 
-export default function Resource<T extends Schema>(
+export function Resource<T extends Schema>(
 	schema: T,
 ): SendableClass<DataView> & { new (dataView: DataView): SchemaInstance<T> } {
 	assert(

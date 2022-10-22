@@ -1,17 +1,15 @@
-import AccessType from '../../utils/AccessType';
-import createFilter from '../../utils/createFilter';
-import Mut, { type Mutable } from '../Mut';
+import { AccessType } from '../../utils/AccessType';
+import { createFilter } from '../../utils/createFilter';
+import { Mut, type Mutable } from '../Mut';
 import { TupleQuery, type Query } from '../../Queries';
-import type WorldBuilder from '../../World/WorldBuilder';
-import type Descriptor from './Descriptor';
-import type World from '../../World';
+import type { WorldBuilder } from '../../World/WorldBuilder';
+import type { Descriptor } from './Descriptor';
+import type { World } from '../../World';
 import type { ComponentType } from '../../Components';
 
 type QueryMember = ComponentType<any> | Mutable<ComponentType<any>>;
 
-export default class QueryDescriptor<C extends QueryMember[]>
-	implements Descriptor
-{
+export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
 	components: ComponentType<any>[] = [];
 	accessType: AccessType[] = [];
 	constructor(components: [...C]) {

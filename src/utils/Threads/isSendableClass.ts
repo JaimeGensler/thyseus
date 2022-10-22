@@ -1,9 +1,10 @@
-import ThreadProtocol, {
+import {
+	ThreadProtocol,
 	type SendableClass,
 	type SendableType,
 } from './ThreadProtocol';
 
-export default function isSendableClass<T extends SendableType = undefined>(
+export function isSendableClass<T extends SendableType = undefined>(
 	x: unknown,
 ): x is SendableClass<T> {
 	return (

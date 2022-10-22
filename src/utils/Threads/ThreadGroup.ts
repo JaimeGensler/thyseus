@@ -1,4 +1,5 @@
-import ThreadProtocol, {
+import {
+	ThreadProtocol,
 	type SendableType,
 	type Primitive,
 	type BinaryView,
@@ -28,7 +29,7 @@ interface WorkerOrGlobal {
 	): void;
 }
 
-export default class ThreadGroup {
+export class ThreadGroup {
 	static isMainThread = !!globalThis.document;
 
 	static spawn(

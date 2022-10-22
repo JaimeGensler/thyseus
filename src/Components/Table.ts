@@ -1,10 +1,10 @@
 import { WorldConfig } from '../World/config';
-import createStore from './createStore';
-import Entity from './Entity';
-import resizeStore from './resizeStore';
+import { createStore } from './createStore';
+import { Entity } from './Entity';
+import { resizeStore } from './resizeStore';
 import type { ComponentStore, ComponentType } from './types';
 
-export default class Table {
+export class Table {
 	columns: Map<ComponentType<any>, ComponentStore<any>>;
 	meta: Uint32Array;
 

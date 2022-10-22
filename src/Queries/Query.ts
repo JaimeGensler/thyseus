@@ -1,3 +1,3 @@
-export default interface Query<C extends object> {
+export interface Query<C extends object> {
 	[Symbol.iterator](): Iterator<C>;
 }

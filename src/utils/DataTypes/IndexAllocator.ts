@@ -15,7 +15,7 @@ enum DataIndex {
 /**
  * A thread-safe, lock-free class to allocate/free indices.
  */
-export default class IndexAllocator {
+export class IndexAllocator {
 	#data: Uint32Array;
 	#free: Uint32Array;
 

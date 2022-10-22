@@ -1,8 +1,8 @@
-import CommandsDescriptor from './CommandsDescriptor';
-import QueryDescriptor from './QueryDescriptor';
-import ResourceDescriptor from './ResourceDescriptor';
-import WorldDescriptor from './WorldDescriptor';
-export type { default as Descriptor, DescriptorToArgument } from './Descriptor';
+import { CommandsDescriptor } from './CommandsDescriptor';
+import { QueryDescriptor } from './QueryDescriptor';
+import { ResourceDescriptor } from './ResourceDescriptor';
+import { WorldDescriptor } from './WorldDescriptor';
+export type { Descriptor, DescriptorToArgument } from './Descriptor';
 
 function wrap<P extends any[], I extends object>(Descriptor: {
 	new (...args: P): I;

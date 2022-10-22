@@ -1,9 +1,9 @@
-import createBuffer from '../utils/createBuffer';
+import { createBuffer } from '../utils/createBuffer';
 import { typeToBytes, typeToConstructor } from './Type';
 import type { Schema, ComponentType, ComponentStore } from './types';
 import type { WorldConfig } from '../World/config';
 
-export default function createStore<T extends Schema>(
+export function createStore<T extends Schema>(
 	ComponentType: ComponentType<T>,
 	config: WorldConfig,
 	count: number,
@@ -29,7 +29,7 @@ export default function createStore<T extends Schema>(
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { default: Component } = await import('./Component');
+	const { Component } = await import('./Component');
 	const { Type } = await import('./Type');
 
 	it('returns an object with TypedArray keys for each field, using a single buffer', () => {

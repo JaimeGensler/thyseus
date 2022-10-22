@@ -1,9 +1,9 @@
-import createBuffer from '../utils/createBuffer';
+import { createBuffer } from '../utils/createBuffer';
 import { typeToBytes, typeToConstructor } from './Type';
 import type { Schema, ComponentType, ComponentStore } from './types';
 import type { WorldConfig } from '../World/config';
 
-export default function resizeStore<T extends Schema>(
+export function resizeStore<T extends Schema>(
 	ComponentType: ComponentType<T>,
 	config: WorldConfig,
 	count: number,
@@ -30,9 +30,9 @@ export default function resizeStore<T extends Schema>(
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { default: Component } = await import('./Component');
+	const { Component } = await import('./Component');
 	const { Type } = await import('./Type');
-	const { default: createStore } = await import('./createStore');
+	const { createStore } = await import('./createStore');
 
 	class Vec3 extends Component({
 		x: Type.f64,

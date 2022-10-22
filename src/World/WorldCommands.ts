@@ -1,7 +1,7 @@
 import { Entity, type ComponentType } from '../Components';
-import type Entities from './Entities';
+import type { Entities } from './Entities';
 
-export default class WorldCommands {
+export class WorldCommands {
 	queue = new Map<bigint, bigint>(); // Map<eid, tableid>
 
 	#entities: Entities;

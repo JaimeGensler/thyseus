@@ -1,8 +1,8 @@
 import type { ComponentType, Table } from '../Components';
-import type WorldCommands from '../World/WorldCommands';
-import type Query from './Query';
+import type { WorldCommands } from '../World/WorldCommands';
+import type { Query } from './Query';
 
-export default class TupleQuery<C extends object[]> implements Query<C> {
+export class TupleQuery<C extends object[]> implements Query<C> {
 	#elements: InstanceType<ComponentType>[];
 	#tables: Table[] = [];
 

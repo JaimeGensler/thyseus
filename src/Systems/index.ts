@@ -1,12 +1,12 @@
 export * from './Descriptors';
-export { default as defineSystem, type SystemDefinition } from './defineSystem';
-export { default as Mut } from './Mut';
+export { defineSystem, type SystemDefinition } from './defineSystem';
+export { Mut } from './Mut';
 export {
-	default as getSystemDependencies,
+	getSystemDependencies,
 	type Dependencies,
 } from './getSystemDependencies';
-export { default as getSystemIntersections } from './getSystemIntersections';
-export { default as applyCommands } from './applyCommands';
+export { getSystemIntersections } from './getSystemIntersections';
+export { applyCommands } from './applyCommands';
 
 export interface System {
 	args: any[];

@@ -1,4 +1,4 @@
-import assert from '../utils/assert';
+import { assert } from '../utils/assert';
 
 export interface WorldConfig {
 	threads: number;
@@ -50,7 +50,7 @@ const validateConfig = (
 		RangeError,
 	);
 };
-export default function validateAndCompleteConfig(
+export function validateAndCompleteConfig(
 	inConfig: Partial<WorldConfig> | undefined,
 	url: string | URL | undefined,
 ) {

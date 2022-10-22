@@ -17,9 +17,7 @@ function getSystemRelationship(
 		: SystemRelationship.Disjoint;
 }
 
-export default function getSystemIntersections(
-	systems: SystemDefinition[],
-): bigint[] {
+export function getSystemIntersections(systems: SystemDefinition[]): bigint[] {
 	return systems.map(current =>
 		systems.reduce(
 			(acc, other, i) =>
@@ -35,8 +33,8 @@ export default function getSystemIntersections(
 \*---------*/
 if (import.meta.vitest) {
 	const { describe, it, expect, vi } = import.meta.vitest;
-	const { default: defineSystem } = await import('./defineSystem');
-	const { default: Mut } = await import('./Mut');
+	const { defineSystem } = await import('./defineSystem');
+	const { Mut } = await import('./Mut');
 	const { P } = await import('./Descriptors');
 	const { Component } = await import('../Components');
 

@@ -1,7 +1,7 @@
 import { BigUintArray, Mutex, SparseSet } from '../utils/DataTypes';
 import { ThreadProtocol } from '../utils/Threads';
 
-export default class Executor {
+export class Executor {
 	static from(
 		intersections: bigint[],
 		dependencies: bigint[],

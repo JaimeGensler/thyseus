@@ -1,11 +1,11 @@
-import getSize from './getSize';
+import { getSize } from './getSize';
 import { Schema, ComponentType, ComponentStore, SchemaInstance } from './types';
 
-export default function Component(schema?: null | undefined): ComponentType<{}>;
-export default function Component<T extends Schema>(
+export function Component(schema?: null | undefined): ComponentType<{}>;
+export function Component<T extends Schema>(
 	schema: T,
 ): ComponentType<T> & { new (...args: any[]): SchemaInstance<T> };
-export default function Component(
+export function Component(
 	schema?: null | undefined | Schema,
 ): ComponentType<any> {
 	if (!schema) {

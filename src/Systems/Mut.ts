@@ -4,7 +4,7 @@ export interface Mutable<T extends Class> {
 	0: T;
 	1: 1;
 }
-function Mut<T extends Class>(x: T): Mutable<T> {
+export function Mut<T extends Class>(x: T): Mutable<T> {
 	return [x, 1];
 }
 
@@ -16,4 +16,3 @@ Mut.isMut = function <T extends Class = Class>(x: unknown): x is Mutable<T> {
 		x[1] === 1
 	);
 };
-export default Mut;

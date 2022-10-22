@@ -1,10 +1,11 @@
-import World from './World';
-import Executor from './Executor';
-import getDefaultSendableClasses from './getDefaultSendableClasses';
-import zipIntoMap from '../utils/zipIntoMap';
-import WorldCommands from './WorldCommands';
-import Entities from './Entities';
-import ThreadGroup, {
+import { World } from './World';
+import { Executor } from './Executor';
+import { getDefaultSendableClasses } from './getDefaultSendableClasses';
+import { zipIntoMap } from '../utils/zipIntoMap';
+import { WorldCommands } from './WorldCommands';
+import { Entities } from './Entities';
+import {
+	ThreadGroup,
 	isSendableClass,
 	type SendableClass,
 } from '../utils/Threads';
@@ -21,7 +22,7 @@ import { ComponentType, Entity } from '../Components';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
 
-export default class WorldBuilder {
+export class WorldBuilder {
 	#systems = [] as SystemDefinition[];
 	#systemDependencies = [] as (Dependencies | undefined)[];
 	#startupSystems = [] as SystemDefinition[];

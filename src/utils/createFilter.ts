@@ -1,6 +1,6 @@
 import type { ComponentType } from '../Components';
 
-export default function createFilter(
+export function createFilter(
 	allComponents: ComponentType[],
 	queryComponents: ComponentType[],
 ): bigint {

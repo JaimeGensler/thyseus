@@ -1,7 +1,7 @@
-export { default } from './ThreadGroup';
+export { ThreadGroup } from './ThreadGroup';
 export {
-	default as ThreadProtocol,
+	ThreadProtocol,
 	type SendableType,
 	type SendableClass,
 } from './ThreadProtocol';
-export { default as isSendableClass } from './isSendableClass';
+export { isSendableClass } from './isSendableClass';

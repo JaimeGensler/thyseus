@@ -1,10 +1,9 @@
 const Send = Symbol('Thread::Send');
 const Receive = Symbol('Thread::Receive');
-const ThreadProtocol = {
+export const ThreadProtocol = {
 	Send,
 	Receive,
 } as const;
-export default ThreadProtocol;
 
 export type Primitive =
 	| void

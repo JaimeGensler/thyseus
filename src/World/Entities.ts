@@ -3,7 +3,7 @@ import { fourBytes, getGeneration, getIndex } from '../utils/entityId';
 import type { WorldConfig } from './config';
 
 // NOTE: If tableIds move to uint32s, tableIds/row can be transformed into entityLocation: BigUint64Array
-export default class Entities {
+export class Entities {
 	static async fromWorld(config: WorldConfig): Promise<Entities> {
 		const length = config.maxEntities;
 		return new Entities(

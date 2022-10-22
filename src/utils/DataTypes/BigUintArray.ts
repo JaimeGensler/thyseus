@@ -1,7 +1,7 @@
 import { ThreadProtocol } from '../Threads';
 
 const b255 = 0b1111_1111n;
-export default class BigUintArray {
+export class BigUintArray {
 	static with(
 		width: number,
 		length: number,

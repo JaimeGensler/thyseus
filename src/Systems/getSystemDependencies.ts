@@ -1,5 +1,5 @@
-import assert from '../utils/assert';
-import bits from '../utils/bits';
+import { assert } from '../utils/assert';
+import { bits } from '../utils/bits';
 import type { SystemDefinition } from './defineSystem';
 
 export interface Dependencies {
@@ -9,7 +9,7 @@ export interface Dependencies {
 	afterAll?: boolean;
 }
 
-export default function getSystemDependencies(
+export function getSystemDependencies(
 	systems: SystemDefinition[],
 	dependencies: (Dependencies | undefined)[],
 	intersections: bigint[],

@@ -1,6 +1,6 @@
 import { WorldConfig } from '../World/config';
 
-export default function createBuffer(
+export function createBuffer(
 	config: WorldConfig,
 	size: number,
 ): ArrayBufferLike {

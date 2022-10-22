@@ -1,7 +1,7 @@
 import { typeToBytes } from './Type';
 import type { Schema } from './types';
 
-export default function getSize(schema: Schema): number {
+export function getSize(schema: Schema): number {
 	return Object.values(schema).reduce(
 		(acc, field) => acc + typeToBytes[field],
 		0,

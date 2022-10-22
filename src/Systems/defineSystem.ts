@@ -8,7 +8,7 @@ export interface SystemDefinition<T extends Descriptor[] = Descriptor[]> {
 	fn(...args: Parameters<T>): void;
 	parameters: T;
 }
-export default function defineSystem<T extends Descriptor[]>(
+export function defineSystem<T extends Descriptor[]>(
 	parameters: [...T],
 	fn: (...args: Parameters<T>) => void,
 ): SystemDefinition<T> {

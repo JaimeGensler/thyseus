@@ -1,9 +1,9 @@
 import { Type } from './Type';
 import { getGeneration, getIndex } from '../utils/entityId';
-import type WorldCommands from '../World/WorldCommands';
+import type { WorldCommands } from '../World/WorldCommands';
 import type { ComponentType } from './types';
 
-export default class Entity {
+export class Entity {
 	static schema = { val: Type.u64 } as { val: Type.u64 };
 	static size = 8;
 

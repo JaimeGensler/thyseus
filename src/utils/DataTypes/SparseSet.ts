@@ -1,6 +1,6 @@
 import { ThreadProtocol } from '../Threads';
 
-export default class SparseSet {
+export class SparseSet {
 	static with(length: number, isShared = false) {
 		const BufferType = isShared ? SharedArrayBuffer : ArrayBuffer;
 		return new this(

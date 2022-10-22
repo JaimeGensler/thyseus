@@ -1,4 +1,4 @@
-export default function assert(
+export function assert(
 	x: unknown,
 	errorMessage: string,
 	ErrorConstructor = Error,

@@ -1,17 +1,18 @@
-import WorldBuilder from './WorldBuilder';
+import { WorldBuilder } from './WorldBuilder';
 import { ComponentStore, ComponentType, Entity, Table } from '../Components';
-import validateAndCompleteConfig, {
+import {
+	validateAndCompleteConfig,
 	type WorldConfig,
 	type SingleThreadedWorldConfig,
 } from './config';
-import type ThreadGroup from '../utils/Threads';
-import type Executor from './Executor';
-import type WorldCommands from './WorldCommands';
-import type Entities from './Entities';
+import type { ThreadGroup } from '../utils/Threads';
+import type { Executor } from './Executor';
+import type { WorldCommands } from './WorldCommands';
+import type { Entities } from './Entities';
 import type { System } from '../Systems';
 import type { ResourceType } from '../Resources';
-import bits from '../utils/bits';
-import zipIntoMap from '../utils/zipIntoMap';
+import { bits } from '../utils/bits';
+import { zipIntoMap } from '../utils/zipIntoMap';
 import { Query } from '../Queries';
 
 const NEW_TABLE = 'thyseus::newTable';
@@ -20,7 +21,7 @@ type NewTablePayload = [bigint, ComponentStore[], Uint32Array];
 const GROW_TABLE = 'thyseus::growTable';
 type GrowTablePayload = [bigint, ComponentStore[]];
 
-export default class World {
+export class World {
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
 	static new(config: Partial<WorldConfig>, url: string | URL): WorldBuilder;
 	static new(

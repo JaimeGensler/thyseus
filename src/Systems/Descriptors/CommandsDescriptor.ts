@@ -1,9 +1,9 @@
 import type World from '../../World';
-import type WorldBuilder from '../../World/WorldBuilder';
-import type WorldCommands from '../../World/WorldCommands';
-import type Descriptor from './Descriptor';
+import type { WorldBuilder } from '../../World/WorldBuilder';
+import type { WorldCommands } from '../../World/WorldCommands';
+import type { Descriptor } from './Descriptor';
 
-export default class CommandsDescriptor implements Descriptor {
+export class CommandsDescriptor implements Descriptor {
 	isLocalToThread() {
 		return false;
 	}

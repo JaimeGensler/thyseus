@@ -1,2 +1,2 @@
-export { default as TupleQuery } from './TupleQuery';
-export type { default as Query } from './Query';
+export { TupleQuery } from './TupleQuery';
+export type { Query } from './Query';
