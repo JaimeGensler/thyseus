@@ -18,11 +18,11 @@ export default function Component(
 	class ComponentClass {
 		static schema = schema;
 		static size = getSize(schema!);
-		$: ComponentStore;
-		_: number;
-		constructor(store: ComponentStore, eid: number) {
-			this.$ = store;
-			this._ = eid;
+		store: ComponentStore;
+		index: number;
+		constructor(store: ComponentStore, index: number) {
+			this.store = store;
+			this.index = index;
 		}
 	}
 
@@ -32,10 +32,10 @@ export default function Component(
 			enumerable: true,
 			get(this: ComponentClass) {
 				//@ts-ignore
-				return this.$[key][this._];
+				return this.store[key][this.index];
 			},
 			set(value: number) {
-				this.$[key][this._] = value;
+				this.store[key][this.index] = value;
 			},
 		});
 	}
