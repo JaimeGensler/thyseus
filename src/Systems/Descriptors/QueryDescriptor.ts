@@ -4,8 +4,8 @@ import Mut, { type Mutable } from '../Mut';
 import { TupleQuery, type Query } from '../../Queries';
 import type WorldBuilder from '../../World/WorldBuilder';
 import type Descriptor from './Descriptor';
-import type { ComponentType } from '../../Components';
 import type World from '../../World';
+import type { ComponentType } from '../../Components';
 
 type QueryMember = ComponentType<any> | Mutable<ComponentType<any>>;
 
@@ -41,7 +41,6 @@ export default class QueryDescriptor<C extends QueryMember[]>
 
 	onAddSystem(builder: WorldBuilder) {
 		this.components.forEach(comp => builder.registerComponent(comp));
-		builder.registerQuery(this);
 	}
 
 	intoArgument(world: World): Query<{
@@ -53,16 +52,13 @@ export default class QueryDescriptor<C extends QueryMember[]>
 					>
 			  >;
 	}> {
-		world.queries.set(
-			this,
-			new TupleQuery(
-				this.components,
-				this.components.map(c => world.components.get(c)!),
-				world.queries.get(this) as any,
-				createFilter([...world.components.keys()], this.components),
-			),
+		const query = new TupleQuery(
+			createFilter(world.components, this.components),
+			this.components,
+			world.commands,
 		);
-		return world.queries.get(this)!;
+		world.queries.push(query);
+		return query as any;
 	}
 }
 
@@ -115,7 +111,6 @@ if (import.meta.vitest) {
 			const registerQuery = vi.fn();
 			const builder: WorldBuilder = {
 				registerComponent,
-				registerQuery,
 			} as any;
 
 			const descriptor = new QueryDescriptor([A, Mut(B), Mut(C), D]);
@@ -126,7 +121,6 @@ if (import.meta.vitest) {
 			expect(registerComponent).toHaveBeenCalledWith(B);
 			expect(registerComponent).toHaveBeenCalledWith(C);
 			expect(registerComponent).toHaveBeenCalledWith(D);
-			expect(registerQuery).toHaveBeenCalledWith(descriptor);
 		});
 	});
 
@@ -143,16 +137,14 @@ if (import.meta.vitest) {
 
 	describe('intoArgument', () => {
 		it('returns a query', () => {
-			const sparseSet = {};
 			const descriptor = new QueryDescriptor([A, B]);
 			const world: any = {
-				components: new Map<any, any>().set(A, {}),
-				queries: new Map<any, any>().set(descriptor, sparseSet),
+				components: [A, B],
+				queries: [],
 			};
 
 			const result = descriptor.intoArgument(world);
 			expect(result).toBeInstanceOf(TupleQuery);
-			expect((result as TupleQuery<any>).entities).toBe(sparseSet);
 		});
 	});
 }

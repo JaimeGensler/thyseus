@@ -1,43 +1,47 @@
-import type { ComponentType, ComponentStore } from '../Components';
-import type { SparseSet } from '../utils/DataTypes';
+import type { ComponentType, Table } from '../Components';
+import type WorldCommands from '../World/WorldCommands';
 import type Query from './Query';
 
 export default class TupleQuery<C extends object[]> implements Query<C> {
 	#elements: InstanceType<ComponentType>[];
+	#tables: Table[] = [];
 
-	#components: ComponentType[];
-	#stores: ComponentStore[];
-	entities: SparseSet;
 	#filter: bigint;
+	#components: ComponentType[];
 	constructor(
-		components: ComponentType[],
-		stores: ComponentStore[],
-		entities: SparseSet,
 		filter: bigint,
+		components: ComponentType[],
+		commands: WorldCommands,
 	) {
-		this.entities = entities;
 		this.#components = components;
-		this.#stores = stores;
-		this.#elements = this.#components.map(
-			(Component, i) => new Component(this.#stores[i], 0),
-		);
 		this.#filter = filter;
+		this.#elements = this.#components.map(
+			// NOTE: This will cause a de-opt - refactor to not pass an empty object
+			Component => new Component({}, 0, commands),
+		);
 	}
 
 	*[Symbol.iterator](): Iterator<C> {
-		for (const eid of this.entities) {
-			for (const element of this.#elements) {
+		for (const table of this.#tables) {
+			for (let i = 0; i < table.size; i++) {
+				for (const element of this.#elements) {
+					const store = table.columns.get(
+						Object.getPrototypeOf(element).constructor,
+					)!;
+					//@ts-ignore
+					element.store = store;
+					//@ts-ignore
+					element.eid = i;
+				}
 				//@ts-ignore
-				element.eid = eid;
+				yield this.#elements;
 			}
-			//@ts-ignore
-			yield this.#elements;
 		}
 	}
 
-	testAdd(i: number, n: bigint) {
-		if (this.#test(n)) {
-			this.entities.add(i);
+	testAdd(tableId: bigint, table: Table) {
+		if (this.#test(tableId)) {
+			this.#tables.push(table);
 		}
 	}
 	#test(n: bigint) {
