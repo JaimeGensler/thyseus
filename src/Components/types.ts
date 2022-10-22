@@ -1,4 +1,4 @@
-import type WorldCommands from '../World/WorldCommands';
+import type { WorldCommands } from '../World/WorldCommands';
 import type { Type, TypeToTypedArray } from './Type';
 
 type SchemaField = Type;

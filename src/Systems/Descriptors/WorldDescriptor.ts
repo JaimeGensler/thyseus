@@ -1,4 +1,4 @@
-import type World from '../../World';
+import type { World } from '../../World';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
 

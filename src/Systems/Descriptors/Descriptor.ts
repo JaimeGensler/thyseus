@@ -1,5 +1,5 @@
 import type { WorldBuilder } from '../../World/WorldBuilder';
-import type World from '../../World';
+import type { World } from '../../World';
 
 export type DescriptorToArgument<T extends Descriptor> = ReturnType<
 	T['intoArgument']

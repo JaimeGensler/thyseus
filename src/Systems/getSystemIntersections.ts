@@ -34,8 +34,6 @@ export function getSystemIntersections(systems: SystemDefinition[]): bigint[] {
 if (import.meta.vitest) {
 	const { describe, it, expect, vi } = import.meta.vitest;
 	const { defineSystem } = await import('./defineSystem');
-	const { Mut } = await import('./Mut');
-	const { P } = await import('./Descriptors');
 	const { Component } = await import('../Components');
 
 	const sys = () => {};
@@ -114,14 +112,14 @@ if (import.meta.vitest) {
 
 	describe('getSystemIntersections', () => {
 		it('returns bigint bitmasks indicating system intersection', () => {
-			const s0 = defineSystem([P.Query([Mut(A), B])], sys);
-			const s1 = defineSystem([P.Query([A, D])], sys);
-			const s2 = defineSystem([P.Query([Mut(B), C])], sys);
-			const s3 = defineSystem([P.Query([B, D])], sys);
+			const s0 = defineSystem(P => [P.Query([P.Mut(A), B])], sys);
+			const s1 = defineSystem(P => [P.Query([A, D])], sys);
+			const s2 = defineSystem(P => [P.Query([P.Mut(B), C])], sys);
+			const s3 = defineSystem(P => [P.Query([B, D])], sys);
 
-			const s4 = defineSystem([P.Res(B)], sys);
-			const s5 = defineSystem([P.Res(B)], sys);
-			const s6 = defineSystem([P.Res(Mut(B))], sys);
+			const s4 = defineSystem(P => [P.Res(B)], sys);
+			const s5 = defineSystem(P => [P.Res(B)], sys);
+			const s6 = defineSystem(P => [P.Res(P.Mut(B))], sys);
 
 			const result = getSystemIntersections([s0, s1, s2, s3, s4, s5, s6]);
 			expect(result[0]).toBe(0b0000_0111n);

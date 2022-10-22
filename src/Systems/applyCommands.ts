@@ -1,5 +1,4 @@
 import { defineSystem } from './defineSystem';
-import { P } from './Descriptors';
 
 const mergeQueues = (a: Map<bigint, bigint>, b: Map<bigint, bigint>) => {
 	for (const [key, bVal] of b) {
@@ -13,7 +12,7 @@ const mergeQueues = (a: Map<bigint, bigint>, b: Map<bigint, bigint>) => {
 	return a;
 };
 export const applyCommands = defineSystem(
-	[P.World()],
+	({ World }) => [World()],
 	async function applyCommands(world) {
 		const queue = (
 			await world.threads.send<Map<bigint, bigint>>(

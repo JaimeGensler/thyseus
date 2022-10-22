@@ -1,6 +1,6 @@
 import { isSendableClass } from '../../utils/Threads';
 import { AccessType } from '../../utils/AccessType';
-import { Mut, type Mutable } from '../Mut';
+import { Mut, type Mutable } from './Mut';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
 import type { ResourceType, Class } from '../../Resources';

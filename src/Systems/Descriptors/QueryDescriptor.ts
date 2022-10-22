@@ -1,6 +1,6 @@
 import { AccessType } from '../../utils/AccessType';
 import { createFilter } from '../../utils/createFilter';
-import { Mut, type Mutable } from '../Mut';
+import { Mut, type Mutable } from './Mut';
 import { TupleQuery, type Query } from '../../Queries';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
