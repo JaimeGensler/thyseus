@@ -1,5 +1,76 @@
 # Changelog
 
+## v0.4.0 (October 22, 2022)
+
+### 💥 Breaking Changes
+
+-   Some elements of `WorldBuilder` and `World` have changed.
+    -   `components` on World is now a `ComponentType[]`.
+    -   `queries` on **World** is now a `Query[]`.
+    -   `queries` and `registerQuery` on **WorldBuilder** have been removed. At
+        the moment, queries do not need to be pre-registered.
+-   Some properties previously available on `WorldCommands` no longer exist. All
+    methods remain the same.
+    -   It is _strongly suggested_ that you do not access properties on
+        `WorldCommands` and only use its methods, as the internal implementation
+        of `WorldCommands` is likely to continue to change (pre-1.0).
+-   Some properties previously available on `Query` no longer exist. Iteration
+    remains the same.
+    -   Namely, queries no longer need to track which entities match them, and
+        so have no `entities` field.
+    -   As above, it is strongly suggested that you simply iterate over query
+        instances, as the rest of the properties are subject to change.
+-   `threads` on `World` have been changed from `Thread[]` to `ThreadGroup`.
+    -   Some of the functionality of ThreadGroup will be expanded to be
+        consumer-facing in a future update.
+
+### ✨ Features
+
+-   Now uses
+    [archetypes](https://github.com/SanderMertens/ecs-faq#archetypes-aka-dense-ecs-or-table-based-ecs)
+    for component storage! As a result, **_memory usage is significantly
+    reduced_**, and iterating queries should be more cache-friendly.
+    -   Archetypes can be accessed with `world.archetypes`
+        (`Map<bigint, Table>`).
+    -   Bear in mind that archetypes may be somewhat slower at the moment than
+        the previous storage mechanism - especially adding/removing Components -
+        but have the potential to be much faster - more benchmarking around the
+        bottlenecks of the current implementation is needed, first.
+-   Entities are now a _generational_ index.
+    -   Every entity has an associated generation. Whenever an entity is
+        despawned, the generation is incremented.
+    -   Entity data can be queried for with the `Entity` component (all living
+        entities have this component, so it does not affect what a query
+        matches).
+    -   The `Entity` component has no setters and includes a few methods that
+        can be used to queue components for add/remove, or to despawn the
+        entity - `WorldCommands.spawn()` returns an Entity component! These
+        methods do not require a lock, and so **_Entity can (and should) be
+        accessed immutably_**.
+        ```ts
+        class Entity {
+        	get id(): bigint; // uint64
+        	get generation(): number; // uint32
+        	get entityIndex(): number; // uint32
+        	insert(Component: ComponentType<any>): this;
+        	remove(Component: ComponentType): this;
+        	despawn(): void;
+        }
+        ```
+-   Added `getNewTableSize: (prev: number) => number` to world config, which
+    determines how archetype tables grow. By default, 8 entities are allocated
+    for a table, and table size is doubled each grow.
+    -   When creating a new table, the `prev` argument will be 0.
+    -   _Returned values **must** be multiples of 8_ - failure to do so will
+        result in undefined behavior!
+-   Systems can now return promises, which will be `await`ed before continuing
+    system execution on that thread. This should not be utilized often, as any
+    data a system locks will remain locked until the promise is resolved!
+
+### 🔧 Maintenance
+
+-   Bumped dev dependency versions.
+
 ## v0.3.0 (September 11, 2022)
 
 ### 💥 Breaking Changes
