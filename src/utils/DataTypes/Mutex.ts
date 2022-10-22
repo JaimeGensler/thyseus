@@ -43,7 +43,8 @@ export default class Mutex<T extends any> {
 			if (oldLockState === LockState.Unlocked) {
 				return;
 			}
-			await Atomics.waitAsync(this.#state, 0, LockState.Locked).value;
+			await Atomics.waitAsync(this.#state, 0, LockState.Locked as any)
+				.value;
 		}
 	}
 	#release() {

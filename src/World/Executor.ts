@@ -58,7 +58,7 @@ export default class Executor {
 	}
 
 	async onReady(fn: () => void) {
-		const { async, value } = Atomics.waitAsync(this.#signal, 0, 0);
+		const { async, value } = Atomics.waitAsync(this.#signal, 0, 0 as any);
 		if (!async) {
 			throw new Error(
 				'Trying to wait while there are still systems to execute',
@@ -106,7 +106,7 @@ export default class Executor {
 					}
 				});
 			} else if (size !== 0) {
-				await Atomics.waitAsync(this.#signal, 0, size).value;
+				await Atomics.waitAsync(this.#signal, 0, size as any).value;
 			}
 		}
 	}
