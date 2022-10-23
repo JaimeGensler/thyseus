@@ -1,4 +1,36 @@
-import type { SendableType } from './ThreadProtocol';
+export type SendableType =
+	| void
+	| null
+	| undefined
+	| boolean
+	| number
+	| string
+	| bigint
+	| ArrayBuffer
+	| SharedArrayBuffer
+	| Uint8Array
+	| Uint16Array
+	| Uint32Array
+	| BigUint64Array
+	| Int8Array
+	| Int16Array
+	| Int32Array
+	| BigInt64Array
+	| Float32Array
+	| Float64Array
+	| Uint8ClampedArray
+	| DataView
+	| Date
+	| RegExp
+	| Blob
+	| File
+	| FileList
+	| ImageBitmap
+	| ImageData
+	| SendableType[]
+	| { [key: string]: SendableType }
+	| Map<SendableType, SendableType>
+	| Set<SendableType>;
 
 type Listener<I extends SendableType = void, O extends SendableType = void> = (
 	data: I,
