@@ -1,16 +1,43 @@
-import { BigUintArray, Mutex, SparseSet } from '../utils/DataTypes';
-import { ThreadProtocol } from '../utils/Threads';
+import { getSystemDependencies, getSystemIntersections } from '../Systems';
+import { BigUintArray, Mutex } from '../utils/DataTypes';
+import { type ThreadGroup } from '../utils/ThreadGroup';
+import type { WorldBuilder } from './WorldBuilder';
+
+class SparseSet {
+	static with(): any {}
+}
 
 export class Executor {
-	static from(
-		intersections: bigint[],
-		dependencies: bigint[],
-		local: Set<number>,
-	) {
-		return new this(
+	static async fromWorld(
+		world: WorldBuilder,
+		threads: ThreadGroup,
+	): Promise<Executor> {
+		const intersections = await threads.sendOrReceive(() =>
+			getSystemIntersections(world.systems),
+		);
+		const dependencies = await threads.sendOrReceive(() =>
+			getSystemDependencies(
+				world.systems,
+				world.systemDependencies,
+				intersections,
+			),
+		);
+		const local = threads.isMainThread
+			? world.systems.reduce(
+					(acc, val, i) =>
+						val.parameters.some(param => param.isLocalToThread())
+							? acc.add(i)
+							: acc,
+					new Set<number>(),
+			  )
+			: new Set<number>();
+
+		// TODO: Share SparseSet, Mutex, BigUintArray
+
+		return new Executor(
 			intersections,
 			dependencies,
-			SparseSet.with(intersections.length, true),
+			SparseSet.with(intersections.length, true), // This can be a vec
 			new Mutex(BigUintArray.with(intersections.length, 2, true)),
 			local,
 		);
@@ -34,9 +61,8 @@ export class Executor {
 		this.#dependencies = dependencies;
 		this.#systemsToExecute = systemsToExecute;
 		this.#lock = lock;
-		this.#signal = new Int32Array(
-			systemsToExecute[ThreadProtocol.Send]()[2].buffer,
-		);
+		// TODO: Fix signal - this was based on the metadata of SparseSets
+		this.#signal = new Int32Array(0);
 		this.#local = local;
 	}
 
@@ -110,25 +136,7 @@ export class Executor {
 			}
 		}
 	}
-
-	[ThreadProtocol.Send](): SerializedExecutor {
-		return [
-			this.#intersections,
-			this.#dependencies,
-			this.#systemsToExecute,
-			this.#lock,
-		];
-	}
-	static [ThreadProtocol.Receive](data: SerializedExecutor) {
-		return new this(...data, new Set());
-	}
 }
-type SerializedExecutor = [
-	intersections: bigint[],
-	dependencies: bigint[],
-	systemsToExecute: SparseSet,
-	lock: Mutex<BigUintArray>,
-];
 
 /*---------*\
 |   TESTS   |
