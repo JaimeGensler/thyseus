@@ -3,7 +3,7 @@ import { Executor } from './Executor';
 import { zipIntoMap } from '../utils/zipIntoMap';
 import { WorldCommands } from './WorldCommands';
 import { Entities } from './Entities';
-import { ThreadGroup } from '../utils/Threads';
+import { ThreadGroup } from '../utils/ThreadGroup';
 import { createResource, type ResourceType } from '../Resources';
 import { Entity, type ComponentType } from '../Components';
 import {

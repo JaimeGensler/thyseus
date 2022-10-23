@@ -1,19 +1,19 @@
 import { WorldBuilder } from './WorldBuilder';
 import { ComponentStore, ComponentType, Entity, Table } from '../Components';
+import { bits } from '../utils/bits';
+import { zipIntoMap } from '../utils/zipIntoMap';
 import {
 	validateAndCompleteConfig,
 	type WorldConfig,
 	type SingleThreadedWorldConfig,
 } from './config';
-import type { ThreadGroup } from '../utils/Threads';
+import type { ThreadGroup } from '../utils/ThreadGroup';
 import type { Executor } from './Executor';
 import type { WorldCommands } from './WorldCommands';
 import type { Entities } from './Entities';
 import type { System } from '../Systems';
 import type { ResourceType } from '../Resources';
-import { bits } from '../utils/bits';
-import { zipIntoMap } from '../utils/zipIntoMap';
-import { Query } from '../Queries';
+import type { Query } from '../Queries';
 
 const NEW_TABLE = 'thyseus::newTable';
 type NewTablePayload = [bigint, ComponentStore[], Uint32Array];
