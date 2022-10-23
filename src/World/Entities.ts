@@ -1,24 +1,45 @@
+import { createBuffer } from '../utils/createBuffer';
 import { BigUintArray } from '../utils/DataTypes';
 import { fourBytes, getGeneration, getIndex } from '../utils/entityId';
-import type { WorldConfig } from './config';
+import { ThreadGroup } from '../utils/ThreadGroup';
+import { WorldBuilder } from './WorldBuilder';
 
 // NOTE: If tableIds move to uint32s, tableIds/row can be transformed into entityLocation: BigUint64Array
 export class Entities {
-	static async fromWorld(config: WorldConfig): Promise<Entities> {
-		const length = config.maxEntities;
+	static async fromWorld(
+		world: WorldBuilder,
+		threads: ThreadGroup,
+	): Promise<Entities> {
+		const length = world.config.maxEntities;
+
 		return new Entities(
-			new Uint32Array(length),
-			new BigUintArray(8, length, new Uint8Array(length)),
-			new Uint32Array(length),
-			new Uint32Array(3),
-			new Uint32Array(length),
+			await threads.sendOrReceive(
+				() => new Uint32Array(createBuffer(world.config, length * 4)),
+			),
+			new BigUintArray(
+				world.components.size,
+				length,
+				await threads.sendOrReceive(() => new Uint8Array(length)),
+			),
+			await threads.sendOrReceive(
+				() => new Uint32Array(createBuffer(world.config, length * 4)),
+			),
+			await threads.sendOrReceive(
+				() => new Uint32Array(createBuffer(world.config, 2 * 4)),
+			),
+			await threads.sendOrReceive(
+				() =>
+					new Uint32Array(
+						createBuffer(world.config, Math.ceil(length / 8) * 4),
+					),
+			),
 		);
 	}
 
 	generations: Uint32Array;
 	tableIds: BigUintArray;
 	row: Uint32Array;
-	#data: Uint32Array;
+	#data: Uint32Array; // [NextId, FreeCount]
 	#free: Uint32Array;
 	constructor(
 		generations: Uint32Array,
@@ -97,7 +118,6 @@ const ctz32 = (n: number) => {
 enum DataIndex {
 	NextId = 0,
 	FreeCount = 1,
-	MaxCount = 2,
 }
 
 /*---------*\
