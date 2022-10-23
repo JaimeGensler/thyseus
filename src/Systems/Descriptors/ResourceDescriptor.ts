@@ -48,13 +48,12 @@ export class ResourceDescriptor<T extends ResourceType | Mutable<ResourceType>>
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, vi } = import.meta.vitest;
-	const { ThreadProtocol } = await import('../../utils/Threads');
 
 	class A {}
 	class B {}
 	class C {
-		[ThreadProtocol.Send]() {}
-		static [ThreadProtocol.Receive]() {}
+		static size = 0;
+		static schema = {};
 	}
 
 	describe('intersectsWith', () => {
@@ -100,21 +99,14 @@ if (import.meta.vitest) {
 			new ResourceDescriptor(Mut(B)).onAddSystem(builder);
 			expect(builder.registerResource).toHaveBeenCalledWith(B);
 		});
-
-		it('registers sendable classes for shared resources', () => {
-			const builder = getBuilder();
-			new ResourceDescriptor(C).onAddSystem(builder);
-			expect(builder.registerResource).toHaveBeenCalledTimes(1);
-			expect(builder.registerResource).toHaveBeenCalledWith(C);
-		});
 	});
 
 	describe('isLocalToThread', () => {
-		it('returns true if resource does NOT implement Thread Send/Receive', () => {
+		it('returns true if resource does not have struct static fields', () => {
 			expect(new ResourceDescriptor(A).isLocalToThread()).toBe(true);
 			expect(new ResourceDescriptor(Mut(B)).isLocalToThread()).toBe(true);
 		});
-		it('returns false if resource impls Thread Send/Receive', () => {
+		it('returns false if resource has struct static fields', () => {
 			expect(new ResourceDescriptor(C).isLocalToThread()).toBe(false);
 			expect(new ResourceDescriptor(Mut(C)).isLocalToThread()).toBe(
 				false,
