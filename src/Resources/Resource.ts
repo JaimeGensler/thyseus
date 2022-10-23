@@ -1,7 +1,7 @@
-import type { SendableClass, SendableType } from '../utils/Threads';
+import { ComponentType } from '../Components';
 
 export interface Class {
 	new (...args: any[]): object;
 }
-export type ResourceType = SendableClass<SendableType> | Class;
+export type ResourceType = ComponentType | Class;
 export function Resource(...args: any[]): any {}
