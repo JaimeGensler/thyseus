@@ -1,5 +1,3 @@
-import { ThreadProtocol } from '../Threads';
-
 const b255 = 0b1111_1111n;
 export class BigUintArray {
 	static with(
@@ -66,23 +64,7 @@ export class BigUintArray {
 			this.#data[index + i] ^= Number((value >> BigInt(i * 8)) & b255);
 		}
 	}
-
-	[ThreadProtocol.Send](): SerializedBigUintNArray {
-		return [this.width, this.length, this.#data];
-	}
-	static [ThreadProtocol.Receive]([
-		width,
-		length,
-		data,
-	]: SerializedBigUintNArray) {
-		return new this(width, length, data);
-	}
 }
-type SerializedBigUintNArray = [
-	width: number,
-	length: number,
-	data: Uint8Array,
-];
 
 /*---------*\
 |   TESTS   |
@@ -146,24 +128,5 @@ if (import.meta.vitest) {
 		arr.set(2, 0b1100_1010_0011n);
 		arr.XOR(2, 0b1111_0111_0111n);
 		expect(arr.get(2)).toBe(0b0011_1101_0100n);
-	});
-
-	it('desconstructs to and reconstructs from shareable interface', () => {
-		const arr = BigUintArray.with(13, 6);
-
-		const slots = [0b1n, 0n, 0n, 0b1011_1010n, 0b1_0000_0000_0000n, 0n];
-		slots.forEach((slot, i) => arr.set(i, slot));
-
-		const rec = BigUintArray[ThreadProtocol.Receive](
-			arr[ThreadProtocol.Send](),
-		);
-		expect(arr.byteLength).toBe(rec.byteLength);
-		expect(arr.bytesPerElement).toBe(rec.bytesPerElement);
-		expect(arr.width).toBe(rec.width);
-		expect(arr.length).toBe(rec.length);
-
-		slots.forEach((slot, i) => expect(rec.get(i)).toBe(slot));
-		rec.set(1, 0b1001n);
-		expect(arr.get(1)).toBe(0b1001n);
 	});
 }
