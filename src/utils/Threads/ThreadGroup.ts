@@ -21,6 +21,7 @@ interface WorkerOrGlobal {
 
 export class ThreadGroup {
 	static isMainThread = !!globalThis.document;
+	isMainThread = !!globalThis.document;
 
 	static spawn(count: number, url: string | URL | undefined): ThreadGroup {
 		return new this(
