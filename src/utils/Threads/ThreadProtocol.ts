@@ -5,15 +5,14 @@ export const ThreadProtocol = {
 	Receive,
 } as const;
 
-export type Primitive =
+type StructuredCloneable =
 	| void
 	| null
 	| undefined
 	| boolean
 	| number
 	| string
-	| bigint;
-export type BinaryView =
+	| bigint
 	| ArrayBuffer
 	| SharedArrayBuffer
 	| Uint8Array
@@ -27,10 +26,7 @@ export type BinaryView =
 	| Float32Array
 	| Float64Array
 	| Uint8ClampedArray
-	| DataView;
-type StructuredCloneable =
-	| Primitive
-	| BinaryView
+	| DataView
 	| Date
 	| RegExp
 	| Blob
@@ -46,7 +42,7 @@ export type SendableType =
 	| { [key: string]: SendableType }
 	| SendableInstance;
 
-export interface SendableInstance<T extends SendableType = SendableType> {
+interface SendableInstance<T extends SendableType = SendableType> {
 	[ThreadProtocol.Send](): T;
 }
 export interface SendableClass<T extends SendableType = void> {

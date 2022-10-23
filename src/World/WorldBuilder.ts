@@ -1,15 +1,11 @@
 import { World } from './World';
 import { Executor } from './Executor';
-import { getDefaultSendableClasses } from './getDefaultSendableClasses';
 import { zipIntoMap } from '../utils/zipIntoMap';
 import { WorldCommands } from './WorldCommands';
 import { Entities } from './Entities';
-import {
-	ThreadGroup,
-	isSendableClass,
-	type SendableClass,
-} from '../utils/Threads';
+import { ThreadGroup } from '../utils/Threads';
 import { createResource, type ResourceType } from '../Resources';
+import { Entity, type ComponentType } from '../Components';
 import {
 	getSystemDependencies,
 	getSystemIntersections,
@@ -18,7 +14,6 @@ import {
 	type SystemDefinition,
 	type System,
 } from '../Systems';
-import { ComponentType, Entity } from '../Components';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
 
@@ -26,8 +21,6 @@ export class WorldBuilder {
 	#systems = [] as SystemDefinition[];
 	#systemDependencies = [] as (Dependencies | undefined)[];
 	#startupSystems = [] as SystemDefinition[];
-
-	#sendableClasses = getDefaultSendableClasses();
 
 	#components = new Set<ComponentType>();
 	#resources = new Set<ResourceType>();
@@ -109,29 +102,13 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Registers a Resource in the world. Called automatically for all used sendable classes when a system is added.
-	 * @param SendableClass The SendableClass to register.
-	 * @returns `this`, for chaining.
-	 */
-	registerSendableClass(SendableClass: SendableClass<any>): this {
-		if (isSendableClass(SendableClass)) {
-			this.#sendableClasses.push(SendableClass);
-		}
-		return this;
-	}
-
-	/**
 	 * Builds the world.
 	 * `World` instances cannot add new systems or register new types.
 	 * This method returns a promise for both single- _and_ multi-threaded worlds.
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
-		const threads = ThreadGroup.spawn(
-			this.#config.threads - 1,
-			this.#url,
-			this.#sendableClasses,
-		);
+		const threads = ThreadGroup.spawn(this.#config.threads - 1, this.#url);
 
 		const executor = await threads.sendOrReceive(() => {
 			const intersections = getSystemIntersections(this.#systems);
@@ -150,26 +127,27 @@ export class WorldBuilder {
 			return Executor.from(intersections, dependencies, local);
 		});
 
-		const resources = zipIntoMap<ResourceType, object>(
-			this.#resources,
-			await threads.sendOrReceive(() =>
-				Array.from(this.#resources, ResourceType =>
-					isSendableClass(ResourceType)
-						? createResource(ResourceType, this.#config)
-						: null!,
-				),
-			),
-		);
-		if (ThreadGroup.isMainThread) {
-			this.#resources.forEach(ResourceType => {
-				if (!isSendableClass(ResourceType)) {
-					resources.set(
-						ResourceType,
-						createResource(ResourceType, this.#config),
-					);
-				}
-			});
-		}
+		// const resources = zipIntoMap<ResourceType, object>(
+		// 	this.#resources,
+		// 	await threads.sendOrReceive(() =>
+		// 		Array.from(this.#resources, ResourceType =>
+		// 			isSendableClass(ResourceType)
+		// 				? createResource(ResourceType, this.#config)
+		// 				: null!,
+		// 		),
+		// 	),
+		// );
+		// if (ThreadGroup.isMainThread) {
+		// 	this.#resources.forEach(ResourceType => {
+		// 		if (!isSendableClass(ResourceType)) {
+		// 			resources.set(
+		// 				ResourceType,
+		// 				createResource(ResourceType, this.#config),
+		// 			);
+		// 		}
+		// 	});
+		// }
+		const resources = new Map();
 
 		const entities = await Entities.fromWorld(this.#config);
 		const commands = new WorldCommands(entities, this.#components);

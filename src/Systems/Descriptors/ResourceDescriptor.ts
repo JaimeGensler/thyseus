@@ -1,6 +1,6 @@
-import { isSendableClass } from '../../utils/Threads';
 import { AccessType } from '../../utils/AccessType';
 import { Mut, type Mutable } from './Mut';
+import { isStruct } from '../../Components';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
 import type { ResourceType, Class } from '../../Resources';
@@ -19,7 +19,7 @@ export class ResourceDescriptor<T extends ResourceType | Mutable<ResourceType>>
 	}
 
 	isLocalToThread() {
-		return !isSendableClass(this.resource);
+		return !isStruct(this.resource);
 	}
 
 	intersectsWith(other: unknown): boolean {
@@ -32,9 +32,6 @@ export class ResourceDescriptor<T extends ResourceType | Mutable<ResourceType>>
 
 	onAddSystem(builder: WorldBuilder) {
 		builder.registerResource(this.resource);
-		if (isSendableClass(this.resource)) {
-			builder.registerSendableClass(this.resource);
-		}
 	}
 
 	intoArgument(
@@ -102,8 +99,6 @@ if (import.meta.vitest) {
 			expect(builder.registerResource).toHaveBeenCalledWith(A);
 			new ResourceDescriptor(Mut(B)).onAddSystem(builder);
 			expect(builder.registerResource).toHaveBeenCalledWith(B);
-
-			expect(builder.registerSendableClass).not.toHaveBeenCalled();
 		});
 
 		it('registers sendable classes for shared resources', () => {
@@ -111,8 +106,6 @@ if (import.meta.vitest) {
 			new ResourceDescriptor(C).onAddSystem(builder);
 			expect(builder.registerResource).toHaveBeenCalledTimes(1);
 			expect(builder.registerResource).toHaveBeenCalledWith(C);
-			expect(builder.registerSendableClass).toHaveBeenCalledTimes(1);
-			expect(builder.registerSendableClass).toHaveBeenCalledWith(C);
 		});
 	});
 

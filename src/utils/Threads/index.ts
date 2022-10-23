@@ -4,4 +4,3 @@ export {
 	type SendableType,
 	type SendableClass,
 } from './ThreadProtocol';
-export { isSendableClass } from './isSendableClass';
