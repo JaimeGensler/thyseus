@@ -18,33 +18,20 @@ import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
 
 export class WorldBuilder {
-	#systems = [] as SystemDefinition[];
-	#systemDependencies = [] as (Dependencies | undefined)[];
+	systems = [] as SystemDefinition[];
+	systemDependencies = [] as (Dependencies | undefined)[];
 	#startupSystems = [] as SystemDefinition[];
 
-	#components = new Set<ComponentType>();
-	#resources = new Set<ResourceType>();
+	components = new Set<ComponentType>();
+	resources = new Set<ResourceType>();
 
-	#config: WorldConfig;
-	#url: string | URL | undefined;
+	config: WorldConfig;
+	url: string | URL | undefined;
 	constructor(config: WorldConfig, url: string | URL | undefined) {
-		this.#config = config;
-		this.#url = url;
+		this.config = config;
+		this.url = url;
 		this.registerComponent(Entity);
 		this.addSystem(applyCommands, { afterAll: true });
-	}
-
-	get resources() {
-		return this.#resources;
-	}
-	get components() {
-		return this.#components;
-	}
-	get config() {
-		return this.#config;
-	}
-	get url() {
-		return this.#url;
 	}
 
 	/**
@@ -54,8 +41,8 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	addSystem(system: SystemDefinition, dependencies?: Dependencies): this {
-		this.#systems.push(system);
-		this.#systemDependencies.push(dependencies);
+		this.systems.push(system);
+		this.systemDependencies.push(dependencies);
 		this.#processSystem(system);
 		return this;
 	}
@@ -87,7 +74,7 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	registerComponent(ComponentType: ComponentType<any>): this {
-		this.#components.add(ComponentType);
+		this.components.add(ComponentType);
 		return this;
 	}
 
@@ -97,7 +84,7 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	registerResource(ResourceType: ResourceType): this {
-		this.#resources.add(ResourceType);
+		this.resources.add(ResourceType);
 		return this;
 	}
 
@@ -108,29 +95,14 @@ export class WorldBuilder {
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
-		const threads = ThreadGroup.spawn(this.#config.threads - 1, this.#url);
+		const threads = ThreadGroup.spawn(this.config.threads - 1, this.url);
 
-		const executor = await threads.sendOrReceive(() => {
-			const intersections = getSystemIntersections(this.#systems);
-			const dependencies = getSystemDependencies(
-				this.#systems,
-				this.#systemDependencies,
-				intersections,
-			);
-			const local = this.#systems.reduce(
-				(acc, val, i) =>
-					val.parameters.some(param => param.isLocalToThread())
-						? acc.add(i)
-						: acc,
-				new Set<number>(),
-			);
-			return Executor.from(intersections, dependencies, local);
-		});
+		const executor = await Executor.fromWorld(this, threads);
 
 		// const resources = zipIntoMap<ResourceType, object>(
-		// 	this.#resources,
+		// 	this.resources,
 		// 	await threads.sendOrReceive(() =>
-		// 		Array.from(this.#resources, ResourceType =>
+		// 		Array.from(this.resources, ResourceType =>
 		// 			isSendableClass(ResourceType)
 		// 				? createResource(ResourceType, this.#config)
 		// 				: null!,
@@ -138,7 +110,7 @@ export class WorldBuilder {
 		// 	),
 		// );
 		// if (ThreadGroup.isMainThread) {
-		// 	this.#resources.forEach(ResourceType => {
+		// 	this.resources.forEach(ResourceType => {
 		// 		if (!isSendableClass(ResourceType)) {
 		// 			resources.set(
 		// 				ResourceType,
@@ -149,8 +121,8 @@ export class WorldBuilder {
 		// }
 		const resources = new Map();
 
-		const entities = await Entities.fromWorld(this.#config);
-		const commands = new WorldCommands(entities, this.#components);
+		const entities = await Entities.fromWorld(this, threads);
+		const commands = new WorldCommands(entities, this.components);
 
 		threads.setListener('thyseus::getCommandQueue', () => {
 			const ret = new Map(commands.queue);
@@ -161,17 +133,17 @@ export class WorldBuilder {
 		const systems: System[] = [];
 
 		const world = new World(
-			this.#config,
+			this.config,
 			resources,
 			threads,
 			systems,
 			executor,
 			commands,
 			entities,
-			[...this.#components],
+			[...this.components],
 		);
 
-		this.#systems.forEach(
+		this.systems.forEach(
 			(system, i) => (systems[i] = this.#buildSystem(system, world)),
 		);
 
