@@ -1,15 +1,5 @@
-import {
-	ThreadProtocol,
-	type SendableType,
-	type Primitive,
-	type BinaryView,
-	type SendableClass,
-	type SendableInstance,
-} from './ThreadProtocol';
+import type { SendableType } from './ThreadProtocol';
 
-// Symbols can't be sent to/from workers
-const IsSerialized = '@SERIALIZED';
-type SentInstance = [typeof IsSerialized, number, SendableType];
 type Listener<I extends SendableType = void, O extends SendableType = void> = (
 	data: I,
 ) => O;
@@ -32,11 +22,7 @@ interface WorkerOrGlobal {
 export class ThreadGroup {
 	static isMainThread = !!globalThis.document;
 
-	static spawn(
-		count: number,
-		url: string | URL | undefined,
-		sendableTypes: SendableClass<any>[],
-	): ThreadGroup {
+	static spawn(count: number, url: string | URL | undefined): ThreadGroup {
 		return new this(
 			ThreadGroup.isMainThread
 				? Array.from(
@@ -45,7 +31,6 @@ export class ThreadGroup {
 						() => new Worker(url!, { type: 'module' }),
 				  )
 				: [globalThis],
-			sendableTypes,
 		);
 	}
 
@@ -54,28 +39,21 @@ export class ThreadGroup {
 	#listeners = {} as Record<string, Listener<any>>;
 
 	#threads: WorkerOrGlobal[];
-	#sendableTypes: SendableClass<any>[];
-	constructor(
-		threads: WorkerOrGlobal[],
-		sendableTypes: SendableClass<any>[],
-	) {
+	constructor(threads: WorkerOrGlobal[]) {
 		this.#threads = threads;
-		this.#sendableTypes = sendableTypes;
 
 		const handleMessage = ({
 			currentTarget,
-			data: [id, channel, data],
+			data: [id, channel, message],
 		}: ThreadMessageEvent) => {
 			if (this.#resolvers.has(id)) {
-				this.#resolvers.get(id)!(this.#deserialize(data));
+				this.#resolvers.get(id)!(message);
 				this.#resolvers.delete(id);
 			} else if (channel in this.#listeners) {
 				currentTarget.postMessage([
 					id,
 					channel,
-					this.#serialize(
-						this.#listeners[channel](this.#deserialize(data)),
-					),
+					this.#listeners[channel](message),
 				]);
 			} else {
 				currentTarget.postMessage([id, channel, null]);
@@ -117,11 +95,10 @@ export class ThreadGroup {
 		channel: string,
 		message: SendableType,
 	): Promise<T[]> {
-		const data = this.#serialize(message);
 		return Promise.all(
 			this.#threads.map(thread => {
 				const id = this.#nextId++;
-				thread.postMessage([id, channel, data]);
+				thread.postMessage([id, channel, message]);
 				return new Promise<T>(r => this.#resolvers.set(id, r));
 			}),
 		);
@@ -152,56 +129,7 @@ export class ThreadGroup {
 			return result;
 		}
 	}
-
-	#serialize(value: SendableType): unknown {
-		if (typeof value !== 'object' || value === null) {
-			return value;
-		}
-		if (isSendableInstance(value)) {
-			return [
-				IsSerialized,
-				this.#sendableTypes.indexOf(value.constructor as SendableClass),
-				this.#serialize(value[ThreadProtocol.Send]()),
-			];
-		}
-		for (const key in value) {
-			//@ts-ignore
-			value[key] = this.#serialize(value[key], this.#sendableTypes);
-		}
-		return value;
-	}
-
-	#deserialize(value: SendableType): unknown {
-		if (isPrimitive(value) || isBinaryView(value)) {
-			return value;
-		}
-		if (isSentInstance(value)) {
-			const [, typeKey, data] = value;
-			const deserializedData = this.#deserialize(data);
-			const TypeConstructor = this.#sendableTypes[typeKey];
-			return TypeConstructor[ThreadProtocol.Receive](deserializedData);
-		}
-		for (const key in value) {
-			//@ts-ignore
-			value[key] = this.#deserialize(value[key], this.#sendableTypes);
-		}
-		return value;
-	}
 }
-
-const isSendableInstance = (val: object): val is SendableInstance =>
-	ThreadProtocol.Send in val;
-const isSentInstance = (val: object): val is SentInstance =>
-	Array.isArray(val) && val.length === 3 && val[0] === IsSerialized;
-const TypedArray = Object.getPrototypeOf(Uint8Array);
-const isPrimitive = (value: unknown): value is Primitive =>
-	typeof value !== 'object' && typeof value !== 'function' && value !== null;
-const isBinaryView = (value: unknown): value is BinaryView =>
-	value instanceof TypedArray ||
-	value instanceof DataView ||
-	value instanceof ArrayBuffer ||
-	(typeof SharedArrayBuffer !== undefined &&
-		value instanceof SharedArrayBuffer);
 
 /*---------*\
 |   TESTS   |
@@ -224,15 +152,12 @@ if (import.meta.vitest) {
 			}, 10);
 		}
 	}
-	const getMockThreads = (sendables: SendableClass<any>[] = []) => {
+	const getMockThreads = () => {
 		const mock1 = new MockWorker();
 		const mock2 = new MockWorker();
 		mock1.target = mock2;
 		mock2.target = mock1;
-		return [
-			new ThreadGroup([mock1], sendables),
-			new ThreadGroup([mock2], sendables),
-		];
+		return [new ThreadGroup([mock1]), new ThreadGroup([mock2])];
 	};
 
 	beforeEach(() => {
@@ -247,31 +172,6 @@ if (import.meta.vitest) {
 		expect(await group1.send('add2', 1)).toStrictEqual([3]);
 		expect(await group1.send('add2', 3.5)).toStrictEqual([5.5]);
 		expect(await group1.send('set3', { x: 2 })).toStrictEqual([{ x: 3 }]);
-	});
-
-	it('sends objects implementing Thread Send/Receive Protocol', async () => {
-		class MySendableClass {
-			data = new Uint8Array(8);
-
-			[ThreadProtocol.Send]() {
-				return this.data;
-			}
-			static [ThreadProtocol.Receive](data: Uint8Array) {
-				const ret = new this();
-				ret.data = data;
-				return ret;
-			}
-		}
-		const [group1, group2] = getMockThreads([MySendableClass]);
-		group2.setListener<MySendableClass>('setAscending', instance => {
-			for (let i = 0; i < 8; i++) {
-				instance.data[i] = i;
-			}
-		});
-		const val = new MySendableClass();
-		val.data.forEach(x => expect(x).toBe(0));
-		await group1.send('setAscending', val);
-		val.data.forEach((x, i) => expect(x).toBe(i));
 	});
 
 	it('receives null back if no listener is set up', async () => {
