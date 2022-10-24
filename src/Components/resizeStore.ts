@@ -1,4 +1,3 @@
-import { typeToBytes } from './Type';
 import type { Schema, ComponentType, ComponentStore } from './types';
 import type { World } from '../World';
 
@@ -16,7 +15,7 @@ export function resizeStore<T extends Schema>(
 		(acc, [key, FieldConstructor]) => {
 			acc[key] = new FieldConstructor(buffer, offset, count);
 			acc[key].set(store[key as keyof typeof store] as any, 0);
-			offset += count * typeToBytes.get(FieldConstructor)!;
+			offset += count * FieldConstructor.BYTES_PER_ELEMENT;
 			return acc;
 		},
 		{} as ComponentStore<any>,
