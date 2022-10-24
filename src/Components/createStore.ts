@@ -40,8 +40,8 @@ if (import.meta.vitest) {
 			static size = 0;
 			static schema = {};
 			@struct.u8() declare unsigned1: number;
-			@struct.u16() declare unsigned3: number;
-			@struct.u32() declare unsigned2: number;
+			@struct.u16() declare unsigned2: number;
+			@struct.u32() declare unsigned3: number;
 			@struct.u64() declare unsigned4: bigint;
 			@struct.i8() declare int1: number;
 			@struct.i16() declare int2: number;
