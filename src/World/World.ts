@@ -108,7 +108,7 @@ export class World {
 
 		if (currentTable) {
 			this.entities.setLocation(
-				currentTable.columns.get(Entity)![currentTable.size - 1],
+				currentTable.columns.get(Entity)!.val[currentTable.size - 1],
 				currentTableId,
 				this.entities.getRow(entityId),
 			);

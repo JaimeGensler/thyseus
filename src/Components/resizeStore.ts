@@ -1,12 +1,12 @@
-import type { Schema, ComponentType, ComponentStore } from './types';
+import type { ComponentType, ComponentStore } from './types';
 import type { World } from '../World';
 
-export function resizeStore<T extends Schema>(
+export function resizeStore(
 	world: World,
-	ComponentType: ComponentType<T>,
+	ComponentType: ComponentType,
 	count: number,
-	store: ComponentStore<T>,
-): ComponentStore<T> {
+	store: ComponentStore,
+): ComponentStore {
 	const buffer = world.createBuffer(ComponentType.size * count);
 
 	let offset = 0;
@@ -14,11 +14,12 @@ export function resizeStore<T extends Schema>(
 	return Object.entries(ComponentType.schema).reduce(
 		(acc, [key, FieldConstructor]) => {
 			acc[key] = new FieldConstructor(buffer, offset, count);
-			acc[key].set(store[key], 0);
+			// TODO: Fix type
+			acc[key].set(store[key] as any, 0);
 			offset += count * FieldConstructor.BYTES_PER_ELEMENT;
 			return acc;
 		},
-		{} as ComponentStore<any>,
+		{} as ComponentStore,
 	);
 }
 /*---------*\
@@ -46,13 +47,8 @@ if (import.meta.vitest) {
 	} as any;
 
 	it('returns an object with the same shape', () => {
-		const initialStore = createStore<any>(mockWorld, Vec3);
-		const resizedStore = resizeStore<any>(
-			mockWorld,
-			Vec3,
-			16,
-			initialStore,
-		);
+		const initialStore = createStore(mockWorld, Vec3);
+		const resizedStore = resizeStore(mockWorld, Vec3, 16, initialStore);
 
 		let key: any;
 		for (key in initialStore) {
@@ -66,7 +62,7 @@ if (import.meta.vitest) {
 	});
 
 	it('copies previous items', () => {
-		const initialStore = createStore<any>(mockWorld, Vec3);
+		const initialStore = createStore(mockWorld, Vec3);
 
 		const values = [0, 1.2, Math.PI, 3.3, 4.4, 5.5, 6, 7.7];
 		values.forEach((val, i) => {

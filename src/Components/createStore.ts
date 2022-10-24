@@ -1,10 +1,10 @@
-import type { Schema, ComponentType, ComponentStore } from './types';
+import type { ComponentType, ComponentStore } from './types';
 import type { World } from '../World';
 
-export function createStore<T extends Schema>(
+export function createStore(
 	world: World,
-	ComponentType: ComponentType<T>,
-): ComponentStore<T> {
+	ComponentType: ComponentType,
+): ComponentStore {
 	const count = world.config.getNewTableSize(0);
 	const buffer = world.createBuffer(ComponentType.size * count);
 
@@ -16,7 +16,7 @@ export function createStore<T extends Schema>(
 			offset += count * FieldConstructor.BYTES_PER_ELEMENT;
 			return acc;
 		},
-		{} as ComponentStore<any>,
+		{} as ComponentStore,
 	);
 }
 
@@ -50,7 +50,7 @@ if (import.meta.vitest) {
 			@struct.f32() declare float1: number;
 			@struct.f64() declare float2: number;
 		}
-		const result = createStore<any>(mockWorld, MyComponent);
+		const result = createStore(mockWorld, MyComponent);
 
 		expect(result.unsigned1).toBeInstanceOf(Uint8Array);
 		expect(result.unsigned2).toBeInstanceOf(Uint16Array);

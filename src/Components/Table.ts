@@ -5,7 +5,7 @@ import type { World } from '../World';
 import type { ComponentStore, ComponentType } from './types';
 
 export class Table {
-	columns: Map<ComponentType<any>, ComponentStore<any>>;
+	columns: Map<ComponentType, ComponentStore>;
 	meta: Uint32Array;
 
 	static create(world: World, components: ComponentType[]) {

@@ -46,7 +46,7 @@ export class Entity {
 	 * @param Component The Component **class** to insert into the entity.
 	 * @returns `this`, for chaining.
 	 */
-	insert(Component: ComponentType<any>): this {
+	insert(Component: ComponentType): this {
 		this.commands.insertInto(this.id, Component);
 		return this;
 	}

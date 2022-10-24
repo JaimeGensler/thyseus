@@ -1,9 +1,12 @@
 let nextId = 0;
 
 export class Mutex<T extends any> {
+	static getId() {
+		return String(nextId++);
+	}
 	id: string;
 	#data: T;
-	constructor(data: T, id: string = String(nextId++)) {
+	constructor(data: T, id: string = Mutex.getId()) {
 		this.#data = data;
 		this.id = id;
 	}

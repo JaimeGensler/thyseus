@@ -7,14 +7,14 @@ import type { Descriptor } from './Descriptor';
 import type { World } from '../../World';
 import type { ComponentType } from '../../Components';
 
-type QueryMember = ComponentType<any> | Mutable<ComponentType<any>>;
+type QueryMember = ComponentType | Mutable<ComponentType>;
 
 export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
-	components: ComponentType<any>[] = [];
+	components: ComponentType[] = [];
 	accessType: AccessType[] = [];
 	constructor(components: [...C]) {
 		for (const component of components) {
-			const isMut = Mut.isMut<ComponentType<any>>(component);
+			const isMut = Mut.isMut<ComponentType>(component);
 			this.components.push(isMut ? component[0] : component);
 			this.accessType.push(isMut ? AccessType.Write : AccessType.Read);
 		}
@@ -46,7 +46,7 @@ export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
 			? InstanceType<X>
 			: Readonly<
 					InstanceType<
-						C[Index] extends ComponentType<any> ? C[Index] : never
+						C[Index] extends ComponentType ? C[Index] : never
 					>
 			  >;
 	}> {
@@ -69,7 +69,7 @@ if (import.meta.vitest) {
 
 	class Comp {
 		static size = 0;
-		static schema = 0;
+		static schema = {};
 	}
 	@struct()
 	class A extends Comp {

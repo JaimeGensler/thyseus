@@ -73,7 +73,7 @@ export class WorldBuilder {
 	 * @param ComponentType The ComponentType to register.
 	 * @returns `this`, for chaining.
 	 */
-	registerComponent(ComponentType: ComponentType<any>): this {
+	registerComponent(ComponentType: ComponentType): this {
 		this.components.add(ComponentType);
 		return this;
 	}
