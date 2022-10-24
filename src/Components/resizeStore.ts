@@ -14,7 +14,7 @@ export function resizeStore<T extends Schema>(
 	return Object.entries(ComponentType.schema).reduce(
 		(acc, [key, FieldConstructor]) => {
 			acc[key] = new FieldConstructor(buffer, offset, count);
-			acc[key].set(store[key as keyof typeof store] as any, 0);
+			acc[key].set(store[key], 0);
 			offset += count * FieldConstructor.BYTES_PER_ELEMENT;
 			return acc;
 		},
