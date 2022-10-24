@@ -142,7 +142,6 @@ export class World {
 			const table = Table.create(
 				this,
 				[...bits(tableId)].map(cid => this.components[cid]),
-				this.config.getNewTableSize(0),
 			);
 			this.threads.send<NewTablePayload>(NEW_TABLE, [
 				tableId,

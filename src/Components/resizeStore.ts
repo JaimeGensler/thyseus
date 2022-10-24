@@ -38,12 +38,15 @@ if (import.meta.vitest) {
 		@struct.f64() declare z: number;
 	}
 
-	const mockWorld = {
+	const mockWorld: World = {
 		createBuffer: (l: number) => new ArrayBuffer(l),
-	} as World;
+		config: {
+			getNewTableSize: () => 8,
+		},
+	} as any;
 
 	it('returns an object with the same shape', () => {
-		const initialStore = createStore<any>(mockWorld, Vec3, 8);
+		const initialStore = createStore<any>(mockWorld, Vec3);
 		const resizedStore = resizeStore<any>(
 			mockWorld,
 			Vec3,
@@ -63,7 +66,7 @@ if (import.meta.vitest) {
 	});
 
 	it('copies previous items', () => {
-		const initialStore = createStore<any>(mockWorld, Vec3, 8);
+		const initialStore = createStore<any>(mockWorld, Vec3);
 
 		const values = [0, 1.2, Math.PI, 3.3, 4.4, 5.5, 6, 7.7];
 		values.forEach((val, i) => {

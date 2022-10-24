@@ -4,8 +4,8 @@ import type { World } from '../World';
 export function createStore<T extends Schema>(
 	world: World,
 	ComponentType: ComponentType<T>,
-	count: number,
 ): ComponentStore<T> {
+	const count = world.config.getNewTableSize(0);
 	const buffer = world.createBuffer(ComponentType.size * count);
 
 	let offset = 0;
@@ -27,9 +27,12 @@ if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
 	const { struct } = await import('./struct');
 
-	const mockWorld = {
+	const mockWorld: World = {
 		createBuffer: (l: number) => new ArrayBuffer(l),
-	} as World;
+		config: {
+			getNewTableSize: () => 8,
+		},
+	} as any;
 
 	it('returns an object with TypedArray keys for each field, using a single buffer', () => {
 		@struct()
@@ -47,7 +50,7 @@ if (import.meta.vitest) {
 			@struct.f32() declare float1: number;
 			@struct.f64() declare float2: number;
 		}
-		const result = createStore<any>(mockWorld, MyComponent, 8);
+		const result = createStore<any>(mockWorld, MyComponent);
 
 		expect(result.unsigned1).toBeInstanceOf(Uint8Array);
 		expect(result.unsigned2).toBeInstanceOf(Uint16Array);
