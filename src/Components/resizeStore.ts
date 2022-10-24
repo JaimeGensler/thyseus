@@ -1,15 +1,14 @@
-import { createBuffer } from '../utils/createBuffer';
 import { typeToBytes } from './Type';
 import type { Schema, ComponentType, ComponentStore } from './types';
-import type { WorldConfig } from '../World/config';
+import type { World } from '../World';
 
 export function resizeStore<T extends Schema>(
+	world: World,
 	ComponentType: ComponentType<T>,
-	config: WorldConfig,
 	count: number,
 	store: ComponentStore<T>,
 ): ComponentStore<T> {
-	const buffer = createBuffer(config, ComponentType.size * count);
+	const buffer = world.createBuffer(ComponentType.size * count);
 
 	let offset = 0;
 
@@ -40,11 +39,15 @@ if (import.meta.vitest) {
 		@struct.f64() declare z: number;
 	}
 
+	const mockWorld = {
+		createBuffer: (l: number) => new ArrayBuffer(l),
+	} as World;
+
 	it('returns an object with the same shape', () => {
-		const initialStore = createStore<any>(Vec3, { threads: 1 } as any, 8);
+		const initialStore = createStore<any>(mockWorld, Vec3, 8);
 		const resizedStore = resizeStore<any>(
+			mockWorld,
 			Vec3,
-			{ threads: 1 } as any,
 			16,
 			initialStore,
 		);
@@ -61,7 +64,7 @@ if (import.meta.vitest) {
 	});
 
 	it('copies previous items', () => {
-		const initialStore = createStore<any>(Vec3, { threads: 1 } as any, 8);
+		const initialStore = createStore<any>(mockWorld, Vec3, 8);
 
 		const values = [0, 1.2, Math.PI, 3.3, 4.4, 5.5, 6, 7.7];
 		values.forEach((val, i) => {
@@ -70,12 +73,7 @@ if (import.meta.vitest) {
 			initialStore.z[i] = val;
 		});
 
-		const resizedStore = resizeStore(
-			Vec3,
-			{ threads: 1 } as any,
-			16,
-			initialStore,
-		);
+		const resizedStore = resizeStore(mockWorld, Vec3, 16, initialStore);
 
 		values.forEach((val, i) => {
 			expect(resizedStore.x[i]).toBe(val);

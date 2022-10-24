@@ -33,6 +33,7 @@ export class World {
 
 	archetypes = new Map<bigint, Table>();
 	queries = [] as Query<any>[];
+	#BufferType: ArrayBufferConstructor | SharedArrayBufferConstructor;
 
 	config: WorldConfig;
 	resources: Map<ResourceType, object>;
@@ -60,6 +61,8 @@ export class World {
 		this.commands = commands;
 		this.entities = entities;
 		this.components = components;
+
+		this.#BufferType = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
 
 		this.threads.setListener<NewTablePayload>(
 			NEW_TABLE,
@@ -137,6 +140,7 @@ export class World {
 	#getTable(tableId: bigint): Table {
 		if (!this.archetypes.has(tableId)) {
 			const table = Table.create(
+				this,
 				[...bits(tableId)].map(cid => this.components[cid]),
 				this.config.getNewTableSize(0),
 			);
@@ -154,12 +158,16 @@ export class World {
 		return this.archetypes.get(tableId)!;
 	}
 	#resizeTable(tableId: bigint, table: Table) {
-		table.grow(this.config);
+		table.grow(this);
 		this.threads.send<GrowTablePayload>(GROW_TABLE, [
 			tableId,
 			[...table.columns.values()],
 			table.meta,
 		]);
+	}
+
+	createBuffer(byteLength: number): ArrayBufferLike {
+		return new this.#BufferType(byteLength);
 	}
 
 	async update() {

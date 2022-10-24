@@ -7,8 +7,6 @@ import { ThreadGroup } from '../utils/ThreadGroup';
 import { createResource, type ResourceType } from '../Resources';
 import { Entity, type ComponentType } from '../Components';
 import {
-	getSystemDependencies,
-	getSystemIntersections,
 	applyCommands,
 	type Dependencies,
 	type SystemDefinition,
@@ -21,6 +19,7 @@ export class WorldBuilder {
 	systems = [] as SystemDefinition[];
 	systemDependencies = [] as (Dependencies | undefined)[];
 	#startupSystems = [] as SystemDefinition[];
+	#BufferType: ArrayBufferConstructor | SharedArrayBufferConstructor;
 
 	components = new Set<ComponentType>();
 	resources = new Set<ResourceType>();
@@ -30,6 +29,7 @@ export class WorldBuilder {
 	constructor(config: WorldConfig, url: string | URL | undefined) {
 		this.config = config;
 		this.url = url;
+		this.#BufferType = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
 		this.registerComponent(Entity);
 		this.addSystem(applyCommands, { afterAll: true });
 	}
@@ -121,7 +121,7 @@ export class WorldBuilder {
 		// }
 		const resources = new Map();
 
-		const entities = await Entities.fromWorld(this, threads);
+		const entities = await Entities.fromWorldBuilder(this, threads);
 		const commands = new WorldCommands(entities, this.components);
 
 		threads.setListener('thyseus::getCommandQueue', () => {
@@ -157,6 +157,10 @@ export class WorldBuilder {
 
 		await threads.sendOrReceive(() => 0);
 		return world;
+	}
+
+	createBuffer(byteLength: number): ArrayBufferLike {
+		return new this.#BufferType(byteLength);
 	}
 
 	#processSystem(system: SystemDefinition): void {
