@@ -1,6 +1,6 @@
 import type { WorldCommands } from '../World/WorldCommands';
 
-type TypedArrayConstructor =
+export type TypedArrayConstructor =
 	| Uint8ArrayConstructor
 	| Uint16ArrayConstructor
 	| Uint32ArrayConstructor

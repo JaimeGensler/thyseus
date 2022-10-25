@@ -1,5 +1,5 @@
-import { Class } from '../Resources';
-import { ComponentType } from './types';
+import type { Class } from '../Resources';
+import type { ComponentType, TypedArrayConstructor } from './types';
 
 let schema: Record<string | symbol, any> = {};
 let size = 0;
@@ -25,14 +25,14 @@ export function struct() {
 	};
 }
 
-function createFieldDecorator(fieldType: any, fieldSize: number) {
+function createFieldDecorator(FieldType: TypedArrayConstructor) {
 	return function () {
 		return function fieldDecorator(
 			prototype: object,
 			propertyKey: string | symbol,
 		) {
-			schema[propertyKey] = fieldType;
-			size += fieldSize;
+			schema[propertyKey] = FieldType;
+			size += FieldType.BYTES_PER_ELEMENT;
 			Object.defineProperty(prototype, propertyKey, {
 				enumerable: true,
 				get(this: ComponentType) {
@@ -47,16 +47,35 @@ function createFieldDecorator(fieldType: any, fieldSize: number) {
 	};
 }
 
-struct.u8 = createFieldDecorator(Uint8Array, 1);
-struct.u16 = createFieldDecorator(Uint16Array, 2);
-struct.u32 = createFieldDecorator(Uint32Array, 4);
-struct.u64 = createFieldDecorator(BigUint64Array, 8);
-struct.i8 = createFieldDecorator(Int8Array, 1);
-struct.i16 = createFieldDecorator(Int16Array, 2);
-struct.i32 = createFieldDecorator(Int32Array, 4);
-struct.i64 = createFieldDecorator(BigInt64Array, 8);
-struct.f32 = createFieldDecorator(Float32Array, 4);
-struct.f64 = createFieldDecorator(Float64Array, 8);
+struct.bool = function () {
+	return function fieldDecorator(
+		prototype: object,
+		propertyKey: string | symbol,
+	) {
+		schema[propertyKey] = Uint8Array;
+		size += Uint8Array.BYTES_PER_ELEMENT;
+		Object.defineProperty(prototype, propertyKey, {
+			enumerable: true,
+			get(this: ComponentType) {
+				//@ts-ignore
+				return !!this.store[propertyKey][this.index];
+			},
+			set(value: boolean) {
+				this.store[propertyKey][this.index] = Number(value);
+			},
+		});
+	};
+};
+struct.u8 = createFieldDecorator(Uint8Array);
+struct.u16 = createFieldDecorator(Uint16Array);
+struct.u32 = createFieldDecorator(Uint32Array);
+struct.u64 = createFieldDecorator(BigUint64Array);
+struct.i8 = createFieldDecorator(Int8Array);
+struct.i16 = createFieldDecorator(Int16Array);
+struct.i32 = createFieldDecorator(Int32Array);
+struct.i64 = createFieldDecorator(BigInt64Array);
+struct.f32 = createFieldDecorator(Float32Array);
+struct.f64 = createFieldDecorator(Float64Array);
 
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
