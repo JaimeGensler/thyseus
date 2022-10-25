@@ -1,19 +1,19 @@
 import { World } from './World';
 import { Executor } from './Executor';
-import { zipIntoMap } from '../utils/zipIntoMap';
 import { WorldCommands } from './WorldCommands';
 import { Entities } from './Entities';
 import { ThreadGroup } from '../utils/ThreadGroup';
-import { createResource, type ResourceType } from '../Resources';
-import { Entity, type ComponentType } from '../Components';
+import { Entity, isStruct, type ComponentType } from '../Components';
 import {
 	applyCommands,
 	type Dependencies,
 	type SystemDefinition,
 	type System,
 } from '../Systems';
+import type { ResourceType } from '../Resources';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
+import { createStore } from '../Components/createStore';
 
 export class WorldBuilder {
 	systems = [] as SystemDefinition[];
@@ -98,31 +98,21 @@ export class WorldBuilder {
 		const threads = ThreadGroup.spawn(this.config.threads - 1, this.url);
 
 		const executor = await Executor.fromWorld(this, threads);
-
-		// const resources = zipIntoMap<ResourceType, object>(
-		// 	this.resources,
-		// 	await threads.sendOrReceive(() =>
-		// 		Array.from(this.resources, ResourceType =>
-		// 			isSendableClass(ResourceType)
-		// 				? createResource(ResourceType, this.#config)
-		// 				: null!,
-		// 		),
-		// 	),
-		// );
-		// if (ThreadGroup.isMainThread) {
-		// 	this.resources.forEach(ResourceType => {
-		// 		if (!isSendableClass(ResourceType)) {
-		// 			resources.set(
-		// 				ResourceType,
-		// 				createResource(ResourceType, this.#config),
-		// 			);
-		// 		}
-		// 	});
-		// }
-		const resources = new Map();
-
 		const entities = await Entities.fromWorldBuilder(this, threads);
 		const commands = new WorldCommands(entities, this.components);
+
+		const resources = new Map();
+		for (const Resource of this.resources) {
+			if (isStruct(Resource)) {
+				const store = await threads.sendOrReceive(() =>
+					// TODO: Write specialized createStore for single element.
+					createStore(this as any, Resource),
+				);
+				resources.set(Resource, new Resource(store, 0, commands));
+			} else if (threads.isMainThread) {
+				resources.set(Resource, new Resource());
+			}
+		}
 
 		threads.setListener('thyseus::getCommandQueue', () => {
 			const ret = new Map(commands.queue);
@@ -147,7 +137,7 @@ export class WorldBuilder {
 			(system, i) => (systems[i] = this.#buildSystem(system, world)),
 		);
 
-		if (ThreadGroup.isMainThread) {
+		if (threads.isMainThread) {
 			for (const { execute, args } of this.#startupSystems.map(system =>
 				this.#buildSystem(system, world),
 			)) {
