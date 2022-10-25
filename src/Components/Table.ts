@@ -95,9 +95,12 @@ if (import.meta.vitest) {
 		@struct.f64() declare z: number;
 	}
 
-	const mockWorld = {
+	const mockWorld: World = {
 		createBuffer: (l: number) => new ArrayBuffer(l),
-	} as World;
+		config: {
+			getNewTableSize: () => 8,
+		},
+	} as any;
 
 	it('adds an element', () => {
 		const table = Table.create(mockWorld, [Entity]);
