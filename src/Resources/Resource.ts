@@ -4,4 +4,3 @@ export interface Class {
 	new (...args: any[]): object;
 }
 export type ResourceType = ComponentType | Class;
-export function Resource(...args: any[]): any {}
