@@ -1,5 +1,8 @@
 const b255 = 0b1111_1111n;
 export class BigUintArray {
+	static getBufferLength(width: number, length: number) {
+		return Math.ceil(width / 8) * length;
+	}
 	static with(
 		width: number,
 		length: number,

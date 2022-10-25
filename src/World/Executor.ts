@@ -1,11 +1,8 @@
 import { getSystemDependencies, getSystemIntersections } from '../Systems';
 import { BigUintArray, Mutex } from '../utils/DataTypes';
-import { type ThreadGroup } from '../utils/ThreadGroup';
+import type { ThreadGroup } from '../utils/ThreadGroup';
+import { vecUtils } from '../utils/vecUtils';
 import type { WorldBuilder } from './WorldBuilder';
-
-class SparseSet {
-	static with(): any {}
-}
 
 export class Executor {
 	static async fromWorld(
@@ -32,28 +29,41 @@ export class Executor {
 			  )
 			: new Set<number>();
 
-		// TODO: Share SparseSet, Mutex, BigUintArray
-
-		return new Executor(
-			intersections,
-			dependencies,
-			SparseSet.with(intersections.length, true), // This can be a vec
-			new Mutex(BigUintArray.with(intersections.length, 2, true)),
-			local,
+		const systems = await threads.sendOrReceive(
+			// Storing current length
+			() => new Uint16Array(world.createBuffer(world.systems.length + 2)),
 		);
+		const lock = new Mutex(
+			new BigUintArray(
+				world.systems.length,
+				2,
+				await threads.sendOrReceive(
+					() =>
+						new Uint8Array(
+							BigUintArray.getBufferLength(
+								world.systems.length,
+								2,
+							),
+						),
+				),
+			),
+			await threads.sendOrReceive(() => Mutex.getId()),
+		);
+
+		return new Executor(intersections, dependencies, systems, lock, local);
 	}
 
 	#signal: Int32Array;
 
 	#intersections: bigint[];
 	#dependencies: bigint[];
-	#systemsToExecute: SparseSet;
+	#systemsToExecute: Uint16Array;
 	#lock: Mutex<BigUintArray>; // [ SystemsRunning, SystemsCompleted ]
 	#local: Set<number>;
 	constructor(
 		intersections: bigint[],
 		dependencies: bigint[],
-		systemsToExecute: SparseSet,
+		systemsToExecute: Uint16Array,
 		lock: Mutex<BigUintArray>,
 		local: Set<number>,
 	) {
@@ -67,7 +77,7 @@ export class Executor {
 	}
 
 	add(system: number) {
-		this.#systemsToExecute.add(system);
+		vecUtils.push(this.#systemsToExecute, system);
 	}
 	start() {
 		Atomics.notify(this.#signal, 0);
@@ -78,7 +88,7 @@ export class Executor {
 		status.set(1, 0n);
 		for (let i = 0; i < this.#dependencies.length; i++) {
 			if (!this.#local.has(i)) {
-				this.#systemsToExecute.add(i);
+				vecUtils.push(this.#systemsToExecute, i);
 			}
 		}
 	}
@@ -96,8 +106,8 @@ export class Executor {
 
 	async *[Symbol.asyncIterator]() {
 		const local = new Set(this.#local);
-		while (this.#systemsToExecute.size + local.size > 0) {
-			const size = this.#systemsToExecute.size;
+		while (vecUtils.size(this.#systemsToExecute) + local.size > 0) {
+			const size = vecUtils.size(this.#systemsToExecute);
 			let runningSystem = -1;
 
 			await this.#lock.request(status => {
@@ -110,7 +120,7 @@ export class Executor {
 							this.#dependencies[systemId]
 					) {
 						runningSystem = systemId;
-						this.#systemsToExecute.delete(systemId);
+						vecUtils.delete(this.#systemsToExecute, systemId);
 						local.delete(systemId);
 						status.OR(0, 1n << BigInt(systemId));
 						break;
@@ -146,8 +156,23 @@ if (import.meta.vitest) {
 
 	const emptyMask = [0b0000n, 0b0000n, 0b0000n, 0b0000n];
 
+	const createExecutor = (i: bigint[], d: bigint[], l: Set<number>) =>
+		new Executor(
+			i,
+			d,
+			new Uint16Array(i.length + 1),
+			new Mutex(
+				new BigUintArray(
+					i.length,
+					2,
+					new Uint8Array(BigUintArray.getBufferLength(i.length, 2)),
+				),
+			),
+			l,
+		);
+
 	it('calls whenReady callback when started', async () => {
-		const exec = Executor.from(
+		const exec = createExecutor(
 			[0b110n, 0b000n, 0b000n],
 			[0b000n, 0b000n, 0b000n],
 			new Set(),
@@ -161,7 +186,7 @@ if (import.meta.vitest) {
 	});
 
 	it('iterates all elements with no intersections, no dependencies)', async () => {
-		const exec = Executor.from(emptyMask, emptyMask, new Set());
+		const exec = createExecutor(emptyMask, emptyMask, new Set());
 		for (let i = 0; i < 4; i++) {
 			exec.add(i);
 		}
@@ -177,7 +202,7 @@ if (import.meta.vitest) {
 	});
 
 	it('iterates elements with intersections', async () => {
-		const exec = Executor.from(
+		const exec = createExecutor(
 			[0b1000n, 0b0000n, 0b0000n, 0b0001n],
 			emptyMask,
 			new Set(),
@@ -207,7 +232,7 @@ if (import.meta.vitest) {
 	});
 
 	it('iterates elements with dependencies', async () => {
-		const exec = Executor.from(
+		const exec = createExecutor(
 			emptyMask,
 			[0b0000n, 0b0000n, 0b0000n, 0b0001n],
 			new Set(),
@@ -237,7 +262,7 @@ if (import.meta.vitest) {
 	});
 
 	it('does not run callbacks in whenReady queue when iterating', async () => {
-		const exec = Executor.from(
+		const exec = createExecutor(
 			emptyMask,
 			[0b0000n, 0b0000n, 0b0000n, 0b0001n],
 			new Set(),
