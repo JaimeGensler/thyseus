@@ -13,7 +13,7 @@ export const vecUtils = {
 		}
 	},
 	delete(vec: Uint16Array, index: number): void {
-		vec[index] = vec[vec.length - 1];
+		vec[index] = vec[vecUtils.size(vec) - 1];
 		vec[vec.length - 1]--;
 	},
 };
