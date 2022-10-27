@@ -1,37 +1,27 @@
 import { World } from './World';
-import { Executor } from './Executor';
-import { WorldCommands } from './WorldCommands';
-import { Entities } from './Entities';
-import { ThreadGroup } from '../utils/ThreadGroup';
-import { Entity, isStruct, type ComponentType } from '../Components';
-import {
-	applyCommands,
-	type Dependencies,
-	type SystemDefinition,
-	type System,
-} from '../Systems';
+import { defaultPlugin } from './defaultPlugin';
+import { ThreadGroup, type SendableType } from '../utils/ThreadGroup';
+import type { ComponentType } from '../Components';
+import type { Dependencies, SystemDefinition } from '../Systems';
 import type { ResourceType } from '../Resources';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
-import { createStore } from '../Components/createStore';
 
 export class WorldBuilder {
 	systems = [] as SystemDefinition[];
 	systemDependencies = [] as (Dependencies | undefined)[];
 	#startupSystems = [] as SystemDefinition[];
-	#BufferType: ArrayBufferConstructor | SharedArrayBufferConstructor;
 
 	components = new Set<ComponentType>();
 	resources = new Set<ResourceType>();
+	threadChannels = {} as Record<string, (world: World) => (data: any) => any>;
 
 	config: WorldConfig;
 	url: string | URL | undefined;
 	constructor(config: WorldConfig, url: string | URL | undefined) {
 		this.config = config;
 		this.url = url;
-		this.#BufferType = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
-		this.registerComponent(Entity);
-		this.addSystem(applyCommands, { afterAll: true });
+		defaultPlugin(this);
 	}
 
 	/**
@@ -89,77 +79,63 @@ export class WorldBuilder {
 	}
 
 	/**
+	 * Registers a channel for threads. When a thread receives a message, it will run the callback created by `listenerCreator`.
+	 * @param channel The **_unique_** name of the channel. _NOTE: Calling this method again with the same channel will override the previous listener!_
+	 * @param listenerCreator A creator function that will be called with the world when built. Should return a function that receives whatever data that is sent across threads, and returns data to be sent back.
+	 * @returns `this`, for chaining.
+	 */
+	registerThreadChannel<
+		I extends SendableType = void,
+		O extends SendableType = void,
+	>(
+		channel: string,
+		listenerCreator: (world: World) => (data: I) => O,
+	): this {
+		this.threadChannels[channel] = listenerCreator;
+		return this;
+	}
+
+	/**
 	 * Builds the world.
 	 * `World` instances cannot add new systems or register new types.
-	 * This method returns a promise for both single- _and_ multi-threaded worlds.
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
 		const threads = ThreadGroup.spawn(this.config.threads - 1, this.url);
 
-		const executor = await Executor.fromWorld(this, threads);
-		const entities = await Entities.fromWorldBuilder(this, threads);
-		const commands = new WorldCommands(entities, this.components);
-
-		const resources = new Map();
-		for (const Resource of this.resources) {
-			if (isStruct(Resource)) {
-				const store = await threads.sendOrReceive(() =>
-					// TODO: Write specialized createStore for single element.
-					createStore(this as any, Resource),
-				);
-				resources.set(Resource, new Resource(store, 0, commands));
-			} else if (threads.isMainThread) {
-				resources.set(Resource, new Resource());
-			}
-		}
-
-		threads.setListener('thyseus::getCommandQueue', () => {
-			const ret = new Map(commands.queue);
-			commands.queue.clear();
-			return ret;
-		});
-
-		const systems: System[] = [];
-
-		const world = new World(
-			this.config,
-			resources,
-			threads,
-			systems,
-			executor,
-			commands,
-			entities,
-			[...this.components],
-		);
-
-		this.systems.forEach(
-			(system, i) => (systems[i] = this.#buildSystem(system, world)),
+		const world = await threads.wrapInQueue(
+			() =>
+				new World(
+					this.config,
+					threads,
+					this.components,
+					this.resources,
+					this.systems,
+					this.systemDependencies,
+					this.threadChannels,
+				),
 		);
 
 		if (threads.isMainThread) {
-			for (const { execute, args } of this.#startupSystems.map(system =>
-				this.#buildSystem(system, world),
-			)) {
-				execute(...args);
-			}
+			await Promise.all(
+				Array.from(world.resources.values(), resource =>
+					//@ts-ignore
+					resource.initialize?.(world),
+				),
+			);
 		}
 
+		if (threads.isMainThread) {
+			for (const { fn, parameters } of this.#startupSystems) {
+				fn(...parameters.map(d => d.intoArgument(world)));
+			}
+		}
 		await threads.sendOrReceive(() => 0);
-		return world;
-	}
 
-	createBuffer(byteLength: number): ArrayBufferLike {
-		return new this.#BufferType(byteLength);
+		return world;
 	}
 
 	#processSystem(system: SystemDefinition): void {
 		system.parameters.forEach(descriptor => descriptor.onAddSystem(this));
-	}
-	#buildSystem({ fn, parameters }: SystemDefinition, world: World): System {
-		return {
-			execute: fn,
-			args: parameters.map(descriptor => descriptor.intoArgument(world)),
-		};
 	}
 }

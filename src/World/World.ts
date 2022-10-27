@@ -1,25 +1,24 @@
 import { WorldBuilder } from './WorldBuilder';
-import { ComponentStore, ComponentType, Entity, Table } from '../Components';
+import {
+	isStruct,
+	createStore,
+	Table,
+	Entity,
+	type ComponentType,
+} from '../Components';
+import { Executor } from './Executor';
+import { WorldCommands } from './WorldCommands';
+import { Entities } from './Entities';
 import { bits } from '../utils/bits';
-import { zipIntoMap } from '../utils/zipIntoMap';
 import {
 	validateAndCompleteConfig,
 	type WorldConfig,
 	type SingleThreadedWorldConfig,
 } from './config';
 import type { ThreadGroup } from '../utils/ThreadGroup';
-import type { Executor } from './Executor';
-import type { WorldCommands } from './WorldCommands';
-import type { Entities } from './Entities';
-import type { System } from '../Systems';
+import type { Dependencies, System, SystemDefinition } from '../Systems';
 import type { ResourceType } from '../Resources';
 import type { Query } from '../Queries';
-
-const NEW_TABLE = 'thyseus::newTable';
-type NewTablePayload = [bigint, ComponentStore[], Uint32Array];
-
-const GROW_TABLE = 'thyseus::growTable';
-type GrowTablePayload = [bigint, ComponentStore[]];
 
 export class World {
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
@@ -33,62 +32,61 @@ export class World {
 
 	archetypes = new Map<bigint, Table>();
 	queries = [] as Query<any>[];
-	#BufferType: ArrayBufferConstructor | SharedArrayBufferConstructor;
+	#bufferType: ArrayBufferConstructor | SharedArrayBufferConstructor;
 
 	config: WorldConfig;
 	resources: Map<ResourceType, object>;
 	threads: ThreadGroup;
-	#systems: System[];
+	systems: System[];
 	#executor: Executor;
 	commands: WorldCommands;
 	entities: Entities;
 	components: ComponentType[];
 	constructor(
 		config: WorldConfig,
-		resources: Map<ResourceType, object>,
 		threads: ThreadGroup,
-		systems: System[],
-		executor: Executor,
-		commands: WorldCommands,
-		entities: Entities,
-		components: ComponentType[],
+		componentTypes: Set<ComponentType>,
+		resourceTypes: Set<ResourceType>,
+		systems: SystemDefinition[],
+		dependencies: (Dependencies | undefined)[],
+		channels: Record<string, (world: World) => (data: any) => any>,
 	) {
+		this.#bufferType = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
+
+		for (const channel in channels) {
+			threads.setListener(channel, channels[channel](this));
+		}
+
 		this.config = config;
-		this.resources = resources;
 		this.threads = threads;
-		this.#systems = systems;
-		this.#executor = executor;
-		this.commands = commands;
-		this.entities = entities;
-		this.components = components;
 
-		this.#BufferType = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
+		this.#executor = Executor.fromWorld(this, systems, dependencies);
+		this.entities = Entities.fromWorld(this);
+		this.commands = new WorldCommands(this.entities, componentTypes);
+		this.components = [...componentTypes];
 
-		this.threads.setListener<NewTablePayload>(
-			NEW_TABLE,
-			([tableId, stores, meta]) => {
-				const columns = zipIntoMap(
-					[...bits(tableId)].map(cid => this.components[cid]),
-					stores,
+		this.resources = new Map<ResourceType, object>();
+		for (const Resource of resourceTypes) {
+			if (isStruct(Resource)) {
+				const store = threads.queue(() =>
+					// TODO: Write specialized createStore for single element.
+					createStore(this as any, Resource),
 				);
-				const table = new Table(columns, meta);
-				this.archetypes.set(tableId, table);
-				for (const query of this.queries) {
-					//@ts-ignore
-					query.testAdd(tableId, table);
-				}
-			},
-		);
-		this.threads.setListener<GrowTablePayload>(
-			GROW_TABLE,
-			([tableId, stores]) => {
-				const table = this.archetypes.get(tableId)!;
-				let i = 0;
-				for (const key of table.columns.keys()) {
-					table.columns.set(key, stores[i++]);
-				}
-			},
-		);
+				this.resources.set(
+					Resource,
+					new Resource(store, 0, this.commands),
+				);
+			} else if (threads.isMainThread) {
+				this.resources.set(Resource, new Resource());
+			}
+		}
+
+		const buildSystem = ({ fn, parameters }: SystemDefinition) => ({
+			execute: fn,
+			args: parameters.map(descriptor => descriptor.intoArgument(this)),
+		});
+
+		this.systems = systems.map(buildSystem);
 
 		this.#executor.onReady(() => this.#runSystems());
 	}
@@ -108,7 +106,9 @@ export class World {
 
 		if (currentTable) {
 			this.entities.setLocation(
-				currentTable.columns.get(Entity)!.val[currentTable.size - 1],
+				currentTable.columns.get(Entity)!.val[
+					currentTable.size - 1
+				] as bigint,
 				currentTableId,
 				this.entities.getRow(entityId),
 			);
@@ -122,13 +122,30 @@ export class World {
 			targetTable.size - 1,
 		);
 	}
+
+	createBuffer(byteLength: number): ArrayBufferLike {
+		return new this.#bufferType(byteLength);
+	}
+
+	async update() {
+		this.#executor.reset();
+		this.#executor.start();
+	}
+
+	async #runSystems() {
+		for await (const sid of this.#executor) {
+			const system = this.systems[sid];
+			await system.execute(...system.args);
+		}
+		this.#executor.onReady(() => this.#runSystems());
+	}
 	#deleteEntity(entityId: bigint) {
 		const tableId = this.entities.getTableId(entityId);
 		const table = this.archetypes.get(tableId);
 		if (table) {
 			const entityRow = this.entities.getRow(entityId);
 			this.entities.setLocation(
-				table.columns.get(Entity)?.val?.[table.size - 1],
+				table.columns.get(Entity)?.val?.[table.size - 1] as bigint,
 				tableId,
 				entityRow,
 			);
@@ -143,7 +160,7 @@ export class World {
 				this,
 				[...bits(tableId)].map(cid => this.components[cid]),
 			);
-			this.threads.send<NewTablePayload>(NEW_TABLE, [
+			this.threads.send('thyseus::newTable', [
 				tableId,
 				[...table.columns.values()],
 				table.meta,
@@ -158,27 +175,10 @@ export class World {
 	}
 	#resizeTable(tableId: bigint, table: Table) {
 		table.grow(this);
-		this.threads.send<GrowTablePayload>(GROW_TABLE, [
+		this.threads.send('thyseus::growTable', [
 			tableId,
 			[...table.columns.values()],
 			table.meta,
 		]);
-	}
-
-	createBuffer(byteLength: number): ArrayBufferLike {
-		return new this.#BufferType(byteLength);
-	}
-
-	async update() {
-		this.#executor.reset();
-		this.#executor.start();
-	}
-
-	async #runSystems() {
-		for await (const sid of this.#executor) {
-			const system = this.#systems[sid];
-			system.execute(...system.args);
-		}
-		this.#executor.onReady(() => this.#runSystems());
 	}
 }
