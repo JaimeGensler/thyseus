@@ -1,91 +1,98 @@
-import { getSystemDependencies, getSystemIntersections } from '../Systems';
-import { BigUintArray, Mutex } from '../utils/DataTypes';
-import type { ThreadGroup } from '../utils/ThreadGroup';
+import { BigUintArray } from '../utils/BigUintArray';
 import { vecUtils } from '../utils/vecUtils';
-import type { WorldBuilder } from './WorldBuilder';
+import {
+	getSystemDependencies,
+	getSystemIntersections,
+	type Dependencies,
+	type SystemDefinition,
+} from '../Systems';
+import type { World } from './World';
 
+let nextId = 0;
 export class Executor {
-	static async fromWorld(
-		world: WorldBuilder,
-		threads: ThreadGroup,
-	): Promise<Executor> {
-		const intersections = await threads.sendOrReceive(() =>
-			getSystemIntersections(world.systems),
+	static fromWorld(
+		world: World,
+		systems: SystemDefinition[],
+		systemDependencies: (Dependencies | undefined)[],
+	) {
+		const intersections = world.threads.queue(() =>
+			getSystemIntersections(systems),
 		);
-		const dependencies = await threads.sendOrReceive(() =>
-			getSystemDependencies(
-				world.systems,
-				world.systemDependencies,
-				intersections,
-			),
+		const dependencyMasks = world.threads.queue(() =>
+			getSystemDependencies(systems, systemDependencies, intersections),
 		);
-		const local = threads.isMainThread
-			? world.systems.reduce(
+		const local = world.threads.isMainThread
+			? systems.reduce(
 					(acc, val, i) =>
-						val.parameters.some(param => param.isLocalToThread())
+						val.parameters.some((param: any) =>
+							param.isLocalToThread(),
+						)
 							? acc.add(i)
 							: acc,
 					new Set<number>(),
 			  )
 			: new Set<number>();
 
-		const systems = await threads.sendOrReceive(
+		const systemVec = world.threads.queue(
 			// Storing current length
-			() => new Uint16Array(world.createBuffer(world.systems.length + 2)),
+			() => new Uint16Array(world.createBuffer(systems.length + 2)),
 		);
-		const lock = new Mutex(
-			new BigUintArray(
-				world.systems.length,
-				2,
-				await threads.sendOrReceive(
-					() =>
-						new Uint8Array(
-							BigUintArray.getBufferLength(
-								world.systems.length,
-								2,
-							),
-						),
-				),
+		const status = new BigUintArray(
+			systems.length,
+			2,
+			world.threads.queue(
+				() =>
+					new Uint8Array(
+						BigUintArray.getBufferLength(systems.length, 2),
+					),
 			),
-			await threads.sendOrReceive(() => Mutex.getId()),
 		);
+		const id = world.threads.queue(() => String(nextId++));
 
-		return new Executor(intersections, dependencies, systems, lock, local);
+		return new this(
+			intersections,
+			dependencyMasks,
+			systemVec,
+			status,
+			local,
+			id,
+		);
 	}
 
-	#signal: Int32Array;
+	#signal: BroadcastChannel;
 
 	#intersections: bigint[];
 	#dependencies: bigint[];
 	#systemsToExecute: Uint16Array;
-	#lock: Mutex<BigUintArray>; // [ SystemsRunning, SystemsCompleted ]
+	#status: BigUintArray; // [ SystemsRunning, SystemsCompleted ]
 	#local: Set<number>;
+	#id: string;
 	constructor(
 		intersections: bigint[],
 		dependencies: bigint[],
 		systemsToExecute: Uint16Array,
-		lock: Mutex<BigUintArray>,
+		status: BigUintArray,
 		local: Set<number>,
+		id: string,
 	) {
 		this.#intersections = intersections;
 		this.#dependencies = dependencies;
 		this.#systemsToExecute = systemsToExecute;
-		this.#lock = lock;
-		// TODO: Fix signal - this was based on the metadata of SparseSets
-		this.#signal = new Int32Array(0);
+		this.#status = status;
+		this.#signal = new BroadcastChannel('thyseus::executor');
 		this.#local = local;
+		this.#id = id;
 	}
 
 	add(system: number) {
 		vecUtils.push(this.#systemsToExecute, system);
 	}
 	start() {
-		Atomics.notify(this.#signal, 0);
+		this.#signal.postMessage(0);
 	}
 	reset() {
-		const status = this.#lock.UNSAFE_getData();
-		status.set(0, 0n);
-		status.set(1, 0n);
+		this.#status.set(0, 0n);
+		this.#status.set(1, 0n);
 		for (let i = 0; i < this.#dependencies.length; i++) {
 			if (!this.#local.has(i)) {
 				vecUtils.push(this.#systemsToExecute, i);
@@ -93,14 +100,15 @@ export class Executor {
 		}
 	}
 
+	async #sendSignal() {
+		this.#signal.postMessage(0);
+	}
+	async #receiveSignal() {
+		return new Promise(r => this.#signal.addEventListener('message', r));
+	}
+
 	async onReady(fn: () => void) {
-		const { async, value } = Atomics.waitAsync(this.#signal, 0, 0 as any);
-		if (!async) {
-			throw new Error(
-				'Trying to wait while there are still systems to execute',
-			);
-		}
-		await value;
+		await this.#receiveSignal();
 		fn();
 	}
 
@@ -110,19 +118,25 @@ export class Executor {
 			const size = vecUtils.size(this.#systemsToExecute);
 			let runningSystem = -1;
 
-			await this.#lock.request(status => {
-				const active = status.get(0);
-				const deps = status.get(1);
-				for (const systemId of [...local, ...this.#systemsToExecute]) {
+			await navigator.locks.request(this.#id, () => {
+				const active = this.#status.get(0);
+				const deps = this.#status.get(1);
+				for (const systemId of [
+					...local,
+					...vecUtils.iter(this.#systemsToExecute),
+				]) {
 					if (
 						(active & this.#intersections[systemId]) === 0n &&
 						(deps & this.#dependencies[systemId]) ===
 							this.#dependencies[systemId]
 					) {
 						runningSystem = systemId;
-						vecUtils.delete(this.#systemsToExecute, systemId);
+						vecUtils.delete(
+							this.#systemsToExecute,
+							this.#systemsToExecute.indexOf(systemId),
+						);
 						local.delete(systemId);
-						status.OR(0, 1n << BigInt(systemId));
+						this.#status.OR(0, 1n << BigInt(systemId));
 						break;
 					}
 				}
@@ -131,18 +145,19 @@ export class Executor {
 			if (runningSystem > -1) {
 				yield runningSystem;
 
-				await this.#lock.request(status => {
-					status.XOR(0, 1n << BigInt(runningSystem));
-					status.OR(1, 1n << BigInt(runningSystem));
+				await navigator.locks.request(this.#id, () => {
+					this.#status.XOR(0, 1n << BigInt(runningSystem));
+					this.#status.OR(1, 1n << BigInt(runningSystem));
 					if (
-						this.#signal[0] !== 0 ||
-						(this.#signal[0] === 0 && status.get(0) === 0n)
+						vecUtils.size(this.#systemsToExecute) !== 0 ||
+						(vecUtils.size(this.#systemsToExecute) === 0 &&
+							this.#status.get(0) === 0n)
 					) {
-						Atomics.notify(this.#signal, 0);
+						this.#sendSignal();
 					}
 				});
 			} else if (size !== 0) {
-				await Atomics.waitAsync(this.#signal, 0, size as any).value;
+				await this.#receiveSignal();
 			}
 		}
 	}
@@ -156,19 +171,47 @@ if (import.meta.vitest) {
 
 	const emptyMask = [0b0000n, 0b0000n, 0b0000n, 0b0000n];
 
+	let channel: any;
+	vi.stubGlobal(
+		'BroadcastChannel',
+		class {
+			handler: any;
+			constructor() {
+				if (!channel) {
+					channel = this;
+				}
+				return channel;
+			}
+
+			addEventListener(_: 'message', handler: any) {
+				this.handler = handler;
+			}
+			removeEventListener(): void {}
+			postMessage() {
+				setTimeout(() => this.handler(), 10);
+			}
+		},
+	);
+	vi.stubGlobal('navigator', {
+		locks: {
+			async request(_: any, cb: () => void) {
+				cb();
+			},
+		},
+	});
+
 	const createExecutor = (i: bigint[], d: bigint[], l: Set<number>) =>
 		new Executor(
 			i,
 			d,
 			new Uint16Array(i.length + 1),
-			new Mutex(
-				new BigUintArray(
-					i.length,
-					2,
-					new Uint8Array(BigUintArray.getBufferLength(i.length, 2)),
-				),
+			new BigUintArray(
+				i.length,
+				2,
+				new Uint8Array(BigUintArray.getBufferLength(i.length, 2)),
 			),
 			l,
+			'',
 		);
 
 	it('calls whenReady callback when started', async () => {
@@ -201,7 +244,7 @@ if (import.meta.vitest) {
 		}
 	});
 
-	it('iterates elements with intersections', async () => {
+	it.only('iterates elements with intersections', async () => {
 		const exec = createExecutor(
 			[0b1000n, 0b0000n, 0b0000n, 0b0001n],
 			emptyMask,
