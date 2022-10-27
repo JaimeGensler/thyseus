@@ -18,7 +18,7 @@ const getCompleteConfig = (config: Partial<WorldConfig> | undefined = {}) => ({
 
 // TODO: Provide better info on how to resolve these errors.
 const validateConfig = (
-	{ threads, maxEntities, getNewTableSize }: WorldConfig,
+	{ threads, maxEntities }: WorldConfig,
 	url: string | URL | undefined,
 ) => {
 	if (threads > 1) {

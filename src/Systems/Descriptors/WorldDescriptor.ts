@@ -40,7 +40,6 @@ if (import.meta.vitest) {
 			new WorldDescriptor().onAddSystem(builder);
 			expect(builder.registerComponent).not.toHaveBeenCalled();
 			expect(builder.registerResource).not.toHaveBeenCalled();
-			expect(builder.registerSendableClass).not.toHaveBeenCalled();
 		});
 	});
 

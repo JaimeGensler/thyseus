@@ -5,7 +5,6 @@ let schema: Record<string | symbol, any> = {};
 let size = 0;
 
 export function struct() {
-	// TODO: Fix return type, if possible
 	return function structDecorator(targetClass: Class): any {
 		class StructClass extends targetClass {
 			static schema = schema;
