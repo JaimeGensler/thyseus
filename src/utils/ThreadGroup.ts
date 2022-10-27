@@ -70,6 +70,7 @@ export class ThreadGroup {
 	#nextId = 0;
 	#resolvers = new Map<number, (value: any) => void>();
 	#listeners = {} as Record<string, Listener<any>>;
+	#queue = [] as SendableType[];
 
 	#threads: WorkerOrGlobal[];
 	constructor(threads: WorkerOrGlobal[]) {
@@ -135,6 +136,45 @@ export class ThreadGroup {
 				return new Promise<T>(r => this.#resolvers.set(id, r));
 			}),
 		);
+	}
+
+	/**
+	 * On the main thread, creates a value and pushes it to the queue.
+	 *
+	 * On Worker threads, returns the next item from the queue.
+	 *
+	 * **NOTE:** Queue is not automatically sent between threads!
+	 * Use `ThreadGroup.prototoype.wrapInQueue` to wrap values.
+	 * @param create A function to create the value - only called on the main thread.
+	 * @returns The value created by `create` function.
+	 */
+	queue<T extends SendableType>(create: () => T): T {
+		if (ThreadGroup.isMainThread) {
+			const val = create();
+			this.#queue.push(val);
+			return val;
+		} else {
+			return this.#queue.shift() as T;
+		}
+	}
+
+	async wrapInQueue<T extends any = void>(
+		callback: () => T | Promise<T>,
+	): Promise<T> {
+		const channel = '@@';
+		let result: T;
+		if (ThreadGroup.isMainThread) {
+			result = await callback();
+			await this.send(channel, this.#queue);
+		} else {
+			this.#queue = await new Promise(r =>
+				this.setListener(channel, r as any),
+			);
+			this.deleteListener(channel);
+			result = await callback();
+		}
+		this.#queue.length = 0;
+		return result;
 	}
 
 	/**
