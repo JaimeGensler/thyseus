@@ -1,35 +1,30 @@
-import { BigUintArray } from '../utils/DataTypes';
+import { BigUintArray } from '../utils/BigUintArray';
 import { fourBytes, getGeneration, getIndex } from '../utils/entityId';
-import { ThreadGroup } from '../utils/ThreadGroup';
-import { WorldBuilder } from './WorldBuilder';
+import type { World } from './World';
 
 // NOTE: If tableIds move to uint32s, tableIds/row can be transformed into entityLocation: BigUint64Array
 export class Entities {
-	static async fromWorldBuilder(
-		builder: WorldBuilder,
-		threads: ThreadGroup,
-	): Promise<Entities> {
-		const length = builder.config.maxEntities;
-
+	static fromWorld(world: World): Entities {
+		const size = world.config.maxEntities;
 		return new Entities(
-			await threads.sendOrReceive(
-				() => new Uint32Array(builder.createBuffer(length * 4)),
+			world.threads.queue(
+				() => new Uint32Array(world.createBuffer(size * 4)),
 			),
 			new BigUintArray(
-				builder.components.size,
-				length,
-				await threads.sendOrReceive(() => new Uint8Array(length)),
+				world.components.length,
+				size,
+				world.threads.queue(() => new Uint8Array(size)),
 			),
-			await threads.sendOrReceive(
-				() => new Uint32Array(builder.createBuffer(length * 4)),
+			world.threads.queue(
+				() => new Uint32Array(world.createBuffer(size * 4)),
 			),
-			await threads.sendOrReceive(
-				() => new Uint32Array(builder.createBuffer(2 * 4)),
+			world.threads.queue(
+				() => new Uint32Array(world.createBuffer(2 * 4)),
 			),
-			await threads.sendOrReceive(
+			world.threads.queue(
 				() =>
 					new Uint32Array(
-						builder.createBuffer(Math.ceil(length / 8) * 4),
+						world.createBuffer(Math.ceil(size / 8) * 4),
 					),
 			),
 		);
