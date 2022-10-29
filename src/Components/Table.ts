@@ -38,6 +38,9 @@ export class Table {
 	get capacity() {
 		return this.meta[1];
 	}
+	set capacity(val: number) {
+		this.meta[1] = val;
+	}
 	get isFull() {
 		return this.capacity === this.size;
 	}
@@ -68,12 +71,11 @@ export class Table {
 	}
 
 	grow(world: World) {
+		this.capacity = world.config.getNewTableSize(this.capacity);
 		for (const [ComponentType, store] of this.columns) {
-			resizeStore(
-				world,
+			this.columns.set(
 				ComponentType,
-				world.config.getNewTableSize(this.capacity),
-				store,
+				resizeStore(world, ComponentType, this.capacity, store),
 			);
 		}
 	}
@@ -98,7 +100,7 @@ if (import.meta.vitest) {
 	const mockWorld: World = {
 		createBuffer: (l: number) => new ArrayBuffer(l),
 		config: {
-			getNewTableSize: () => 8,
+			getNewTableSize: (n: number) => (n === 0 ? 8 : n * 2),
 		},
 	} as any;
 
@@ -183,5 +185,19 @@ if (import.meta.vitest) {
 		expect(vecStore.y[0]).toBe(8);
 		expect(vecStore.z[0]).toBe(9);
 		expect(table.columns.get(Entity)!.val[0]).toBe(13n);
+	});
+
+	it('grows correctly', () => {
+		const table = Table.create(mockWorld, [Entity]);
+
+		table.add(1n);
+
+		expect(table.capacity).toBe(8);
+		expect(table.columns.get(Entity)!.val).toHaveLength(8);
+		expect(table.columns.get(Entity)!.val[0]).toBe(1n);
+		table.grow(mockWorld);
+		expect(table.capacity).toBe(16);
+		expect(table.columns.get(Entity)!.val).toHaveLength(16);
+		expect(table.columns.get(Entity)!.val[0]).toBe(1n);
 	});
 }
