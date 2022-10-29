@@ -162,7 +162,7 @@ export class ThreadGroup {
 	): Promise<T> {
 		const channel = '@@';
 		let result: T;
-		if (ThreadGroup.isMainThread) {
+		if (this.isMainThread) {
 			result = await callback();
 			await this.send(channel, this.#queue);
 		} else {
