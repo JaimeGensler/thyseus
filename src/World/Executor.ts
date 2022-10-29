@@ -43,7 +43,9 @@ export class Executor {
 			world.threads.queue(
 				() =>
 					new Uint8Array(
-						BigUintArray.getBufferLength(systems.length, 2),
+						world.createBuffer(
+							BigUintArray.getBufferLength(systems.length, 2),
+						),
 					),
 			),
 		);
@@ -59,7 +61,8 @@ export class Executor {
 		);
 	}
 
-	#signal: BroadcastChannel;
+	#channel = new BroadcastChannel('thyseus::executor');
+	#signals = [] as ((val: any) => void)[];
 
 	#intersections: bigint[];
 	#dependencies: bigint[];
@@ -79,16 +82,17 @@ export class Executor {
 		this.#dependencies = dependencies;
 		this.#systemsToExecute = systemsToExecute;
 		this.#status = status;
-		this.#signal = new BroadcastChannel('thyseus::executor');
 		this.#local = local;
 		this.#id = id;
+
+		this.#channel.addEventListener('message', () => {
+			this.#signals.forEach(s => s(0));
+			this.#signals.length = 0;
+		});
 	}
 
-	add(system: number) {
-		vecUtils.push(this.#systemsToExecute, system);
-	}
 	start() {
-		this.#signal.postMessage(0);
+		this.#sendSignal();
 	}
 	reset() {
 		this.#status.set(0, 0n);
@@ -100,11 +104,13 @@ export class Executor {
 		}
 	}
 
-	async #sendSignal() {
-		this.#signal.postMessage(0);
+	#sendSignal() {
+		this.#channel.postMessage(0);
+		this.#signals.forEach(s => s(0));
+		this.#signals.length = 0;
 	}
 	async #receiveSignal() {
-		return new Promise(r => this.#signal.addEventListener('message', r));
+		return new Promise(r => this.#signals.push(r));
 	}
 
 	async onReady(fn: () => void) {
@@ -131,11 +137,14 @@ export class Executor {
 							this.#dependencies[systemId]
 					) {
 						runningSystem = systemId;
-						vecUtils.delete(
-							this.#systemsToExecute,
-							this.#systemsToExecute.indexOf(systemId),
-						);
-						local.delete(systemId);
+						if (local.has(systemId)) {
+							local.delete(systemId);
+						} else {
+							vecUtils.delete(
+								this.#systemsToExecute,
+								this.#systemsToExecute.indexOf(systemId),
+							);
+						}
 						this.#status.OR(0, 1n << BigInt(systemId));
 						break;
 					}
@@ -148,15 +157,9 @@ export class Executor {
 				await navigator.locks.request(this.#id, () => {
 					this.#status.XOR(0, 1n << BigInt(runningSystem));
 					this.#status.OR(1, 1n << BigInt(runningSystem));
-					if (
-						vecUtils.size(this.#systemsToExecute) !== 0 ||
-						(vecUtils.size(this.#systemsToExecute) === 0 &&
-							this.#status.get(0) === 0n)
-					) {
-						this.#sendSignal();
-					}
 				});
-			} else if (size !== 0) {
+				this.#sendSignal();
+			} else if (size !== 0 || local.size !== 0) {
 				await this.#receiveSignal();
 			}
 		}
@@ -175,7 +178,7 @@ if (import.meta.vitest) {
 	vi.stubGlobal(
 		'BroadcastChannel',
 		class {
-			listeners: Function[] = [];
+			listeners = new Set<Function>();
 			constructor() {
 				if (!channel) {
 					channel = this;
@@ -184,7 +187,10 @@ if (import.meta.vitest) {
 			}
 
 			addEventListener(_: 'message', listener: any) {
-				this.listeners.push(listener);
+				this.listeners.add(listener);
+			}
+			removeEventListener(_: 'message', listener: any) {
+				this.listeners.delete(listener);
 			}
 			postMessage() {
 				setTimeout(() => this.listeners.forEach(l => l()), 10);
@@ -230,9 +236,7 @@ if (import.meta.vitest) {
 
 	it('iterates all elements with no intersections, no dependencies)', async () => {
 		const exec = createExecutor(emptyMask, emptyMask, new Set());
-		for (let i = 0; i < 4; i++) {
-			exec.add(i);
-		}
+		exec.reset();
 
 		const visited: number[] = [];
 		for await (const id of exec) {
@@ -253,9 +257,7 @@ if (import.meta.vitest) {
 			emptyMask,
 			new Set(),
 		);
-		for (let i = 0; i < 4; i++) {
-			exec.add(i);
-		}
+		exec.reset();
 
 		const iter1 = exec[Symbol.asyncIterator]();
 		const iter2 = exec[Symbol.asyncIterator]();
@@ -282,9 +284,7 @@ if (import.meta.vitest) {
 			[0b0000n, 0b0000n, 0b0000n, 0b0110n],
 			new Set(),
 		);
-		for (let i = 0; i < 4; i++) {
-			exec.add(i);
-		}
+		exec.reset();
 
 		const iter = exec[Symbol.asyncIterator]();
 		expect((await iter.next()).value).toBe(0);
@@ -306,9 +306,7 @@ if (import.meta.vitest) {
 			[0b0000n, 0b0000n, 0b0000n, 0b0001n],
 			new Set(),
 		);
-		for (let i = 0; i < 4; i++) {
-			exec.add(i);
-		}
+		exec.reset();
 
 		const iter1 = exec[Symbol.asyncIterator]();
 		const iter2 = exec[Symbol.asyncIterator]();
