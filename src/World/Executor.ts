@@ -35,7 +35,7 @@ export class Executor {
 
 		const systemVec = world.threads.queue(
 			// Storing current length
-			() => new Uint16Array(world.createBuffer(systems.length + 2)),
+			() => new Uint16Array(world.createBuffer(2 * systems.length + 2)),
 		);
 		const status = new BigUintArray(
 			systems.length,
@@ -175,7 +175,7 @@ if (import.meta.vitest) {
 	vi.stubGlobal(
 		'BroadcastChannel',
 		class {
-			handler: any;
+			listeners: Function[] = [];
 			constructor() {
 				if (!channel) {
 					channel = this;
@@ -183,18 +183,18 @@ if (import.meta.vitest) {
 				return channel;
 			}
 
-			addEventListener(_: 'message', handler: any) {
-				this.handler = handler;
+			addEventListener(_: 'message', listener: any) {
+				this.listeners.push(listener);
 			}
-			removeEventListener(): void {}
 			postMessage() {
-				setTimeout(() => this.handler(), 10);
+				setTimeout(() => this.listeners.forEach(l => l()), 10);
 			}
 		},
 	);
 	vi.stubGlobal('navigator', {
 		locks: {
 			async request(_: any, cb: () => void) {
+				await Promise.resolve();
 				cb();
 			},
 		},
@@ -242,10 +242,13 @@ if (import.meta.vitest) {
 		for (let i = 0; i < 4; i++) {
 			expect(visited).toContain(i);
 		}
+		expect(visited).toStrictEqual([0, 3, 2, 1]);
 	});
 
-	it.only('iterates elements with intersections', async () => {
+	it('iterates elements with intersections', async () => {
 		const exec = createExecutor(
+			// Last element will move to first and so would normally be next,
+			// but intersection prevents it from running from happening
 			[0b1000n, 0b0000n, 0b0000n, 0b0001n],
 			emptyMask,
 			new Set(),
@@ -256,52 +259,45 @@ if (import.meta.vitest) {
 
 		const iter1 = exec[Symbol.asyncIterator]();
 		const iter2 = exec[Symbol.asyncIterator]();
-		let res1 = await iter1.next();
-		let res2 = await iter2.next();
-		expect(res1.value).not.toBe(res2.value);
-		res2 = await iter2.next();
-		expect(res1.value).not.toBe(res2.value);
 
-		// iter2.next() is called first but is waiting on intersections to resolve.
-		// iter1.next() resolves the intersection and is able grab the final system.
+		let res1 = await iter1.next();
+		expect(res1.value).toBe(0);
+
+		// Would normally be 3, but can't because it's held.
+		let res2 = await iter2.next();
+		expect(res2.value).toBe(1);
+
+		res2 = await iter2.next();
+		expect(res2.value).toBe(2);
+
 		expect(await Promise.all([iter2.next(), iter1.next()])).toStrictEqual([
-			{ value: undefined, done: true },
 			{ value: 3, done: false },
+			{ value: undefined, done: true },
 		]);
-		expect(await iter1.next()).toStrictEqual({
-			value: undefined,
-			done: true,
-		});
 	});
 
 	it('iterates elements with dependencies', async () => {
 		const exec = createExecutor(
 			emptyMask,
-			[0b0000n, 0b0000n, 0b0000n, 0b0001n],
+			[0b0000n, 0b0000n, 0b0000n, 0b0110n],
 			new Set(),
 		);
 		for (let i = 0; i < 4; i++) {
 			exec.add(i);
 		}
 
-		const iter1 = exec[Symbol.asyncIterator]();
-		const iter2 = exec[Symbol.asyncIterator]();
-		let res1 = await iter1.next();
-		let res2 = await iter2.next();
-		expect(res1.value).not.toBe(res2.value);
-		res2 = await iter2.next();
-		expect(res1.value).not.toBe(res2.value);
+		const iter = exec[Symbol.asyncIterator]();
+		expect((await iter.next()).value).toBe(0);
 
-		// iter2.next() is called first but is waiting on dependencies to finish.
-		// iter1.next() completes the dependency and is able grab the final system.
-		expect(await Promise.all([iter2.next(), iter1.next()])).toStrictEqual([
-			{ value: undefined, done: true },
-			{ value: 3, done: false },
-		]);
-		expect(await iter1.next()).toStrictEqual({
-			value: undefined,
-			done: true,
-		});
+		// Would normally be 3, but can't because 1 hasn't run yet
+		expect((await iter.next()).value).toBe(1);
+
+		// Would normally be 3, but can't because 2 hasn't run yet
+		expect((await iter.next()).value).toBe(2);
+
+		expect((await iter.next()).value).toBe(3);
+
+		expect((await iter.next()).done).toBe(true);
 	});
 
 	it('does not run callbacks in whenReady queue when iterating', async () => {
@@ -321,8 +317,8 @@ if (import.meta.vitest) {
 		await iter2.next();
 
 		expect(await Promise.all([iter2.next(), iter1.next()])).toStrictEqual([
-			{ value: undefined, done: true },
 			{ value: 3, done: false },
+			{ value: undefined, done: true },
 		]);
 
 		const spy = vi.fn();
