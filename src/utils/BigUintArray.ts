@@ -3,18 +3,6 @@ export class BigUintArray {
 	static getBufferLength(width: number, length: number) {
 		return Math.ceil(width / 8) * length;
 	}
-	static with(
-		width: number,
-		length: number,
-		isShared: boolean = false,
-	): BigUintArray {
-		const BufferType = isShared ? SharedArrayBuffer : ArrayBuffer;
-		return new this(
-			width,
-			length,
-			new Uint8Array(new BufferType(Math.ceil(width / 8) * length)),
-		);
-	}
 
 	#bytesPerElement: number;
 
@@ -55,12 +43,6 @@ export class BigUintArray {
 			this.#data[index + i] |= Number((value >> BigInt(i * 8)) & b255);
 		}
 	}
-	AND(element: number, value: bigint) {
-		const index = this.#bytesPerElement * element;
-		for (let i = 0; i < this.#bytesPerElement; i++) {
-			this.#data[index + i] &= Number((value >> BigInt(i * 8)) & b255);
-		}
-	}
 	XOR(element: number, value: bigint) {
 		const index = this.#bytesPerElement * element;
 		for (let i = 0; i < this.#bytesPerElement; i++) {
@@ -82,6 +64,12 @@ if (import.meta.vitest) {
 		}
 		return result;
 	};
+	const getBigUintArray = (width: number, length: number) =>
+		new BigUintArray(
+			width,
+			length,
+			new Uint8Array(BigUintArray.getBufferLength(width, length)),
+		);
 
 	const length = 16;
 
@@ -90,9 +78,9 @@ if (import.meta.vitest) {
 		['one-byte aligned', 8],
 		['two-byte aligned', 16],
 		['unaligned', 35],
-		['greater than 64 bits', 75],
+		['greater than 8 bytes', 75],
 	])('gets/sets elements when width is &s', (_, width) => {
-		const arr = BigUintArray.with(width, length);
+		const arr = getBigUintArray(width, length);
 		expect(arr.width).toBe(width);
 		expect(arr.length).toBe(length);
 		expect(arr.bytesPerElement).toBe(Math.ceil(width / 8));
@@ -115,21 +103,16 @@ if (import.meta.vitest) {
 		expect(arr.get(6)).toBe(BigInt(width * 5));
 	});
 
-	it('correctly ORs/ANDs/XORs', () => {
-		const arr = BigUintArray.with(12, 3);
+	it('correctly ORs/XORs', () => {
+		const arr = getBigUintArray(12, 2);
 		expect(arr.get(0)).toBe(0n);
 		arr.set(0, 0b1111_0000_1111n);
 		arr.OR(0, 0b0000_1111_0000n);
 		expect(arr.get(0)).toBe(0b1111_1111_1111n);
 
 		expect(arr.get(1)).toBe(0n);
-		arr.set(1, 0b1110_0000_0111n);
-		arr.AND(1, 0b1010_0101_1010n);
-		expect(arr.get(1)).toBe(0b1010_0000_0010n);
-
-		expect(arr.get(2)).toBe(0n);
-		arr.set(2, 0b1100_1010_0011n);
-		arr.XOR(2, 0b1111_0111_0111n);
-		expect(arr.get(2)).toBe(0b0011_1101_0100n);
+		arr.set(1, 0b1100_1010_0011n);
+		arr.XOR(1, 0b1111_0111_0111n);
+		expect(arr.get(1)).toBe(0b0011_1101_0100n);
 	});
 }
