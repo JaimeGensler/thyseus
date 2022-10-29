@@ -1,5 +1,79 @@
 # Changelog
 
+## v0.5.0 (October 29, 2022)
+
+This update is heavy on breaking changes and light on features - primarily
+focused on internal cleanup & moving forward with a better API. Exciting feature
+work coming soon!
+
+### 💥 Breaking Changes
+
+-   Removed `Component()` function and `Type` enum - replaced with `@struct()`
+    decorator (check the [README](./README.md) for updated API reference).
+    -   The primary motivation for this change was that, for this use case,
+        decorators:
+        -   Better demonstrate intent
+        -   Have clearer fields at a glance
+        -   Allow components to be declared without extending a class
+        -   Are more flexible for future features
+    -   Additionally, thyseus will eventually have an optional TS compiler to
+        provide better performance & DX, and decorators will likely be easier to
+        work with for this.
+    -   Unfortunately, current Typescript decorators do not provide outstanding
+        type information. The current implementation will be updated to the new
+        decorators proposal once Typescript adds support, which will hopefully
+        provide better type info.
+-   Removed `ThreadProtocol`, `Resource()` function (resources should be
+    declared with `@struct()` like components)
+    -   This was primarily to unify around a single model of shared data.
+    -   Additionally, ThreadProtocol had some less than ideal performance
+        characteristics that impacted all values sent across thread boundaries.
+        Without it, transfering data across threads should be much faster.
+-   Static `create()` methods on Resources will not be called anymore. See
+    features for the replacement API, which allows async initialization and
+    access to private class members.
+-   The first argument of `defineSystem()` is now a function that is passed an
+    object containing descriptors (`P`) as well as `Mut`.
+    -   This reduces the amount of top-level API, and marks a step towards
+        making the TS compiler mentioned above easier to build.
+-   Removed `P`, `Mut` exports, moved `World` from default to named export.
+
+### ✨ Features
+
+-   Resources with an `initialize(world: World): void | Promise<void>` method
+    (**not** static) will have that method called immediately after the world is
+    created (before the `WorldBuilder.build()` promise resolves).
+    -   `initialize` is only called on the main thread, so context-sensitive
+        operations like setting up event listeners can be done here.
+-   Add `registerThreadChannel()` method to `WorldBuilder`.
+    -   Pass a channel name (`string`) and a handler _creator_
+        (`(world: World) => (data: SendableType) => SendableType`).
+    -   Channels must be **unique** - one channel may only have one handler.
+-   Nearly all properties on `World` and `WorldBuilder` are public now.
+    -   While mutating World properties directly is rarely a good idea, not
+        letting users access World internals seemed like a worse idea.
+-   Component fields can be booleans with `@struct.bool()`.
+    -   At the moment, this is just a wrapper around `@struct.u8()`, so bool
+        fields require an entire byte (may be reworked in the future).
+-   The internal `Executor` for systems has been slightly rewritten and no
+    longer users `Atomics.waitAsync`.
+    -   This marks multithreading capabilities on all browsers that support
+        `SharedArrayBuffer` and module Workers, and no longer requires
+        `SharedArrayBuffer` when singlethreaded! 🎉
+    -   In a near update, Worlds will accept custom executors, so while the
+        default Executor will always aim to work in (nearly) all runtimes out of
+        the box, if `Atomics.waitAsync`/`Atomics.wait`/another approach is
+        better for your use case, a custom implementation could be swapped in.
+
+### 🐛 Bug Fixes
+
+-   Fixed promises returned by systems not being awaited by the executor.
+-   Fixed tables not retaining new columns after grow.
+
+### 🔧 Maintenance
+
+-   Bumped dev dependency versions.
+
 ## v0.4.0 (October 22, 2022)
 
 ### 💥 Breaking Changes

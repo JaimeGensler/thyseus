@@ -9,8 +9,8 @@ Thyseus is a multi-threadable, DX-focused, and highly performant
 [archetypal](https://github.com/SanderMertens/ecs-faq#archetypes-aka-dense-ecs-or-table-based-ecs)
 [Entity Component System](https://en.wikipedia.org/wiki/Entity_component_system)
 ([ECS](https://github.com/SanderMertens/ecs-faq)) written in Typescript. It
-provides a simple, expressive, and type-safe API, and includes many features out
-of the box, including:
+provides a simple, expressive, and type-driven API, and includes many features
+out of the box, including:
 
 -   Hassle-free multithreading. Don't worry about scheduling, Mutexes, or
     workers - just write your systems and let Thyseus take care of the rest.
@@ -18,7 +18,7 @@ of the box, including:
     workers from blobs - Thyseus leverages recent additions to the language and
     a little bit of ✨ magic ✨ to do what it needs to, and **_will never use
     unsafe code_**.
--   Archetypal storage for lean memory consumption and cache-friendly iteration.
+-   Archetypal storage for lean memory use and cache-friendly iteration.
 -   First-class Resources (i.e., singletons).
 -   Zero dependencies.
 
@@ -52,9 +52,18 @@ find them._
 To get started, define a component:
 
 ```ts
-import { Component, Type } from 'thyseus';
+import { struct } from 'thyseus';
 
-class Vec2 extends Component({ x: Type.f32, y: Type.f32 }) {
+@struct()
+class Vec2 {
+	@struct.f64() declare x: number;
+	@struct.f64() declare y: number;
+
+	add(other: Vec2) {
+		this.x += other.x;
+		this.y += other.y;
+	}
+
 	addScaled(other: Vec2, scalar: number) {
 		this.x += other.x * scalar;
 		this.y += other.y * scalar;
@@ -67,25 +76,25 @@ class Velocity extends Vec2 {}
 Let's add a resource to track the time:
 
 ```ts
-import { Resource, Type } from 'thyseus';
+import { struct } from 'thyseus';
 
-class Time extends Resource({
-	current: Type.f64,
-	previous: Type.f64,
-	delta: Type.f64,
-}) {}
+@struct()
+class Time {
+	@struct.f64() declare current: number;
+	@struct.f64() declare previous: number;
+	@struct.f64() declare delta: number;
+}
 ```
 
 And then a couple systems:
 
 <!-- prettier-ignore -->
 ```ts
-import { defineSystem, P, Mut } from 'thyseus';
-import Time from './someModule';
-import { Position, Velocity } from './someOtherModule';
+import { defineSystem } from 'thyseus';
+import { Time, Position, Velocity } from './someModule';
 
 const updateTime = defineSystem(
-	[P.Res(Mut(Time))],
+	({ Res, Mut }) => [Res(Mut(Time))],
 	function updateTimeSystem(time) {
 		time.previous = time.current;
 		time.current = Date.now();
@@ -93,7 +102,7 @@ const updateTime = defineSystem(
 	}
 );
 const mover = defineSystem(
-	[P.Query([Mut(Position), Velocity]), P.Res(Time)],
+	({ Query, Mut, Res }) => [Query([Mut(Position), Velocity]), Res(Time)],
 	function moverSystem(query, time) {
 		for (const [pos, vel] of query) {
 			pos.addScaled(vel, time.delta);
@@ -106,12 +115,12 @@ Sweet! Now let's make a world with these systems and get it started.
 
 <!-- prettier-ignore -->
 ```ts
-import World from 'thyseus';
+import { World } from 'thyseus';
 
 // Note that the .build() method returns a promise.
 // Top-level await is a convenient way to handle this,
 // but it's not a requirement.
-export default await World.new()
+export const myWorld = await World.new()
 	.addSystem(updateTime)
 	.addSystem(mover)
 	.build();
@@ -120,7 +129,7 @@ export default await World.new()
 And then run it!
 
 ```ts
-import myWorld from './someOtherModule';
+import { myWorld } from './someOtherModule';
 
 async function loop() {
 	await myWorld.update(); // This also returns a promise!
@@ -132,15 +141,14 @@ loop();
 If you'd like to run your systems on multiple threads:
 
 ```ts
-// Will use 2 threads (main thread and one worker)
-export default await World.new({ threads: 2 }, import.meta.url)
+// Will spawn one worker thread (default threads count is 1 - no worker threads)
+export const myWorld = await World.new({ threads: 2 }, import.meta.url)
 	.addSystem(...)
 	...
 ```
 
-### Notes on Multithreading
-
-Full documentation and caveats for multithreading will be provided when
-documentation is completed. Currently, multithreading makes use of
-`SharedArrayBuffer`, module workers (not yet implemented in Firefox), and
-`Atomics.waitAsync` (Chrome only, alternatives being investigated).
+A full explanation of the few caveats for multithreading will be provided when
+documentation is completed. Multithreading relies on
+[`SharedArrayBuffer`](https://caniuse.com/sharedarraybuffer) and
+[module workers](https://caniuse.com/mdn-api_worker_worker_ecmascript_modules)
+(not yet implemented in Firefox).
