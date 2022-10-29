@@ -11,11 +11,11 @@ type Parameters<T extends Descriptor[]> = {
 
 export interface SystemDefinition<T extends Descriptor[] = Descriptor[]> {
 	parameters: T;
-	fn(...args: Parameters<T>): void;
+	fn(...args: Parameters<T>): void | Promise<void>;
 }
 export function defineSystem<T extends Descriptor[]>(
 	parameters: (descriptors: Descriptors) => [...T],
-	fn: (...args: Parameters<T>) => void,
+	fn: (...args: Parameters<T>) => void | Promise<void>,
 ): SystemDefinition<T> {
 	return {
 		parameters: parameters(descriptors),

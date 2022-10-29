@@ -10,5 +10,5 @@ export { applyCommands } from './applyCommands';
 
 export interface System {
 	args: any[];
-	execute(...args: any[]): void;
+	execute(...args: any[]): void | Promise<void>;
 }
