@@ -149,7 +149,7 @@ if (import.meta.vitest) {
 
 	class MockChannel {
 		static channel: MockChannel;
-		listeners = [] as Function[];
+		listeners = new Set<Function>();
 		constructor() {
 			if (!MockChannel.channel) {
 				MockChannel.channel = this;
@@ -157,7 +157,10 @@ if (import.meta.vitest) {
 			return MockChannel.channel;
 		}
 		addEventListener(_: any, l: any) {
-			this.listeners.push(l);
+			this.listeners.add(l);
+		}
+		removeEventListener(_: any, l: any) {
+			this.listeners.delete(l);
 		}
 		postMessage(data: any) {
 			setTimeout(
