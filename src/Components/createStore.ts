@@ -6,11 +6,11 @@ export function createStore(
 	ComponentType: ComponentType,
 ): ComponentStore {
 	const count = world.config.getNewTableSize(0);
-	const buffer = world.createBuffer(ComponentType.size * count);
+	const buffer = world.createBuffer(ComponentType.size! * count);
 
 	let offset = 0;
 
-	return Object.entries(ComponentType.schema).reduce(
+	return Object.entries(ComponentType.schema!).reduce(
 		(acc, [key, FieldConstructor]) => {
 			acc[key] = new FieldConstructor(buffer, offset, count);
 			offset += count * FieldConstructor.BYTES_PER_ELEMENT;

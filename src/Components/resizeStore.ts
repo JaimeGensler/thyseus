@@ -7,11 +7,11 @@ export function resizeStore(
 	count: number,
 	store: ComponentStore,
 ): ComponentStore {
-	const buffer = world.createBuffer(ComponentType.size * count);
+	const buffer = world.createBuffer(ComponentType.size! * count);
 
 	let offset = 0;
 
-	return Object.entries(ComponentType.schema).reduce(
+	return Object.entries(ComponentType.schema!).reduce(
 		(acc, [key, FieldConstructor]) => {
 			acc[key] = new FieldConstructor(buffer, offset, count);
 			// TODO: Fix type

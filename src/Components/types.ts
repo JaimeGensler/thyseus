@@ -27,8 +27,9 @@ type Schema = Record<string | symbol, TypedArrayConstructor>;
 export type ComponentStore = Record<string | symbol, TypedArray>;
 
 export interface ComponentType {
-	schema: Schema;
-	size: number;
+	// NOTE: Types have been loosened to be optional here, as decorators do not provide type info.
+	schema?: Schema;
+	size?: number;
 	// TODO: Narrow store - it can be made more specific, but this makes Entity work for now.
 	new (store: any, index: number, commands: WorldCommands): object;
 }
