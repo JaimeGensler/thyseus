@@ -1,6 +1,6 @@
 {
 	"name": "thyseus",
-	"version": "0.4.0",
+	"version": "0.5.0",
 	"description": "An archetypal Entity Component System for the modern web.",
 	"type": "module",
 	"files": [
@@ -13,7 +13,9 @@
 		".": {
 			"import": "./dist/thyseus.js",
 			"require": "./dist/thyseus.umd.cjs"
-		}
+		},
+		"./package.json": "./package.json",
+		"./src/*": "./src/*"
 	},
 	"repository": {
 		"type": "git",
@@ -47,7 +49,7 @@
 		"@vitest/web-worker": "^0.24.3",
 		"dts-bundle-generator": "^7.0.0",
 		"typescript": "^4.8.4",
-		"vite": "^3.1.8",
+		"vite": "^3.2.1",
 		"vitest": "^0.24.3"
 	}
 }
