@@ -1,5 +1,5 @@
 import type { Class } from '../Resources';
-import type { ComponentType, TypedArrayConstructor } from './types';
+import type { TypedArrayConstructor } from './types';
 
 let schema: Record<string | symbol, any> = {};
 let size = 0;
@@ -34,7 +34,7 @@ function createFieldDecorator(FieldType: TypedArrayConstructor) {
 			size += FieldType.BYTES_PER_ELEMENT;
 			Object.defineProperty(prototype, propertyKey, {
 				enumerable: true,
-				get(this: ComponentType) {
+				get(this: object) {
 					//@ts-ignore
 					return this.store[propertyKey][this.index];
 				},
@@ -47,7 +47,7 @@ function createFieldDecorator(FieldType: TypedArrayConstructor) {
 }
 
 struct.bool = function () {
-	return function fieldDecorator(
+	return function boolDecorator(
 		prototype: object,
 		propertyKey: string | symbol,
 	) {
@@ -55,7 +55,7 @@ struct.bool = function () {
 		size += Uint8Array.BYTES_PER_ELEMENT;
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
-			get(this: ComponentType) {
+			get(this: object) {
 				//@ts-ignore
 				return !!this.store[propertyKey][this.index];
 			},
@@ -146,19 +146,20 @@ if (import.meta.vitest) {
 
 	it('works with any field decorator', () => {
 		const fields = [
-			[struct.u8, 1, Uint8Array],
-			[struct.u16, 2, Uint16Array],
-			[struct.u32, 4, Uint32Array],
-			[struct.u64, 8, BigUint64Array],
-			[struct.i8, 1, Int8Array],
-			[struct.i16, 2, Int16Array],
-			[struct.i32, 4, Int32Array],
-			[struct.i64, 8, BigInt64Array],
-			[struct.f32, 4, Float32Array],
-			[struct.f64, 8, Float64Array],
+			[struct.bool, 1, Uint8Array, false, true],
+			[struct.u8, 1, Uint8Array, 0, 1],
+			[struct.u16, 2, Uint16Array, 0, 65_535],
+			[struct.u32, 4, Uint32Array, 0, 1_000_000],
+			[struct.u64, 8, BigUint64Array, 0n, 1_123_000_000n],
+			[struct.i8, 1, Int8Array, 0, -100],
+			[struct.i16, 2, Int16Array, 0, -16_000],
+			[struct.i32, 4, Int32Array, 0, 32],
+			[struct.i64, 8, BigInt64Array, 0n, -1_000_000_000n],
+			[struct.f32, 4, Float32Array, 0, 15],
+			[struct.f64, 8, Float64Array, 0, Math.PI],
 		] as const;
 
-		for (const [decorator, size, FieldConstructor] of fields) {
+		for (const [decorator, size, FieldConstructor, init, val] of fields) {
 			@struct()
 			class Comp {
 				@decorator() declare field: any;
@@ -172,6 +173,9 @@ if (import.meta.vitest) {
 
 			//@ts-ignore
 			const comp = new Comp(store, 0);
+			expect(comp.field).toBe(init);
+			comp.field = val;
+			expect(comp.field).toBe(val);
 		}
 	});
 }
