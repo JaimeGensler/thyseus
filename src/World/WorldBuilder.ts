@@ -108,8 +108,8 @@ export class WorldBuilder {
 				new World(
 					this.config,
 					threads,
-					this.components,
-					this.resources,
+					[...this.components],
+					[...this.resources],
 					this.systems,
 					this.systemDependencies,
 					this.threadChannels,
@@ -123,19 +123,112 @@ export class WorldBuilder {
 					resource.initialize?.(world),
 				),
 			);
-		}
 
-		if (threads.isMainThread) {
 			for (const { fn, parameters } of this.#startupSystems) {
-				fn(...parameters.map(d => d.intoArgument(world)));
+				await fn(...parameters.map(d => d.intoArgument(world)));
 			}
 		}
-		await threads.sendOrReceive(() => 0);
 
+		await threads.wrapInQueue(() => {});
 		return world;
 	}
 
 	#processSystem(system: SystemDefinition): void {
 		system.parameters.forEach(descriptor => descriptor.onAddSystem(this));
 	}
+}
+
+/*---------*\
+|   TESTS   |
+\*---------*/
+if (import.meta.vitest) {
+	const { it, expect, vi } = import.meta.vitest;
+	const { defineSystem } = await import('../Systems');
+	const { Entity } = await import('../Components');
+	const { applyCommands } = await import('../Systems');
+
+	class MockChannel {
+		static channel: MockChannel;
+		listeners = [] as Function[];
+		constructor() {
+			if (!MockChannel.channel) {
+				MockChannel.channel = this;
+			}
+			return MockChannel.channel;
+		}
+		addEventListener(_: any, l: any) {
+			this.listeners.push(l);
+		}
+		postMessage(data: any) {
+			setTimeout(
+				() =>
+					this.listeners.forEach(l =>
+						l({ currentTarget: this, data }),
+					),
+				10,
+			);
+		}
+	}
+	ThreadGroup.isMainThread = true;
+	vi.stubGlobal('BroadcastChannel', MockChannel);
+	vi.stubGlobal(
+		'Worker',
+		class MockWorker {
+			target?: MockWorker;
+
+			handler: any;
+			addEventListener(_: 'message', handler: any): this {
+				this.handler = handler;
+				return this;
+			}
+			removeEventListener(): void {}
+			postMessage(data: any) {
+				setTimeout(() => {
+					this.target!.handler({ currentTarget: this.target, data });
+				}, 10);
+			}
+		},
+	);
+	vi.stubGlobal('navigator', {
+		locks: {
+			async request(_: any, cb: () => void) {
+				await Promise.resolve();
+				cb();
+			},
+		},
+	});
+
+	const initializeTimeSpy = vi.fn();
+	class Time {
+		static schema = { delta: Float64Array };
+		static size = 8;
+		initialize = initializeTimeSpy;
+	}
+
+	it('initializes resources', async () => {
+		const builder = World.new().registerResource(Time);
+		expect(initializeTimeSpy).not.toHaveBeenCalled();
+		const world = await builder.build();
+		expect(initializeTimeSpy).toHaveBeenCalledWith(world);
+	});
+
+	it('runs startup systems only once', async () => {
+		const systemSpy = vi.fn();
+
+		const builder = World.new().addStartupSystem(
+			defineSystem(() => [], systemSpy),
+		);
+		expect(systemSpy).not.toHaveBeenCalled();
+		const world = await builder.build();
+		expect(systemSpy).toHaveBeenCalledWith();
+		expect(systemSpy).toHaveBeenCalledOnce();
+		await world.update();
+		expect(systemSpy).toHaveBeenCalledOnce();
+	});
+
+	it('adds defaultPlugin', async () => {
+		const world = await World.new().build();
+		expect(world.components).toStrictEqual([Entity]);
+		expect(world.systems[0].execute).toBe(applyCommands.fn);
+	});
 }

@@ -15,7 +15,7 @@ import {
 	type WorldConfig,
 	type SingleThreadedWorldConfig,
 } from './config';
-import type { ThreadGroup } from '../utils/ThreadGroup';
+import type { SendableType, ThreadGroup } from '../utils/ThreadGroup';
 import type { Dependencies, System, SystemDefinition } from '../Systems';
 import type { ResourceType } from '../Resources';
 import type { Query } from '../Queries';
@@ -45,25 +45,29 @@ export class World {
 	constructor(
 		config: WorldConfig,
 		threads: ThreadGroup,
-		componentTypes: Set<ComponentType>,
-		resourceTypes: Set<ResourceType>,
+		componentTypes: ComponentType[],
+		resourceTypes: ResourceType[],
 		systems: SystemDefinition[],
 		dependencies: (Dependencies | undefined)[],
-		channels: Record<string, (world: World) => (data: any) => any>,
+		channels: Record<
+			string,
+			(world: World) => (data: SendableType) => SendableType
+		>,
 	) {
 		this.#bufferType = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
-
-		for (const channel in channels) {
-			threads.setListener(channel, channels[channel](this));
-		}
 
 		this.config = config;
 		this.threads = threads;
 
-		this.#executor = Executor.fromWorld(this, systems, dependencies);
+		for (const channel in channels) {
+			this.threads.setListener(channel, channels[channel](this));
+		}
+
+		this.components = componentTypes;
 		this.entities = Entities.fromWorld(this);
-		this.commands = new WorldCommands(this.entities, componentTypes);
-		this.components = [...componentTypes];
+		this.commands = new WorldCommands(this.entities, this.components);
+
+		this.#executor = Executor.fromWorld(this, systems, dependencies);
 
 		this.resources = new Map<ResourceType, object>();
 		for (const Resource of resourceTypes) {
