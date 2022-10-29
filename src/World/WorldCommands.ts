@@ -7,8 +7,8 @@ export class WorldCommands {
 	#entities: Entities;
 	#entity: Entity;
 	#store: BigUint64Array;
-	#components: Set<ComponentType>;
-	constructor(entities: Entities, components: Set<ComponentType>) {
+	#components: ComponentType[];
+	constructor(entities: Entities, components: ComponentType[]) {
 		this.#entities = entities;
 		this.#store = new BigUint64Array(1);
 		this.#entity = new Entity({ val: this.#store }, 0, this);
@@ -50,16 +50,14 @@ export class WorldCommands {
 		this.queue.set(
 			id,
 			(this.queue.get(id) ?? this.#entities.getTableId(id)) |
-				(1n << BigInt(getSetIndex(this.#components, Component))),
+				(1n << BigInt(this.#components.indexOf(Component))),
 		);
 	}
 	removeFrom(id: bigint, Component: ComponentType) {
 		this.queue.set(
 			id,
 			(this.queue.get(id) ?? this.#entities.getTableId(id)) ^
-				(1n << BigInt(getSetIndex(this.#components, Component))),
+				(1n << BigInt(this.#components.indexOf(Component))),
 		);
 	}
 }
-
-const getSetIndex = <T>(set: Set<T>, key: T) => [...set].indexOf(key);
