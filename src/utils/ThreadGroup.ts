@@ -53,7 +53,7 @@ interface WorkerOrGlobal {
 
 export class ThreadGroup {
 	static isMainThread = !!globalThis.document;
-	isMainThread = !!globalThis.document;
+	isMainThread = ThreadGroup.isMainThread;
 
 	static spawn(count: number, url: string | URL | undefined): ThreadGroup {
 		return new this(
@@ -139,12 +139,11 @@ export class ThreadGroup {
 	}
 
 	/**
-	 * On the main thread, creates a value and pushes it to the queue.
+	 * On the main thread, creates a value, pushes it to the queue, and returns the value.
 	 *
-	 * On Worker threads, returns the next item from the queue.
+	 * On Worker threads, removes and returns the next item in the queue.
 	 *
-	 * **NOTE:** Queue is not automatically sent between threads!
-	 * Use `ThreadGroup.prototoype.wrapInQueue` to wrap values.
+	 * **NOTE:** Queue must be manually sent between threads - use with `ThreadGroup.prototoype.wrapInQueue`.
 	 * @param create A function to create the value - only called on the main thread.
 	 * @returns The value created by `create` function.
 	 */
@@ -167,40 +166,16 @@ export class ThreadGroup {
 			result = await callback();
 			await this.send(channel, this.#queue);
 		} else {
-			this.#queue = await new Promise(r =>
-				this.setListener(channel, r as any),
+			result = await new Promise(resolve =>
+				this.setListener<SendableType[]>(channel, queue => {
+					this.#queue = queue;
+					resolve(callback());
+				}),
 			);
 			this.deleteListener(channel);
-			result = await callback();
 		}
 		this.#queue.length = 0;
 		return result;
-	}
-
-	/**
-	 * **WARNING: This method is order-sensitive and should only be called while the main thread and worker threads are executing the same code (i.e., while a world is being built).**
-	 * **Use `send` and `setListener` for more flexible usage.**
-	 *
-	 * On the main thread, creates a value, sends it to all threads, and waits for them to receive it.
-	 *
-	 * On worker threads, waits to receive the value sent by the main thread.
-	 *
-	 * @param create A callback to create the value you wish to send - only invoked on the main thread.
-	 * @returns A promise resolving to the return of the `create` callback.
-	 */
-	async sendOrReceive<T extends SendableType>(create: () => T): Promise<T> {
-		const channel = '@@';
-		if (ThreadGroup.isMainThread) {
-			const result = create();
-			await this.send(channel, result);
-			return result;
-		} else {
-			const result = await new Promise<T>(r =>
-				this.setListener(channel, r as any),
-			);
-			this.deleteListener(channel);
-			return result;
-		}
 	}
 }
 
@@ -208,7 +183,7 @@ export class ThreadGroup {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi, beforeEach } = import.meta.vitest;
+	const { it, expect, beforeEach } = import.meta.vitest;
 
 	class MockWorker {
 		target?: MockWorker;
@@ -256,19 +231,5 @@ if (import.meta.vitest) {
 		expect(await group1.send('do something!', 0)).toStrictEqual([null]);
 	});
 
-	it('sendOrReceive works', async () => {
-		const [group1, group2] = getMockThreads();
-		const mock1 = vi.fn(() => 3);
-		const mock2 = vi.fn(() => 3);
-		const promise1 = group1.sendOrReceive(mock1);
-		ThreadGroup.isMainThread = false;
-		const promise2 = group2.sendOrReceive(mock2);
-
-		const result2 = await promise2;
-		const result1 = await promise1;
-		expect(result2).toBe(3);
-		expect(result1).toBe(3);
-		expect(mock1).toHaveBeenCalledTimes(1);
-		expect(mock2).toHaveBeenCalledTimes(0);
-	});
+	it.todo('queue and wrapInQueue works', async () => {});
 }
