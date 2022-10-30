@@ -1,4 +1,3 @@
-import { AccessType } from '../../utils/AccessType';
 import { createFilter } from '../../utils/createFilter';
 import { Mut, type Mutable } from './Mut';
 import { TupleQuery, type Query } from '../../Queries';
@@ -11,12 +10,12 @@ type QueryMember = ComponentType | Mutable<ComponentType>;
 
 export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
 	components: ComponentType[] = [];
-	accessType: AccessType[] = [];
+	writes: boolean[] = [];
 	constructor(components: [...C]) {
 		for (const component of components) {
 			const isMut = Mut.isMut<ComponentType>(component);
 			this.components.push(isMut ? component[0] : component);
-			this.accessType.push(isMut ? AccessType.Write : AccessType.Read);
+			this.writes.push(isMut);
 		}
 	}
 
@@ -25,13 +24,12 @@ export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
 	}
 
 	intersectsWith(other: unknown) {
-		//prettier-ignore
 		return other instanceof QueryDescriptor
 			? this.components.some((compA, iA) =>
-					other.components.some((compB, iB) =>
-						compA === compB &&
-						(this.accessType[iA] === AccessType.Write ||
-							other.accessType[iB] === AccessType.Write),
+					other.components.some(
+						(compB, iB) =>
+							compA === compB &&
+							(this.writes[iA] || other.writes[iB]),
 					),
 			  )
 			: false;

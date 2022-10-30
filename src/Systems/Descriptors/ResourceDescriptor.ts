@@ -1,4 +1,3 @@
-import { AccessType } from '../../utils/AccessType';
 import { Mut, type Mutable } from './Mut';
 import { isStruct } from '../../Components';
 import type { WorldBuilder } from '../../World/WorldBuilder';
@@ -10,12 +9,12 @@ export class ResourceDescriptor<T extends ResourceType | Mutable<ResourceType>>
 	implements Descriptor
 {
 	resource: ResourceType;
-	accessType: AccessType;
+	canWrite: boolean;
 
 	constructor(resource: T) {
 		const isMut = Mut.isMut<ResourceType>(resource);
 		this.resource = isMut ? resource[0] : resource;
-		this.accessType = isMut ? AccessType.Write : AccessType.Read;
+		this.canWrite = isMut;
 	}
 
 	isLocalToThread() {
@@ -25,8 +24,7 @@ export class ResourceDescriptor<T extends ResourceType | Mutable<ResourceType>>
 	intersectsWith(other: unknown): boolean {
 		return other instanceof ResourceDescriptor
 			? this.resource === other.resource &&
-					(this.accessType === AccessType.Write ||
-						other.accessType === AccessType.Write)
+					(this.canWrite || other.canWrite)
 			: false;
 	}
 
