@@ -2,6 +2,9 @@ import { BigUintArray } from '../utils/BigUintArray';
 import { fourBytes, getGeneration, getIndex } from '../utils/entityId';
 import type { World } from './World';
 
+const nextId = 0;
+const freeCount = 1;
+
 // NOTE: If tableIds move to uint32s, tableIds/row can be transformed into entityLocation: BigUint64Array
 export class Entities {
 	static fromWorld(world: World): Entities {
@@ -51,7 +54,7 @@ export class Entities {
 
 	spawn(): bigint {
 		for (let i = 0; i < this.#free.length; i++) {
-			if (Atomics.load(this.#data, DataIndex.FreeCount) === 0) {
+			if (Atomics.load(this.#data, freeCount) === 0) {
 				break;
 			}
 			while (true) {
@@ -61,7 +64,7 @@ export class Entities {
 				}
 				const result = ctz32(n);
 				if (Atomics.xor(this.#free, i, 0b1 << result) === n) {
-					Atomics.sub(this.#data, DataIndex.FreeCount, 1);
+					Atomics.sub(this.#data, freeCount, 1);
 					return (
 						(BigInt(this.generations[result]) << fourBytes) |
 						BigInt(32 * i + result)
@@ -70,7 +73,7 @@ export class Entities {
 			}
 		}
 
-		const result = Atomics.add(this.#data, DataIndex.NextId, 1);
+		const result = Atomics.add(this.#data, nextId, 1);
 		return BigInt(result);
 	}
 
@@ -86,7 +89,7 @@ export class Entities {
 			) === generation
 		) {
 			Atomics.or(this.#free, index >> 5, 1 << (index & 0b0001_1111));
-			Atomics.add(this.#data, DataIndex.FreeCount, 1);
+			Atomics.add(this.#data, freeCount, 1);
 		}
 	}
 
@@ -108,11 +111,6 @@ const ctz32 = (n: number) => {
 	n >>>= 0;
 	return 31 - Math.clz32(n & -n);
 };
-
-enum DataIndex {
-	NextId = 0,
-	FreeCount = 1,
-}
 
 /*---------*\
 |   TESTS   |

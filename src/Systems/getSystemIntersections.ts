@@ -1,20 +1,18 @@
 import type { SystemDefinition } from './defineSystem';
 
-enum SystemRelationship {
-	Disjoint,
-	Intersecting,
-}
+type Intersecting = 1;
+type Disjoint = 0;
 function getSystemRelationship(
 	left: SystemDefinition,
 	right: SystemDefinition,
-): SystemRelationship {
+): Intersecting | Disjoint {
 	return left.parameters.some(pL =>
 		right.parameters.some(
 			pR => pL.intersectsWith(pR) || pR.intersectsWith(pL),
 		),
 	)
-		? SystemRelationship.Intersecting
-		: SystemRelationship.Disjoint;
+		? 1
+		: 0;
 }
 
 export function getSystemIntersections(systems: SystemDefinition[]): bigint[] {
@@ -61,7 +59,7 @@ if (import.meta.vitest) {
 					{ parameters: d1 } as any,
 					{ parameters: d2 } as any,
 				),
-			).toBe(SystemRelationship.Intersecting);
+			).toBe(1);
 		});
 		it('returns Disjoint if no descriptors intersect', () => {
 			const d1 = Array.from({ length: 7 }, getDescriptor);
@@ -71,7 +69,7 @@ if (import.meta.vitest) {
 					{ parameters: d1 } as any,
 					{ parameters: d2 } as any,
 				),
-			).toBe(SystemRelationship.Disjoint);
+			).toBe(0);
 		});
 
 		it('checks all unique descriptor pairs', () => {
@@ -98,7 +96,7 @@ if (import.meta.vitest) {
 			);
 			expect(inter1.intersectsWith).toHaveBeenCalledWith(nonInter1);
 			expect(nonInter1.intersectsWith).not.toHaveBeenCalledWith(inter1);
-			expect(result1).toBe(SystemRelationship.Intersecting);
+			expect(result1).toBe(1);
 
 			const nonInter2 = getDescriptor(false);
 			const inter2 = getDescriptor(true);
@@ -108,7 +106,7 @@ if (import.meta.vitest) {
 			);
 			expect(inter2.intersectsWith).toHaveBeenCalledWith(nonInter2);
 			expect(nonInter2.intersectsWith).toHaveBeenCalledWith(inter2);
-			expect(result2).toBe(SystemRelationship.Intersecting);
+			expect(result2).toBe(1);
 		});
 	});
 
