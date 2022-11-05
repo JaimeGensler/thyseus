@@ -3,4 +3,4 @@ import type { ComponentType } from '../Components';
 export interface Class {
 	new (...args: any[]): object;
 }
-export type ResourceType = ComponentType | Class;
+export type ResourceType = Class | ComponentType;
