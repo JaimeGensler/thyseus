@@ -40,7 +40,7 @@ type ThreadMessageEvent = MessageEvent<ThreadMessage> & {
 	currentTarget: WorkerOrGlobal;
 };
 interface WorkerOrGlobal {
-	postMessage(content: any): void;
+	postMessage(content: SendableType): void;
 	addEventListener(
 		type: 'message',
 		fn: (event: MessageEvent<ThreadMessage>) => void,
@@ -60,7 +60,6 @@ export class ThreadGroup {
 			ThreadGroup.isMainThread
 				? Array.from(
 						{ length: count },
-						// NOTE: If count > 1, url is defined.
 						() => new Worker(url!, { type: 'module' }),
 				  )
 				: [globalThis],
@@ -157,9 +156,7 @@ export class ThreadGroup {
 		}
 	}
 
-	async wrapInQueue<T extends any = void>(
-		callback: () => T | Promise<T>,
-	): Promise<T> {
+	async wrapInQueue<T = void>(callback: () => T | Promise<T>): Promise<T> {
 		const channel = '@@';
 		let result: T;
 		if (this.isMainThread) {
