@@ -1,4 +1,8 @@
 import { WorldBuilder } from './WorldBuilder';
+import { Executor } from './Executor';
+import { WorldCommands } from './WorldCommands';
+import { Entities } from './Entities';
+import { bits } from '../utils/bits';
 import {
 	isStruct,
 	createStore,
@@ -6,10 +10,6 @@ import {
 	Entity,
 	type ComponentType,
 } from '../Components';
-import { Executor } from './Executor';
-import { WorldCommands } from './WorldCommands';
-import { Entities } from './Entities';
-import { bits } from '../utils/bits';
 import {
 	validateAndCompleteConfig,
 	type WorldConfig,
@@ -73,8 +73,7 @@ export class World {
 		for (const Resource of resourceTypes) {
 			if (isStruct(Resource)) {
 				const store = threads.queue(() =>
-					// TODO: Write specialized createStore for single element.
-					createStore(this as any, Resource),
+					createStore(this, Resource, 1),
 				);
 				this.resources.set(
 					Resource,
