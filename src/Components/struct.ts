@@ -1,41 +1,60 @@
 import type { Class } from '../Resources';
 import type { TypedArrayConstructor } from './types';
 
-let schema: Record<string | symbol, any> = {};
-let size = 0;
+type DiscriminatedUnion<L, R> =
+	| (L & { [Key in keyof R]?: never })
+	| (R & { [Key in keyof L]?: never });
+
+let currentSchema: Record<string | symbol, TypedArrayConstructor> = {};
+let currentFieldSizes: Record<string | symbol, number> = {};
+let currentAlignment = 1;
+let currentSize = 0;
+const addField = (
+	fieldName: string | symbol,
+	type: TypedArrayConstructor,
+	bytes: number = type.BYTES_PER_ELEMENT,
+) => {
+	currentSchema[fieldName] = type;
+	if (bytes !== type.BYTES_PER_ELEMENT) {
+		currentFieldSizes[fieldName] = bytes;
+	}
+	currentSize += bytes;
+	currentAlignment = Math.max(currentAlignment, type.BYTES_PER_ELEMENT);
+};
 
 export function struct() {
 	return function structDecorator(targetClass: Class): any {
 		class StructClass extends targetClass {
-			static schema = schema;
-			static size = size;
+			static schema = currentSchema;
+			static fieldSizes = currentFieldSizes;
+			static size = currentSize;
+			static alignment = currentAlignment;
 
-			store: any;
+			store: object;
 			index: number;
-			constructor(store: any, index: any) {
+			constructor(store: object, index: number) {
 				super();
 				this.store = store;
 				this.index = index;
 			}
 		}
-		schema = {};
-		size = 0;
+		currentSchema = {};
+		currentFieldSizes = {};
+		currentSize = 0;
+		currentAlignment = 1;
 		return StructClass;
 	};
 }
-
-function createFieldDecorator(FieldType: TypedArrayConstructor) {
+function createPrimativeFieldDecorator(type: TypedArrayConstructor) {
 	return function () {
 		return function fieldDecorator(
 			prototype: object,
 			propertyKey: string | symbol,
 		) {
-			schema[propertyKey] = FieldType;
-			size += FieldType.BYTES_PER_ELEMENT;
+			addField(propertyKey, type);
 			Object.defineProperty(prototype, propertyKey, {
 				enumerable: true,
-				get(this: object) {
-					//@ts-ignore
+				get() {
 					return this.store[propertyKey][this.index];
 				},
 				set(value: number) {
@@ -47,16 +66,14 @@ function createFieldDecorator(FieldType: TypedArrayConstructor) {
 }
 
 struct.bool = function () {
-	return function boolDecorator(
+	return function fieldDecorator(
 		prototype: object,
 		propertyKey: string | symbol,
 	) {
-		schema[propertyKey] = Uint8Array;
-		size += Uint8Array.BYTES_PER_ELEMENT;
+		addField(propertyKey, Uint8Array);
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
-			get(this: object) {
-				//@ts-ignore
+			get() {
 				return !!this.store[propertyKey][this.index];
 			},
 			set(value: boolean) {
@@ -65,53 +82,98 @@ struct.bool = function () {
 		});
 	};
 };
-struct.u8 = createFieldDecorator(Uint8Array);
-struct.u16 = createFieldDecorator(Uint16Array);
-struct.u32 = createFieldDecorator(Uint32Array);
-struct.u64 = createFieldDecorator(BigUint64Array);
-struct.i8 = createFieldDecorator(Int8Array);
-struct.i16 = createFieldDecorator(Int16Array);
-struct.i32 = createFieldDecorator(Int32Array);
-struct.i64 = createFieldDecorator(BigInt64Array);
-struct.f32 = createFieldDecorator(Float32Array);
-struct.f64 = createFieldDecorator(Float64Array);
+struct.u8 = createPrimativeFieldDecorator(Uint8Array);
+struct.u16 = createPrimativeFieldDecorator(Uint16Array);
+struct.u32 = createPrimativeFieldDecorator(Uint32Array);
+struct.u64 = createPrimativeFieldDecorator(BigUint64Array);
+struct.i8 = createPrimativeFieldDecorator(Int8Array);
+struct.i16 = createPrimativeFieldDecorator(Int16Array);
+struct.i32 = createPrimativeFieldDecorator(Int32Array);
+struct.i64 = createPrimativeFieldDecorator(BigInt64Array);
+struct.f32 = createPrimativeFieldDecorator(Float32Array);
+struct.f64 = createPrimativeFieldDecorator(Float64Array);
 
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+struct.string = function ({
+	characterCount,
+	byteLength,
+}: DiscriminatedUnion<{ byteLength: number }, { characterCount: number }>) {
+	return function fieldDecorator(
+		prototype: object,
+		propertyKey: string | symbol,
+	) {
+		byteLength ??= characterCount! * 3;
+		addField(propertyKey, Uint8Array, byteLength);
+
+		Object.defineProperty(prototype, propertyKey, {
+			enumerable: true,
+			get() {
+				return decoder
+					.decode(
+						new Uint8Array(
+							this.store[propertyKey].buffer,
+							this.index * 3,
+							byteLength,
+						),
+					)
+					.split('\u0000')[0];
+			},
+			set(value: string) {
+				encoder.encodeInto(
+					value,
+					new Uint8Array(
+						this.store[propertyKey].buffer,
+						this.index * 3,
+						byteLength,
+					).fill(0),
+				);
+			},
+		});
+	};
+};
+
+/*---------*\
+|   TESTS   |
+\*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
 
 	it('adds a schema and size to decorated classes', () => {
 		@struct()
-		class CompA {}
+		class CompA {
+			declare static schema: object;
+		}
 
 		@struct()
 		class CompB {
+			declare static schema: object;
 			@struct.i32() declare myField: number;
 		}
 
 		expect(CompA).toHaveProperty('schema', {});
-		expect(CompA).toHaveProperty('size', 0);
-		expect(CompB).toHaveProperty('schema', {
-			myField: Int32Array,
-		});
-		expect(CompB).toHaveProperty('size', 4);
+		expect(CompA).toHaveProperty('fieldSizes', {});
+		expect(CompB).toHaveProperty('schema', { myField: Int32Array });
+		expect(CompB).toHaveProperty('fieldSizes', {});
 
-		//@ts-ignore
 		expect(CompA.schema).not.toBe(CompB.schema);
 	});
 
 	it('creates a getter/setter around fields', () => {
 		@struct()
 		class Vec3 {
+			declare index: number;
 			@struct.f64() declare x: number;
 			@struct.f64() declare y: number;
 			@struct.f64() declare z: number;
+			constructor(store: object, index: number) {}
 		}
 		expect(Vec3).toHaveProperty('schema', {
 			x: Float64Array,
 			y: Float64Array,
 			z: Float64Array,
 		});
-		expect(Vec3).toHaveProperty('size', 24);
 
 		const store = {
 			x: new Float64Array(8),
@@ -122,7 +184,6 @@ if (import.meta.vitest) {
 		store.y[0] = 2;
 		store.z[0] = 3;
 
-		//@ts-ignore
 		const vec = new Vec3(store, 0);
 
 		expect(vec.x).toBe(1);
@@ -132,7 +193,6 @@ if (import.meta.vitest) {
 		vec.x = Math.PI;
 		expect(vec.x).toBe(Math.PI);
 
-		//@ts-ignore
 		vec.index = 1;
 
 		expect(vec.x).toBe(0);
@@ -144,38 +204,78 @@ if (import.meta.vitest) {
 		expect(vec.y).toBe(8);
 	});
 
-	it('works with any field decorator', () => {
+	it('works with every primitive decorators', () => {
 		const fields = [
-			[struct.bool, 1, Uint8Array, false, true],
-			[struct.u8, 1, Uint8Array, 0, 1],
-			[struct.u16, 2, Uint16Array, 0, 65_535],
-			[struct.u32, 4, Uint32Array, 0, 1_000_000],
-			[struct.u64, 8, BigUint64Array, 0n, 1_123_000_000n],
-			[struct.i8, 1, Int8Array, 0, -100],
-			[struct.i16, 2, Int16Array, 0, -16_000],
-			[struct.i32, 4, Int32Array, 0, 32],
-			[struct.i64, 8, BigInt64Array, 0n, -1_000_000_000n],
-			[struct.f32, 4, Float32Array, 0, 15],
-			[struct.f64, 8, Float64Array, 0, Math.PI],
+			[struct.bool, Uint8Array, false, true],
+			[struct.u8, Uint8Array, 0, 1],
+			[struct.u16, Uint16Array, 0, 65_535],
+			[struct.u32, Uint32Array, 0, 1_000_000],
+			[struct.u64, BigUint64Array, 0n, 1_123_000_000n],
+			[struct.i8, Int8Array, 0, -100],
+			[struct.i16, Int16Array, 0, -16_000],
+			[struct.i32, Int32Array, 0, 32],
+			[struct.i64, BigInt64Array, 0n, -1_000_000_000n],
+			[struct.f32, Float32Array, 0, 15],
+			[struct.f64, Float64Array, 0, Math.PI],
 		] as const;
 
-		for (const [decorator, size, FieldConstructor, init, val] of fields) {
+		for (const [decorator, FieldConstructor, init, val] of fields) {
 			@struct()
 			class Comp {
+				declare store: object;
+				declare index: number;
+				declare static schema: object;
+				declare static fieldSizes: object;
 				@decorator() declare field: any;
+				constructor(store: object, index: number) {}
 			}
-			//@ts-ignore
-			expect(Comp.size).toStrictEqual(size);
-			//@ts-ignore
+
 			expect(Comp.schema).toStrictEqual({ field: FieldConstructor });
 
-			const store = { field: new FieldConstructor(1) };
+			const store = { field: new FieldConstructor(2) };
 
-			//@ts-ignore
 			const comp = new Comp(store, 0);
 			expect(comp.field).toBe(init);
 			comp.field = val;
 			expect(comp.field).toBe(val);
+			comp.index = 1;
+			expect(comp.field).toBe(init);
 		}
+	});
+
+	it('works for string fields', () => {
+		@struct()
+		class Comp {
+			declare store: object;
+			declare index: number;
+			declare static schema: object;
+			declare static fieldSizes: object;
+			@struct.string({ characterCount: 5 }) declare value: string;
+			@struct.string({ byteLength: 1 }) declare value2: string;
+			constructor(store: object, index: number) {}
+		}
+
+		const store = {
+			value: new Uint8Array(5 * 3),
+			value2: new Uint8Array(1),
+		};
+
+		const comp = new Comp(store, 0);
+		expect(comp.value).toBe('');
+
+		comp.value = 'hello';
+		expect(comp.value).toBe('hello');
+
+		comp.value = 'bye';
+		expect(comp.value).toBe('bye');
+
+		comp.value += '!!!';
+		expect(comp.value).toBe('bye!!!');
+
+		expect(comp.value2).toBe('');
+		comp.value2 = 'A';
+		expect(comp.value2).toBe('A');
+		comp.value2 = 'AA';
+		expect(comp.value2).toBe('A');
 	});
 }
