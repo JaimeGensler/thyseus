@@ -1,5 +1,5 @@
 import type { Class } from '../Resources';
-import type { TypedArrayConstructor } from './types';
+import type { TypedArray, TypedArrayConstructor } from './types';
 
 type DiscriminatedUnion<L, R> =
 	| (L & { [Key in keyof R]?: never })
@@ -128,6 +128,44 @@ struct.string = function ({
 						this.index * 3,
 						byteLength,
 					).fill(0),
+				);
+			},
+		});
+	};
+};
+const typeToConstructor = {
+	u8: Uint8Array,
+	u16: Uint16Array,
+	u32: Uint32Array,
+	u64: BigUint64Array,
+	i8: Int8Array,
+	i16: Int16Array,
+	i32: Int32Array,
+	i64: BigInt64Array,
+	f32: Float32Array,
+	f64: Float64Array,
+} as const;
+struct.array = function (type: keyof typeof typeToConstructor, length: number) {
+	return function fieldDecorator(
+		prototype: object,
+		propertyKey: string | symbol,
+	) {
+		const typeConstructor = typeToConstructor[type];
+		const byteLength = typeConstructor.BYTES_PER_ELEMENT * length;
+		addField(propertyKey, typeConstructor, byteLength);
+
+		Object.defineProperty(prototype, propertyKey, {
+			enumerable: true,
+			get() {
+				return (this.store[propertyKey] as Uint8Array).subarray(
+					this.index * length,
+					this.index * length + length,
+				);
+			},
+			set(value: TypedArray) {
+				(this.store[propertyKey] as Uint8Array).set(
+					(value as Uint8Array).subarray(0, length),
+					this.index * length,
 				);
 			},
 		});
@@ -277,5 +315,34 @@ if (import.meta.vitest) {
 		expect(comp.value2).toBe('A');
 		comp.value2 = 'AA';
 		expect(comp.value2).toBe('A');
+	});
+
+	it('works for arrays', () => {
+		@struct()
+		class Comp {
+			declare store: object;
+			declare index: number;
+			declare static schema: object;
+			declare static fieldSizes: object;
+			@struct.array('u8', 8) declare value: Uint8Array;
+			@struct.array('f64', 3) declare value2: Float64Array;
+			constructor(store: object, index: number) {}
+		}
+		const store = {
+			value: new Uint8Array(8 * 2),
+			value2: new Float64Array(3 * 2),
+		};
+		const comp = new Comp(store, 0);
+		expect(comp.value).toBeInstanceOf(Uint8Array);
+		expect(comp.value2).toBeInstanceOf(Float64Array);
+
+		comp.value = new Uint8Array(8).fill(3);
+		comp.value2 = new Float64Array(3).fill(Math.PI);
+		expect(comp.value).toStrictEqual(new Uint8Array(8).fill(3));
+		expect(comp.value2).toStrictEqual(new Float64Array(3).fill(Math.PI));
+		comp.index = 1;
+
+		expect(comp.value).toStrictEqual(new Uint8Array(8));
+		expect(comp.value2).toStrictEqual(new Float64Array(3));
 	});
 }
