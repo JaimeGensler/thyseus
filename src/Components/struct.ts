@@ -1,3 +1,4 @@
+import { addField, resetFields } from './addField';
 import type { Class } from '../Resources';
 import type { TypedArray, TypedArrayConstructor } from './types';
 
@@ -5,30 +6,14 @@ type DiscriminatedUnion<L, R> =
 	| (L & { [Key in keyof R]?: never })
 	| (R & { [Key in keyof L]?: never });
 
-let currentSchema: Record<string | symbol, TypedArrayConstructor> = {};
-let currentFieldSizes: Record<string | symbol, number> = {};
-let currentAlignment = 1;
-let currentSize = 0;
-const addField = (
-	fieldName: string | symbol,
-	type: TypedArrayConstructor,
-	bytes: number = type.BYTES_PER_ELEMENT,
-) => {
-	currentSchema[fieldName] = type;
-	if (bytes !== type.BYTES_PER_ELEMENT) {
-		currentFieldSizes[fieldName] = bytes;
-	}
-	currentSize += bytes;
-	currentAlignment = Math.max(currentAlignment, type.BYTES_PER_ELEMENT);
-};
-
 export function struct() {
 	return function structDecorator(targetClass: Class): any {
-		class StructClass extends targetClass {
-			static schema = currentSchema;
-			static fieldSizes = currentFieldSizes;
-			static size = currentSize;
-			static alignment = currentAlignment;
+		const { schema, fieldSizes, size, alignment } = resetFields();
+		return class extends targetClass {
+			static schema = schema;
+			static fieldSizes = fieldSizes;
+			static size = size;
+			static alignment = alignment;
 
 			store: object;
 			index: number;
@@ -37,12 +22,7 @@ export function struct() {
 				this.store = store;
 				this.index = index;
 			}
-		}
-		currentSchema = {};
-		currentFieldSizes = {};
-		currentSize = 0;
-		currentAlignment = 1;
-		return StructClass;
+		};
 	};
 }
 function createPrimativeFieldDecorator(type: TypedArrayConstructor) {
