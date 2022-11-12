@@ -6,6 +6,8 @@ export function isStruct(val: unknown): val is ComponentType {
 		//@ts-ignore
 		typeof val.size === 'number' &&
 		//@ts-ignore
-		typeof val.schema === 'object'
+		typeof val.alignment === 'number' &&
+		//@ts-ignore
+		typeof val.schema === 'number'
 	);
 }
