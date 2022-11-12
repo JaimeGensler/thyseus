@@ -86,7 +86,7 @@ export class Table {
 		for (const [ComponentType, store] of this.columns) {
 			this.columns.set(
 				ComponentType,
-				resizeStore(world, ComponentType, this.capacity, store),
+				resizeStore(store, ComponentType, this.capacity),
 			);
 		}
 	}
@@ -141,7 +141,7 @@ if (import.meta.vitest) {
 		expect(table.isFull).toBe(true);
 	});
 
-	it('moves elements from one table to another', () => {
+	it.only('moves elements from one table to another', () => {
 		const fromTable = Table.create(mockWorld, [Entity, Vec3]);
 		const toTable = Table.create(mockWorld, [Entity, Vec3]);
 
@@ -173,9 +173,9 @@ if (import.meta.vitest) {
 		expect(toTable.size).toBe(2);
 
 		to.index = 1;
-		expect(to).toBe(1);
-		expect(to).toBe(2);
-		expect(to).toBe(3);
+		expect(to.x).toBe(1);
+		expect(to.y).toBe(2);
+		expect(to.z).toBe(3);
 
 		from.index = 0;
 		expect(from.x).toBe(7);
