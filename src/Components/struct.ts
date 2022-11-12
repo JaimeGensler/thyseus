@@ -1,6 +1,10 @@
-import { addField, resetFields } from './addField';
+import { addField, TYPE_IDS, resetFields } from './addField';
 import type { Class } from '../Resources';
-import type { TypedArray, TypedArrayConstructor } from './types';
+import type {
+	ComponentStore,
+	TypedArray,
+	TypedArrayConstructor,
+} from './types';
 
 type DiscriminatedUnion<L, R> =
 	| (L & { [Key in keyof R]?: never })
@@ -8,16 +12,15 @@ type DiscriminatedUnion<L, R> =
 
 export function struct() {
 	return function structDecorator(targetClass: Class): any {
-		const { schema, fieldSizes, size, alignment } = resetFields();
+		const { schema, size, alignment } = resetFields();
 		return class extends targetClass {
-			static schema = schema;
-			static fieldSizes = fieldSizes;
+			static schema = schema | ((targetClass as any).schema ?? 0);
 			static size = size;
 			static alignment = alignment;
 
-			store: object;
+			store: ComponentStore;
 			index: number;
-			constructor(store: object, index: number) {
+			constructor(store: ComponentStore, index: number) {
 				super();
 				this.store = store;
 				this.index = index;
@@ -25,57 +28,82 @@ export function struct() {
 		};
 	};
 }
-function createPrimativeFieldDecorator(type: TypedArrayConstructor) {
+function createPrimativeFieldDecorator(
+	type: TypedArrayConstructor,
+	storeKey: keyof typeof TYPE_IDS,
+) {
 	return function () {
 		return function fieldDecorator(
 			prototype: object,
 			propertyKey: string | symbol,
 		) {
-			addField(propertyKey, type);
+			const offset = addField(
+				propertyKey,
+				type.BYTES_PER_ELEMENT,
+				type.BYTES_PER_ELEMENT,
+				TYPE_IDS[storeKey],
+			);
+			const size = 1 / type.BYTES_PER_ELEMENT;
+
 			Object.defineProperty(prototype, propertyKey, {
 				enumerable: true,
 				get() {
-					return this.store[propertyKey][this.index];
+					return this.store[storeKey][
+						this.index * this.constructor.size * size +
+							offset[propertyKey]
+					];
 				},
 				set(value: number) {
-					this.store[propertyKey][this.index] = value;
+					this.store[storeKey][
+						this.index * this.constructor.size * size +
+							offset[propertyKey]
+					] = value;
 				},
 			});
 		};
 	};
 }
 
+struct.u8 = createPrimativeFieldDecorator(Uint8Array, 'u8');
+struct.u16 = createPrimativeFieldDecorator(Uint16Array, 'u16');
+struct.u32 = createPrimativeFieldDecorator(Uint32Array, 'u32');
+struct.u64 = createPrimativeFieldDecorator(BigUint64Array, 'u64');
+struct.i8 = createPrimativeFieldDecorator(Int8Array, 'i8');
+struct.i16 = createPrimativeFieldDecorator(Int16Array, 'i16');
+struct.i32 = createPrimativeFieldDecorator(Int32Array, 'i32');
+struct.i64 = createPrimativeFieldDecorator(BigInt64Array, 'i64');
+struct.f32 = createPrimativeFieldDecorator(Float32Array, 'f32');
+struct.f64 = createPrimativeFieldDecorator(Float64Array, 'f64');
 struct.bool = function () {
 	return function fieldDecorator(
 		prototype: object,
 		propertyKey: string | symbol,
 	) {
-		addField(propertyKey, Uint8Array);
+		const offset = addField(
+			propertyKey,
+			Uint8Array.BYTES_PER_ELEMENT,
+			Uint8Array.BYTES_PER_ELEMENT,
+			TYPE_IDS.u8,
+		);
+
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				return !!this.store[propertyKey][this.index];
+				return !!this.store.u8[
+					this.index * this.constructor.size + offset[propertyKey]
+				];
 			},
 			set(value: boolean) {
-				this.store[propertyKey][this.index] = Number(value);
+				this.store.u8[
+					this.index * this.constructor.size + offset[propertyKey]
+				] = Number(value);
 			},
 		});
 	};
 };
-struct.u8 = createPrimativeFieldDecorator(Uint8Array);
-struct.u16 = createPrimativeFieldDecorator(Uint16Array);
-struct.u32 = createPrimativeFieldDecorator(Uint32Array);
-struct.u64 = createPrimativeFieldDecorator(BigUint64Array);
-struct.i8 = createPrimativeFieldDecorator(Int8Array);
-struct.i16 = createPrimativeFieldDecorator(Int16Array);
-struct.i32 = createPrimativeFieldDecorator(Int32Array);
-struct.i64 = createPrimativeFieldDecorator(BigInt64Array);
-struct.f32 = createPrimativeFieldDecorator(Float32Array);
-struct.f64 = createPrimativeFieldDecorator(Float64Array);
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-
 struct.string = function ({
 	characterCount,
 	byteLength,
@@ -85,29 +113,35 @@ struct.string = function ({
 		propertyKey: string | symbol,
 	) {
 		byteLength ??= characterCount! * 3;
-		addField(propertyKey, Uint8Array, byteLength);
+		const offset = addField(
+			propertyKey,
+			Uint8Array.BYTES_PER_ELEMENT,
+			byteLength,
+		);
 
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
+				const position =
+					this.index * this.constructor.size + offset[propertyKey];
+
 				return decoder
 					.decode(
-						new Uint8Array(
-							this.store[propertyKey].buffer,
-							this.index * 3,
-							byteLength,
+						this.store.u8.subarray(
+							position,
+							position + byteLength!,
 						),
 					)
 					.split('\u0000')[0];
 			},
 			set(value: string) {
+				const position =
+					this.index * this.constructor.size + offset[propertyKey];
 				encoder.encodeInto(
 					value,
-					new Uint8Array(
-						this.store[propertyKey].buffer,
-						this.index * 3,
-						byteLength,
-					).fill(0),
+					this.store.u8
+						.subarray(position, position + byteLength!)
+						.fill(0),
 				);
 			},
 		});
@@ -125,28 +159,35 @@ const typeToConstructor = {
 	f32: Float32Array,
 	f64: Float64Array,
 } as const;
-struct.array = function (type: keyof typeof typeToConstructor, length: number) {
+struct.array = function (typeName: keyof typeof TYPE_IDS, length: number) {
 	return function fieldDecorator(
 		prototype: object,
 		propertyKey: string | symbol,
 	) {
-		const typeConstructor = typeToConstructor[type];
-		const byteLength = typeConstructor.BYTES_PER_ELEMENT * length;
-		addField(propertyKey, typeConstructor, byteLength);
-
+		const typeConstructor = typeToConstructor[typeName];
+		const offset = addField(
+			propertyKey,
+			typeConstructor.BYTES_PER_ELEMENT,
+			typeConstructor.BYTES_PER_ELEMENT * length,
+			TYPE_IDS[typeName],
+		);
+		const size = 1 / typeConstructor.BYTES_PER_ELEMENT;
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				return (this.store[propertyKey] as Uint8Array).subarray(
-					this.index * length,
-					this.index * length + length,
+				const position =
+					this.index * this.constructor.size * size +
+					offset[propertyKey];
+				return this.store[typeName].subarray(
+					position,
+					position + length,
 				);
 			},
 			set(value: TypedArray) {
-				(this.store[propertyKey] as Uint8Array).set(
-					(value as Uint8Array).subarray(0, length),
-					this.index * length,
-				);
+				const position =
+					this.index * this.constructor.size * size +
+					offset[propertyKey];
+				this.store[typeName].set(value.subarray(0, length), position);
 			},
 		});
 	};
@@ -158,49 +199,59 @@ struct.array = function (type: keyof typeof typeToConstructor, length: number) {
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
 
-	it('adds a schema and size to decorated classes', () => {
+	it('adds a schema, size, and alignment to decorated classes', () => {
 		@struct()
-		class CompA {
-			declare static schema: object;
-		}
+		class CompA {}
 
 		@struct()
 		class CompB {
-			declare static schema: object;
 			@struct.i32() declare myField: number;
 		}
 
-		expect(CompA).toHaveProperty('schema', {});
-		expect(CompA).toHaveProperty('fieldSizes', {});
-		expect(CompB).toHaveProperty('schema', { myField: Int32Array });
-		expect(CompB).toHaveProperty('fieldSizes', {});
+		@struct()
+		class CompC {
+			@struct.u8() declare myField: number;
+			@struct.u16() declare myField2: number;
+			@struct.f64() declare myField3: number;
+		}
 
-		expect(CompA.schema).not.toBe(CompB.schema);
+		expect(CompA).toHaveProperty('schema', 0);
+		expect(CompA).toHaveProperty('size', 0);
+		expect(CompA).toHaveProperty('alignment', 1);
+
+		expect(CompB).toHaveProperty('schema', TYPE_IDS.i32);
+		expect(CompB).toHaveProperty('size', 4);
+		expect(CompB).toHaveProperty('alignment', 4);
+
+		expect(CompC).toHaveProperty(
+			'schema',
+			TYPE_IDS.u8 | TYPE_IDS.u16 | TYPE_IDS.f64,
+		);
+		expect(CompC).toHaveProperty('size', 16);
+		expect(CompC).toHaveProperty('alignment', 8);
 	});
 
 	it('creates a getter/setter around fields', () => {
 		@struct()
 		class Vec3 {
+			declare static schema: number;
 			declare index: number;
 			@struct.f64() declare x: number;
 			@struct.f64() declare y: number;
 			@struct.f64() declare z: number;
-			constructor(store: object, index: number) {}
+			constructor(store: ComponentStore, index: number) {}
 		}
-		expect(Vec3).toHaveProperty('schema', {
-			x: Float64Array,
-			y: Float64Array,
-			z: Float64Array,
-		});
+		expect(Vec3).toHaveProperty('schema', TYPE_IDS.f64);
 
+		const buffer = new ArrayBuffer(2 * 8 * 3);
 		const store = {
-			x: new Float64Array(8),
-			y: new Float64Array(8),
-			z: new Float64Array(8),
+			buffer,
+			u8: new Uint8Array(buffer),
+			f64: new Float64Array(buffer),
 		};
-		store.x[0] = 1;
-		store.y[0] = 2;
-		store.z[0] = 3;
+		store.f64[0] = 1;
+		store.f64[1] = 2;
+		store.f64[2] = 3;
 
 		const vec = new Vec3(store, 0);
 
@@ -219,38 +270,51 @@ if (import.meta.vitest) {
 
 		vec.y = 8;
 
+		expect(vec.x).toBe(0);
 		expect(vec.y).toBe(8);
+		expect(vec.z).toBe(0);
 	});
 
 	it('works with every primitive decorators', () => {
 		const fields = [
-			[struct.bool, Uint8Array, false, true],
-			[struct.u8, Uint8Array, 0, 1],
-			[struct.u16, Uint16Array, 0, 65_535],
-			[struct.u32, Uint32Array, 0, 1_000_000],
-			[struct.u64, BigUint64Array, 0n, 1_123_000_000n],
-			[struct.i8, Int8Array, 0, -100],
-			[struct.i16, Int16Array, 0, -16_000],
-			[struct.i32, Int32Array, 0, 32],
-			[struct.i64, BigInt64Array, 0n, -1_000_000_000n],
-			[struct.f32, Float32Array, 0, 15],
-			[struct.f64, Float64Array, 0, Math.PI],
+			[struct.bool, 'u8', Uint8Array, false, true],
+			[struct.u8, 'u8', Uint8Array, 0, 1],
+			[struct.u16, 'u16', Uint16Array, 0, 65_535],
+			[struct.u32, 'u32', Uint32Array, 0, 1_000_000],
+			[struct.u64, 'u64', BigUint64Array, 0n, 1_123_000_000n],
+			[struct.i8, 'i8', Int8Array, 0, -100],
+			[struct.i16, 'i16', Int16Array, 0, -16_000],
+			[struct.i32, 'i32', Int32Array, 0, 32],
+			[struct.i64, 'i64', BigInt64Array, 0n, -1_000_000_000n],
+			[struct.f32, 'f32', Float32Array, 0, 15],
+			[struct.f64, 'f64', Float64Array, 0, Math.PI],
 		] as const;
 
-		for (const [decorator, FieldConstructor, init, val] of fields) {
+		for (const [
+			decorator,
+			schemaField,
+			FieldConstructor,
+			init,
+			val,
+		] of fields) {
 			@struct()
 			class Comp {
-				declare store: object;
 				declare index: number;
-				declare static schema: object;
-				declare static fieldSizes: object;
+				declare static schema: number;
 				@decorator() declare field: any;
-				constructor(store: object, index: number) {}
+				constructor(store: ComponentStore, index: number) {}
 			}
 
-			expect(Comp.schema).toStrictEqual({ field: FieldConstructor });
+			expect(Comp.schema).toBe(TYPE_IDS[schemaField]);
 
-			const store = { field: new FieldConstructor(2) };
+			const buffer = new ArrayBuffer(
+				FieldConstructor.BYTES_PER_ELEMENT * 2,
+			);
+			const store = {
+				buffer,
+				u8: new Uint8Array(buffer),
+				[schemaField]: new FieldConstructor(buffer),
+			};
 
 			const comp = new Comp(store, 0);
 			expect(comp.field).toBe(init);
@@ -264,18 +328,16 @@ if (import.meta.vitest) {
 	it('works for string fields', () => {
 		@struct()
 		class Comp {
-			declare store: object;
-			declare index: number;
-			declare static schema: object;
-			declare static fieldSizes: object;
+			declare static schema: number;
 			@struct.string({ characterCount: 5 }) declare value: string;
 			@struct.string({ byteLength: 1 }) declare value2: string;
-			constructor(store: object, index: number) {}
+			constructor(store: ComponentStore, index: number) {}
 		}
 
+		const buffer = new ArrayBuffer(17);
 		const store = {
-			value: new Uint8Array(5 * 3),
-			value2: new Uint8Array(1),
+			buffer,
+			u8: new Uint8Array(buffer),
 		};
 
 		const comp = new Comp(store, 0);
@@ -300,17 +362,18 @@ if (import.meta.vitest) {
 	it('works for arrays', () => {
 		@struct()
 		class Comp {
-			declare store: object;
+			declare static size: number;
+			declare static schema: number;
 			declare index: number;
-			declare static schema: object;
-			declare static fieldSizes: object;
 			@struct.array('u8', 8) declare value: Uint8Array;
 			@struct.array('f64', 3) declare value2: Float64Array;
-			constructor(store: object, index: number) {}
+			constructor(store: ComponentStore, index: number) {}
 		}
+		const buffer = new ArrayBuffer(Comp.size * 2);
 		const store = {
-			value: new Uint8Array(8 * 2),
-			value2: new Float64Array(3 * 2),
+			buffer,
+			u8: new Uint8Array(buffer),
+			f64: new Float64Array(buffer),
 		};
 		const comp = new Comp(store, 0);
 		expect(comp.value).toBeInstanceOf(Uint8Array);
@@ -325,4 +388,6 @@ if (import.meta.vitest) {
 		expect(comp.value).toStrictEqual(new Uint8Array(8));
 		expect(comp.value2).toStrictEqual(new Float64Array(3));
 	});
+
+	it.todo('reorders fields as necessary');
 }
