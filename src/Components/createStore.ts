@@ -2,7 +2,7 @@ import { TYPE_IDS } from './addField';
 import type { ComponentType, ComponentStore } from './types';
 import type { World } from '../World';
 
-const NAMES_AND_CONSTRUCTORS = [
+export const NAMES_AND_CONSTRUCTORS = [
 	['u8', Uint8Array],
 	['u16', Uint16Array],
 	['u32', Uint32Array],

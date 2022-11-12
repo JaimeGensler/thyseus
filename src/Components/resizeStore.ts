@@ -1,25 +1,27 @@
+import { TYPE_IDS } from './addField';
+import { NAMES_AND_CONSTRUCTORS } from './createStore';
 import type { ComponentType, ComponentStore } from './types';
 import type { World } from '../World';
 
 export function resizeStore(
-	world: World,
+	store: ComponentStore,
 	ComponentType: ComponentType,
 	count: number,
-	store: ComponentStore,
 ): ComponentStore {
-	const buffer = world.createBuffer(ComponentType.size! * count);
+	const newBuffer = new (store.buffer.constructor as ArrayBufferConstructor)(
+		ComponentType.size! * count,
+	);
+	const u8 = new Uint8Array(newBuffer);
+	u8.set(store.u8);
 
-	let offset = 0;
-
-	return Object.entries(ComponentType.schema!).reduce(
-		(acc, [key, FieldConstructor]) => {
-			acc[key] = new FieldConstructor(buffer, offset, count);
-			// TODO: Fix type
-			acc[key].set(store[key] as any, 0);
-			offset += count * FieldConstructor.BYTES_PER_ELEMENT;
+	return NAMES_AND_CONSTRUCTORS.reduce(
+		(acc, [key, TArray]) => {
+			if ((TYPE_IDS[key] & ComponentType.schema!) === TYPE_IDS[key]) {
+				acc[key] = new TArray(newBuffer) as any;
+			}
 			return acc;
 		},
-		{} as ComponentStore,
+		{ buffer: newBuffer, u8 } as ComponentStore,
 	);
 }
 /*---------*\
@@ -32,11 +34,14 @@ if (import.meta.vitest) {
 
 	@struct()
 	class Vec3 {
-		static schema = {};
-		static size = 0;
+		declare static schema: number;
+		declare static size: number;
+		declare store: ComponentStore;
+		declare index: number;
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
+		constructor(store: ComponentStore, index: number) {}
 	}
 
 	const mockWorld: World = {
@@ -47,36 +52,38 @@ if (import.meta.vitest) {
 	} as any;
 
 	it('returns an object with the same shape', () => {
-		const initialStore = createStore(mockWorld, Vec3);
-		const resizedStore = resizeStore(mockWorld, Vec3, 16, initialStore);
+		const initialStore = createStore(mockWorld, Vec3, 8);
+		const resizedStore = resizeStore(initialStore, Vec3, 16);
 
-		let key: any;
+		expect(initialStore.buffer).not.toBe(resizedStore.buffer);
+		expect(initialStore.buffer.byteLength).toBe(Vec3.size * 8);
+		expect(resizedStore.buffer.byteLength).toBe(Vec3.size * 16);
+		let key: keyof typeof initialStore;
 		for (key in initialStore) {
-			expect(initialStore[key].constructor).toBe(
-				resizedStore[key].constructor,
+			expect(initialStore[key]!.constructor).toBe(
+				resizedStore[key]!.constructor,
 			);
-			expect(initialStore[key]).toHaveLength(8);
-			expect(resizedStore[key]).toHaveLength(16);
 		}
-		expect(initialStore.x.buffer).not.toBe(resizedStore.x.buffer);
 	});
 
 	it('copies previous items', () => {
 		const initialStore = createStore(mockWorld, Vec3);
 
-		const values = [0, 1.2, Math.PI, 3.3, 4.4, 5.5, 6, 7.7];
+		const vec = new Vec3(initialStore, 0);
+		const values = [1.2, 0, Math.PI, 3.3, 4.4, 5.5, 6, 7.7];
 		values.forEach((val, i) => {
-			initialStore.x[i] = val;
-			initialStore.y[i] = val;
-			initialStore.z[i] = val;
+			vec.index = i;
+			vec.x = val;
+			vec.y = val;
+			vec.z = val;
 		});
 
-		const resizedStore = resizeStore(mockWorld, Vec3, 16, initialStore);
-
+		vec.store = resizeStore(initialStore, Vec3, 16);
 		values.forEach((val, i) => {
-			expect(resizedStore.x[i]).toBe(val);
-			expect(resizedStore.y[i]).toBe(val);
-			expect(resizedStore.z[i]).toBe(val);
+			vec.index = i;
+			expect(vec.x).toBe(val);
+			expect(vec.y).toBe(val);
+			expect(vec.z).toBe(val);
 		});
 	});
 }
