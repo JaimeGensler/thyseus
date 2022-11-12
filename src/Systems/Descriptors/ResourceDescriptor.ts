@@ -51,7 +51,8 @@ if (import.meta.vitest) {
 	class B {}
 	class C {
 		static size = 0;
-		static schema = {};
+		static schema = 0;
+		static alignment = 1;
 	}
 
 	describe('intersectsWith', () => {
