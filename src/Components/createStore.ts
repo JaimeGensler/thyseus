@@ -1,22 +1,34 @@
+import { TYPE_IDS } from './addField';
 import type { ComponentType, ComponentStore } from './types';
 import type { World } from '../World';
 
+const NAMES_AND_CONSTRUCTORS = [
+	['u8', Uint8Array],
+	['u16', Uint16Array],
+	['u32', Uint32Array],
+	['u64', BigUint64Array],
+	['i8', Int8Array],
+	['i16', Int16Array],
+	['i32', Int32Array],
+	['i64', BigInt64Array],
+	['f32', Float32Array],
+	['f64', Float64Array],
+] as const;
 export function createStore(
 	world: World,
 	ComponentType: ComponentType,
+	count: number = world.config.getNewTableSize(0),
 ): ComponentStore {
-	const count = world.config.getNewTableSize(0);
 	const buffer = world.createBuffer(ComponentType.size! * count);
 
-	let offset = 0;
-
-	return Object.entries(ComponentType.schema!).reduce(
-		(acc, [key, FieldConstructor]) => {
-			acc[key] = new FieldConstructor(buffer, offset, count);
-			offset += count * FieldConstructor.BYTES_PER_ELEMENT;
+	return NAMES_AND_CONSTRUCTORS.reduce(
+		(acc, [key, TArray]) => {
+			if ((TYPE_IDS[key] & ComponentType.schema!) === TYPE_IDS[key]) {
+				acc[key] = new TArray(buffer) as any;
+			}
 			return acc;
 		},
-		{} as ComponentStore,
+		{ buffer, u8: new Uint8Array(buffer) } as ComponentStore,
 	);
 }
 
@@ -34,39 +46,91 @@ if (import.meta.vitest) {
 		},
 	} as any;
 
-	it('returns an object with TypedArray keys for each field, using a single buffer', () => {
+	it('returns an object with TypedArray keys for specified fields, using a single buffer', () => {
 		@struct()
 		class MyComponent {
-			static size = 0;
-			static schema = {};
-			@struct.u8() declare unsigned1: number;
-			@struct.u16() declare unsigned2: number;
-			@struct.u32() declare unsigned3: number;
-			@struct.u64() declare unsigned4: bigint;
-			@struct.i8() declare int1: number;
-			@struct.i16() declare int2: number;
-			@struct.i32() declare int3: number;
-			@struct.i64() declare int4: bigint;
-			@struct.f32() declare float1: number;
-			@struct.f64() declare float2: number;
+			declare static size: number;
+			declare static schema: number;
+			@struct.u8() declare a: number;
+			@struct.u16() declare b: number;
+			@struct.u32() declare c: number;
+			@struct.u64() declare d: bigint;
+			@struct.i8() declare e: number;
+			@struct.i16() declare f: number;
+			@struct.i32() declare g: number;
+			@struct.i64() declare h: bigint;
+			@struct.f32() declare i: number;
+			@struct.f64() declare j: number;
 		}
+		// console.log(MyComponent.)
 		const result = createStore(mockWorld, MyComponent);
 
-		expect(result.unsigned1).toBeInstanceOf(Uint8Array);
-		expect(result.unsigned2).toBeInstanceOf(Uint16Array);
-		expect(result.unsigned3).toBeInstanceOf(Uint32Array);
-		expect(result.unsigned4).toBeInstanceOf(BigUint64Array);
-		expect(result.int1).toBeInstanceOf(Int8Array);
-		expect(result.int2).toBeInstanceOf(Int16Array);
-		expect(result.int3).toBeInstanceOf(Int32Array);
-		expect(result.int4).toBeInstanceOf(BigInt64Array);
-		expect(result.float1).toBeInstanceOf(Float32Array);
-		expect(result.float2).toBeInstanceOf(Float64Array);
+		expect(result.buffer).toBeInstanceOf(ArrayBuffer);
+		expect(result.u8).toBeInstanceOf(Uint8Array);
+		expect(result.u16).toBeInstanceOf(Uint16Array);
+		expect(result.u32).toBeInstanceOf(Uint32Array);
+		expect(result.u64).toBeInstanceOf(BigUint64Array);
+		expect(result.i8).toBeInstanceOf(Int8Array);
+		expect(result.i16).toBeInstanceOf(Int16Array);
+		expect(result.i32).toBeInstanceOf(Int32Array);
+		expect(result.i64).toBeInstanceOf(BigInt64Array);
+		expect(result.f32).toBeInstanceOf(Float32Array);
+		expect(result.f64).toBeInstanceOf(Float64Array);
 
-		const buffer = result.unsigned1.buffer;
-		for (const key in result) {
-			expect(result[key].length).toBe(8);
-			expect(result[key].buffer).toBe(buffer);
+		const buffer = result.buffer;
+		for (const key of Object.keys(result).filter(x => x !== 'buffer')) {
+			expect((result as any)[key].buffer).toBe(buffer);
 		}
+	});
+
+	it('only includes TypedArrays specified by schema (except u8)', () => {
+		@struct()
+		class MyComponent {
+			declare static size: number;
+			declare static schema: number;
+			@struct.u64() declare a: bigint;
+			@struct.i8() declare b: number;
+			@struct.f32() declare c: number;
+		}
+		const buffer = new ArrayBuffer(16);
+		expect(createStore(mockWorld, MyComponent, 1)).toStrictEqual({
+			buffer,
+			u8: new Uint8Array(buffer),
+			u64: new BigUint64Array(buffer),
+			i8: new Int8Array(buffer),
+			f32: new Float32Array(buffer),
+		});
+	});
+
+	it('always includes buffer and u8', () => {
+		class SchemalessComponent {
+			static schema = 0;
+			static size = 1;
+		}
+		const result = createStore(mockWorld, SchemalessComponent, 8);
+		expect(result).toStrictEqual({
+			buffer: new ArrayBuffer(8),
+			u8: new Uint8Array(8),
+		});
+	});
+
+	it('does not require count to be a multiple of 8', () => {
+		class SomeComponent {
+			static schema = TYPE_IDS.i8 | TYPE_IDS.f32 | TYPE_IDS.u16;
+			static size = 8;
+			static alignment = 4;
+		}
+		const result1 = createStore(mockWorld, SomeComponent, 1);
+		expect(result1.buffer.byteLength).toBe(8 * 1);
+		const result2 = createStore(mockWorld, SomeComponent, 3);
+		expect(result2.buffer.byteLength).toBe(8 * 3);
+		const result3 = createStore(mockWorld, SomeComponent, 7);
+		expect(result3.buffer.byteLength).toBe(8 * 7);
+		const result4 = createStore(mockWorld, SomeComponent, 63);
+		expect(result4.buffer.byteLength).toBe(8 * 63);
+
+		expect(result4.i8).toBeInstanceOf(Int8Array);
+		expect(result4.f32).toBeInstanceOf(Float32Array);
+		expect(result4.u16).toBeInstanceOf(Uint16Array);
 	});
 }
