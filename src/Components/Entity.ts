@@ -1,19 +1,18 @@
 import { getGeneration, getIndex } from '../utils/entityId';
+import { TYPE_IDS } from './addField';
 import type { WorldCommands } from '../World/WorldCommands';
-import type { ComponentType } from './types';
+import type { ComponentStore, ComponentType } from './types';
 
+// TODO: Add u32 to schema, refactor entityIndex and generation to just
+// pull data out of the buffer.
 export class Entity {
-	static schema = { val: BigUint64Array };
+	static schema = TYPE_IDS.u64;
 	static size = 8;
 
-	store: { val: BigUint64Array };
+	store: ComponentStore;
 	index: number;
 	commands: WorldCommands;
-	constructor(
-		store: { val: BigUint64Array },
-		index: number,
-		commands: WorldCommands,
-	) {
+	constructor(store: ComponentStore, index: number, commands: WorldCommands) {
 		this.store = store;
 		this.index = index;
 		this.commands = commands;
@@ -24,7 +23,7 @@ export class Entity {
 	 * Composed of an entity's generation & index.
 	 */
 	get id(): bigint {
-		return this.store.val[this.index];
+		return this.store.u64![this.index];
 	}
 
 	/**
