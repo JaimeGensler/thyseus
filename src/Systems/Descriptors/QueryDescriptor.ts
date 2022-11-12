@@ -66,8 +66,8 @@ if (import.meta.vitest) {
 	const { struct } = await import('../../Components');
 
 	class Comp {
-		static size = 0;
-		static schema = {};
+		declare static size: number;
+		declare static schema: number;
 	}
 	@struct()
 	class A extends Comp {
