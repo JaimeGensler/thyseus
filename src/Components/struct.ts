@@ -2,6 +2,7 @@ import { addField, TYPE_IDS, resetFields } from './addField';
 import type { Class } from '../Resources';
 import type {
 	ComponentStore,
+	ComponentType,
 	TypedArray,
 	TypedArrayConstructor,
 } from './types';
@@ -191,12 +192,50 @@ struct.array = function (typeName: keyof typeof TYPE_IDS, length: number) {
 		});
 	};
 };
+struct.component = function (componentType: ComponentType) {
+	return function fieldDecorator(
+		prototype: object,
+		propertyKey: string | symbol,
+	) {
+		const offset = addField(
+			propertyKey,
+			componentType.alignment!,
+			componentType.size!,
+			componentType.schema!,
+		);
+		Object.defineProperty(prototype, propertyKey, {
+			enumerable: true,
+			get() {
+				const val: any = new componentType(this.__$$s, 0, {} as any);
+				val.__$$b =
+					this.__$$b + offset[propertyKey] * componentType.alignment!;
+				return val;
+			},
+			set(value: any) {
+				this.__$$s.u8.set(
+					value.__$$s,
+					this.__$$b + offset[propertyKey] * componentType.alignment!,
+				);
+			},
+		});
+	};
+};
 
 /*---------*\
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
+
+	@struct()
+	class Vec3 {
+		declare static schema: number;
+		declare __$$i: number;
+		@struct.f64() declare x: number;
+		@struct.f64() declare y: number;
+		@struct.f64() declare z: number;
+		constructor(store: ComponentStore, index: number) {}
+	}
 
 	it('adds a schema, size, and alignment to decorated classes', () => {
 		@struct()
@@ -231,15 +270,6 @@ if (import.meta.vitest) {
 	});
 
 	it('creates a getter/setter around fields', () => {
-		@struct()
-		class Vec3 {
-			declare static schema: number;
-			declare __$$i: number;
-			@struct.f64() declare x: number;
-			@struct.f64() declare y: number;
-			@struct.f64() declare z: number;
-			constructor(store: ComponentStore, index: number) {}
-		}
 		expect(Vec3).toHaveProperty('schema', TYPE_IDS.f64);
 
 		const buffer = new ArrayBuffer(2 * 8 * 3);
@@ -423,5 +453,50 @@ if (import.meta.vitest) {
 		expect(comp.b).toBe(0xfffffff0n);
 		expect(comp.c).toBe(-13);
 		expect(comp.d).toBe(1.5);
+	});
+
+	it('works for components', () => {
+		@struct()
+		class Transform {
+			declare static size: number;
+			declare static schema: number;
+			declare __$$i: number;
+			@struct.component(Vec3) declare position: Vec3;
+			@struct.f32() declare scale: number;
+			@struct.component(Vec3) declare rotation: Vec3;
+			constructor(store: ComponentStore, index: number) {}
+		}
+
+		const buffer = new ArrayBuffer(Transform.size * 2);
+		const store = {
+			buffer,
+			u8: new Uint8Array(buffer),
+			f32: new Float32Array(buffer),
+			f64: new Float64Array(buffer),
+		};
+		const transform = new Transform(store, 0);
+		expect(transform.position.x).toBe(0);
+		expect(transform.position.y).toBe(0);
+		expect(transform.position.z).toBe(0);
+		expect(transform.rotation.x).toBe(0);
+		expect(transform.rotation.z).toBe(0);
+		expect(transform.rotation.z).toBe(0);
+		expect(transform.scale).toBe(0);
+
+		transform.position.x = 1.5;
+		transform.position.y = 2.5;
+		transform.position.z = 3.5;
+		transform.rotation.x = 4.5;
+		transform.rotation.y = 5.5;
+		transform.rotation.z = 6.5;
+		transform.scale = 7.5;
+
+		expect(transform.position.x).toBe(1.5);
+		expect(transform.position.y).toBe(2.5);
+		expect(transform.position.z).toBe(3.5);
+		expect(transform.rotation.x).toBe(4.5);
+		expect(transform.rotation.y).toBe(5.5);
+		expect(transform.rotation.z).toBe(6.5);
+		expect(transform.scale).toBe(7.5);
 	});
 }
