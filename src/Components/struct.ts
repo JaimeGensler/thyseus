@@ -19,11 +19,21 @@ export function struct() {
 			static alignment = alignment;
 
 			__$$s: ComponentStore;
-			__$$i: number;
+			__$$b: number;
+			#index: number;
+			get __$$i() {
+				return this.#index;
+			}
+			set __$$i(value: number) {
+				this.#index = value;
+				this.__$$b = value * (this.constructor as any).size;
+			}
+
 			constructor(store: ComponentStore, index: number) {
 				super();
 				this.__$$s = store;
-				this.__$$i = index;
+				this.#index = index;
+				this.__$$b = index * (this.constructor as any).size;
 			}
 		};
 	};
@@ -43,20 +53,18 @@ function createPrimativeFieldDecorator(
 				type.BYTES_PER_ELEMENT,
 				TYPE_IDS[storeKey],
 			);
-			const size = 1 / type.BYTES_PER_ELEMENT;
+			const shift = 31 - Math.clz32(type.BYTES_PER_ELEMENT);
 
 			Object.defineProperty(prototype, propertyKey, {
 				enumerable: true,
 				get() {
 					return this.__$$s[storeKey][
-						this.__$$i * this.constructor.size * size +
-							offset[propertyKey]
+						(this.__$$b >> shift) + offset[propertyKey]
 					];
 				},
 				set(value: number) {
 					this.__$$s[storeKey][
-						this.__$$i * this.constructor.size * size +
-							offset[propertyKey]
+						(this.__$$b >> shift) + offset[propertyKey]
 					] = value;
 				},
 			});
@@ -89,14 +97,10 @@ struct.bool = function () {
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				return !!this.__$$s.u8[
-					this.__$$i * this.constructor.size + offset[propertyKey]
-				];
+				return !!this.__$$s.u8[this.__$$b + offset[propertyKey]];
 			},
 			set(value: boolean) {
-				this.__$$s.u8[
-					this.__$$i * this.constructor.size + offset[propertyKey]
-				] = Number(value);
+				this.__$$s.u8[this.__$$b + offset[propertyKey]] = Number(value);
 			},
 		});
 	};
@@ -122,25 +126,23 @@ struct.string = function ({
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				const position =
-					this.__$$i * this.constructor.size + offset[propertyKey];
-
 				return decoder
 					.decode(
 						this.__$$s.u8.subarray(
-							position,
-							position + byteLength!,
+							this.__$$b + offset[propertyKey],
+							this.__$$b + offset[propertyKey] + byteLength!,
 						),
 					)
 					.split('\u0000')[0];
 			},
 			set(value: string) {
-				const position =
-					this.__$$i * this.constructor.size + offset[propertyKey];
 				encoder.encodeInto(
 					value,
 					this.__$$s.u8
-						.subarray(position, position + byteLength!)
+						.subarray(
+							this.__$$b + offset[propertyKey],
+							this.__$$b + offset[propertyKey] + byteLength!,
+						)
 						.fill(0),
 				);
 			},
@@ -171,23 +173,20 @@ struct.array = function (typeName: keyof typeof TYPE_IDS, length: number) {
 			typeConstructor.BYTES_PER_ELEMENT * length,
 			TYPE_IDS[typeName],
 		);
-		const size = 1 / typeConstructor.BYTES_PER_ELEMENT;
+		const shift = 31 - Math.clz32(typeConstructor.BYTES_PER_ELEMENT);
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				const position =
-					this.__$$i * this.constructor.size * size +
-					offset[propertyKey];
 				return this.__$$s[typeName].subarray(
-					position,
-					position + length,
+					(this.__$$b >> shift) + offset[propertyKey],
+					(this.__$$b >> shift) + offset[propertyKey] + length,
 				);
 			},
 			set(value: TypedArray) {
-				const position =
-					this.__$$i * this.constructor.size * size +
-					offset[propertyKey];
-				this.__$$s[typeName].set(value.subarray(0, length), position);
+				this.__$$s[typeName].set(
+					value.subarray(0, length),
+					(this.__$$b >> shift) + offset[propertyKey],
+				);
 			},
 		});
 	};
