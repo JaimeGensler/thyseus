@@ -10,8 +10,13 @@ export class WorldCommands {
 	#components: ComponentType[];
 	constructor(entities: Entities, components: ComponentType[]) {
 		this.#entities = entities;
+		const buffer = new ArrayBuffer(8);
 		this.#store = new BigUint64Array(1);
-		this.#entity = new Entity({ val: this.#store }, 0, this);
+		this.#entity = new Entity(
+			{ buffer, u8: new Uint8Array(buffer), u64: this.#store },
+			0,
+			this,
+		);
 		this.#components = components;
 	}
 
