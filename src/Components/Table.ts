@@ -104,7 +104,7 @@ if (import.meta.vitest) {
 		declare static schema: number;
 		declare static size: number;
 		declare store: ComponentStore;
-		declare index: number;
+		declare __$$i: number;
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
@@ -157,7 +157,7 @@ if (import.meta.vitest) {
 		from.x = 1;
 		from.y = 2;
 		from.z = 3;
-		from.index = 1;
+		from.__$$i = 1;
 		from.x = 7;
 		from.y = 8;
 		from.z = 9;
@@ -172,12 +172,12 @@ if (import.meta.vitest) {
 		expect(fromTable.size).toBe(1);
 		expect(toTable.size).toBe(2);
 
-		to.index = 1;
+		to.__$$i = 1;
 		expect(to.x).toBe(1);
 		expect(to.y).toBe(2);
 		expect(to.z).toBe(3);
 
-		from.index = 0;
+		from.__$$i = 0;
 		expect(from.x).toBe(7);
 		expect(from.y).toBe(8);
 		expect(from.z).toBe(9);
@@ -195,7 +195,7 @@ if (import.meta.vitest) {
 		vec.x = 1;
 		vec.y = 2;
 		vec.z = 3;
-		vec.index = 1;
+		vec.__$$i = 1;
 		vec.x = 7;
 		vec.y = 8;
 		vec.z = 9;
@@ -203,7 +203,7 @@ if (import.meta.vitest) {
 		table.delete(0);
 
 		expect(table.size).toBe(1);
-		vec.index = 0;
+		vec.__$$i = 0;
 		expect(vec.x).toBe(7);
 		expect(vec.y).toBe(8);
 		expect(vec.z).toBe(9);

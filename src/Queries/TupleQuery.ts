@@ -29,9 +29,9 @@ export class TupleQuery<C extends object[]> implements Query<C> {
 						Object.getPrototypeOf(element).constructor,
 					)!;
 					//@ts-ignore
-					element.store = store;
+					element.__$$s = store;
 					//@ts-ignore
-					element.eid = i;
+					element.__$$i = i;
 				}
 				//@ts-ignore
 				yield this.#elements;

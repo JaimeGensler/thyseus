@@ -28,7 +28,7 @@ export type SendableType =
 	| ImageBitmap
 	| ImageData
 	| SendableType[]
-	| { [key: string]: SendableType }
+	| { [key: string | number]: SendableType }
 	| Map<SendableType, SendableType>
 	| Set<SendableType>;
 

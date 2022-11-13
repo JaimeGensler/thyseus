@@ -9,12 +9,12 @@ export class Entity {
 	static schema = TYPE_IDS.u64;
 	static size = 8;
 
-	store: ComponentStore;
-	index: number;
+	__$$s: ComponentStore;
+	__$$i: number;
 	commands: WorldCommands;
 	constructor(store: ComponentStore, index: number, commands: WorldCommands) {
-		this.store = store;
-		this.index = index;
+		this.__$$s = store;
+		this.__$$i = index;
 		this.commands = commands;
 	}
 
@@ -23,7 +23,7 @@ export class Entity {
 	 * Composed of an entity's generation & index.
 	 */
 	get id(): bigint {
-		return this.store.u64![this.index];
+		return this.__$$s.u64![this.__$$i];
 	}
 
 	/**

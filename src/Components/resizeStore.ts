@@ -36,8 +36,8 @@ if (import.meta.vitest) {
 	class Vec3 {
 		declare static schema: number;
 		declare static size: number;
-		declare store: ComponentStore;
-		declare index: number;
+		declare __$$s: ComponentStore;
+		declare __$$i: number;
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
@@ -72,15 +72,15 @@ if (import.meta.vitest) {
 		const vec = new Vec3(initialStore, 0);
 		const values = [1.2, 0, Math.PI, 3.3, 4.4, 5.5, 6, 7.7];
 		values.forEach((val, i) => {
-			vec.index = i;
+			vec.__$$i = i;
 			vec.x = val;
 			vec.y = val;
 			vec.z = val;
 		});
 
-		vec.store = resizeStore(initialStore, Vec3, 16);
+		vec.__$$s = resizeStore(initialStore, Vec3, 16);
 		values.forEach((val, i) => {
-			vec.index = i;
+			vec.__$$i = i;
 			expect(vec.x).toBe(val);
 			expect(vec.y).toBe(val);
 			expect(vec.z).toBe(val);

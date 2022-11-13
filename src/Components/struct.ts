@@ -18,12 +18,12 @@ export function struct() {
 			static size = size;
 			static alignment = alignment;
 
-			store: ComponentStore;
-			index: number;
+			__$$s: ComponentStore;
+			__$$i: number;
 			constructor(store: ComponentStore, index: number) {
 				super();
-				this.store = store;
-				this.index = index;
+				this.__$$s = store;
+				this.__$$i = index;
 			}
 		};
 	};
@@ -48,14 +48,14 @@ function createPrimativeFieldDecorator(
 			Object.defineProperty(prototype, propertyKey, {
 				enumerable: true,
 				get() {
-					return this.store[storeKey][
-						this.index * this.constructor.size * size +
+					return this.__$$s[storeKey][
+						this.__$$i * this.constructor.size * size +
 							offset[propertyKey]
 					];
 				},
 				set(value: number) {
-					this.store[storeKey][
-						this.index * this.constructor.size * size +
+					this.__$$s[storeKey][
+						this.__$$i * this.constructor.size * size +
 							offset[propertyKey]
 					] = value;
 				},
@@ -89,13 +89,13 @@ struct.bool = function () {
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				return !!this.store.u8[
-					this.index * this.constructor.size + offset[propertyKey]
+				return !!this.__$$s.u8[
+					this.__$$i * this.constructor.size + offset[propertyKey]
 				];
 			},
 			set(value: boolean) {
-				this.store.u8[
-					this.index * this.constructor.size + offset[propertyKey]
+				this.__$$s.u8[
+					this.__$$i * this.constructor.size + offset[propertyKey]
 				] = Number(value);
 			},
 		});
@@ -123,11 +123,11 @@ struct.string = function ({
 			enumerable: true,
 			get() {
 				const position =
-					this.index * this.constructor.size + offset[propertyKey];
+					this.__$$i * this.constructor.size + offset[propertyKey];
 
 				return decoder
 					.decode(
-						this.store.u8.subarray(
+						this.__$$s.u8.subarray(
 							position,
 							position + byteLength!,
 						),
@@ -136,10 +136,10 @@ struct.string = function ({
 			},
 			set(value: string) {
 				const position =
-					this.index * this.constructor.size + offset[propertyKey];
+					this.__$$i * this.constructor.size + offset[propertyKey];
 				encoder.encodeInto(
 					value,
-					this.store.u8
+					this.__$$s.u8
 						.subarray(position, position + byteLength!)
 						.fill(0),
 				);
@@ -176,18 +176,18 @@ struct.array = function (typeName: keyof typeof TYPE_IDS, length: number) {
 			enumerable: true,
 			get() {
 				const position =
-					this.index * this.constructor.size * size +
+					this.__$$i * this.constructor.size * size +
 					offset[propertyKey];
-				return this.store[typeName].subarray(
+				return this.__$$s[typeName].subarray(
 					position,
 					position + length,
 				);
 			},
 			set(value: TypedArray) {
 				const position =
-					this.index * this.constructor.size * size +
+					this.__$$i * this.constructor.size * size +
 					offset[propertyKey];
-				this.store[typeName].set(value.subarray(0, length), position);
+				this.__$$s[typeName].set(value.subarray(0, length), position);
 			},
 		});
 	};
@@ -235,7 +235,7 @@ if (import.meta.vitest) {
 		@struct()
 		class Vec3 {
 			declare static schema: number;
-			declare index: number;
+			declare __$$i: number;
 			@struct.f64() declare x: number;
 			@struct.f64() declare y: number;
 			@struct.f64() declare z: number;
@@ -262,7 +262,7 @@ if (import.meta.vitest) {
 		vec.x = Math.PI;
 		expect(vec.x).toBe(Math.PI);
 
-		vec.index = 1;
+		vec.__$$i = 1;
 
 		expect(vec.x).toBe(0);
 		expect(vec.y).toBe(0);
@@ -299,7 +299,7 @@ if (import.meta.vitest) {
 		] of fields) {
 			@struct()
 			class Comp {
-				declare index: number;
+				declare __$$i: number;
 				declare static schema: number;
 				@decorator() declare field: any;
 				constructor(store: ComponentStore, index: number) {}
@@ -320,7 +320,7 @@ if (import.meta.vitest) {
 			expect(comp.field).toBe(init);
 			comp.field = val;
 			expect(comp.field).toBe(val);
-			comp.index = 1;
+			comp.__$$i = 1;
 			expect(comp.field).toBe(init);
 		}
 	});
@@ -364,7 +364,7 @@ if (import.meta.vitest) {
 		class Comp {
 			declare static size: number;
 			declare static schema: number;
-			declare index: number;
+			declare __$$i: number;
 			@struct.array('u8', 8) declare value: Uint8Array;
 			@struct.array('f64', 3) declare value2: Float64Array;
 			constructor(store: ComponentStore, index: number) {}
@@ -383,7 +383,7 @@ if (import.meta.vitest) {
 		comp.value2 = new Float64Array(3).fill(Math.PI);
 		expect(comp.value).toStrictEqual(new Uint8Array(8).fill(3));
 		expect(comp.value2).toStrictEqual(new Float64Array(3).fill(Math.PI));
-		comp.index = 1;
+		comp.__$$i = 1;
 
 		expect(comp.value).toStrictEqual(new Uint8Array(8));
 		expect(comp.value2).toStrictEqual(new Float64Array(3));
