@@ -388,5 +388,40 @@ if (import.meta.vitest) {
 		expect(comp.value2).toStrictEqual(new Float64Array(3));
 	});
 
-	it.todo('reorders fields as necessary');
+	it('reorders fields as necessary', () => {
+		@struct()
+		class Comp {
+			declare static size: number;
+			declare static schema: number;
+			declare __$$i: number;
+			@struct.u8() declare a: number;
+			@struct.u64() declare b: bigint;
+			@struct.i16() declare c: number;
+			@struct.f32() declare d: number;
+			constructor(store: ComponentStore, index: number) {}
+		}
+		const buffer = new ArrayBuffer(Comp.size * 2);
+		const store = {
+			buffer,
+			u8: new Uint8Array(buffer),
+			u64: new BigUint64Array(buffer),
+			i16: new Int16Array(buffer),
+			f32: new Float32Array(buffer),
+		};
+		const comp = new Comp(store, 0);
+		expect(comp.a).toBe(0);
+		expect(comp.b).toBe(0n);
+		expect(comp.c).toBe(0);
+		expect(comp.d).toBe(0);
+
+		comp.a = 128;
+		comp.b = 0xfffffff0n;
+		comp.c = -13;
+		comp.d = 1.5;
+
+		expect(comp.a).toBe(128);
+		expect(comp.b).toBe(0xfffffff0n);
+		expect(comp.c).toBe(-13);
+		expect(comp.d).toBe(1.5);
+	});
 }

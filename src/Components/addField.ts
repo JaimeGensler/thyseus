@@ -25,14 +25,13 @@ const updateOffsets = (
 	byteLength: number,
 ) => {
 	const position = alignments.reduce(
-		(acc, value, i) =>
-			value < alignment && acc !== alignments.length ? i : acc,
+		(acc, value, i) => (value < alignment && i < acc ? i : acc),
 		alignments.length,
 	);
 	if (position === alignments.length) {
 		keys.push(newKey);
 		alignments.push(alignment);
-		currentOffset[newKey] = keys.length === 0 ? 0 : currentSize / alignment;
+		currentOffset[newKey] = keys.length === 0 ? 0 : currentSize;
 		return;
 	}
 
@@ -42,7 +41,7 @@ const updateOffsets = (
 
 	currentOffset[newKey] = currentOffset[occupyKey];
 	for (let i = position + 1; i < keys.length; i++) {
-		currentOffset[keys[i]] += byteLength / alignments[i];
+		currentOffset[keys[i]] += byteLength;
 	}
 
 	return;
@@ -71,8 +70,12 @@ export function resetFields() {
 	currentSchema = 0;
 	currentSize = 0;
 	currentAlignment = 1;
-	currentOffset = {};
 
+	for (let i = 0; i < keys.length; i++) {
+		currentOffset[keys[i]] /= alignments[i];
+	}
+
+	currentOffset = {};
 	keys.length = 0;
 	alignments.length = 0;
 	return result;
