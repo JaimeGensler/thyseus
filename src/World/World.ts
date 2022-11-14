@@ -3,7 +3,7 @@ import { Executor } from './Executor';
 import { WorldCommands } from './WorldCommands';
 import { Entities } from './Entities';
 import { bits } from '../utils/bits';
-import { createStore, Table, Entity, type ComponentType } from '../Components';
+import { createStore, Table, Entity, type ComponentType } from '../storage';
 import { isStruct, type Class } from '../struct';
 import {
 	validateAndCompleteConfig,

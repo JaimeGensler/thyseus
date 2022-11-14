@@ -4,7 +4,7 @@ import { TupleQuery, type Query } from '../../Queries';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
 import type { World } from '../../World';
-import type { ComponentType } from '../../Components';
+import type { ComponentType } from '../../storage';
 
 type QueryMember = ComponentType | Mutable<ComponentType>;
 

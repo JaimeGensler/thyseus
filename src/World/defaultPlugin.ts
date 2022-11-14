@@ -1,7 +1,7 @@
 import { applyCommands } from '../Systems';
 import { bits } from '../utils/bits';
 import { zipIntoMap } from '../utils/zipIntoMap';
-import { Entity, Table, type ComponentStore } from '../Components';
+import { Entity, Table, type ComponentStore } from '../storage';
 import type { WorldBuilder } from './WorldBuilder';
 
 export function defaultPlugin(builder: WorldBuilder) {

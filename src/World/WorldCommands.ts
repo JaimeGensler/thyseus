@@ -1,4 +1,4 @@
-import { Entity, type ComponentType } from '../Components';
+import { Entity, type ComponentType } from '../storage';
 import type { Entities } from './Entities';
 
 export class WorldCommands {

@@ -1,4 +1,4 @@
-import type { ComponentType, Table } from '../Components';
+import type { ComponentType, Table } from '../storage';
 import type { WorldCommands } from '../World/WorldCommands';
 import type { Query } from './Query';
 

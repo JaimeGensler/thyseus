@@ -1,4 +1,4 @@
-import { ComponentType } from '../Components';
+import { ComponentType } from '../storage';
 
 export interface Class {
 	new (...args: any[]): object;

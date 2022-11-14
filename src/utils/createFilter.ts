@@ -1,4 +1,4 @@
-import type { ComponentType } from '../Components';
+import type { ComponentType } from '../storage';
 
 export function createFilter(
 	allComponents: ComponentType[],

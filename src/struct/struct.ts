@@ -1,4 +1,4 @@
-import { ComponentStore } from '../Components';
+import { ComponentStore } from '../storage';
 import { Class } from './types';
 import { resetFields, TYPE_IDS } from './addField';
 import {

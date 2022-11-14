@@ -3,7 +3,7 @@ import { TYPE_IDS } from '../struct';
 import type { WorldCommands } from '../World/WorldCommands';
 import type { ComponentStore, ComponentType } from './types';
 
-// TODO: Add u32 to schema, refactor entityIndex and generation to just
+// TODO: Add u32 to schema, refactor index and generation to just
 // pull data out of the buffer.
 export class Entity {
 	static schema = TYPE_IDS.u64;
@@ -29,7 +29,7 @@ export class Entity {
 	/**
 	 * The index of this entity (uint32).
 	 */
-	get entityIndex(): number {
+	get index(): number {
 		return getIndex(this.id);
 	}
 

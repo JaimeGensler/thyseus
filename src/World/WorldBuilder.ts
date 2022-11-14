@@ -1,7 +1,7 @@
 import { World } from './World';
 import { defaultPlugin } from './defaultPlugin';
 import { ThreadGroup, type SendableType } from '../utils/ThreadGroup';
-import type { ComponentType } from '../Components';
+import type { ComponentType } from '../storage';
 import type { Dependencies, SystemDefinition } from '../Systems';
 import type { Class } from '../struct';
 import type { WorldConfig } from './config';
@@ -144,7 +144,7 @@ export class WorldBuilder {
 if (import.meta.vitest) {
 	const { it, expect, vi } = import.meta.vitest;
 	const { defineSystem } = await import('../Systems');
-	const { Entity } = await import('../Components');
+	const { Entity } = await import('../storage');
 	const { applyCommands } = await import('../Systems');
 
 	class MockChannel {
