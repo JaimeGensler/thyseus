@@ -23,7 +23,7 @@ export type TypedArray =
 	| Float32Array
 	| Float64Array;
 
-export interface ComponentStore {
+export type ComponentStore = {
 	buffer: ArrayBuffer;
 	u8: Uint8Array;
 	u16?: Uint16Array;
@@ -35,7 +35,7 @@ export interface ComponentStore {
 	i64?: BigInt64Array;
 	f32?: Float32Array;
 	f64?: Float64Array;
-}
+};
 
 export interface ComponentType {
 	// NOTE: Types have been loosened to be optional here, as decorators do not provide type info.
