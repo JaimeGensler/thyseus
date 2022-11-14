@@ -1,18 +1,17 @@
 import { Mut, type Mutable } from './Mut';
-import { isStruct } from '../../Components';
+import { isStruct, type Class } from '../../struct';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
-import type { ResourceType, Class } from '../../Resources';
 import type { World } from '../../World';
 
-export class ResourceDescriptor<T extends ResourceType | Mutable<ResourceType>>
+export class ResourceDescriptor<T extends Class | Mutable<Class>>
 	implements Descriptor
 {
-	resource: ResourceType;
+	resource: Class;
 	canWrite: boolean;
 
 	constructor(resource: T) {
-		const isMut = Mut.isMut<ResourceType>(resource);
+		const isMut = Mut.isMut<Class>(resource);
 		this.resource = isMut ? resource[0] : resource;
 		this.canWrite = isMut;
 	}

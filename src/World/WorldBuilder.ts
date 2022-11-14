@@ -3,7 +3,7 @@ import { defaultPlugin } from './defaultPlugin';
 import { ThreadGroup, type SendableType } from '../utils/ThreadGroup';
 import type { ComponentType } from '../Components';
 import type { Dependencies, SystemDefinition } from '../Systems';
-import type { ResourceType } from '../Resources';
+import type { Class } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
 
@@ -13,7 +13,7 @@ export class WorldBuilder {
 	#startupSystems = [] as SystemDefinition[];
 
 	components = new Set<ComponentType>();
-	resources = new Set<ResourceType>();
+	resources = new Set<Class>();
 	threadChannels = {} as Record<string, (world: World) => (data: any) => any>;
 
 	config: WorldConfig;
@@ -73,7 +73,7 @@ export class WorldBuilder {
 	 * @param ResourceType The ResourceType to register.
 	 * @returns `this`, for chaining.
 	 */
-	registerResource(ResourceType: ResourceType): this {
+	registerResource(ResourceType: Class): this {
 		this.resources.add(ResourceType);
 		return this;
 	}

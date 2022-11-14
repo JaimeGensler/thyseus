@@ -1,5 +1,5 @@
 import { ComponentStore } from '../Components';
-import { Class } from '../Resources';
+import { Class } from './types';
 import { resetFields, TYPE_IDS } from './addField';
 import {
 	u8,

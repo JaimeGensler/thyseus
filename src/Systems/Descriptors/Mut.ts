@@ -1,4 +1,4 @@
-import type { Class } from '../../Resources';
+import type { Class } from '../../struct';
 
 export interface Mutable<T extends Class> {
 	0: T;

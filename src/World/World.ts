@@ -4,7 +4,7 @@ import { WorldCommands } from './WorldCommands';
 import { Entities } from './Entities';
 import { bits } from '../utils/bits';
 import { createStore, Table, Entity, type ComponentType } from '../Components';
-import { isStruct } from '../struct';
+import { isStruct, type Class } from '../struct';
 import {
 	validateAndCompleteConfig,
 	type WorldConfig,
@@ -12,7 +12,6 @@ import {
 } from './config';
 import type { SendableType, ThreadGroup } from '../utils/ThreadGroup';
 import type { Dependencies, System, SystemDefinition } from '../Systems';
-import type { ResourceType } from '../Resources';
 import type { Query } from '../Queries';
 
 export class World {
@@ -30,7 +29,7 @@ export class World {
 	#bufferType: ArrayBufferConstructor | SharedArrayBufferConstructor;
 
 	config: WorldConfig;
-	resources: Map<ResourceType, object>;
+	resources: Map<Class, object>;
 	threads: ThreadGroup;
 	systems: System[];
 	#executor: Executor;
@@ -41,7 +40,7 @@ export class World {
 		config: WorldConfig,
 		threads: ThreadGroup,
 		componentTypes: ComponentType[],
-		resourceTypes: ResourceType[],
+		resourceTypes: Class[],
 		systems: SystemDefinition[],
 		dependencies: (Dependencies | undefined)[],
 		channels: Record<
@@ -64,7 +63,7 @@ export class World {
 
 		this.#executor = Executor.fromWorld(this, systems, dependencies);
 
-		this.resources = new Map<ResourceType, object>();
+		this.resources = new Map<Class, object>();
 		for (const Resource of resourceTypes) {
 			if (isStruct(Resource)) {
 				const store = threads.queue(() =>

@@ -1,6 +1,0 @@
-import type { ComponentType } from '../Components';
-
-export interface Class {
-	new (...args: any[]): object;
-}
-export type ResourceType = Class | ComponentType;

@@ -1,6 +1,8 @@
 import { ComponentType } from '../Components';
-import { Class } from '../Resources';
 
+export interface Class {
+	new (...args: any[]): object;
+}
 type DiscriminatedUnion<L, R> =
 	| (L & { [Key in keyof R]?: never })
 	| (R & { [Key in keyof L]?: never });
