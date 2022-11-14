@@ -1,7 +1,17 @@
-import { TypedArray } from '../Components/types';
 import { addField, TYPE_IDS } from './addField';
 import { StructDecorator } from './types';
 
+type TypedArray =
+	| Uint8Array
+	| Uint16Array
+	| Uint32Array
+	| BigUint64Array
+	| Int8Array
+	| Int16Array
+	| Int32Array
+	| BigInt64Array
+	| Float32Array
+	| Float64Array;
 const typeToConstructor = {
 	u8: Uint8Array,
 	u16: Uint16Array,

@@ -1,28 +1,5 @@
 import type { WorldCommands } from '../World/WorldCommands';
 
-export type TypedArrayConstructor =
-	| Uint8ArrayConstructor
-	| Uint16ArrayConstructor
-	| Uint32ArrayConstructor
-	| BigUint64ArrayConstructor
-	| Int8ArrayConstructor
-	| Int16ArrayConstructor
-	| Int32ArrayConstructor
-	| BigInt64ArrayConstructor
-	| Float32ArrayConstructor
-	| Float64ArrayConstructor;
-export type TypedArray =
-	| Uint8Array
-	| Uint16Array
-	| Uint32Array
-	| BigUint64Array
-	| Int8Array
-	| Int16Array
-	| Int32Array
-	| BigInt64Array
-	| Float32Array
-	| Float64Array;
-
 export type ComponentStore = {
 	buffer: ArrayBuffer;
 	u8: Uint8Array;
