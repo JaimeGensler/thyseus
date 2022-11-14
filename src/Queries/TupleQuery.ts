@@ -17,7 +17,7 @@ export class TupleQuery<C extends object[]> implements Query<C> {
 		this.#filter = filter;
 		this.#elements = this.#components.map(
 			// NOTE: This will cause a de-opt - refactor to not pass an empty object
-			Component => new Component({}, 0, commands),
+			Component => new Component({} as any, 0, commands),
 		);
 	}
 
