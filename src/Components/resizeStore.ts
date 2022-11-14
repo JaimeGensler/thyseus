@@ -1,4 +1,4 @@
-import { TYPE_IDS } from './addField';
+import { TYPE_IDS } from '../struct';
 import { NAMES_AND_CONSTRUCTORS } from './createStore';
 import type { ComponentType, ComponentStore } from './types';
 import type { World } from '../World';
@@ -29,7 +29,7 @@ export function resizeStore(
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { struct } = await import('./struct');
+	const { struct } = await import('../struct');
 	const { createStore } = await import('./createStore');
 
 	@struct()

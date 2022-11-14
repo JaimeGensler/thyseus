@@ -1,4 +1,4 @@
-import { TYPE_IDS } from './addField';
+import { TYPE_IDS } from '../struct';
 import type { ComponentType, ComponentStore } from './types';
 import type { World } from '../World';
 
@@ -37,7 +37,7 @@ export function createStore(
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { struct } = await import('./struct');
+	const { struct } = await import('../struct');
 
 	const mockWorld: World = {
 		createBuffer: (l: number) => new ArrayBuffer(l),

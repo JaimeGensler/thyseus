@@ -1,17 +1,25 @@
-import { addField, TYPE_IDS, resetFields } from './addField';
-import type { Class } from '../Resources';
-import type {
-	ComponentStore,
-	ComponentType,
-	TypedArray,
-	TypedArrayConstructor,
-} from './types';
+import { ComponentStore } from '../Components';
+import { Class } from '../Resources';
+import { resetFields, TYPE_IDS } from './addField';
+import {
+	u8,
+	u16,
+	u32,
+	u64,
+	i8,
+	i16,
+	i32,
+	i64,
+	f32,
+	f64,
+	bool,
+} from './primitives';
+import { string } from './string';
+import { array } from './array';
+import { component } from './component';
+import { StructDecorator } from './types';
 
-type DiscriminatedUnion<L, R> =
-	| (L & { [Key in keyof R]?: never })
-	| (R & { [Key in keyof L]?: never });
-
-export function struct() {
+export const struct: StructDecorator = () => {
 	return function structDecorator(targetClass: Class): any {
 		const { schema, size, alignment } = resetFields();
 		return class extends targetClass {
@@ -38,188 +46,22 @@ export function struct() {
 			}
 		};
 	};
-}
-function createPrimativeFieldDecorator(
-	type: TypedArrayConstructor,
-	storeKey: keyof typeof TYPE_IDS,
-) {
-	return function () {
-		return function fieldDecorator(
-			prototype: object,
-			propertyKey: string | symbol,
-		) {
-			const offset = addField(
-				propertyKey,
-				type.BYTES_PER_ELEMENT,
-				type.BYTES_PER_ELEMENT,
-				TYPE_IDS[storeKey],
-			);
-			const shift = 31 - Math.clz32(type.BYTES_PER_ELEMENT);
-
-			Object.defineProperty(prototype, propertyKey, {
-				enumerable: true,
-				get() {
-					return this.__$$s[storeKey][
-						(this.__$$b >> shift) + offset[propertyKey]
-					];
-				},
-				set(value: number) {
-					this.__$$s[storeKey][
-						(this.__$$b >> shift) + offset[propertyKey]
-					] = value;
-				},
-			});
-		};
-	};
-}
-
-struct.u8 = createPrimativeFieldDecorator(Uint8Array, 'u8');
-struct.u16 = createPrimativeFieldDecorator(Uint16Array, 'u16');
-struct.u32 = createPrimativeFieldDecorator(Uint32Array, 'u32');
-struct.u64 = createPrimativeFieldDecorator(BigUint64Array, 'u64');
-struct.i8 = createPrimativeFieldDecorator(Int8Array, 'i8');
-struct.i16 = createPrimativeFieldDecorator(Int16Array, 'i16');
-struct.i32 = createPrimativeFieldDecorator(Int32Array, 'i32');
-struct.i64 = createPrimativeFieldDecorator(BigInt64Array, 'i64');
-struct.f32 = createPrimativeFieldDecorator(Float32Array, 'f32');
-struct.f64 = createPrimativeFieldDecorator(Float64Array, 'f64');
-struct.bool = function () {
-	return function fieldDecorator(
-		prototype: object,
-		propertyKey: string | symbol,
-	) {
-		const offset = addField(
-			propertyKey,
-			Uint8Array.BYTES_PER_ELEMENT,
-			Uint8Array.BYTES_PER_ELEMENT,
-			TYPE_IDS.u8,
-		);
-
-		Object.defineProperty(prototype, propertyKey, {
-			enumerable: true,
-			get() {
-				return !!this.__$$s.u8[this.__$$b + offset[propertyKey]];
-			},
-			set(value: boolean) {
-				this.__$$s.u8[this.__$$b + offset[propertyKey]] = Number(value);
-			},
-		});
-	};
 };
+struct.bool = bool;
+struct.u8 = u8;
+struct.u16 = u16;
+struct.u32 = u32;
+struct.u64 = u64;
+struct.i8 = i8;
+struct.i16 = i16;
+struct.i32 = i32;
+struct.i64 = i64;
+struct.f32 = f32;
+struct.f64 = f64;
 
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
-struct.string = function ({
-	characterCount,
-	byteLength,
-}: DiscriminatedUnion<{ byteLength: number }, { characterCount: number }>) {
-	return function fieldDecorator(
-		prototype: object,
-		propertyKey: string | symbol,
-	) {
-		byteLength ??= characterCount! * 3;
-		const offset = addField(
-			propertyKey,
-			Uint8Array.BYTES_PER_ELEMENT,
-			byteLength,
-		);
-
-		Object.defineProperty(prototype, propertyKey, {
-			enumerable: true,
-			get() {
-				return decoder
-					.decode(
-						this.__$$s.u8.subarray(
-							this.__$$b + offset[propertyKey],
-							this.__$$b + offset[propertyKey] + byteLength!,
-						),
-					)
-					.split('\u0000')[0];
-			},
-			set(value: string) {
-				encoder.encodeInto(
-					value,
-					this.__$$s.u8
-						.subarray(
-							this.__$$b + offset[propertyKey],
-							this.__$$b + offset[propertyKey] + byteLength!,
-						)
-						.fill(0),
-				);
-			},
-		});
-	};
-};
-const typeToConstructor = {
-	u8: Uint8Array,
-	u16: Uint16Array,
-	u32: Uint32Array,
-	u64: BigUint64Array,
-	i8: Int8Array,
-	i16: Int16Array,
-	i32: Int32Array,
-	i64: BigInt64Array,
-	f32: Float32Array,
-	f64: Float64Array,
-} as const;
-struct.array = function (typeName: keyof typeof TYPE_IDS, length: number) {
-	return function fieldDecorator(
-		prototype: object,
-		propertyKey: string | symbol,
-	) {
-		const typeConstructor = typeToConstructor[typeName];
-		const offset = addField(
-			propertyKey,
-			typeConstructor.BYTES_PER_ELEMENT,
-			typeConstructor.BYTES_PER_ELEMENT * length,
-			TYPE_IDS[typeName],
-		);
-		const shift = 31 - Math.clz32(typeConstructor.BYTES_PER_ELEMENT);
-		Object.defineProperty(prototype, propertyKey, {
-			enumerable: true,
-			get() {
-				return this.__$$s[typeName].subarray(
-					(this.__$$b >> shift) + offset[propertyKey],
-					(this.__$$b >> shift) + offset[propertyKey] + length,
-				);
-			},
-			set(value: TypedArray) {
-				this.__$$s[typeName].set(
-					value.subarray(0, length),
-					(this.__$$b >> shift) + offset[propertyKey],
-				);
-			},
-		});
-	};
-};
-struct.component = function (componentType: ComponentType) {
-	return function fieldDecorator(
-		prototype: object,
-		propertyKey: string | symbol,
-	) {
-		const offset = addField(
-			propertyKey,
-			componentType.alignment!,
-			componentType.size!,
-			componentType.schema!,
-		);
-		Object.defineProperty(prototype, propertyKey, {
-			enumerable: true,
-			get() {
-				const val: any = new componentType(this.__$$s, 0, {} as any);
-				val.__$$b =
-					this.__$$b + offset[propertyKey] * componentType.alignment!;
-				return val;
-			},
-			set(value: any) {
-				this.__$$s.u8.set(
-					value.__$$s,
-					this.__$$b + offset[propertyKey] * componentType.alignment!,
-				);
-			},
-		});
-	};
-};
+struct.string = string;
+struct.array = array;
+struct.component = component;
 
 /*---------*\
 |   TESTS   |

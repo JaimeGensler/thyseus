@@ -3,13 +3,8 @@ import { Executor } from './Executor';
 import { WorldCommands } from './WorldCommands';
 import { Entities } from './Entities';
 import { bits } from '../utils/bits';
-import {
-	isStruct,
-	createStore,
-	Table,
-	Entity,
-	type ComponentType,
-} from '../Components';
+import { createStore, Table, Entity, type ComponentType } from '../Components';
+import { isStruct } from '../struct';
 import {
 	validateAndCompleteConfig,
 	type WorldConfig,
@@ -109,9 +104,7 @@ export class World {
 
 		if (currentTable) {
 			this.entities.setLocation(
-				currentTable.columns.get(Entity)!.val[
-					currentTable.size - 1
-				] as bigint,
+				currentTable.columns.get(Entity)!.u64![currentTable.size - 1],
 				currentTableId,
 				this.entities.getRow(entityId),
 			);
@@ -148,7 +141,7 @@ export class World {
 		if (table) {
 			const entityRow = this.entities.getRow(entityId);
 			this.entities.setLocation(
-				table.columns.get(Entity)?.val?.[table.size - 1] as bigint,
+				table.columns.get(Entity)!.u64![table.size - 1],
 				tableId,
 				entityRow,
 			);

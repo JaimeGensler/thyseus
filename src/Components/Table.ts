@@ -97,7 +97,7 @@ export class Table {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { struct } = await import('./struct');
+	const { struct } = await import('../struct');
 
 	@struct()
 	class Vec3 {

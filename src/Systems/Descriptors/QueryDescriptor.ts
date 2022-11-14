@@ -63,7 +63,7 @@ export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, vi } = import.meta.vitest;
-	const { struct } = await import('../../Components');
+	const { struct } = await import('../../struct');
 
 	class Comp {
 		declare static size: number;

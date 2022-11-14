@@ -1,5 +1,5 @@
 import { getGeneration, getIndex } from '../utils/entityId';
-import { TYPE_IDS } from './addField';
+import { TYPE_IDS } from '../struct';
 import type { WorldCommands } from '../World/WorldCommands';
 import type { ComponentStore, ComponentType } from './types';
 

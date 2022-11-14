@@ -1,4 +1,4 @@
-import { ComponentType } from './types';
+import { ComponentType } from '../Components';
 
 export function isStruct(val: unknown): val is ComponentType {
 	return (
