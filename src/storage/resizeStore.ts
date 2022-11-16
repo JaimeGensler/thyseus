@@ -1,7 +1,11 @@
-import { TYPE_IDS } from '../struct';
-import { NAMES_AND_CONSTRUCTORS } from './createStore';
+import { TYPE_IDS, TYPE_TO_CONSTRUCTOR } from '../struct';
 import type { ComponentType, ComponentStore } from './types';
 import type { World } from '../World';
+
+const namesAndConstructors = Object.entries(TYPE_TO_CONSTRUCTOR) as [
+	keyof typeof TYPE_IDS,
+	Uint8ArrayConstructor,
+][];
 
 export function resizeStore(
 	store: ComponentStore,
@@ -14,7 +18,7 @@ export function resizeStore(
 	const u8 = new Uint8Array(newBuffer);
 	u8.set(store.u8);
 
-	return NAMES_AND_CONSTRUCTORS.reduce(
+	return namesAndConstructors.reduce(
 		(acc, [key, TArray]) => {
 			if ((TYPE_IDS[key] & ComponentType.schema!) === TYPE_IDS[key]) {
 				acc[key] = new TArray(newBuffer) as any;
