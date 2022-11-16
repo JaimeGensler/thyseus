@@ -52,7 +52,7 @@ export class Table {
 		this.size--;
 		for (const [ComponentType, store] of this.columns) {
 			store.u8.copyWithin(
-				index,
+				index * ComponentType.size!,
 				this.size * ComponentType.size!,
 				this.size * ComponentType.size! + ComponentType.size!,
 			);
@@ -141,7 +141,7 @@ if (import.meta.vitest) {
 		expect(table.isFull).toBe(true);
 	});
 
-	it.only('moves elements from one table to another', () => {
+	it('moves elements from one table to another', () => {
 		const fromTable = Table.create(mockWorld, [Entity, Vec3]);
 		const toTable = Table.create(mockWorld, [Entity, Vec3]);
 
@@ -186,28 +186,52 @@ if (import.meta.vitest) {
 
 	it('deletes elements, swaps in last elements', () => {
 		const table = Table.create(mockWorld, [Entity, Vec3]);
-		table.add(31n);
-		table.add(13n);
-		expect(table.size).toBe(2);
-		expect(table.columns.get(Entity)!.u64![0]).toBe(31n);
-
 		const vec = new Vec3(table.columns.get(Vec3)!, 0);
+		const ent = new Entity(table.columns.get(Entity)!, 0, {} as any);
+
+		table.add(1n);
+		table.add(2n);
+		table.add(3n);
+		table.add(4n);
+		expect(table.size).toBe(4);
+
 		vec.x = 1;
 		vec.y = 2;
 		vec.z = 3;
 		vec.__$$i = 1;
+		vec.x = 4;
+		vec.y = 5;
+		vec.z = 6;
+		vec.__$$i = 2;
 		vec.x = 7;
 		vec.y = 8;
 		vec.z = 9;
+		vec.__$$i = 3;
+		vec.x = 10;
+		vec.y = 11;
+		vec.z = 12;
 
-		table.delete(0);
+		table.delete(1);
+		expect(table.size).toBe(3);
 
-		expect(table.size).toBe(1);
 		vec.__$$i = 0;
+		(ent as any).__$$i = 0;
+		expect(ent.id).toBe(1n);
+		expect(vec.x).toBe(1);
+		expect(vec.y).toBe(2);
+		expect(vec.z).toBe(3);
+		vec.__$$i = 1;
+		(ent as any).__$$i = 1;
+		expect(ent.id).toBe(4n);
+		expect(vec.x).toBe(10);
+		expect(vec.y).toBe(11);
+		expect(vec.z).toBe(12);
+		vec.__$$i = 2;
+		(ent as any).__$$i = 2;
+		expect(ent.id).toBe(3n);
 		expect(vec.x).toBe(7);
 		expect(vec.y).toBe(8);
 		expect(vec.z).toBe(9);
-		expect(table.columns.get(Entity)!.u64![0]).toBe(13n);
 	});
 
 	it('grows correctly', () => {
@@ -224,7 +248,77 @@ if (import.meta.vitest) {
 		expect(table.columns.get(Entity)!.u64![0]).toBe(1n);
 	});
 
-	it.todo('backfills elements for all stores', () => {
-		// v0.6 changelog bugfix
+	// v0.6 changelog bugfix
+	it('backfills elements for ALL stores', () => {
+		const fromTable = Table.create(mockWorld, [Entity, Vec3]);
+		const toTable = Table.create(mockWorld, [Entity]);
+
+		fromTable.add(3n);
+		fromTable.add(1n);
+		toTable.add(4n);
+
+		expect(fromTable.size).toBe(2);
+		expect(toTable.size).toBe(1);
+		expect(fromTable.columns.get(Entity)!.u64![0]).toBe(3n);
+
+		const from = new Vec3(fromTable.columns.get(Vec3)!, 0);
+		from.x = 1;
+		from.y = 2;
+		from.z = 3;
+		from.__$$i = 1;
+		from.x = 7;
+		from.y = 8;
+		from.z = 9;
+
+		fromTable.move(0, toTable);
+
+		const to = new Entity(toTable.columns.get(Entity)!, 1, {} as any);
+		expect(to.id).toBe(3n);
+
+		from.__$$i = 0;
+		expect(fromTable.columns.get(Entity)!.u64![0]).toBe(1n);
+		expect(from.x).toBe(7);
+		expect(from.y).toBe(8);
+		expect(from.z).toBe(9);
+	});
+
+	// v0.6 changelog bugfix
+	it('does not contain stale data when adding element', () => {
+		const table = Table.create(mockWorld, [Entity, Vec3]);
+
+		table.add(25n);
+		table.add(233n);
+
+		const vec = new Vec3(table.columns.get(Vec3)!, 0);
+		const ent = new Entity(table.columns.get(Entity)!, 0, {} as any);
+		vec.x = 100;
+		vec.y = 200;
+		vec.z = 300;
+		expect(vec.x).toBe(100);
+		expect(vec.y).toBe(200);
+		expect(vec.z).toBe(300);
+		vec.__$$i = 1;
+		vec.x = Math.PI;
+		vec.y = Math.PI;
+		vec.z = Math.PI;
+
+		table.delete(1);
+		table.add(26n);
+
+		vec.__$$i = 0;
+		//@ts-ignore
+		ent.__$$i = 0;
+		expect(vec.x).toBe(100);
+		expect(vec.y).toBe(200);
+		expect(vec.z).toBe(300);
+		expect(ent.id).toBe(25n);
+
+		vec.__$$i = 1;
+		//@ts-ignore
+		ent.__$$i = 1;
+		expect(vec.x).toBe(0);
+		expect(vec.y).toBe(0);
+		expect(vec.z).toBe(0);
+		expect(ent.id).toBe(26n);
 	});
 }
