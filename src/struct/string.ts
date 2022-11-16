@@ -1,12 +1,14 @@
 import { addField } from './addField';
-import { StructDecorator } from './types';
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-export const string: StructDecorator['string'] = ({
+type DiscriminatedUnion<L, R> =
+	| (L & { [Key in keyof R]?: never })
+	| (R & { [Key in keyof L]?: never });
+export function string({
 	characterCount,
 	byteLength,
-}) => {
+}: DiscriminatedUnion<{ byteLength: number }, { characterCount: number }>) {
 	return function fieldDecorator(
 		prototype: object,
 		propertyKey: string | symbol,
@@ -43,4 +45,4 @@ export const string: StructDecorator['string'] = ({
 			},
 		});
 	};
-};
+}

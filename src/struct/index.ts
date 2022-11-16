@@ -1,5 +1,3 @@
-export { struct } from './struct';
+export { struct, type Class } from './struct';
 export { isStruct } from './isStruct';
-export { TYPE_IDS } from './addField';
-
-export type { Class } from './types';
+export { TYPE_IDS, TYPE_TO_CONSTRUCTOR } from './addField';

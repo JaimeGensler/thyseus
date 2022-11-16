@@ -1,5 +1,4 @@
-import { addField, TYPE_IDS } from './addField';
-import { StructDecorator } from './types';
+import { addField, TYPE_IDS, TYPE_TO_CONSTRUCTOR } from './addField';
 
 type TypedArray =
 	| Uint8Array
@@ -12,24 +11,24 @@ type TypedArray =
 	| BigInt64Array
 	| Float32Array
 	| Float64Array;
-const typeToConstructor = {
-	u8: Uint8Array,
-	u16: Uint16Array,
-	u32: Uint32Array,
-	u64: BigUint64Array,
-	i8: Int8Array,
-	i16: Int16Array,
-	i32: Int32Array,
-	i64: BigInt64Array,
-	f32: Float32Array,
-	f64: Float64Array,
-} as const;
-export const array: StructDecorator['array'] = (typeName, length) => {
+type PrimitiveName =
+	| 'u8'
+	| 'u16'
+	| 'u32'
+	| 'u64'
+	| 'i8'
+	| 'i16'
+	| 'i32'
+	| 'i64'
+	| 'f32'
+	| 'f64';
+
+export function array(typeName: PrimitiveName, length: number) {
 	return function fieldDecorator(
 		prototype: object,
 		propertyKey: string | symbol,
 	) {
-		const typeConstructor = typeToConstructor[typeName];
+		const typeConstructor = TYPE_TO_CONSTRUCTOR[typeName];
 		const offset = addField(
 			propertyKey,
 			typeConstructor.BYTES_PER_ELEMENT,
@@ -53,4 +52,4 @@ export const array: StructDecorator['array'] = (typeName, length) => {
 			},
 		});
 	};
-};
+}

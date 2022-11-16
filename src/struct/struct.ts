@@ -1,5 +1,4 @@
 import { ComponentStore } from '../storage';
-import { Class } from './types';
 import { resetFields, TYPE_IDS } from './addField';
 import {
 	u8,
@@ -17,9 +16,12 @@ import {
 import { string } from './string';
 import { array } from './array';
 import { component } from './component';
-import { StructDecorator } from './types';
 
-export const struct: StructDecorator = () => {
+export interface Class {
+	new (...args: any[]): object;
+}
+
+export function struct() {
 	return function structDecorator(targetClass: Class): any {
 		const { schema, size, alignment } = resetFields();
 		return class extends targetClass {
@@ -46,7 +48,7 @@ export const struct: StructDecorator = () => {
 			}
 		};
 	};
-};
+}
 struct.bool = bool;
 struct.u8 = u8;
 struct.u16 = u16;

@@ -19,6 +19,19 @@ export const TYPE_IDS = {
 	f32: 1 << 8,
 	f64: 1 << 9,
 };
+export const TYPE_TO_CONSTRUCTOR = {
+	u8: Uint8Array,
+	u16: Uint16Array,
+	u32: Uint32Array,
+	u64: BigUint64Array,
+	i8: Int8Array,
+	i16: Int16Array,
+	i32: Int32Array,
+	i64: BigInt64Array,
+	f32: Float32Array,
+	f64: Float64Array,
+} as const;
+
 const updateOffsets = (
 	newKey: string | symbol,
 	alignment: number,

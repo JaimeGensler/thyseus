@@ -1,7 +1,7 @@
 import { addField } from './addField';
-import { StructDecorator } from './types';
+import type { ComponentType } from '../storage';
 
-export const component: StructDecorator['component'] = componentType => {
+export function component(componentType: ComponentType) {
 	return function fieldDecorator(
 		prototype: object,
 		propertyKey: string | symbol,
@@ -28,4 +28,4 @@ export const component: StructDecorator['component'] = componentType => {
 			},
 		});
 	};
-};
+}
