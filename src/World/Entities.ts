@@ -1,9 +1,13 @@
 import { BigUintArray } from '../utils/BigUintArray';
-import { fourBytes, getGeneration, getIndex } from '../utils/entityId';
 import type { World } from './World';
 
 const nextId = 0;
 const freeCount = 1;
+
+const fourBytes = 32n;
+const lo32 = 0x00_00_00_00_ff_ff_ff_ffn;
+const getIndex = (id: bigint): number => Number(id & lo32);
+const getGeneration = (id: bigint): number => Number(id >> fourBytes);
 
 // NOTE: If tableIds move to uint32s, tableIds/row can be transformed into entityLocation: BigUint64Array
 export class Entities {

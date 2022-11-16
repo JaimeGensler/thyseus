@@ -1,21 +1,29 @@
-import { getGeneration, getIndex } from '../utils/entityId';
 import { TYPE_IDS } from '../struct';
 import type { WorldCommands } from '../World/WorldCommands';
 import type { ComponentStore, ComponentType } from './types';
 
-// TODO: Add u32 to schema, refactor index and generation to just
-// pull data out of the buffer.
 export class Entity {
-	static schema = TYPE_IDS.u64;
+	static schema = TYPE_IDS.u64 | TYPE_IDS.u32;
 	static size = 8;
 
-	__$$s: ComponentStore;
-	__$$i: number;
+	private __$$s: ComponentStore;
+	private __$$b: number;
+	#index: number;
+
 	commands: WorldCommands;
 	constructor(store: ComponentStore, index: number, commands: WorldCommands) {
 		this.__$$s = store;
-		this.__$$i = index;
+		this.#index = index;
+		this.__$$b = index * Entity.size;
 		this.commands = commands;
+	}
+
+	private get __$$i() {
+		return this.#index;
+	}
+	private set __$$i(val: number) {
+		this.#index = val;
+		this.__$$b = val * Entity.size;
 	}
 
 	/**
@@ -23,21 +31,21 @@ export class Entity {
 	 * Composed of an entity's generation & index.
 	 */
 	get id(): bigint {
-		return this.__$$s.u64![this.__$$i];
+		return this.__$$s.u64![this.__$$b >> 3];
 	}
 
 	/**
 	 * The index of this entity (uint32).
 	 */
 	get index(): number {
-		return getIndex(this.id);
+		return this.__$$s.u32![this.__$$b >> 2];
 	}
 
 	/**
 	 * The generation of this entity (uint32).
 	 */
 	get generation(): number {
-		return getGeneration(this.id);
+		return this.__$$s.u32![(this.__$$b >> 2) + 1];
 	}
 
 	/**
