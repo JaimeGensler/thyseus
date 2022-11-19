@@ -1,5 +1,104 @@
 # Changelog
 
+## v0.6.0 (November 18, 2022)
+
+Structs just got a lot more powerful!
+
+### 💥 Breaking Changes
+
+-   The `store` and `index` properties on `ComponentType` instances have been
+    renamed, freeing up store and index as useable field names.
+    -   This change does not impact you unless you directly access either of
+        those properties.
+    -   The new names are `__$$s` for store,`__$$i` for index, and `__$$b` for
+        the new byteOffset property (these may move to symbols in the future).
+        -   If you write your own accessors, you must use byte offset if you
+            want your struct to function with `@struct.substruct()`
+-   `entityIndex` on `Entity` has been changed to `index`.
+-   Static properties for struct classes have changed.
+    -   This change does not impact you unless you have handwritten Components -
+        i.e., without use of `@struct`.
+    -   `alignment` - the number of bytes needed by the largest field of the
+        struct (e.g. 8 for `f64`, `i64`, `u64`, 4 for `f32`, `i32`, `u32`,
+        etc.).
+        -   Array/string alignment is the same as individual field alignment
+            (e.g., an `i32` and an `Int32Array` have the same alignment).
+    -   `size` - the size of the type _including padding_ (previously did not
+        include padding). **Must be a multiple of alignment.**
+    -   `schema` - a **_numeric_** (bitfield) property indicating which
+        TypedArrays are needed when creating a store.
+        -   Bit flags start with `u8 = 1 << 0`, and are ordered
+            `u8 ... u64, i8 ... i64, f32, f64`.
+-   The shape & memory layout of component stores has changed.
+    -   This change does not impact you unless you directly access component
+        store data (like `world.archetypes`) or have handwritten accessors on
+        components.
+    -   Previously, component stores would allocate a buffer and each field
+        would claim a section of the buffer (e.g. `|x---|y---|z---|` for a store
+        of `Vec3` components). Now, components are placed sequentially in the
+        buffer (e.g., `|xyz|xyz|xyz|`).
+        -   Stores are now objects containing the `buffer`, a Uint8Array (`u8`)
+            over the (entire) buffer, and any other typed arrays specified by a
+            struct's `schema` over the entire buffer.
+    -   Benchmarks suggested this was a significantly more performant approach -
+        _both_ for iteration and for copying component data such as growing
+        stores, moving tables, and (in the future) setting initial values.
+    -   Please note that if you do access component data directly, fields are
+        reordered as necessary (by alignment, largest to smallest, equal
+        alignments appended), and so may or may not be in the same order as
+        declared.
+
+### ✨ Features
+
+-   Added `@struct.string()` for fixed-size strings.
+    -   This decorator factory accepts an options object, containing either:
+        -   `characterCount: number` allocates _enough space for `n`
+            **three-byte** characters_ - if any characters use fewer than three
+            bytes, more characters will be able to fit.
+        -   `byteLength` specifies how many bytes the string takes up. If you
+            know you'll only be using one or two byte characters, you can reduce
+            the required storage space of the string.
+        -   byteLength is used if both are set.
+    -   Unlike normal Javascript strings, `'\u0000'` characters terminate the
+        string.
+    -   Please note that the current implementation uses dynamic typed array
+        creation, and so is much slower than primitive numeric fields.
+-   Added `@struct.array()` for fixed-size numeric arrays.
+    -   This decorator factory accepts an options argument with two required
+        fields:
+        -   `type` - The name of the array type (e.g. `'u8'`, `'i16'`, `'f64'`,
+            etc.)
+        -   `length` - The length (in elements) of the array.
+    -   Please note that the current implementation uses dynamic typed array
+        creation, and so is much slower than primitive numeric fields.
+-   Added `@struct.substruct()`, so structs can have _other structs_ as
+    properties.
+    -   This decorator factory accepts a struct.
+    -   Creates both a getter and a setter.
+    -   The current implementation dynamically creates instances of the provided
+        struct, and so is much slower than primitive numeric fields. In the
+        future this will be refactored to take advantage of a per-thread
+        struct-instance pool.
+-   It is no longer required that `getNewTableSize` return multiples of 8.
+    -   As a result, resources create a store of size 1, rather than using
+        `getNewTableSize(0)`
+
+### 🐛 Bug Fixes
+
+-   Fixed issue where table stores wouldn't re-pack data correctly when moving
+    to tables with fewer components.
+-   Fixed a bug where new components would initialize with old component data.
+    -   The current implementation eagerly zeroes data when components move -
+        this will likely be done lazily in the future, so if you manually access
+        component data, do not rely on eager zeroing.
+-   Fixed tables not correctly sharing metadata between threads.
+-   Prevent columns from being created for ZSTs in tables.
+
+### 🔧 Maintenance
+
+-   Cleanup type names (`ComponentType` -> `Struct`)
+-   Bumped dev dependency versions.
+
 ## v0.5.0 (October 29, 2022)
 
 This update is heavy on breaking changes and light on features - primarily
