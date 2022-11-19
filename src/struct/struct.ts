@@ -271,8 +271,9 @@ if (import.meta.vitest) {
 			declare static size: number;
 			declare static schema: number;
 			declare __$$i: number;
-			@struct.array('u8', 8) declare value: Uint8Array;
-			@struct.array('f64', 3) declare value2: Float64Array;
+			@struct.array({ type: 'u8', length: 8 }) declare value: Uint8Array;
+			@struct.array({ type: 'f64', length: 3 })
+			declare value2: Float64Array;
 			constructor(store: StructStore, index: number) {}
 		}
 		const buffer = new ArrayBuffer(Comp.size * 2);
@@ -332,15 +333,15 @@ if (import.meta.vitest) {
 		expect(comp.d).toBe(1.5);
 	});
 
-	it('works for components', () => {
+	it('works for substructs', () => {
 		@struct()
 		class Transform {
 			declare static size: number;
 			declare static schema: number;
 			declare __$$i: number;
-			@struct.component(Vec3) declare position: Vec3;
+			@struct.substruct(Vec3) declare position: Vec3;
 			@struct.f32() declare scale: number;
-			@struct.component(Vec3) declare rotation: Vec3;
+			@struct.substruct(Vec3) declare rotation: Vec3;
 			constructor(store: StructStore, index: number) {}
 		}
 
