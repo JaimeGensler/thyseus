@@ -14,7 +14,7 @@ import {
 } from './primitives';
 import { string } from './string';
 import { array } from './array';
-import { component } from './component';
+import { substruct } from './substruct';
 import type { WorldCommands } from '../World/WorldCommands';
 
 export interface Class {
@@ -96,7 +96,7 @@ struct.f64 = f64;
 
 struct.string = string;
 struct.array = array;
-struct.component = component;
+struct.substruct = substruct;
 
 /*---------*\
 |   TESTS   |
