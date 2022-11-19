@@ -1,6 +1,6 @@
 import { createFilter } from '../../utils/createFilter';
 import { Mut, type Mutable } from './Mut';
-import { TupleQuery, type Query } from '../../Queries';
+import { Query } from '../../Queries';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
 import type { World } from '../../World';
@@ -46,7 +46,7 @@ export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
 					InstanceType<C[Index] extends Struct ? C[Index] : never>
 			  >;
 	}> {
-		const query = new TupleQuery(
+		const query = new Query(
 			createFilter(world.components, this.components),
 			this.components,
 			world.commands,
@@ -151,7 +151,7 @@ if (import.meta.vitest) {
 			};
 
 			const result = descriptor.intoArgument(world);
-			expect(result).toBeInstanceOf(TupleQuery);
+			expect(result).toBeInstanceOf(Query);
 		});
 	});
 }

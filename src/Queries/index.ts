@@ -1,2 +1,1 @@
-export { TupleQuery } from './TupleQuery';
-export type { Query } from './Query';
+export { Query } from './Query';
