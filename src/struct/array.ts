@@ -23,29 +23,33 @@ type PrimitiveName =
 	| 'f32'
 	| 'f64';
 
-export function array(typeName: PrimitiveName, length: number) {
+type ArrayOptions = {
+	type: PrimitiveName;
+	length: number;
+};
+export function array({ type, length }: ArrayOptions) {
 	return function fieldDecorator(
 		prototype: object,
 		propertyKey: string | symbol,
 	) {
-		const typeConstructor = TYPE_TO_CONSTRUCTOR[typeName];
+		const typeConstructor = TYPE_TO_CONSTRUCTOR[type];
 		const offset = addField(
 			propertyKey,
 			typeConstructor.BYTES_PER_ELEMENT,
 			typeConstructor.BYTES_PER_ELEMENT * length,
-			TYPE_IDS[typeName],
+			TYPE_IDS[type],
 		);
 		const shift = 31 - Math.clz32(typeConstructor.BYTES_PER_ELEMENT);
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				return this.__$$s[typeName].subarray(
+				return this.__$$s[type].subarray(
 					(this.__$$b >> shift) + offset[propertyKey],
 					(this.__$$b >> shift) + offset[propertyKey] + length,
 				);
 			},
 			set(value: TypedArray) {
-				this.__$$s[typeName].set(
+				this.__$$s[type].set(
 					value.subarray(0, length),
 					(this.__$$b >> shift) + offset[propertyKey],
 				);
