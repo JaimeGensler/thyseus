@@ -10,7 +10,7 @@ declare type ThreadMessage = [
 	data: SendableType
 ];
 interface WorkerOrGlobal {
-	postMessage(content: any): void;
+	postMessage(content: SendableType): void;
 	addEventListener(type: "message", fn: (event: MessageEvent<ThreadMessage>) => void): void;
 	removeEventListener(type: "message", fn: (event: MessageEvent<ThreadMessage>) => void): void;
 }
@@ -49,7 +49,128 @@ declare class ThreadGroup {
 	 * @returns The value created by `create` function.
 	 */
 	queue<T extends SendableType>(create: () => T): T;
-	wrapInQueue<T extends any = void>(callback: () => T | Promise<T>): Promise<T>;
+	wrapInQueue<T = void>(callback: () => T | Promise<T>): Promise<T>;
+}
+declare type DiscriminatedUnion<L, R> = (L & {
+	[Key in keyof R]?: never;
+}) | (R & {
+	[Key in keyof L]?: never;
+});
+declare function stringDec({ characterCount, byteLength, }: DiscriminatedUnion<{
+	byteLength: number;
+}, {
+	characterCount: number;
+}>): (prototype: object, propertyKey: string | symbol) => void;
+declare type PrimitiveName = "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64" | "f32" | "f64";
+declare type ArrayOptions = {
+	type: PrimitiveName;
+	length: number;
+};
+declare function arrayDec({ type, length }: ArrayOptions): (prototype: object, propertyKey: string | symbol) => void;
+declare function substructDec(struct: Struct): (prototype: object, propertyKey: string | symbol) => void;
+interface Class {
+	new (...args: any[]): object;
+}
+declare type StructStore = {
+	buffer: ArrayBuffer;
+	u8: Uint8Array;
+	u16?: Uint16Array;
+	u32?: Uint32Array;
+	u64?: BigUint64Array;
+	i8?: Int8Array;
+	i16?: Int16Array;
+	i32?: Int32Array;
+	i64?: BigInt64Array;
+	f32?: Float32Array;
+	f64?: Float64Array;
+};
+interface Struct {
+	/**
+	 * The schema bitfield used to create stores for this struct.
+	 */
+	schema?: number;
+	/**
+	 * The alignment of this type - equal to the number of bytes of the largest primitive type this struct contains (1, 2, 4, or 8).
+	 */
+	alignment?: number;
+	/**
+	 * The size of this struct, including padding. Always a multiple of alignment.
+	 */
+	size?: number;
+	new (store: StructStore, index: number, commands: WorldCommands): object;
+}
+export declare function struct(): (targetClass: Class) => any;
+export declare namespace struct {
+	var bool: () => (prototype: object, propertyKey: string | symbol) => void;
+	var u8: () => (prototype: object, propertyKey: string | symbol) => void;
+	var u16: () => (prototype: object, propertyKey: string | symbol) => void;
+	var u32: () => (prototype: object, propertyKey: string | symbol) => void;
+	var u64: () => (prototype: object, propertyKey: string | symbol) => void;
+	var i8: () => (prototype: object, propertyKey: string | symbol) => void;
+	var i16: () => (prototype: object, propertyKey: string | symbol) => void;
+	var i32: () => (prototype: object, propertyKey: string | symbol) => void;
+	var i64: () => (prototype: object, propertyKey: string | symbol) => void;
+	var f32: () => (prototype: object, propertyKey: string | symbol) => void;
+	var f64: () => (prototype: object, propertyKey: string | symbol) => void;
+	var string: typeof stringDec;
+	var array: typeof arrayDec;
+	var substruct: typeof substructDec;
+}
+declare class Table {
+	columns: Map<Struct, StructStore>;
+	meta: Uint32Array;
+	static create(world: World, components: Struct[]): Table;
+	constructor(columns: Map<Struct, StructStore>, meta: Uint32Array);
+	get size(): number;
+	set size(value: number);
+	get capacity(): number;
+	set capacity(val: number);
+	get isFull(): boolean;
+	add(entityId: bigint): void;
+	delete(index: number): void;
+	move(index: number, targetTable: Table): void;
+	grow(world: World): void;
+}
+export declare class Entity {
+	#private;
+	static schema: number;
+	static size: number;
+	private __$$s;
+	private __$$b;
+	commands: WorldCommands;
+	constructor(store: StructStore, index: number, commands: WorldCommands);
+	private get __$$i();
+	private set __$$i(value);
+	/**
+	 * The entity's world-unique integer id (uint64).
+	 * Composed of an entity's generation & index.
+	 */
+	get id(): bigint;
+	/**
+	 * The index of this entity (uint32).
+	 */
+	get index(): number;
+	/**
+	 * The generation of this entity (uint32).
+	 */
+	get generation(): number;
+	/**
+	 * Queues a component to be inserted into this entity.
+	 * @param Component The Component **class** to insert into the entity.
+	 * @returns `this`, for chaining.
+	 */
+	insert(Component: Struct): this;
+	/**
+	 * Queues a component to be removed from this entity.
+	 * @param Component The Component **class** to remove from the entity.
+	 * @returns `this`, for chaining.
+	 */
+	remove(Component: Struct): this;
+	/**
+	 * Queues this entity to be despawned.
+	 * @returns `void`
+	 */
+	despawn(): void;
 }
 declare class BigUintArray {
 	#private;
@@ -80,7 +201,7 @@ declare class Entities {
 declare class WorldCommands {
 	#private;
 	queue: Map<bigint, bigint>;
-	constructor(entities: Entities, components: ComponentType[]);
+	constructor(entities: Entities, components: Struct[]);
 	/**
 	 * Queues an entity to be spawned.
 	 * @returns `EntityCommands` to add/remove components from an entity.
@@ -98,94 +219,8 @@ declare class WorldCommands {
 	 * @returns `EntityCommands` to add/remove components from an entity.
 	 */
 	get(id: bigint): Entity;
-	insertInto(id: bigint, Component: ComponentType): void;
-	removeFrom(id: bigint, Component: ComponentType): void;
-}
-declare type TypedArrayConstructor = Uint8ArrayConstructor | Uint16ArrayConstructor | Uint32ArrayConstructor | BigUint64ArrayConstructor | Int8ArrayConstructor | Int16ArrayConstructor | Int32ArrayConstructor | BigInt64ArrayConstructor | Float32ArrayConstructor | Float64ArrayConstructor;
-declare type TypedArray = Uint8Array | Uint16Array | Uint32Array | BigUint64Array | Int8Array | Int16Array | Int32Array | BigInt64Array | Float32Array | Float64Array;
-declare type Schema = Record<string | symbol, TypedArrayConstructor>;
-declare type ComponentStore = Record<string | symbol, TypedArray>;
-interface ComponentType {
-	schema?: Schema;
-	size?: number;
-	new (store: any, index: number, commands: WorldCommands): object;
-}
-declare class Table {
-	columns: Map<ComponentType, ComponentStore>;
-	meta: Uint32Array;
-	static create(world: World, components: ComponentType[]): Table;
-	constructor(columns: Map<ComponentType, ComponentStore>, meta: Uint32Array);
-	get size(): number;
-	set size(value: number);
-	get capacity(): number;
-	set capacity(val: number);
-	get isFull(): boolean;
-	add(entityId: bigint): void;
-	delete(index: number): void;
-	move(index: number, targetTable: Table): void;
-	grow(world: World): void;
-}
-export declare class Entity {
-	static schema: {
-		val: BigUint64ArrayConstructor;
-	};
-	static size: number;
-	store: {
-		val: BigUint64Array;
-	};
-	index: number;
-	commands: WorldCommands;
-	constructor(store: {
-		val: BigUint64Array;
-	}, index: number, commands: WorldCommands);
-	/**
-	 * The entity's world-unique integer id (uint64).
-	 * Composed of an entity's generation & index.
-	 */
-	get id(): bigint;
-	/**
-	 * The index of this entity (uint32).
-	 */
-	get entityIndex(): number;
-	/**
-	 * The generation of this entity (uint32).
-	 */
-	get generation(): number;
-	/**
-	 * Queues a component to be inserted into this entity.
-	 * @param Component The Component **class** to insert into the entity.
-	 * @returns `this`, for chaining.
-	 */
-	insert(Component: ComponentType): this;
-	/**
-	 * Queues a component to be removed from this entity.
-	 * @param Component The Component **class** to remove from the entity.
-	 * @returns `this`, for chaining.
-	 */
-	remove(Component: ComponentType): this;
-	/**
-	 * Queues this entity to be despawned.
-	 * @returns `void`
-	 */
-	despawn(): void;
-}
-interface Class {
-	new (...args: any[]): object;
-}
-declare type ResourceType = ComponentType | Class;
-export declare function struct(): (targetClass: Class) => any;
-export declare namespace struct {
-	var bool: () => (prototype: object, propertyKey: string | symbol) => void;
-	var u8: () => (prototype: object, propertyKey: string | symbol) => void;
-	var u16: () => (prototype: object, propertyKey: string | symbol) => void;
-	var u32: () => (prototype: object, propertyKey: string | symbol) => void;
-	var u64: () => (prototype: object, propertyKey: string | symbol) => void;
-	var i8: () => (prototype: object, propertyKey: string | symbol) => void;
-	var i16: () => (prototype: object, propertyKey: string | symbol) => void;
-	var i32: () => (prototype: object, propertyKey: string | symbol) => void;
-	var i64: () => (prototype: object, propertyKey: string | symbol) => void;
-	var f32: () => (prototype: object, propertyKey: string | symbol) => void;
-	var f64: () => (prototype: object, propertyKey: string | symbol) => void;
+	insertInto(id: bigint, Component: Struct): void;
+	removeFrom(id: bigint, Component: Struct): void;
 }
 declare type DescriptorToArgument<T extends Descriptor> = ReturnType<T["intoArgument"]>;
 interface Descriptor {
@@ -200,10 +235,6 @@ declare class CommandsDescriptor implements Descriptor {
 	intoArgument(world: World): WorldCommands;
 	onAddSystem(builder: WorldBuilder): void;
 }
-declare enum AccessType {
-	Read = 0,
-	Write = 1
-}
 interface Mutable<T extends Class> {
 	0: T;
 	1: 1;
@@ -215,10 +246,10 @@ declare namespace Mut {
 interface Query<C extends object> {
 	[Symbol.iterator](): Iterator<C>;
 }
-declare type QueryMember = ComponentType | Mutable<ComponentType>;
+declare type QueryMember = Struct | Mutable<Struct>;
 declare class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
-	components: ComponentType[];
-	accessType: AccessType[];
+	components: Struct[];
+	writes: boolean[];
 	constructor(components: [
 		...C
 	]);
@@ -226,12 +257,12 @@ declare class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
 	intersectsWith(other: unknown): boolean;
 	onAddSystem(builder: WorldBuilder): void;
 	intoArgument(world: World): Query<{
-		[Index in keyof C]: C[Index] extends Mutable<infer X> ? InstanceType<X> : Readonly<InstanceType<C[Index] extends ComponentType ? C[Index] : never>>;
+		[Index in keyof C]: C[Index] extends Mutable<infer X> ? InstanceType<X> : Readonly<InstanceType<C[Index] extends Struct ? C[Index] : never>>;
 	}>;
 }
-declare class ResourceDescriptor<T extends ResourceType | Mutable<ResourceType>> implements Descriptor {
-	resource: ResourceType;
-	accessType: AccessType;
+declare class ResourceDescriptor<T extends Class | Mutable<Class>> implements Descriptor {
+	resource: Class;
+	canWrite: boolean;
 	constructor(resource: T);
 	isLocalToThread(): boolean;
 	intersectsWith(other: unknown): boolean;
@@ -246,10 +277,10 @@ declare class WorldDescriptor implements Descriptor {
 }
 declare const descriptors: {
 	readonly Commands: () => CommandsDescriptor;
-	readonly Query: <C extends (ComponentType | Mutable<ComponentType>)[]>(components: [
+	readonly Query: <C extends (Struct | Mutable<Struct>)[]>(components: [
 		...C
 	]) => QueryDescriptor<C>;
-	readonly Res: <T extends ResourceType | Mutable<ResourceType>>(resource: T) => ResourceDescriptor<T>;
+	readonly Res: <T extends Class | Mutable<Class>>(resource: T) => ResourceDescriptor<T>;
 	readonly World: () => WorldDescriptor;
 	readonly Mut: typeof Mut;
 };
@@ -291,8 +322,8 @@ declare class WorldBuilder {
 	#private;
 	systems: SystemDefinition<Descriptor[]>[];
 	systemDependencies: (Dependencies | undefined)[];
-	components: Set<ComponentType>;
-	resources: Set<ResourceType>;
+	components: Set<Struct>;
+	resources: Set<Class>;
 	threadChannels: Record<string, (world: World) => (data: any) => any>;
 	config: WorldConfig;
 	url: string | URL | undefined;
@@ -318,16 +349,16 @@ declare class WorldBuilder {
 	addPlugin(plugin: Plugin): this;
 	/**
 	 * Registers a Component in the world. Called automatically for all queried components when a system is added.
-	 * @param ComponentType The ComponentType to register.
+	 * @param struct The struct to register.
 	 * @returns `this`, for chaining.
 	 */
-	registerComponent(ComponentType: ComponentType): this;
+	registerComponent(struct: Struct): this;
 	/**
 	 * Registers a Resource in the world. Called automatically for all accessed resources when a system is added.
 	 * @param ResourceType The ResourceType to register.
 	 * @returns `this`, for chaining.
 	 */
-	registerResource(ResourceType: ResourceType): this;
+	registerResource(ResourceType: Class): this;
 	/**
 	 * Registers a channel for threads. When a thread receives a message, it will run the callback created by `listenerCreator`.
 	 * @param channel The **_unique_** name of the channel. _NOTE: Calling this method again with the same channel will override the previous listener!_
@@ -349,13 +380,13 @@ export declare class World {
 	archetypes: Map<bigint, Table>;
 	queries: Query<any>[];
 	config: WorldConfig;
-	resources: Map<ResourceType, object>;
+	resources: Map<Class, object>;
 	threads: ThreadGroup;
 	systems: System[];
 	commands: WorldCommands;
 	entities: Entities;
-	components: ComponentType[];
-	constructor(config: WorldConfig, threads: ThreadGroup, componentTypes: ComponentType[], resourceTypes: ResourceType[], systems: SystemDefinition[], dependencies: (Dependencies | undefined)[], channels: Record<string, (world: World) => (data: SendableType) => SendableType>);
+	components: Struct[];
+	constructor(config: WorldConfig, threads: ThreadGroup, components: Struct[], resourceTypes: Class[], systems: SystemDefinition[], dependencies: (Dependencies | undefined)[], channels: Record<string, (world: World) => (data: SendableType) => SendableType>);
 	moveEntity(entityId: bigint, targetTableId: bigint): void;
 	createBuffer(byteLength: number): ArrayBufferLike;
 	update(): Promise<void>;
