@@ -319,4 +319,16 @@ if (import.meta.vitest) {
 		expect(vec.z).toBe(0);
 		expect(ent.id).toBe(26n);
 	});
+
+	// v0.6 changelog bugfix
+	it('does not create columns for ZSTs', () => {
+		class ZST {
+			static size = 0;
+			static alignment = 1;
+			static schema = 0;
+		}
+		const table = Table.create(mockWorld, [Entity, Vec3, ZST]);
+		expect(table.columns.size).toBe(2);
+		expect(table.columns.has(ZST)).toBe(false);
+	});
 }
