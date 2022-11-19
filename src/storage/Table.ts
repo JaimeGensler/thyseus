@@ -48,30 +48,30 @@ export class Table {
 	}
 	delete(index: number) {
 		this.size--;
-		for (const [ComponentType, store] of this.columns) {
+		for (const [struct, store] of this.columns) {
 			store.u8.copyWithin(
-				index * ComponentType.size!,
-				this.size * ComponentType.size!,
-				this.size * ComponentType.size! + ComponentType.size!,
+				index * struct.size!,
+				this.size * struct.size!,
+				this.size * struct.size! + struct.size!,
 			);
 			store.u8.fill(
 				0,
-				this.size * ComponentType.size!,
-				this.size * ComponentType.size! + ComponentType.size!,
+				this.size * struct.size!,
+				this.size * struct.size! + struct.size!,
 			);
 		}
 	}
 	move(index: number, targetTable: Table) {
-		for (const [ComponentType, store] of this.columns) {
-			if (targetTable.columns.has(ComponentType)) {
+		for (const [struct, store] of this.columns) {
+			if (targetTable.columns.has(struct)) {
 				targetTable.columns
-					.get(ComponentType)!
+					.get(struct)!
 					.u8.set(
 						store.u8.slice(
-							index * ComponentType.size!,
-							index * ComponentType.size! + ComponentType.size!,
+							index * struct.size!,
+							index * struct.size! + struct.size!,
 						),
-						targetTable.size * ComponentType.size!,
+						targetTable.size * struct.size!,
 					);
 			}
 		}
@@ -81,11 +81,8 @@ export class Table {
 
 	grow(world: World) {
 		this.capacity = world.config.getNewTableSize(this.capacity);
-		for (const [ComponentType, store] of this.columns) {
-			this.columns.set(
-				ComponentType,
-				resizeStore(store, ComponentType, this.capacity),
-			);
+		for (const [struct, store] of this.columns) {
+			this.columns.set(struct, resizeStore(store, struct, this.capacity));
 		}
 	}
 }

@@ -37,17 +37,17 @@ export interface Struct {
 	// NOTE: Types have been loosened to be optional here, as decorators do not provide type info.
 
 	/**
-	 * The schema bitfield used to create stores for this ComponentType.
+	 * The schema bitfield used to create stores for this struct.
 	 */
 	schema?: number;
 
 	/**
-	 * The alignment of this type - equal to the number of bytes of the largest primitive type this ComponentType contains (1, 2, 4, or 8).
+	 * The alignment of this type - equal to the number of bytes of the largest primitive type this struct contains (1, 2, 4, or 8).
 	 */
 	alignment?: number;
 
 	/**
-	 * The size of this ComponentType, including padding. Always a multiple of alignment.
+	 * The size of this struct, including padding. Always a multiple of alignment.
 	 */
 	size?: number;
 

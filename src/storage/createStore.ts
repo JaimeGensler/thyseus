@@ -13,14 +13,14 @@ const namesAndConstructors = Object.entries(TYPE_TO_CONSTRUCTOR) as [
 
 export function createStore(
 	world: World,
-	ComponentType: Struct,
+	struct: Struct,
 	count: number = world.config.getNewTableSize(0),
 ): StructStore {
-	const buffer = world.createBuffer(ComponentType.size! * count);
+	const buffer = world.createBuffer(struct.size! * count);
 
 	return namesAndConstructors.reduce(
 		(acc, [key, TArray]) => {
-			if ((TYPE_IDS[key] & ComponentType.schema!) === TYPE_IDS[key]) {
+			if ((TYPE_IDS[key] & struct.schema!) === TYPE_IDS[key]) {
 				acc[key] = new TArray(buffer) as any;
 			}
 			return acc;

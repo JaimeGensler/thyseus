@@ -13,18 +13,18 @@ const namesAndConstructors = Object.entries(TYPE_TO_CONSTRUCTOR) as [
 
 export function resizeStore(
 	store: StructStore,
-	ComponentType: Struct,
+	struct: Struct,
 	count: number,
 ): StructStore {
 	const newBuffer = new (store.buffer.constructor as ArrayBufferConstructor)(
-		ComponentType.size! * count,
+		struct.size! * count,
 	);
 	const u8 = new Uint8Array(newBuffer);
 	u8.set(store.u8);
 
 	return namesAndConstructors.reduce(
 		(acc, [key, TArray]) => {
-			if ((TYPE_IDS[key] & ComponentType.schema!) === TYPE_IDS[key]) {
+			if ((TYPE_IDS[key] & struct.schema!) === TYPE_IDS[key]) {
 				acc[key] = new TArray(newBuffer) as any;
 			}
 			return acc;

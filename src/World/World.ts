@@ -39,7 +39,7 @@ export class World {
 	constructor(
 		config: WorldConfig,
 		threads: ThreadGroup,
-		componentTypes: Struct[],
+		components: Struct[],
 		resourceTypes: Class[],
 		systems: SystemDefinition[],
 		dependencies: (Dependencies | undefined)[],
@@ -57,7 +57,7 @@ export class World {
 			this.threads.setListener(channel, channels[channel](this));
 		}
 
-		this.components = componentTypes;
+		this.components = components;
 		this.entities = Entities.fromWorld(this);
 		this.commands = new WorldCommands(this.entities, this.components);
 

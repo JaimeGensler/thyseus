@@ -59,11 +59,11 @@ export class WorldBuilder {
 
 	/**
 	 * Registers a Component in the world. Called automatically for all queried components when a system is added.
-	 * @param ComponentType The ComponentType to register.
+	 * @param struct The struct to register.
 	 * @returns `this`, for chaining.
 	 */
-	registerComponent(ComponentType: Struct): this {
-		this.components.add(ComponentType);
+	registerComponent(struct: Struct): this {
+		this.components.add(struct);
 		return this;
 	}
 
