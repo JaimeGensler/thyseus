@@ -1,16 +1,13 @@
-import type { ComponentType } from '../storage';
+import type { Struct } from '../struct';
 
 export function createFilter(
-	allComponents: ComponentType[],
-	queryComponents: ComponentType[],
+	allComponents: Struct[],
+	queryComponents: Struct[],
 ): bigint {
 	return toBits(allComponents, queryComponents);
 }
 
-const toBits = (
-	allComponents: ComponentType[],
-	queryComponents: ComponentType[],
-) =>
+const toBits = (allComponents: Struct[], queryComponents: Struct[]) =>
 	queryComponents.reduce(
 		(acc, val) => acc | (1n << BigInt(allComponents.indexOf(val))),
 		0n,

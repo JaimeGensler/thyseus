@@ -1,7 +1,8 @@
 import { applyCommands } from '../Systems';
 import { bits } from '../utils/bits';
 import { zipIntoMap } from '../utils/zipIntoMap';
-import { Entity, Table, type ComponentStore } from '../storage';
+import { Entity, Table } from '../storage';
+import type { StructStore } from '../struct';
 import type { WorldBuilder } from './WorldBuilder';
 
 export function defaultPlugin(builder: WorldBuilder) {
@@ -13,7 +14,7 @@ export function defaultPlugin(builder: WorldBuilder) {
 		world.commands.queue.clear();
 		return ret;
 	});
-	builder.registerThreadChannel<[bigint, ComponentStore[], Uint32Array]>(
+	builder.registerThreadChannel<[bigint, StructStore[], Uint32Array]>(
 		'thyseus::newTable',
 		world =>
 			([tableId, stores, meta]) => {
@@ -29,7 +30,7 @@ export function defaultPlugin(builder: WorldBuilder) {
 				}
 			},
 	);
-	builder.registerThreadChannel<[bigint, ComponentStore[]]>(
+	builder.registerThreadChannel<[bigint, StructStore[]]>(
 		'thyseus::growTable',
 		world =>
 			([tableId, stores]) => {

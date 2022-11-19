@@ -1,9 +1,8 @@
 import { World } from './World';
 import { defaultPlugin } from './defaultPlugin';
 import { ThreadGroup, type SendableType } from '../utils/ThreadGroup';
-import type { ComponentType } from '../storage';
 import type { Dependencies, SystemDefinition } from '../Systems';
-import type { Class } from '../struct';
+import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
 
@@ -12,7 +11,7 @@ export class WorldBuilder {
 	systemDependencies = [] as (Dependencies | undefined)[];
 	#startupSystems = [] as SystemDefinition[];
 
-	components = new Set<ComponentType>();
+	components = new Set<Struct>();
 	resources = new Set<Class>();
 	threadChannels = {} as Record<string, (world: World) => (data: any) => any>;
 
@@ -63,7 +62,7 @@ export class WorldBuilder {
 	 * @param ComponentType The ComponentType to register.
 	 * @returns `this`, for chaining.
 	 */
-	registerComponent(ComponentType: ComponentType): this {
+	registerComponent(ComponentType: Struct): this {
 		this.components.add(ComponentType);
 		return this;
 	}

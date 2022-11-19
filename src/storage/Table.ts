@@ -2,29 +2,27 @@ import { Entity } from './Entity';
 import { createStore } from './createStore';
 import { resizeStore } from './resizeStore';
 import type { World } from '../World';
-import type { ComponentStore, ComponentType } from './types';
+import type { StructStore, Struct } from '../struct';
 
 export class Table {
-	columns: Map<ComponentType, ComponentStore>;
+	columns: Map<Struct, StructStore>;
 	meta: Uint32Array;
 
-	static create(world: World, components: ComponentType[]) {
-		const meta = new Uint32Array(2);
+	static create(world: World, components: Struct[]) {
+		const meta = new Uint32Array(world.createBuffer(8));
 		meta[1] = world.config.getNewTableSize(0);
 		return new this(
-			components.reduce(
-				(acc, component) =>
-					acc.set(component, createStore(world, component)),
-				new Map<ComponentType, ComponentStore>(),
-			),
+			components.reduce((acc, component) => {
+				if (component.size! > 0) {
+					acc.set(component, createStore(world, component));
+				}
+				return acc;
+			}, new Map<Struct, StructStore>()),
 			meta,
 		);
 	}
 
-	constructor(
-		columns: Map<ComponentType, ComponentStore>,
-		meta: Uint32Array,
-	) {
+	constructor(columns: Map<Struct, StructStore>, meta: Uint32Array) {
 		this.columns = columns;
 		this.meta = meta;
 	}
@@ -103,12 +101,12 @@ if (import.meta.vitest) {
 	class Vec3 {
 		declare static schema: number;
 		declare static size: number;
-		declare store: ComponentStore;
+		declare store: StructStore;
 		declare __$$i: number;
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
-		constructor(store: ComponentStore, index: number) {}
+		constructor(store: StructStore, index: number) {}
 	}
 
 	const mockWorld: World = {

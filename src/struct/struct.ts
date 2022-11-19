@@ -1,4 +1,3 @@
-import { ComponentStore } from '../storage';
 import { resetFields, TYPE_IDS } from './addField';
 import {
 	u8,
@@ -16,9 +15,43 @@ import {
 import { string } from './string';
 import { array } from './array';
 import { component } from './component';
+import type { WorldCommands } from '../World/WorldCommands';
 
 export interface Class {
 	new (...args: any[]): object;
+}
+export type StructStore = {
+	buffer: ArrayBuffer;
+	u8: Uint8Array;
+	u16?: Uint16Array;
+	u32?: Uint32Array;
+	u64?: BigUint64Array;
+	i8?: Int8Array;
+	i16?: Int16Array;
+	i32?: Int32Array;
+	i64?: BigInt64Array;
+	f32?: Float32Array;
+	f64?: Float64Array;
+};
+export interface Struct {
+	// NOTE: Types have been loosened to be optional here, as decorators do not provide type info.
+
+	/**
+	 * The schema bitfield used to create stores for this ComponentType.
+	 */
+	schema?: number;
+
+	/**
+	 * The alignment of this type - equal to the number of bytes of the largest primitive type this ComponentType contains (1, 2, 4, or 8).
+	 */
+	alignment?: number;
+
+	/**
+	 * The size of this ComponentType, including padding. Always a multiple of alignment.
+	 */
+	size?: number;
+
+	new (store: StructStore, index: number, commands: WorldCommands): object;
 }
 
 export function struct() {
@@ -29,7 +62,7 @@ export function struct() {
 			static size = size;
 			static alignment = alignment;
 
-			__$$s: ComponentStore;
+			__$$s: StructStore;
 			__$$b: number;
 			#index: number;
 			get __$$i() {
@@ -40,7 +73,7 @@ export function struct() {
 				this.__$$b = value * (this.constructor as any).size;
 			}
 
-			constructor(store: ComponentStore, index: number) {
+			constructor(store: StructStore, index: number) {
 				super();
 				this.__$$s = store;
 				this.#index = index;
@@ -78,7 +111,7 @@ if (import.meta.vitest) {
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
-		constructor(store: ComponentStore, index: number) {}
+		constructor(store: StructStore, index: number) {}
 	}
 
 	it('adds a schema, size, and alignment to decorated classes', () => {
@@ -175,7 +208,7 @@ if (import.meta.vitest) {
 				declare __$$i: number;
 				declare static schema: number;
 				@decorator() declare field: any;
-				constructor(store: ComponentStore, index: number) {}
+				constructor(store: StructStore, index: number) {}
 			}
 
 			expect(Comp.schema).toBe(TYPE_IDS[schemaField]);
@@ -204,7 +237,7 @@ if (import.meta.vitest) {
 			declare static schema: number;
 			@struct.string({ characterCount: 5 }) declare value: string;
 			@struct.string({ byteLength: 1 }) declare value2: string;
-			constructor(store: ComponentStore, index: number) {}
+			constructor(store: StructStore, index: number) {}
 		}
 
 		const buffer = new ArrayBuffer(17);
@@ -240,7 +273,7 @@ if (import.meta.vitest) {
 			declare __$$i: number;
 			@struct.array('u8', 8) declare value: Uint8Array;
 			@struct.array('f64', 3) declare value2: Float64Array;
-			constructor(store: ComponentStore, index: number) {}
+			constructor(store: StructStore, index: number) {}
 		}
 		const buffer = new ArrayBuffer(Comp.size * 2);
 		const store = {
@@ -272,7 +305,7 @@ if (import.meta.vitest) {
 			@struct.u64() declare b: bigint;
 			@struct.i16() declare c: number;
 			@struct.f32() declare d: number;
-			constructor(store: ComponentStore, index: number) {}
+			constructor(store: StructStore, index: number) {}
 		}
 		const buffer = new ArrayBuffer(Comp.size * 2);
 		const store = {
@@ -308,7 +341,7 @@ if (import.meta.vitest) {
 			@struct.component(Vec3) declare position: Vec3;
 			@struct.f32() declare scale: number;
 			@struct.component(Vec3) declare rotation: Vec3;
-			constructor(store: ComponentStore, index: number) {}
+			constructor(store: StructStore, index: number) {}
 		}
 
 		const buffer = new ArrayBuffer(Transform.size * 2);

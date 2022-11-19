@@ -1,5 +1,9 @@
-import { TYPE_IDS, TYPE_TO_CONSTRUCTOR } from '../struct';
-import type { ComponentType, ComponentStore } from './types';
+import {
+	TYPE_IDS,
+	TYPE_TO_CONSTRUCTOR,
+	type Struct,
+	type StructStore,
+} from '../struct';
 import type { World } from '../World';
 
 const namesAndConstructors = Object.entries(TYPE_TO_CONSTRUCTOR) as [
@@ -8,10 +12,10 @@ const namesAndConstructors = Object.entries(TYPE_TO_CONSTRUCTOR) as [
 ][];
 
 export function resizeStore(
-	store: ComponentStore,
-	ComponentType: ComponentType,
+	store: StructStore,
+	ComponentType: Struct,
 	count: number,
-): ComponentStore {
+): StructStore {
 	const newBuffer = new (store.buffer.constructor as ArrayBufferConstructor)(
 		ComponentType.size! * count,
 	);
@@ -25,7 +29,7 @@ export function resizeStore(
 			}
 			return acc;
 		},
-		{ buffer: newBuffer, u8 } as ComponentStore,
+		{ buffer: newBuffer, u8 } as StructStore,
 	);
 }
 /*---------*\
@@ -40,12 +44,12 @@ if (import.meta.vitest) {
 	class Vec3 {
 		declare static schema: number;
 		declare static size: number;
-		declare __$$s: ComponentStore;
+		declare __$$s: StructStore;
 		declare __$$i: number;
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
-		constructor(store: ComponentStore, index: number) {}
+		constructor(store: StructStore, index: number) {}
 	}
 
 	const mockWorld: World = {

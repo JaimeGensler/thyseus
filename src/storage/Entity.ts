@@ -1,17 +1,16 @@
-import { TYPE_IDS } from '../struct';
+import { TYPE_IDS, type Struct, type StructStore } from '../struct';
 import type { WorldCommands } from '../World/WorldCommands';
-import type { ComponentStore, ComponentType } from './types';
 
 export class Entity {
 	static schema = TYPE_IDS.u64 | TYPE_IDS.u32;
 	static size = 8;
 
-	private __$$s: ComponentStore;
+	private __$$s: StructStore;
 	private __$$b: number;
 	#index: number;
 
 	commands: WorldCommands;
-	constructor(store: ComponentStore, index: number, commands: WorldCommands) {
+	constructor(store: StructStore, index: number, commands: WorldCommands) {
 		this.__$$s = store;
 		this.#index = index;
 		this.__$$b = index * Entity.size;
@@ -53,7 +52,7 @@ export class Entity {
 	 * @param Component The Component **class** to insert into the entity.
 	 * @returns `this`, for chaining.
 	 */
-	insert(Component: ComponentType): this {
+	insert(Component: Struct): this {
 		this.commands.insertInto(this.id, Component);
 		return this;
 	}
@@ -63,7 +62,7 @@ export class Entity {
 	 * @param Component The Component **class** to remove from the entity.
 	 * @returns `this`, for chaining.
 	 */
-	remove(Component: ComponentType): this {
+	remove(Component: Struct): this {
 		this.commands.removeFrom(this.id, Component);
 		return this;
 	}

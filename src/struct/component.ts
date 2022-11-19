@@ -1,7 +1,7 @@
 import { addField } from './addField';
-import type { ComponentType } from '../storage';
+import type { Struct } from './struct';
 
-export function component(componentType: ComponentType) {
+export function component(componentType: Struct) {
 	return function fieldDecorator(
 		prototype: object,
 		propertyKey: string | symbol,

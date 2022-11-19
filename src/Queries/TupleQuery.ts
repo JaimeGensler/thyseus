@@ -1,18 +1,15 @@
-import type { ComponentType, Table } from '../storage';
+import type { Struct } from '../struct';
+import type { Table } from '../storage';
 import type { WorldCommands } from '../World/WorldCommands';
 import type { Query } from './Query';
 
 export class TupleQuery<C extends object[]> implements Query<C> {
-	#elements: InstanceType<ComponentType>[];
+	#elements: InstanceType<Struct>[];
 	#tables: Table[] = [];
 
 	#filter: bigint;
-	#components: ComponentType[];
-	constructor(
-		filter: bigint,
-		components: ComponentType[],
-		commands: WorldCommands,
-	) {
+	#components: Struct[];
+	constructor(filter: bigint, components: Struct[], commands: WorldCommands) {
 		this.#components = components;
 		this.#filter = filter;
 		this.#elements = this.#components.map(

@@ -1,5 +1,9 @@
-import { TYPE_IDS, TYPE_TO_CONSTRUCTOR } from '../struct';
-import type { ComponentType, ComponentStore } from './types';
+import {
+	TYPE_IDS,
+	TYPE_TO_CONSTRUCTOR,
+	type Struct,
+	type StructStore,
+} from '../struct';
 import type { World } from '../World';
 
 const namesAndConstructors = Object.entries(TYPE_TO_CONSTRUCTOR) as [
@@ -9,9 +13,9 @@ const namesAndConstructors = Object.entries(TYPE_TO_CONSTRUCTOR) as [
 
 export function createStore(
 	world: World,
-	ComponentType: ComponentType,
+	ComponentType: Struct,
 	count: number = world.config.getNewTableSize(0),
-): ComponentStore {
+): StructStore {
 	const buffer = world.createBuffer(ComponentType.size! * count);
 
 	return namesAndConstructors.reduce(
@@ -21,7 +25,7 @@ export function createStore(
 			}
 			return acc;
 		},
-		{ buffer, u8: new Uint8Array(buffer) } as ComponentStore,
+		{ buffer, u8: new Uint8Array(buffer) } as StructStore,
 	);
 }
 

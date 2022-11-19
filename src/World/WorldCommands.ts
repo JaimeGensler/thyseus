@@ -1,4 +1,5 @@
-import { Entity, type ComponentType } from '../storage';
+import { Entity } from '../storage';
+import type { Struct } from '../struct';
 import type { Entities } from './Entities';
 
 export class WorldCommands {
@@ -7,8 +8,8 @@ export class WorldCommands {
 	#entities: Entities;
 	#entity: Entity;
 	#store: BigUint64Array;
-	#components: ComponentType[];
-	constructor(entities: Entities, components: ComponentType[]) {
+	#components: Struct[];
+	constructor(entities: Entities, components: Struct[]) {
 		this.#entities = entities;
 		const buffer = new ArrayBuffer(8);
 		this.#store = new BigUint64Array(1);
@@ -51,14 +52,14 @@ export class WorldCommands {
 		return this.#entity;
 	}
 
-	insertInto(id: bigint, Component: ComponentType) {
+	insertInto(id: bigint, Component: Struct) {
 		this.queue.set(
 			id,
 			(this.queue.get(id) ?? this.#entities.getTableId(id)) |
 				(1n << BigInt(this.#components.indexOf(Component))),
 		);
 	}
-	removeFrom(id: bigint, Component: ComponentType) {
+	removeFrom(id: bigint, Component: Struct) {
 		this.queue.set(
 			id,
 			(this.queue.get(id) ?? this.#entities.getTableId(id)) ^

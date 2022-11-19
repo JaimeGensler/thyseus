@@ -1,6 +1,6 @@
-import { ComponentType } from '../storage';
+import type { Struct } from './struct';
 
-export function isStruct(val: unknown): val is ComponentType {
+export function isStruct(val: unknown): val is Struct {
 	return (
 		typeof val === 'function' &&
 		//@ts-ignore

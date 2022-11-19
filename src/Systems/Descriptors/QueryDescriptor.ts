@@ -4,16 +4,16 @@ import { TupleQuery, type Query } from '../../Queries';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
 import type { World } from '../../World';
-import type { ComponentType } from '../../storage';
+import type { Struct } from '../../struct';
 
-type QueryMember = ComponentType | Mutable<ComponentType>;
+type QueryMember = Struct | Mutable<Struct>;
 
 export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
-	components: ComponentType[] = [];
+	components: Struct[] = [];
 	writes: boolean[] = [];
 	constructor(components: [...C]) {
 		for (const component of components) {
-			const isMut = Mut.isMut<ComponentType>(component);
+			const isMut = Mut.isMut<Struct>(component);
 			this.components.push(isMut ? component[0] : component);
 			this.writes.push(isMut);
 		}
@@ -43,9 +43,7 @@ export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
 		[Index in keyof C]: C[Index] extends Mutable<infer X>
 			? InstanceType<X>
 			: Readonly<
-					InstanceType<
-						C[Index] extends ComponentType ? C[Index] : never
-					>
+					InstanceType<C[Index] extends Struct ? C[Index] : never>
 			  >;
 	}> {
 		const query = new TupleQuery(

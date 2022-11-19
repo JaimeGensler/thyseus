@@ -3,8 +3,8 @@ import { Executor } from './Executor';
 import { WorldCommands } from './WorldCommands';
 import { Entities } from './Entities';
 import { bits } from '../utils/bits';
-import { createStore, Table, Entity, type ComponentType } from '../storage';
-import { isStruct, type Class } from '../struct';
+import { createStore, Table, Entity } from '../storage';
+import { isStruct, type Class, type Struct } from '../struct';
 import {
 	validateAndCompleteConfig,
 	type WorldConfig,
@@ -35,11 +35,11 @@ export class World {
 	#executor: Executor;
 	commands: WorldCommands;
 	entities: Entities;
-	components: ComponentType[];
+	components: Struct[];
 	constructor(
 		config: WorldConfig,
 		threads: ThreadGroup,
-		componentTypes: ComponentType[],
+		componentTypes: Struct[],
 		resourceTypes: Class[],
 		systems: SystemDefinition[],
 		dependencies: (Dependencies | undefined)[],
