@@ -1,6 +1,5 @@
 import { Entity } from './Entity';
-import { createStore } from './createStore';
-import { resizeStore } from './resizeStore';
+import { createStore, resizeStore } from './store';
 import type { World } from '../World';
 import type { StructStore, Struct } from '../struct';
 
@@ -14,7 +13,14 @@ export class Table {
 		return new this(
 			components.reduce((acc, component) => {
 				if (component.size! > 0) {
-					acc.set(component, createStore(world, component));
+					acc.set(
+						component,
+						createStore(
+							world,
+							component,
+							world.config.getNewTableSize(0),
+						),
+					);
 				}
 				return acc;
 			}, new Map<Struct, StructStore>()),
