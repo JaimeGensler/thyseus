@@ -1,20 +1,44 @@
 import { createFilter } from '../../utils/createFilter';
-import { Mut, type Mutable } from './Mut';
-import { Query } from '../../Queries';
+import { Query, Mut, Optional, With, Without, Or, Filter } from '../../Queries';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
 import type { World } from '../../World';
-import type { Struct } from '../../struct';
+import type { Class, Struct } from '../../struct';
 
-type QueryMember = Struct | Mutable<Struct>;
+export type AccessDescriptor =
+	| Struct
+	| Mut<object>
+	| Optional<object>
+	| Optional<Mut<object>>;
 
-export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
+export class QueryDescriptor<
+	A extends AccessDescriptor[],
+	F extends Filter = [],
+> implements Descriptor
+{
+	static create<A extends AccessDescriptor[], F extends Filter = []>(
+		accessors: [...A],
+		filters?: F,
+	): QueryDescriptor<A, F> {
+		return new this(accessors, filters);
+	}
 	components: Struct[] = [];
 	writes: boolean[] = [];
-	constructor(components: [...C]) {
-		for (const component of components) {
-			const isMut = Mut.isMut<Struct>(component);
-			this.components.push(isMut ? component[0] : component);
+	constructor(accessors: [...A], filters?: F) {
+		for (const component of accessors) {
+			const isMut =
+				component instanceof Mut ||
+				(component instanceof Optional &&
+					component.value instanceof Mut);
+			this.components.push(
+				component instanceof Mut
+					? component.value
+					: component instanceof Optional
+					? component.value instanceof Mut
+						? component.value.value
+						: component.value
+					: component,
+			);
 			this.writes.push(isMut);
 		}
 	}
@@ -39,13 +63,14 @@ export class QueryDescriptor<C extends QueryMember[]> implements Descriptor {
 		this.components.forEach(comp => builder.registerComponent(comp));
 	}
 
-	intoArgument(world: World): Query<{
-		[Index in keyof C]: C[Index] extends Mutable<infer X>
-			? InstanceType<X>
-			: Readonly<
-					InstanceType<C[Index] extends Struct ? C[Index] : never>
-			  >;
-	}> {
+	intoArgument(world: World): Query<
+		{
+			[Index in keyof A]: A[Index] extends Class
+				? InstanceType<A[Index]>
+				: A[Index];
+		},
+		F
+	> {
 		const query = new Query(
 			createFilter(world.components, this.components),
 			this.components,
@@ -87,8 +112,8 @@ if (import.meta.vitest) {
 			const queryCD = new QueryDescriptor([C, D]);
 			expect(queryAB.intersectsWith(queryCD)).toBe(false);
 
-			const queryABMut = new QueryDescriptor([Mut(A), Mut(B)]);
-			const queryCDMut = new QueryDescriptor([Mut(C), Mut(D)]);
+			const queryABMut = new QueryDescriptor([new Mut(A), new Mut(B)]);
+			const queryCDMut = new QueryDescriptor([new Mut(C), new Mut(D)]);
 			expect(queryABMut.intersectsWith(queryCDMut)).toBe(false);
 		});
 
@@ -100,9 +125,9 @@ if (import.meta.vitest) {
 		});
 
 		it('returns true for queries that read/write overlap', () => {
-			const query1 = new QueryDescriptor([Mut(A), B]);
+			const query1 = new QueryDescriptor([new Mut(A), B]);
 			const query2 = new QueryDescriptor([A, D]);
-			const query3 = new QueryDescriptor([C, Mut(B)]);
+			const query3 = new QueryDescriptor([C, new Mut(B)]);
 			expect(query1.intersectsWith(query2)).toBe(true);
 			expect(query1.intersectsWith(query3)).toBe(true);
 		});
@@ -120,7 +145,12 @@ if (import.meta.vitest) {
 				registerComponent,
 			} as any;
 
-			const descriptor = new QueryDescriptor([A, Mut(B), Mut(C), D]);
+			const descriptor = new QueryDescriptor([
+				A,
+				new Mut(B),
+				new Mut(C),
+				D,
+			]);
 			descriptor.onAddSystem(builder);
 
 			expect(registerComponent).toHaveBeenCalledTimes(4);
@@ -137,7 +167,11 @@ if (import.meta.vitest) {
 				false,
 			);
 			expect(
-				new QueryDescriptor([Mut(A), Mut(B), Mut(C)]).isLocalToThread(),
+				new QueryDescriptor([
+					new Mut(A),
+					new Mut(B),
+					new Mut(C),
+				]).isLocalToThread(),
 			).toBe(false);
 		});
 	});

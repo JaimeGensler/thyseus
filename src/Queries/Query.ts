@@ -1,8 +1,10 @@
 import type { Struct } from '../struct';
 import type { Table } from '../storage';
 import type { WorldCommands } from '../World/WorldCommands';
+import type { Mut, Optional, Filter } from './modifiers';
 
-export class Query<C extends object[]> {
+type Accessors = object[];
+export class Query<A extends Accessors, F extends Filter> {
 	#elements: InstanceType<Struct>[];
 	#tables: Table[] = [];
 
@@ -17,7 +19,7 @@ export class Query<C extends object[]> {
 		);
 	}
 
-	*[Symbol.iterator](): Iterator<C> {
+	*[Symbol.iterator](): QueryIterator<A> {
 		for (const table of this.#tables) {
 			for (let i = 0; i < table.size; i++) {
 				for (const element of this.#elements) {
@@ -44,3 +46,13 @@ export class Query<C extends object[]> {
 		return (n & this.#filter) === this.#filter;
 	}
 }
+
+type QueryIterator<A> = Iterator<{
+	[Index in keyof A]: A[Index] extends Optional<infer X>
+		? X extends Mut<infer Y>
+			? Y | undefined
+			: Readonly<X> | undefined
+		: A[Index] extends Mut<infer X>
+		? X
+		: Readonly<A[Index]>;
+}>;
