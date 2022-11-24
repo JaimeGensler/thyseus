@@ -40,7 +40,7 @@ export class Without<T extends object | object[]> {
 	}
 }
 
-type OrContent =
+export type OrContent =
 	| With<object>
 	| Without<object>
 	| Or<OrContent, OrContent>
