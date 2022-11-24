@@ -1,18 +1,18 @@
-import { Mut, type Mutable } from './Mut';
+import { Mut } from '../../Queries';
 import { isStruct, type Class } from '../../struct';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
 import type { World } from '../../World';
 
-export class ResourceDescriptor<T extends Class | Mutable<Class>>
+export class ResourceDescriptor<T extends Class | Mut<Class>>
 	implements Descriptor
 {
 	resource: Class;
 	canWrite: boolean;
 
 	constructor(resource: T) {
-		const isMut = Mut.isMut<Class>(resource);
-		this.resource = isMut ? resource[0] : resource;
+		const isMut = resource instanceof Mut;
+		this.resource = isMut ? resource.value : resource;
 		this.canWrite = isMut;
 	}
 
@@ -33,8 +33,8 @@ export class ResourceDescriptor<T extends Class | Mutable<Class>>
 
 	intoArgument(
 		world: World,
-	): T extends Mutable<infer X>
-		? InstanceType<X>
+	): T extends Mut<infer X>
+		? X
 		: Readonly<InstanceType<T extends Class ? T : never>> {
 		return world.resources.get(this.resource) as any;
 	}
@@ -70,8 +70,8 @@ if (import.meta.vitest) {
 
 		it('returns true for resources that read/write overlap', () => {
 			const res1 = new ResourceDescriptor(A);
-			const res2 = new ResourceDescriptor(Mut(A));
-			const res3 = new ResourceDescriptor(Mut(A));
+			const res2 = new ResourceDescriptor(new Mut(A));
+			const res3 = new ResourceDescriptor(new Mut(A));
 
 			expect(res1.intersectsWith(res2)).toBe(true);
 			expect(res2.intersectsWith(res3)).toBe(true);
@@ -94,7 +94,7 @@ if (import.meta.vitest) {
 			new ResourceDescriptor(A).onAddSystem(builder);
 			expect(builder.registerResource).toHaveBeenCalledTimes(1);
 			expect(builder.registerResource).toHaveBeenCalledWith(A);
-			new ResourceDescriptor(Mut(B)).onAddSystem(builder);
+			new ResourceDescriptor(new Mut(B)).onAddSystem(builder);
 			expect(builder.registerResource).toHaveBeenCalledWith(B);
 		});
 	});
@@ -102,11 +102,13 @@ if (import.meta.vitest) {
 	describe('isLocalToThread', () => {
 		it('returns true if resource does not have struct static fields', () => {
 			expect(new ResourceDescriptor(A).isLocalToThread()).toBe(true);
-			expect(new ResourceDescriptor(Mut(B)).isLocalToThread()).toBe(true);
+			expect(new ResourceDescriptor(new Mut(B)).isLocalToThread()).toBe(
+				true,
+			);
 		});
 		it('returns false if resource has struct static fields', () => {
 			expect(new ResourceDescriptor(C).isLocalToThread()).toBe(false);
-			expect(new ResourceDescriptor(Mut(C)).isLocalToThread()).toBe(
+			expect(new ResourceDescriptor(new Mut(C)).isLocalToThread()).toBe(
 				false,
 			);
 		});
@@ -119,7 +121,7 @@ if (import.meta.vitest) {
 				new ResourceDescriptor(A).intoArgument({ resources } as any),
 			).toBeInstanceOf(A);
 			expect(
-				new ResourceDescriptor(Mut(C)).intoArgument({
+				new ResourceDescriptor(new Mut(C)).intoArgument({
 					resources,
 				} as any),
 			).toBeInstanceOf(C);
