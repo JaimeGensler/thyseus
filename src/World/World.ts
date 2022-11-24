@@ -25,7 +25,7 @@ export class World {
 	}
 
 	archetypes = new Map<bigint, Table>();
-	queries = [] as Query<any>[];
+	queries = [] as Query<any, any>[];
 	#bufferType: ArrayBufferConstructor | SharedArrayBufferConstructor;
 
 	config: WorldConfig;
