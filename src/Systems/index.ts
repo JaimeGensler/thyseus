@@ -1,6 +1,5 @@
 export * from './Descriptors';
 export { defineSystem, type SystemDefinition } from './defineSystem';
-export { Mut } from './Descriptors/Mut';
 export {
 	getSystemDependencies,
 	type Dependencies,
