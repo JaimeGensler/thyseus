@@ -31,8 +31,10 @@ export class With<T extends object | object[]> {
 	}
 }
 export class Without<T extends object | object[]> {
-	#value: Struct;
-	constructor(value: { new (...args: any): T }) {
+	#value: Struct | Struct[];
+	constructor(
+		value: { new (...args: any): T } | { new (...args: any): T }[],
+	) {
 		this.#value = value;
 	}
 	get value() {

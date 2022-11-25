@@ -1,9 +1,10 @@
-import { createFilter } from '../../utils/createFilter';
 import { Query, Mut, Optional, With, Without, Or, Filter } from '../../Queries';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
 import type { World } from '../../World';
 import type { Class, Struct } from '../../struct';
+
+const intoArray = <T>(x: T) => (Array.isArray(x) ? x : [x]);
 
 export type AccessDescriptor =
 	| Struct
@@ -11,20 +12,21 @@ export type AccessDescriptor =
 	| Optional<object>
 	| Optional<Mut<object>>;
 
+interface FilterContext {
+	with: bigint[];
+	without: bigint[];
+	components: Struct[];
+}
+
 export class QueryDescriptor<
 	A extends AccessDescriptor[],
 	F extends Filter = [],
 > implements Descriptor
 {
-	static create<A extends AccessDescriptor[], F extends Filter = []>(
-		accessors: [...A],
-		filters?: F,
-	): QueryDescriptor<A, F> {
-		return new this(accessors, filters);
-	}
 	components: Struct[] = [];
 	writes: boolean[] = [];
-	constructor(accessors: [...A], filters?: F) {
+	filters: F;
+	constructor(accessors: [...A], filters: F = [] as any) {
 		for (const component of accessors) {
 			const isMut =
 				component instanceof Mut ||
@@ -41,6 +43,7 @@ export class QueryDescriptor<
 			);
 			this.writes.push(isMut);
 		}
+		this.filters = filters;
 	}
 
 	isLocalToThread() {
@@ -72,12 +75,57 @@ export class QueryDescriptor<
 		F
 	> {
 		const query = new Query(
-			createFilter(world.components, this.components),
+			...this.createFilter(world.components),
 			this.components,
 			world.commands,
 		);
 		world.queries.push(query);
 		return query as any;
+	}
+
+	createFilter(allComponents: Struct[]): [bigint[], bigint[]] {
+		const context: FilterContext = {
+			components: allComponents,
+			with: [
+				this.components.reduce(
+					(acc, val) =>
+						acc | (1n << BigInt(allComponents.indexOf(val))),
+					0n,
+				),
+			],
+			without: [0n],
+		};
+		intoArray(this.filters).forEach(node =>
+			this.#processFilterNode(context, node),
+		);
+		return [context.with, context.without];
+	}
+
+	#processFilterNode(ctx: FilterContext, filter: Filter) {
+		if (filter instanceof With) {
+			intoArray(filter.value).forEach(
+				struct =>
+					(ctx.with[ctx.with.length - 1] |=
+						1n << BigInt(ctx.components.indexOf(struct)!)),
+			);
+		} else if (filter instanceof Without) {
+			intoArray(filter.value).forEach(
+				struct =>
+					(ctx.without[ctx.without.length - 1] |=
+						1n << BigInt(ctx.components.indexOf(struct)!)),
+			);
+		} else if (filter instanceof Or) {
+			const currentWith = ctx.with[ctx.with.length - 1];
+			const currentWithout = ctx.without[ctx.with.length - 1];
+			intoArray(filter.l).forEach(lFilter =>
+				this.#processFilterNode(ctx, lFilter),
+			);
+			ctx.with.push(currentWith);
+			ctx.without.push(currentWithout);
+			intoArray(filter.r).forEach(rFilter =>
+				this.#processFilterNode(ctx, rFilter),
+			);
+		}
 	}
 }
 
@@ -186,6 +234,89 @@ if (import.meta.vitest) {
 
 			const result = descriptor.intoArgument(world);
 			expect(result).toBeInstanceOf(Query);
+			expect(world.queries).toContain(result);
 		});
+	});
+
+	describe('createFilter', () => {
+		class A {}
+		class B {}
+		class C {}
+		class D {}
+		class E {}
+		const components = [A, B, C, D, E];
+		const createFilter = (filter: Filter) =>
+			new QueryDescriptor([], filter).createFilter(components);
+
+		it('works with simple With filters', () => {
+			for (let i = 0; i < components.length; i++) {
+				expect(createFilter(new With(components[i]))).toStrictEqual([
+					[1n << BigInt(i)],
+					[0n],
+				]);
+			}
+		});
+
+		it('works with simple Without filters', () => {
+			for (let i = 0; i < components.length; i++) {
+				expect(createFilter(new Without(components[i]))).toStrictEqual([
+					[0n],
+					[1n << BigInt(i)],
+				]);
+			}
+		});
+
+		it('works with And filters (tuples)', () => {
+			expect(
+				createFilter([new With([A, B, D]), new Without([C, E])]),
+			).toStrictEqual([[0b01011n], [0b10100n]]);
+		});
+
+		it('works with Or filters', () => {
+			expect(
+				createFilter(new Or(new With(A), new With(B))),
+			).toStrictEqual([
+				[0b00001n, 0b00010n],
+				[0n, 0n],
+			]);
+
+			expect(
+				createFilter(new Or(new With(E), new Without(C))),
+			).toStrictEqual([
+				[0b10000n, 0b0n],
+				[0n, 0b00100n],
+			]);
+
+			expect(
+				createFilter([
+					new With(A),
+					new Without(B),
+					new Or(new With(D), new With(E)),
+				]),
+			).toStrictEqual([
+				[0b01001n, 0b10001n],
+				[0b00010n, 0b00010n],
+			]);
+
+			// FIX THIS
+			expect(
+				createFilter([
+					new Or(new With(A), new With(B)),
+					new Or(new Without(C), new Without(D)),
+				]),
+				// Take the current working range and split it
+				// A && !C
+				// B && !C
+				// A && !D
+				// B && !D
+			).toStrictEqual([
+				[0b0001n, 0b0001n, 0b0010n, 0b0010n],
+				[0b0100n, 0b1000n, 0b0100n, 0b1000n],
+			]);
+		});
+
+		it.todo('works with nested Or filters', () => {});
+		it.todo('works with accessors');
+		it.todo('validates queries');
 	});
 }

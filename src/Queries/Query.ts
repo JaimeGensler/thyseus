@@ -5,14 +5,21 @@ import type { Mut, Optional, Filter } from './modifiers';
 
 type Accessors = object[];
 export class Query<A extends Accessors, F extends Filter> {
-	#elements: InstanceType<Struct>[];
+	#elements: object[];
 	#tables: Table[] = [];
 
-	#filter: bigint;
+	#with: bigint[];
+	#without: bigint[];
 	#components: Struct[];
-	constructor(filter: bigint, components: Struct[], commands: WorldCommands) {
+	constructor(
+		withFilters: bigint[],
+		withoutFilters: bigint[],
+		components: Struct[],
+		commands: WorldCommands,
+	) {
+		this.#with = withFilters;
+		this.#without = withoutFilters;
 		this.#components = components;
-		this.#filter = filter;
 		this.#elements = this.#components.map(
 			// NOTE: This will cause a de-opt - refactor to not pass an empty object
 			Component => new Component({} as any, 0, commands),
@@ -43,7 +50,15 @@ export class Query<A extends Accessors, F extends Filter> {
 		}
 	}
 	#test(n: bigint) {
-		return (n & this.#filter) === this.#filter;
+		for (let i = 0; i < this.#with.length; i++) {
+			if (
+				(this.#with[i] & n) === this.#with[i] &&
+				(this.#without[i] & n) === 0n
+			) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
 
