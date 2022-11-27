@@ -97,7 +97,7 @@ export class QueryDescriptor<
 		const toKeep = result[0].reduce(
 			(acc, _, i) =>
 				(result[0][i] & result[1][i]) === 0n ? acc.add(i) : acc,
-			new Set(),
+			new Set<number>(),
 		);
 		result[0] = result[0].filter((_, i) => toKeep.has(i));
 		result[1] = result[1].filter((_, i) => toKeep.has(i));
