@@ -13,8 +13,11 @@ export type AccessDescriptor =
 
 const intoArray = <T>(x: T): T extends any[] ? T : [T] =>
 	Array.isArray(x) ? (x as any) : [x];
-const intoBits = (all: Struct[]) => (acc: bigint, val: Struct) =>
-	acc | (1n << BigInt(all.indexOf(val)!));
+const intoBigint = (allComponents: Struct[], components: Struct | Struct[]) =>
+	(Array.isArray(components) ? components : [components]).reduce(
+		(acc, val) => acc | (1n << BigInt(allComponents.indexOf(val))),
+		0n,
+	);
 
 export class QueryDescriptor<
 	A extends AccessDescriptor[],
@@ -88,7 +91,7 @@ export class QueryDescriptor<
 	createFilter(allComponents: Struct[]): [bigint[], bigint[]] {
 		const result = (intoArray(this.filters) as Filter[]).reduce(
 			(acc, node) => this.#processFilterNode(acc, allComponents, node),
-			[[this.components.reduce(intoBits(allComponents), 0n)], [0n]] as [
+			[[intoBigint(allComponents, this.components)], [0n]] as [
 				bigint[],
 				bigint[],
 			],
@@ -114,16 +117,10 @@ export class QueryDescriptor<
 		filter: Filter,
 	): [bigint[], bigint[]] {
 		if (filter instanceof With) {
-			const apply = intoArray(filter.value).reduce(
-				intoBits(allComponents),
-				0n,
-			);
+			const apply = intoBigint(allComponents, filter.value);
 			return [data[0].map(val => val | apply), data[1]];
 		} else if (filter instanceof Without) {
-			const apply = intoArray(filter.value).reduce(
-				intoBits(allComponents),
-				0n,
-			);
+			const apply = intoBigint(allComponents, filter.value);
 			return [data[0], data[1].map(val => val | apply)];
 		} else if (filter instanceof Or) {
 			const [withL, withoutL] = (intoArray(filter.l) as Filter[]).reduce(
