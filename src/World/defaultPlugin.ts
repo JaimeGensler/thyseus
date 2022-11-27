@@ -1,8 +1,7 @@
 import { applyCommands } from '../Systems';
 import { bits } from '../utils/bits';
-import { zipIntoMap } from '../utils/zipIntoMap';
 import { Entity, Table } from '../storage';
-import type { StructStore } from '../struct';
+import type { Struct, StructStore } from '../struct';
 import type { WorldBuilder } from './WorldBuilder';
 
 export function defaultPlugin(builder: WorldBuilder) {
@@ -18,14 +17,13 @@ export function defaultPlugin(builder: WorldBuilder) {
 		'thyseus::newTable',
 		world =>
 			([tableId, stores, meta]) => {
-				const columns = zipIntoMap(
-					[...bits(tableId)].map(cid => world.components[cid]),
-					stores,
+				const columns = [...bits(tableId)].reduce(
+					(acc, cid, i) => acc.set(world.components[cid], stores[i]),
+					new Map<Struct, StructStore>(),
 				);
 				const table = new Table(columns, meta);
 				world.archetypes.set(tableId, table);
 				for (const query of world.queries) {
-					//@ts-ignore
 					query.testAdd(tableId, table);
 				}
 			},
