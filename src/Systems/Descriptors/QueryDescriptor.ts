@@ -359,7 +359,7 @@ if (import.meta.vitest) {
 		it('throws for unrecognized filters', () => {
 			class NotAFilter {}
 			expect(() => createFilter([new NotAFilter() as any])).toThrow(
-				/unrecognized filter/i,
+				/unrecognized filter \(NotAFilter\)/i,
 			);
 		});
 	});
