@@ -86,13 +86,26 @@ export class QueryDescriptor<
 	}
 
 	createFilter(allComponents: Struct[]): [bigint[], bigint[]] {
-		return (intoArray(this.filters) as Filter[]).reduce(
+		const result = (intoArray(this.filters) as Filter[]).reduce(
 			(acc, node) => this.#processFilterNode(acc, allComponents, node),
 			[[this.components.reduce(intoBits(allComponents), 0n)], [0n]] as [
 				bigint[],
 				bigint[],
 			],
 		);
+
+		const toKeep = result[0].reduce(
+			(acc, _, i) =>
+				(result[0][i] & result[1][i]) === 0n ? acc.add(i) : acc,
+			new Set(),
+		);
+		result[0] = result[0].filter((_, i) => toKeep.has(i));
+		result[1] = result[1].filter((_, i) => toKeep.has(i));
+		assert(
+			result[0].length > 0,
+			'Tried to construct a query that cannot match any entities.',
+		);
+		return result;
 	}
 
 	#processFilterNode(
@@ -353,8 +366,28 @@ if (import.meta.vitest) {
 			).toStrictEqual([[0b1011n], [0b0100n]]);
 		});
 
-		it.todo('simplifies queries');
-		it.todo('throws if simplification leaves no filters');
+		it('simplifies queries', () => {
+			expect(
+				createFilter([
+					// (A || B) && (!A || !B)
+					// Filter expands into:
+					// A && !A (removed)
+					// A && !B
+					// B && !A
+					// B && !B (removed)
+					new Or(new With(A), new With(B)),
+					new Or(new Without(A), new Without(B)),
+				]),
+			).toStrictEqual([
+				[0b10n, 0b01n],
+				[0b01n, 0b10n],
+			]);
+		});
+		it('throws if simplification leaves no filters', () => {
+			expect(() => createFilter([new With(A), new Without(A)])).toThrow(
+				/cannot match any entities/,
+			);
+		});
 
 		it('throws for unrecognized filters', () => {
 			class NotAFilter {}
