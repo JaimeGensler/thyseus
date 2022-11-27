@@ -36,7 +36,7 @@ if (import.meta.vitest) {
 	const sys = () => {};
 
 	class AnyComponent {
-		static size = 0;
+		static size = 1;
 		static schema = 0;
 	}
 	class A extends AnyComponent {}
