@@ -127,14 +127,12 @@ export class QueryDescriptor<
 			return [data[0], data[1].map(val => val | apply)];
 		} else if (filter instanceof Or) {
 			const [withL, withoutL] = (intoArray(filter.l) as Filter[]).reduce(
-				(acc, lFilter) =>
-					this.#processFilterNode(acc, allComponents, lFilter),
-				[...data],
+				(acc, lf) => this.#processFilterNode(acc, allComponents, lf),
+				data,
 			);
 			const [withR, withoutR] = (intoArray(filter.r) as Filter[]).reduce(
-				(acc, lFilter) =>
-					this.#processFilterNode(acc, allComponents, lFilter),
-				[...data],
+				(acc, rf) => this.#processFilterNode(acc, allComponents, rf),
+				data,
 			);
 			return [
 				[...withL, ...withR],
