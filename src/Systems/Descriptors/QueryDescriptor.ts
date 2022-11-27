@@ -1,10 +1,9 @@
 import { Query, Mut, Optional, With, Without, Or, Filter } from '../../Queries';
+import { assert } from '../../utils/assert';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
 import type { World } from '../../World';
 import type { Class, Struct } from '../../struct';
-
-const intoArray = <T>(x: T) => (Array.isArray(x) ? x : [x]);
 
 export type AccessDescriptor =
 	| Struct
@@ -12,11 +11,10 @@ export type AccessDescriptor =
 	| Optional<object>
 	| Optional<Mut<object>>;
 
-interface FilterContext {
-	with: bigint[];
-	without: bigint[];
-	components: Struct[];
-}
+const intoArray = <T>(x: T): T extends any[] ? T : [T] =>
+	Array.isArray(x) ? (x as any) : [x];
+const intoBits = (all: Struct[]) => (acc: bigint, val: Struct) =>
+	acc | (1n << BigInt(all.indexOf(val)!));
 
 export class QueryDescriptor<
 	A extends AccessDescriptor[],
@@ -40,6 +38,10 @@ export class QueryDescriptor<
 						? component.value.value
 						: component.value
 					: component,
+			);
+			assert(
+				this.components[this.components.length - 1].size! > 0,
+				'You may not request direct access to ZSTs - use a With filter instead.',
 			);
 			this.writes.push(isMut);
 		}
@@ -84,48 +86,51 @@ export class QueryDescriptor<
 	}
 
 	createFilter(allComponents: Struct[]): [bigint[], bigint[]] {
-		const context: FilterContext = {
-			components: allComponents,
-			with: [
-				this.components.reduce(
-					(acc, val) =>
-						acc | (1n << BigInt(allComponents.indexOf(val))),
-					0n,
-				),
+		return (intoArray(this.filters) as Filter[]).reduce(
+			(acc, node) => this.#processFilterNode(acc, allComponents, node),
+			[[this.components.reduce(intoBits(allComponents), 0n)], [0n]] as [
+				bigint[],
+				bigint[],
 			],
-			without: [0n],
-		};
-		intoArray(this.filters).forEach(node =>
-			this.#processFilterNode(context, node),
 		);
-		return [context.with, context.without];
 	}
 
-	#processFilterNode(ctx: FilterContext, filter: Filter) {
+	#processFilterNode(
+		data: [bigint[], bigint[]],
+		allComponents: Struct[],
+		filter: Filter,
+	): [bigint[], bigint[]] {
 		if (filter instanceof With) {
-			intoArray(filter.value).forEach(
-				struct =>
-					(ctx.with[ctx.with.length - 1] |=
-						1n << BigInt(ctx.components.indexOf(struct)!)),
+			const apply = intoArray(filter.value).reduce(
+				intoBits(allComponents),
+				0n,
 			);
+			return [data[0].map(val => val | apply), data[1]];
 		} else if (filter instanceof Without) {
-			intoArray(filter.value).forEach(
-				struct =>
-					(ctx.without[ctx.without.length - 1] |=
-						1n << BigInt(ctx.components.indexOf(struct)!)),
+			const apply = intoArray(filter.value).reduce(
+				intoBits(allComponents),
+				0n,
 			);
+			return [data[0], data[1].map(val => val | apply)];
 		} else if (filter instanceof Or) {
-			const currentWith = ctx.with[ctx.with.length - 1];
-			const currentWithout = ctx.without[ctx.with.length - 1];
-			intoArray(filter.l).forEach(lFilter =>
-				this.#processFilterNode(ctx, lFilter),
+			const [withL, withoutL] = (intoArray(filter.l) as Filter[]).reduce(
+				(acc, lFilter) =>
+					this.#processFilterNode(acc, allComponents, lFilter),
+				[...data],
 			);
-			ctx.with.push(currentWith);
-			ctx.without.push(currentWithout);
-			intoArray(filter.r).forEach(rFilter =>
-				this.#processFilterNode(ctx, rFilter),
+			const [withR, withoutR] = (intoArray(filter.r) as Filter[]).reduce(
+				(acc, lFilter) =>
+					this.#processFilterNode(acc, allComponents, lFilter),
+				[...data],
 			);
+			return [
+				[...withL, ...withR],
+				[...withoutL, ...withoutR],
+			];
 		}
+		throw new Error(
+			`Unrecognized filter (${filter.constructor.name}) in Query.`,
+		);
 	}
 }
 
@@ -150,9 +155,22 @@ if (import.meta.vitest) {
 	}
 
 	@struct()
-	class C extends Comp {}
+	class C extends Comp {
+		@struct.u8() declare value: number;
+	}
 	@struct()
-	class D extends Comp {}
+	class D extends Comp {
+		@struct.u8() declare value: number;
+	}
+
+	it('throws if trying to access ZSTs', () => {
+		class ZST {
+			static size = 0;
+		}
+		expect(() => new QueryDescriptor([ZST])).toThrow(
+			/may not request direct access to ZSTs/,
+		);
+	});
 
 	describe('intersectsWith', () => {
 		it('returns false for queries that do not overlap', () => {
@@ -188,7 +206,6 @@ if (import.meta.vitest) {
 	describe('onAddSystem', () => {
 		it('registers all components and the query', () => {
 			const registerComponent = vi.fn();
-			const registerQuery = vi.fn();
 			const builder: WorldBuilder = {
 				registerComponent,
 			} as any;
@@ -207,6 +224,7 @@ if (import.meta.vitest) {
 			expect(registerComponent).toHaveBeenCalledWith(C);
 			expect(registerComponent).toHaveBeenCalledWith(D);
 		});
+		it.todo('registers filter components', () => {});
 	});
 
 	describe('isLocalToThread', () => {
@@ -239,11 +257,14 @@ if (import.meta.vitest) {
 	});
 
 	describe('createFilter', () => {
-		class A {}
-		class B {}
-		class C {}
-		class D {}
-		class E {}
+		class Comp {
+			static size = 1;
+		}
+		class A extends Comp {}
+		class B extends Comp {}
+		class C extends Comp {}
+		class D extends Comp {}
+		class E extends Comp {}
 		const components = [A, B, C, D, E];
 		const createFilter = (filter: Filter) =>
 			new QueryDescriptor([], filter).createFilter(components);
@@ -272,7 +293,7 @@ if (import.meta.vitest) {
 			).toStrictEqual([[0b01011n], [0b10100n]]);
 		});
 
-		it('works with Or filters', () => {
+		it('works with simple Or filters', () => {
 			expect(
 				createFilter(new Or(new With(A), new With(B))),
 			).toStrictEqual([
@@ -286,37 +307,60 @@ if (import.meta.vitest) {
 				[0b10000n, 0b0n],
 				[0n, 0b00100n],
 			]);
+		});
 
+		it('works with complex Or filters', () => {
 			expect(
 				createFilter([
+					// A && !B && (D || E)
 					new With(A),
-					new Without(B),
 					new Or(new With(D), new With(E)),
+					new Without(B),
 				]),
 			).toStrictEqual([
 				[0b01001n, 0b10001n],
 				[0b00010n, 0b00010n],
 			]);
 
-			// FIX THIS
+			expect(
+				createFilter(
+					// A || (B || C)
+					new Or(new With(A), new Or(new With(B), new With(C))),
+				),
+			).toStrictEqual([
+				[0b001n, 0b010n, 0b100n],
+				[0n, 0n, 0n],
+			]);
+
 			expect(
 				createFilter([
+					// (A || B) && (!C || !D)
 					new Or(new With(A), new With(B)),
 					new Or(new Without(C), new Without(D)),
 				]),
-				// Take the current working range and split it
-				// A && !C
-				// B && !C
-				// A && !D
-				// B && !D
 			).toStrictEqual([
-				[0b0001n, 0b0001n, 0b0010n, 0b0010n],
-				[0b0100n, 0b1000n, 0b0100n, 0b1000n],
+				[0b0001n, 0b0010n, 0b0001n, 0b0010n],
+				[0b0100n, 0b0100n, 0b1000n, 0b1000n],
 			]);
 		});
 
-		it.todo('works with nested Or filters', () => {});
-		it.todo('works with accessors');
-		it.todo('validates queries');
+		it('works with accessors', () => {
+			expect(
+				new QueryDescriptor(
+					[A, new Mut(B)],
+					[new Without(C), new With(D)],
+				).createFilter(components),
+			).toStrictEqual([[0b1011n], [0b0100n]]);
+		});
+
+		it.todo('simplifies queries');
+		it.todo('throws if simplification leaves no filters');
+
+		it('throws for unrecognized filters', () => {
+			class NotAFilter {}
+			expect(() => createFilter([new NotAFilter() as any])).toThrow(
+				/unrecognized filter/i,
+			);
+		});
 	});
 }
