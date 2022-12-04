@@ -32,7 +32,7 @@ export class World {
 	resources: Map<Class, object>;
 	threads: ThreadGroup;
 	systems: System[];
-	#executor: Executor;
+	executor: Executor;
 	commands: WorldCommands;
 	entities: Entities;
 	components: Struct[];
@@ -61,7 +61,7 @@ export class World {
 		this.entities = Entities.fromWorld(this);
 		this.commands = new WorldCommands(this.entities, this.components);
 
-		this.#executor = Executor.fromWorld(this, systems, dependencies);
+		this.executor = Executor.fromWorld(this, systems, dependencies);
 
 		this.resources = new Map<Class, object>();
 		for (const Resource of resourceTypes) {
@@ -78,14 +78,12 @@ export class World {
 			}
 		}
 
-		const buildSystem = ({ fn, parameters }: SystemDefinition) => ({
+		this.systems = systems.map(({ fn, parameters }) => ({
 			execute: fn,
 			args: parameters.map(descriptor => descriptor.intoArgument(this)),
-		});
+		}));
 
-		this.systems = systems.map(buildSystem);
-
-		this.#executor.onReady(() => this.#runSystems());
+		this.executor.onReady(() => this.#runSystems());
 	}
 
 	moveEntity(entityId: bigint, targetTableId: bigint) {
@@ -123,16 +121,16 @@ export class World {
 	}
 
 	async update() {
-		this.#executor.reset();
-		this.#executor.start();
+		this.executor.reset();
+		this.executor.start();
 	}
 
 	async #runSystems() {
-		for await (const sid of this.#executor) {
+		for await (const sid of this.executor) {
 			const system = this.systems[sid];
 			await system.execute(...system.args);
 		}
-		this.#executor.onReady(() => this.#runSystems());
+		this.executor.onReady(() => this.#runSystems());
 	}
 	#deleteEntity(entityId: bigint) {
 		const tableId = this.entities.getTableId(entityId);
