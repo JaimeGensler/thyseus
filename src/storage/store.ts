@@ -1,4 +1,3 @@
-import { describe } from 'vitest';
 import {
 	TYPE_IDS,
 	TYPE_TO_CONSTRUCTOR,
@@ -43,7 +42,7 @@ export function resizeStore(store: StructStore, struct: Struct, count: number) {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect } = import.meta.vitest;
+	const { describe, it, expect } = import.meta.vitest;
 	const { struct } = await import('../struct');
 
 	@struct()
@@ -155,7 +154,7 @@ if (import.meta.vitest) {
 	});
 
 	describe('resizeStore', () => {
-		it.only('returns an object with the same shape', () => {
+		it('returns an object with the same shape', () => {
 			const initialStore = createStore(mockWorld, Vec3, 8);
 			const resizedStore = resizeStore(initialStore, Vec3, 16);
 
