@@ -20,7 +20,7 @@ export class ResourceDescriptor<T extends Class | Mut<Class>>
 		return !isStruct(this.resource);
 	}
 
-	intersectsWith(other: unknown): boolean {
+	intersectsWith(other: unknown) {
 		return other instanceof ResourceDescriptor
 			? this.resource === other.resource &&
 					(this.canWrite || other.canWrite)
