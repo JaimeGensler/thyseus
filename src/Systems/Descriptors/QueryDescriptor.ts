@@ -1,4 +1,13 @@
-import { Query, Mut, Optional, With, Without, Or, Filter } from '../../Queries';
+import {
+	createFilter,
+	Query,
+	Mut,
+	Optional,
+	Filter,
+	With,
+	Without,
+	Or,
+} from '../../Queries';
 import { assert } from '../../utils/assert';
 import type { WorldBuilder } from '../../World/WorldBuilder';
 import type { Descriptor } from './Descriptor';
@@ -10,14 +19,6 @@ export type AccessDescriptor =
 	| Mut<object>
 	| Optional<object>
 	| Optional<Mut<object>>;
-
-const intoArray = <T>(x: T): T extends any[] ? T : [T] =>
-	Array.isArray(x) ? (x as any) : [x];
-const intoBigint = (allComponents: Struct[], components: Struct | Struct[]) =>
-	(Array.isArray(components) ? components : [components]).reduce(
-		(acc, val) => acc | (1n << BigInt(allComponents.indexOf(val))),
-		0n,
-	);
 
 export class QueryDescriptor<
 	A extends AccessDescriptor[],
@@ -69,6 +70,7 @@ export class QueryDescriptor<
 
 	onAddSystem(builder: WorldBuilder) {
 		this.components.forEach(comp => builder.registerComponent(comp));
+		this.#addFilters(this.filters, builder);
 	}
 
 	intoArgument(world: World): Query<
@@ -80,7 +82,7 @@ export class QueryDescriptor<
 		F
 	> {
 		const query = new Query(
-			...this.createFilter(world.components),
+			...createFilter(world.components, this.components, this.filters),
 			this.components,
 			world.commands,
 		);
@@ -88,57 +90,17 @@ export class QueryDescriptor<
 		return query as any;
 	}
 
-	createFilter(allComponents: Struct[]): [bigint[], bigint[]] {
-		const result = (intoArray(this.filters) as Filter[]).reduce(
-			(acc, node) => this.#processFilterNode(acc, allComponents, node),
-			[[intoBigint(allComponents, this.components)], [0n]] as [
-				bigint[],
-				bigint[],
-			],
-		);
-
-		const toKeep = result[0].reduce(
-			(acc, _, i) =>
-				(result[0][i] & result[1][i]) === 0n ? acc.add(i) : acc,
-			new Set<number>(),
-		);
-		result[0] = result[0].filter((_, i) => toKeep.has(i));
-		result[1] = result[1].filter((_, i) => toKeep.has(i));
-		assert(
-			result[0].length > 0,
-			'Tried to construct a query that cannot match any entities.',
-		);
-		return result;
-	}
-
-	#processFilterNode(
-		data: [bigint[], bigint[]],
-		allComponents: Struct[],
-		filter: Filter,
-	): [bigint[], bigint[]] {
-		if (filter instanceof With) {
-			const apply = intoBigint(allComponents, filter.value);
-			return [data[0].map(val => val | apply), data[1]];
-		} else if (filter instanceof Without) {
-			const apply = intoBigint(allComponents, filter.value);
-			return [data[0], data[1].map(val => val | apply)];
-		} else if (filter instanceof Or) {
-			const [withL, withoutL] = (intoArray(filter.l) as Filter[]).reduce(
-				(acc, lf) => this.#processFilterNode(acc, allComponents, lf),
-				data,
-			);
-			const [withR, withoutR] = (intoArray(filter.r) as Filter[]).reduce(
-				(acc, rf) => this.#processFilterNode(acc, allComponents, rf),
-				data,
-			);
-			return [
-				[...withL, ...withR],
-				[...withoutL, ...withoutR],
-			];
-		}
-		throw new Error(
-			`Unrecognized filter (${filter.constructor.name}) in Query.`,
-		);
+	#addFilters(filters: Filter, builder: WorldBuilder) {
+		[filters].flat().forEach(f => {
+			if (f instanceof With || f instanceof Without) {
+				[f.value]
+					.flat()
+					.forEach(comp => builder.registerComponent(comp));
+			} else if (f instanceof Or) {
+				this.#addFilters(f.l, builder);
+				this.#addFilters(f.r, builder);
+			}
+		});
 	}
 }
 
@@ -232,7 +194,23 @@ if (import.meta.vitest) {
 			expect(registerComponent).toHaveBeenCalledWith(C);
 			expect(registerComponent).toHaveBeenCalledWith(D);
 		});
-		it.todo('registers filter components', () => {});
+
+		it('registers filter components', () => {
+			const registerComponent = vi.fn();
+			const builder: WorldBuilder = {
+				registerComponent,
+			} as any;
+			const descriptor = new QueryDescriptor(
+				[A],
+				new Or(new With(B), new Without(C)),
+			);
+			descriptor.onAddSystem(builder);
+
+			expect(registerComponent).toHaveBeenCalledTimes(3);
+			expect(registerComponent).toHaveBeenCalledWith(A);
+			expect(registerComponent).toHaveBeenCalledWith(B);
+			expect(registerComponent).toHaveBeenCalledWith(C);
+		});
 	});
 
 	describe('isLocalToThread', () => {
@@ -261,134 +239,6 @@ if (import.meta.vitest) {
 			const result = descriptor.intoArgument(world);
 			expect(result).toBeInstanceOf(Query);
 			expect(world.queries).toContain(result);
-		});
-	});
-
-	describe('createFilter', () => {
-		class Comp {
-			static size = 1;
-		}
-		class A extends Comp {}
-		class B extends Comp {}
-		class C extends Comp {}
-		class D extends Comp {}
-		class E extends Comp {}
-		const components = [A, B, C, D, E];
-		const createFilter = (filter: Filter) =>
-			new QueryDescriptor([], filter).createFilter(components);
-
-		it('works with simple With filters', () => {
-			for (let i = 0; i < components.length; i++) {
-				expect(createFilter(new With(components[i]))).toStrictEqual([
-					[1n << BigInt(i)],
-					[0n],
-				]);
-			}
-		});
-
-		it('works with simple Without filters', () => {
-			for (let i = 0; i < components.length; i++) {
-				expect(createFilter(new Without(components[i]))).toStrictEqual([
-					[0n],
-					[1n << BigInt(i)],
-				]);
-			}
-		});
-
-		it('works with And filters (tuples)', () => {
-			expect(
-				createFilter([new With([A, B, D]), new Without([C, E])]),
-			).toStrictEqual([[0b01011n], [0b10100n]]);
-		});
-
-		it('works with simple Or filters', () => {
-			expect(
-				createFilter(new Or(new With(A), new With(B))),
-			).toStrictEqual([
-				[0b00001n, 0b00010n],
-				[0n, 0n],
-			]);
-
-			expect(
-				createFilter(new Or(new With(E), new Without(C))),
-			).toStrictEqual([
-				[0b10000n, 0b0n],
-				[0n, 0b00100n],
-			]);
-		});
-
-		it('works with complex Or filters', () => {
-			expect(
-				createFilter([
-					// A && !B && (D || E)
-					new With(A),
-					new Or(new With(D), new With(E)),
-					new Without(B),
-				]),
-			).toStrictEqual([
-				[0b01001n, 0b10001n],
-				[0b00010n, 0b00010n],
-			]);
-
-			expect(
-				createFilter(
-					// A || (B || C)
-					new Or(new With(A), new Or(new With(B), new With(C))),
-				),
-			).toStrictEqual([
-				[0b001n, 0b010n, 0b100n],
-				[0n, 0n, 0n],
-			]);
-
-			expect(
-				createFilter([
-					// (A || B) && (!C || !D)
-					new Or(new With(A), new With(B)),
-					new Or(new Without(C), new Without(D)),
-				]),
-			).toStrictEqual([
-				[0b0001n, 0b0010n, 0b0001n, 0b0010n],
-				[0b0100n, 0b0100n, 0b1000n, 0b1000n],
-			]);
-		});
-
-		it('works with accessors', () => {
-			expect(
-				new QueryDescriptor(
-					[A, new Mut(B)],
-					[new Without(C), new With(D)],
-				).createFilter(components),
-			).toStrictEqual([[0b1011n], [0b0100n]]);
-		});
-
-		it('simplifies queries', () => {
-			expect(
-				createFilter([
-					// (A || B) && (!A || !B)
-					// Filter expands into:
-					// A && !A (removed)
-					// A && !B
-					// B && !A
-					// B && !B (removed)
-					new Or(new With(A), new With(B)),
-					new Or(new Without(A), new Without(B)),
-				]),
-			).toStrictEqual([
-				[0b10n, 0b01n],
-				[0b01n, 0b10n],
-			]);
-		});
-		it('throws if simplification leaves no filters', () => {
-			expect(() => createFilter([new With(A), new Without(A)])).toThrow(
-				/cannot match any entities/,
-			);
-		});
-
-		it('throws for unrecognized filters', () => {
-			class NotAFilter {}
-			expect(() => createFilter([new NotAFilter() as any])).toThrow(
-				/unrecognized filter \(NotAFilter\)/i,
-			);
 		});
 	});
 }

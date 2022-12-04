@@ -8,3 +8,4 @@ export {
 	type OrContent,
 	type Filter,
 } from './modifiers';
+export { createFilter } from './createFilter';
