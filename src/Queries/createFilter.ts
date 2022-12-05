@@ -5,10 +5,11 @@ import { Filter, Or, With, Without } from './modifiers';
 export function createFilter(
 	allComponents: Struct[],
 	components: Struct[],
+	optionals: boolean[],
 	filters: Filter,
 ): [bigint[], bigint[]] {
 	const result = processFilterArray(filters, allComponents, [
-		[intoBigint(allComponents, components)],
+		[intoBigint(allComponents, components, optionals)],
 		[0n],
 	]);
 
@@ -26,11 +27,18 @@ export function createFilter(
 	return result;
 }
 
-const intoBigint = (allComponents: Struct[], components: Struct | Struct[]) =>
+const intoBigint = (
+	allComponents: Struct[],
+	components: Struct | Struct[],
+	optionals: boolean[] = [],
+) =>
 	[components]
 		.flat()
 		.reduce(
-			(acc, val) => acc | (1n << BigInt(allComponents.indexOf(val))),
+			(acc, val, i) =>
+				optionals[i]
+					? acc
+					: acc | (1n << BigInt(allComponents.indexOf(val))),
 			0n,
 		);
 
@@ -91,7 +99,7 @@ if (import.meta.vitest) {
 	class E extends Comp {}
 	const components = [A, B, C, D, E];
 	const testCreateFilter = (filter: Filter) =>
-		createFilter(components, [], filter);
+		createFilter(components, [], [], filter);
 	it('works with simple With filters', () => {
 		for (let i = 0; i < components.length; i++) {
 			expect(testCreateFilter(new With(components[i]))).toStrictEqual([
@@ -167,10 +175,17 @@ if (import.meta.vitest) {
 		]);
 	});
 
-	it('works with accessors', () => {
+	it('works with normal accessors', () => {
 		expect(
-			createFilter(components, [A, B], [new Without(C), new With(D)]),
+			createFilter(components, [A, B], [], [new Without(C), new With(D)]),
 		).toStrictEqual([[0b1011n], [0b0100n]]);
+	});
+
+	it('allows optional access', () => {
+		expect(
+			createFilter(components, [A, B, C], [true, false, true], []),
+			// A & C aren't required!
+		).toStrictEqual([[0b010n], [0b000n]]);
 	});
 
 	it('simplifies queries', () => {

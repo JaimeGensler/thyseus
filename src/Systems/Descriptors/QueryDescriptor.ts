@@ -27,27 +27,30 @@ export class QueryDescriptor<
 {
 	components: Struct[] = [];
 	writes: boolean[] = [];
+	optionals: boolean[] = [];
 	filters: F;
 	constructor(accessors: [...A], filters: F = [] as any) {
-		for (const component of accessors) {
+		for (const accessor of accessors) {
 			const isMut =
-				component instanceof Mut ||
-				(component instanceof Optional &&
-					component.value instanceof Mut);
-			this.components.push(
-				component instanceof Mut
-					? component.value
-					: component instanceof Optional
-					? component.value instanceof Mut
-						? component.value.value
-						: component.value
-					: component,
-			);
+				accessor instanceof Mut ||
+				(accessor instanceof Optional && accessor.value instanceof Mut);
+			this.writes.push(isMut);
+
+			this.optionals.push(accessor instanceof Optional);
+
+			const component: Struct =
+				accessor instanceof Mut
+					? accessor.value
+					: accessor instanceof Optional
+					? accessor.value instanceof Mut
+						? accessor.value.value
+						: accessor.value
+					: accessor;
 			assert(
-				this.components[this.components.length - 1].size! > 0,
+				component.size! > 0,
 				'You may not request direct access to ZSTs - use a With filter instead.',
 			);
-			this.writes.push(isMut);
+			this.components.push(component);
 		}
 		this.filters = filters;
 	}
@@ -82,7 +85,12 @@ export class QueryDescriptor<
 		F
 	> {
 		const query = new Query(
-			...createFilter(world.components, this.components, this.filters),
+			...createFilter(
+				world.components,
+				this.components,
+				this.optionals,
+				this.filters,
+			),
 			this.components,
 			world.commands,
 		);
