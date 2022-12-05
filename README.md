@@ -36,7 +36,7 @@ yarn add thyseus
 npm i thyseus
 ```
 
-## Docs
+## Documentation
 
 Documentation is currently a work on progress, and is being written in no
 particular order. Checkout the [docs](./docs/) section to see if your questions
