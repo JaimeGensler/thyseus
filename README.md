@@ -36,6 +36,17 @@ yarn add thyseus
 npm i thyseus
 ```
 
+## Docs
+
+Documentation is currently a work on progress, and is being written in no
+particular order. Checkout the [docs](./docs/) section to see if your questions
+are answered there, or feel free to
+[open an issue](https://github.com/JaimeGensler/thyseus/issues/new) if you'd
+like to see something in particular sooner!
+
+As always, if you'd like to read about new features, the
+[changelog](./CHANGELOG.md) is kept up-to-date.
+
 ## Contributing
 
 If you're interested in contributing, please have a look at the
@@ -43,11 +54,6 @@ If you're interested in contributing, please have a look at the
 [contributing guide](./CONTRIBUTING.md) first.
 
 ## Quick API Example:
-
-_This is a quick example to showcase the API - real docs and a better quickstart
-guide are in the works! For now, if you'd like to read about features, the
-[changelog](./CHANGELOG.md) is kept up-to-date and is probably the best place to
-find them._
 
 To get started, define a component:
 
