@@ -294,7 +294,8 @@ class ResourceDescriptor<T extends Class | Mut<Class>> {
 		// Unfortunately, we need to renarrow T in the second case
 	): T extends Mut<infer X>
 		? X
-		: Readonly<InstanceType<T extends Class ? T : never>> {
+		: Readonly<InstanceType<T extends Class ? T : never>> 
+	{
 		return world.resources.get(this.resource);
 	}
 }
