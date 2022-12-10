@@ -45,3 +45,19 @@ can specify that certain systems must before it may run as well.
 
 Zero-sized type. This refers to structs that are used as markers (or tags, or
 flags) for entities, and whose storage does not take up any space.
+
+## Archetype (Table)
+
+There are a few different approaches to writing an ECS - Thyseus is an
+[archetypal](https://github.com/SanderMertens/ecs-faq#archetypes-aka-dense-ecs-or-table-based-ecs)
+design. An entity's **Archetype** is the collection of component types it has;
+entities with the same archetype are stored together. This storage strategy uses
+**"tables"** (similar to a relational database), where rows are entities and
+columns are data for a specific component. In this way, data for an entity's
+component can be found via the row and column. In general, we use the term
+"Archetype" when refering to entity identity, and "Table" when referring to data
+or an entity's "location".
+
+This strategy generally makes iterating over entities extremely cache-friendly
+at the cost of changing an entity's archetype (adding/removing components) - a
+**table move** - a bit more expensive.
