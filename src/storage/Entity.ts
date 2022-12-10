@@ -9,12 +9,12 @@ export class Entity {
 	private __$$b: number;
 	#index: number;
 
-	commands: WorldCommands;
+	#commands: WorldCommands;
 	constructor(store: StructStore, index: number, commands: WorldCommands) {
 		this.__$$s = store;
 		this.#index = index;
 		this.__$$b = index * Entity.size;
-		this.commands = commands;
+		this.#commands = commands;
 	}
 
 	private get __$$i() {
@@ -53,7 +53,7 @@ export class Entity {
 	 * @returns `this`, for chaining.
 	 */
 	insert(Component: Struct): this {
-		this.commands.insertInto(this.id, Component);
+		this.#commands.insertInto(this.id, Component);
 		return this;
 	}
 
@@ -63,7 +63,7 @@ export class Entity {
 	 * @returns `this`, for chaining.
 	 */
 	remove(Component: Struct): this {
-		this.commands.removeFrom(this.id, Component);
+		this.#commands.removeFrom(this.id, Component);
 		return this;
 	}
 
@@ -72,6 +72,6 @@ export class Entity {
 	 * @returns `void`
 	 */
 	despawn(): void {
-		this.commands.despawn(this.id);
+		this.#commands.despawn(this.id);
 	}
 }
