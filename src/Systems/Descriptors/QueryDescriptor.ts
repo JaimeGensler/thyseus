@@ -19,9 +19,10 @@ export type AccessDescriptor =
 	| Mut<object>
 	| Optional<object>
 	| Optional<Mut<object>>;
+type UnwrapElement<E extends any> = E extends Class ? InstanceType<E> : E;
 
 export class QueryDescriptor<
-	A extends AccessDescriptor[],
+	A extends AccessDescriptor | AccessDescriptor[],
 	F extends Filter = [],
 > implements Descriptor
 {
@@ -29,8 +30,18 @@ export class QueryDescriptor<
 	writes: boolean[] = [];
 	optionals: boolean[] = [];
 	filters: F;
-	constructor(accessors: [...A], filters: F = [] as any) {
-		for (const accessor of accessors) {
+
+	isIndividual: boolean;
+	constructor(
+		accessors: A | [...(A extends any[] ? A : never)],
+		filters: F = [] as any,
+	) {
+		this.isIndividual = !Array.isArray(accessors);
+		const iter: AccessDescriptor[] = Array.isArray(accessors)
+			? accessors
+			: [accessors];
+
+		for (const accessor of iter) {
 			const isMut =
 				accessor instanceof Mut ||
 				(accessor instanceof Optional && accessor.value instanceof Mut);
@@ -77,11 +88,11 @@ export class QueryDescriptor<
 	}
 
 	intoArgument(world: World): Query<
-		{
-			[Index in keyof A]: A[Index] extends Class
-				? InstanceType<A[Index]>
-				: A[Index];
-		},
+		A extends any[]
+			? {
+					[Index in keyof A]: UnwrapElement<A[Index]>;
+			  }
+			: UnwrapElement<A>,
 		F
 	> {
 		const query = new Query(
@@ -91,6 +102,7 @@ export class QueryDescriptor<
 				this.optionals,
 				this.filters,
 			),
+			this.isIndividual,
 			this.components,
 			world.commands,
 		);
