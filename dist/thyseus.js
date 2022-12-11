@@ -1,4 +1,4 @@
-class F {
+class H {
   isLocalToThread() {
     return !1;
   }
@@ -11,81 +11,191 @@ class F {
   onAddSystem(t) {
   }
 }
-function j(i, t) {
-  return Q(i, t);
-}
-const Q = (i, t) => t.reduce(
-  (e, s) => e | 1n << BigInt(i.indexOf(s)),
-  0n
-);
-function S(i) {
-  return [i, 1];
-}
-S.isMut = function(i) {
-  return Array.isArray(i) && i.length === 2 && typeof i[0] == "function" && i[1] === 1;
-};
-class k {
-  #t;
-  #e = [];
-  #s;
+class J {
+  #t = [];
+  #e = 0;
   #i;
-  constructor(t, e, s) {
-    this.#i = e, this.#s = t, this.#t = this.#i.map(
-      (n) => new n({}, 0, s)
+  #s;
+  #n;
+  #r;
+  #o;
+  #h;
+  constructor(t, e, s, n, r) {
+    this.#s = t, this.#o = s, this.#n = e, this.#r = n, this.#h = r, this.#i = this.#r.map(
+      (o) => new o({}, 0, r)
     );
   }
+  get size() {
+    return this.#t.reduce((t, e) => t + e.size, 0);
+  }
   *[Symbol.iterator]() {
-    for (const t of this.#e)
-      for (let e = 0; e < t.size; e++) {
-        for (const s of this.#t) {
-          const n = t.columns.get(
-            Object.getPrototypeOf(s).constructor
-          );
-          s.__$$s = n, s.__$$i = e;
-        }
-        yield this.#t;
+    this.#e >= this.#i.length && this.#i.push(
+      ...this.#r.map(
+        (s) => new s({}, 0, this.#h)
+      )
+    );
+    const t = this.#i.slice(
+      this.#e,
+      this.#e + this.#r.length
+    ), e = this.#e;
+    this.#e += this.#r.length;
+    for (const s of this.#t) {
+      t.forEach((n, r) => {
+        const o = this.#i[r + e], h = s.columns.get(o.constructor);
+        h ? (t[r] = o, t[r].__$$s = h) : t[r] = null;
+      });
+      for (let n = 0; n < s.size; n++) {
+        for (const r of t)
+          r && (r.__$$i = n);
+        this.#o ? yield t[0] : yield t;
       }
+    }
   }
   testAdd(t, e) {
-    this.#n(t) && this.#e.push(e);
+    this.#a(t) && this.#t.push(e);
   }
-  #n(t) {
-    return (t & this.#s) === this.#s;
+  #a(t) {
+    for (let e = 0; e < this.#s.length; e++)
+      if ((this.#s[e] & t) === this.#s[e] && (this.#n[e] & t) === 0n)
+        return !0;
+    return !1;
   }
 }
-class L {
+class B {
+  value;
+  constructor(t) {
+    this.value = t;
+  }
+}
+class b {
+  value;
+  constructor(t) {
+    this.value = t;
+  }
+}
+class O {
+  value;
+  constructor(t) {
+    this.value = t;
+  }
+}
+class P {
+  value;
+  constructor(t) {
+    this.value = t;
+  }
+}
+class x {
+  l;
+  r;
+  constructor(t, e) {
+    this.l = t, this.r = e;
+  }
+}
+function u(i, t, e = Error) {
+  if (!i)
+    throw new e(t);
+}
+function G(i, t, e, s) {
+  const n = v(s, i, [
+    [R(i, t, e)],
+    [0n]
+  ]), r = n[0].reduce(
+    (o, h, a) => (n[0][a] & n[1][a]) === 0n ? o.add(a) : o,
+    /* @__PURE__ */ new Set()
+  );
+  return n[0] = n[0].filter((o, h) => r.has(h)), n[1] = n[1].filter((o, h) => r.has(h)), u(
+    n[0].length > 0,
+    "Tried to construct a query that cannot match any entities."
+  ), n;
+}
+const R = (i, t, e = []) => [t].flat().reduce(
+  (s, n, r) => e[r] ? s : s | 1n << BigInt(i.indexOf(n)),
+  0n
+), v = (i, t, e) => [i].flat().reduce(
+  (s, n) => K(s, t, n),
+  e
+), K = (i, t, e) => {
+  if (e instanceof O) {
+    const s = R(t, e.value);
+    return [i[0].map((n) => n | s), i[1]];
+  } else if (e instanceof P) {
+    const s = R(t, e.value);
+    return [i[0], i[1].map((n) => n | s)];
+  } else if (e instanceof x) {
+    const [s, n] = v(
+      e.l,
+      t,
+      i
+    ), [r, o] = v(
+      e.r,
+      t,
+      i
+    );
+    return [
+      [...s, ...r],
+      [...n, ...o]
+    ];
+  }
+  throw new Error(
+    `Unrecognized filter (${e.constructor.name}) in Query.`
+  );
+};
+class W {
   components = [];
   writes = [];
-  constructor(t) {
-    for (const e of t) {
-      const s = S.isMut(e);
-      this.components.push(s ? e[0] : e), this.writes.push(s);
+  optionals = [];
+  filters;
+  isIndividual;
+  constructor(t, e = []) {
+    this.isIndividual = !Array.isArray(t);
+    const s = Array.isArray(t) ? t : [t];
+    for (const n of s) {
+      const r = n instanceof b || n instanceof B && n.value instanceof b;
+      this.writes.push(r), this.optionals.push(n instanceof B);
+      const o = n instanceof b ? n.value : n instanceof B ? n.value instanceof b ? n.value.value : n.value : n;
+      u(
+        o.size > 0,
+        "You may not request direct access to ZSTs - use a With filter instead."
+      ), this.components.push(o);
     }
+    this.filters = e;
   }
   isLocalToThread() {
     return !1;
   }
   intersectsWith(t) {
-    return t instanceof L ? this.components.some(
+    return t instanceof W ? this.components.some(
       (e, s) => t.components.some(
         (n, r) => e === n && (this.writes[s] || t.writes[r])
       )
     ) : !1;
   }
   onAddSystem(t) {
-    this.components.forEach((e) => t.registerComponent(e));
+    this.components.forEach((e) => t.registerComponent(e)), this.#t(this.filters, t);
   }
   intoArgument(t) {
-    const e = new k(
-      j(t.components, this.components),
+    const e = new J(
+      ...G(
+        t.components,
+        this.components,
+        this.optionals,
+        this.filters
+      ),
+      this.isIndividual,
       this.components,
       t.commands
     );
     return t.queries.push(e), e;
   }
+  #t(t, e) {
+    [t].flat().forEach((s) => {
+      s instanceof O || s instanceof P ? [s.value].flat().forEach((n) => e.registerComponent(n)) : s instanceof x && (this.#t(s.l, e), this.#t(s.r, e));
+    });
+  }
 }
-let R = 0, w = 1, z = 0, l = [], _ = [], $ = {};
-const m = {
+let C = 0, y = 1, S = 0, l = [], _ = [], $ = {};
+const p = {
   u8: 1 << 0,
   u16: 1 << 1,
   u32: 1 << 2,
@@ -96,7 +206,7 @@ const m = {
   i64: 1 << 7,
   f32: 1 << 8,
   f64: 1 << 9
-}, M = {
+}, U = {
   u8: Uint8Array,
   u16: Uint16Array,
   u32: Uint32Array,
@@ -107,13 +217,13 @@ const m = {
   i64: BigInt64Array,
   f32: Float32Array,
   f64: Float64Array
-}, V = (i, t, e) => {
+}, tt = (i, t, e) => {
   const s = _.reduce(
-    (r, o, a) => o < t && a < r ? a : r,
+    (r, o, h) => o < t && h < r ? h : r,
     _.length
   );
   if (s === _.length) {
-    l.push(i), _.push(t), $[i] = l.length === 0 ? 0 : z;
+    l.push(i), _.push(t), $[i] = l.length === 0 ? 0 : S;
     return;
   }
   const n = l[s];
@@ -121,16 +231,16 @@ const m = {
   for (let r = s + 1; r < l.length; r++)
     $[l[r]] += e;
 };
-function A(i, t, e, s = 0) {
-  return w = Math.max(w, t), R |= s, V(i, t, e), z += e, $;
+function T(i, t, e, s = 0) {
+  return y = Math.max(y, t), C |= s, tt(i, t, e), S += e, $;
 }
-function X() {
+function et() {
   const i = {
-    schema: R,
-    size: Math.ceil(z / w) * w,
-    alignment: w
+    schema: C,
+    size: Math.ceil(S / y) * y,
+    alignment: y
   };
-  R = 0, z = 0, w = 1;
+  C = 0, S = 0, y = 1;
   for (let t = 0; t < l.length; t++)
     $[l[t]] /= _[t];
   return $ = {}, l.length = 0, _.length = 0, i;
@@ -138,31 +248,31 @@ function X() {
 function f(i) {
   return function() {
     return function(e, s) {
-      const n = M[i], r = A(
+      const n = U[i], r = T(
         s,
         n.BYTES_PER_ELEMENT,
         n.BYTES_PER_ELEMENT,
-        m[i]
+        p[i]
       ), o = 31 - Math.clz32(n.BYTES_PER_ELEMENT);
       Object.defineProperty(e, s, {
         enumerable: !0,
         get() {
           return this.__$$s[i][(this.__$$b >> o) + r[s]];
         },
-        set(a) {
-          this.__$$s[i][(this.__$$b >> o) + r[s]] = a;
+        set(h) {
+          this.__$$s[i][(this.__$$b >> o) + r[s]] = h;
         }
       });
     };
   };
 }
-const H = f("u8"), J = f("u16"), Z = f("u32"), G = f("u64"), K = f("i8"), tt = f("i16"), et = f("i32"), st = f("i64"), it = f("f32"), nt = f("f64"), rt = function() {
+const st = f("u8"), it = f("u16"), nt = f("u32"), rt = f("u64"), ot = f("i8"), ht = f("i16"), at = f("i32"), ct = f("i64"), ut = f("f32"), ft = f("f64"), lt = function() {
   return function(t, e) {
-    const s = A(
+    const s = T(
       e,
       Uint8Array.BYTES_PER_ELEMENT,
       Uint8Array.BYTES_PER_ELEMENT,
-      m.u8
+      p.u8
     );
     Object.defineProperty(t, e, {
       enumerable: !0,
@@ -174,14 +284,14 @@ const H = f("u8"), J = f("u16"), Z = f("u32"), G = f("u64"), K = f("i8"), tt = f
       }
     });
   };
-}, ot = new TextEncoder(), at = new TextDecoder();
-function ht({
+}, dt = new TextEncoder(), mt = new TextDecoder();
+function gt({
   characterCount: i,
   byteLength: t
 }) {
   return function(s, n) {
     t ??= i * 3;
-    const r = A(
+    const r = T(
       n,
       Uint8Array.BYTES_PER_ELEMENT,
       t
@@ -189,7 +299,7 @@ function ht({
     Object.defineProperty(s, n, {
       enumerable: !0,
       get() {
-        return at.decode(
+        return mt.decode(
           this.__$$s.u8.subarray(
             this.__$$b + r[n],
             this.__$$b + r[n] + t
@@ -197,7 +307,7 @@ function ht({
         ).split("\0")[0];
       },
       set(o) {
-        ot.encodeInto(
+        dt.encodeInto(
           o,
           this.__$$s.u8.subarray(
             this.__$$b + r[n],
@@ -208,34 +318,34 @@ function ht({
     });
   };
 }
-function ct({ type: i, length: t }) {
+function _t({ type: i, length: t }) {
   return function(s, n) {
-    const r = M[i], o = A(
+    const r = U[i], o = T(
       n,
       r.BYTES_PER_ELEMENT,
       r.BYTES_PER_ELEMENT * t,
-      m[i]
-    ), a = 31 - Math.clz32(r.BYTES_PER_ELEMENT);
+      p[i]
+    ), h = 31 - Math.clz32(r.BYTES_PER_ELEMENT);
     Object.defineProperty(s, n, {
       enumerable: !0,
       get() {
         return this.__$$s[i].subarray(
-          (this.__$$b >> a) + o[n],
-          (this.__$$b >> a) + o[n] + t
+          (this.__$$b >> h) + o[n],
+          (this.__$$b >> h) + o[n] + t
         );
       },
-      set(h) {
+      set(a) {
         this.__$$s[i].set(
-          h.subarray(0, t),
-          (this.__$$b >> a) + o[n]
+          a.subarray(0, t),
+          (this.__$$b >> h) + o[n]
         );
       }
     });
   };
 }
-function ut(i) {
+function $t(i) {
   return function(e, s) {
-    const n = A(
+    const n = T(
       s,
       i.alignment,
       i.size,
@@ -258,7 +368,7 @@ function ut(i) {
 }
 function c() {
   return function(t) {
-    const { schema: e, size: s, alignment: n } = X();
+    const { schema: e, size: s, alignment: n } = et();
     return class extends t {
       static schema = e | (t.schema ?? 0);
       static size = s;
@@ -278,35 +388,35 @@ function c() {
     };
   };
 }
-c.bool = rt;
-c.u8 = H;
-c.u16 = J;
-c.u32 = Z;
-c.u64 = G;
-c.i8 = K;
-c.i16 = tt;
-c.i32 = et;
-c.i64 = st;
-c.f32 = it;
-c.f64 = nt;
-c.string = ht;
-c.array = ct;
-c.substruct = ut;
-function W(i) {
+c.bool = lt;
+c.u8 = st;
+c.u16 = it;
+c.u32 = nt;
+c.u64 = rt;
+c.i8 = ot;
+c.i16 = ht;
+c.i32 = at;
+c.i64 = ct;
+c.f32 = ut;
+c.f64 = ft;
+c.string = gt;
+c.array = _t;
+c.substruct = $t;
+function F(i) {
   return typeof i == "function" && typeof i.size == "number" && typeof i.alignment == "number" && typeof i.schema == "number";
 }
-class O {
+class N {
   resource;
   canWrite;
   constructor(t) {
-    const e = S.isMut(t);
-    this.resource = e ? t[0] : t, this.canWrite = e;
+    const e = t instanceof b;
+    this.resource = e ? t.value : t, this.canWrite = e;
   }
   isLocalToThread() {
-    return !W(this.resource);
+    return !F(this.resource);
   }
   intersectsWith(t) {
-    return t instanceof O ? this.resource === t.resource && (this.canWrite || t.canWrite) : !1;
+    return t instanceof N ? this.resource === t.resource && (this.canWrite || t.canWrite) : !1;
   }
   onAddSystem(t) {
     t.registerResource(this.resource);
@@ -315,7 +425,7 @@ class O {
     return t.resources.get(this.resource);
   }
 }
-class ft {
+class pt {
   isLocalToThread() {
     return !0;
   }
@@ -328,114 +438,109 @@ class ft {
   onAddSystem(t) {
   }
 }
-function T(i) {
+function m(i) {
   return (...t) => new i(...t);
 }
-const lt = {
-  Commands: T(F),
-  Query: T(L),
-  Res: T(O),
-  World: T(ft),
-  Mut: S
+const wt = {
+  Commands: m(H),
+  Query: m(W),
+  Res: m(N),
+  World: m(pt),
+  Mut: m(b),
+  Optional: m(B),
+  With: m(O),
+  Without: m(P),
+  Or(i, t) {
+    return new x(i, t);
+  }
 };
-function mt(i, t) {
+function bt(i, t) {
   return {
-    parameters: i(lt),
+    parameters: i(wt),
     fn: t
   };
 }
-function g(i, t, e = Error) {
-  if (!i)
-    throw new e(t);
-}
-function* B(i) {
+function* M(i) {
   let t = 0;
   for (; i !== 0n; )
     (i & 1n) === 1n && (yield t), i >>= 1n, t++;
 }
-function dt(i, t, e) {
+function yt(i, t, e) {
   const s = Array.from({ length: i.length }, () => 0n), n = (r, o) => (s[r] & 1n << BigInt(o)) !== 0n;
   return t.forEach((r, o) => {
     if (!!r) {
-      for (const a of r.before ?? []) {
-        const h = i.indexOf(a);
-        h !== -1 && (g(
-          !n(o, h),
-          `Circular dependency detected: ${i[o].fn.name} (${o}) and ${i[h].fn.name} (${h}) depend on each other.`
-        ), s[h] |= 1n << BigInt(o));
+      for (const h of r.before ?? []) {
+        const a = i.indexOf(h);
+        a !== -1 && (u(
+          !n(o, a),
+          `Circular dependency detected: ${i[o].fn.name} (${o}) and ${i[a].fn.name} (${a}) depend on each other.`
+        ), s[a] |= 1n << BigInt(o));
       }
-      for (const a of r.after ?? []) {
-        const h = i.indexOf(a);
-        h !== -1 && (g(
-          !n(h, o),
-          `Circular dependency detected: ${i[o].fn.name} (${o}) and ${i[h].fn.name} (${h}) depend on each other.`
-        ), s[o] |= 1n << BigInt(h));
+      for (const h of r.after ?? []) {
+        const a = i.indexOf(h);
+        a !== -1 && (u(
+          !n(a, o),
+          `Circular dependency detected: ${i[o].fn.name} (${o}) and ${i[a].fn.name} (${a}) depend on each other.`
+        ), s[o] |= 1n << BigInt(a));
       }
     }
   }), s.forEach((r, o) => {
-    g(
+    u(
       !n(o, o),
       `Circular dependency detected: ${i[o].fn.name} (${o}) and ${i[o].fn.name} (${o}) depend on each other.`
     );
   }), t.forEach((r, o) => {
     if (!!r) {
       if (r.beforeAll)
-        for (const a of B(e[o]))
-          a !== o && (s[o] & 1n << BigInt(a)) === 0n && (s[a] |= 1n << BigInt(o));
+        for (const h of M(e[o]))
+          h !== o && (s[o] & 1n << BigInt(h)) === 0n && (s[h] |= 1n << BigInt(o));
       if (r.afterAll)
-        for (const a of B(e[o]))
-          a !== o && (s[a] & 1n << BigInt(o)) === 0n && (s[o] |= 1n << BigInt(a));
+        for (const h of M(e[o]))
+          h !== o && (s[h] & 1n << BigInt(o)) === 0n && (s[o] |= 1n << BigInt(h));
     }
   }), s.forEach((r, o) => s[o] &= e[o]), s;
 }
-function gt(i, t) {
+function Et(i, t) {
   return i.parameters.some(
     (e) => t.parameters.some(
       (s) => e.intersectsWith(s) || s.intersectsWith(e)
     )
   ) ? 1 : 0;
 }
-function _t(i) {
+function At(i) {
   return i.map(
     (t) => i.reduce(
-      (e, s, n) => e | BigInt(gt(t, s)) << BigInt(n),
+      (e, s, n) => e | BigInt(Et(t, s)) << BigInt(n),
       0n
     )
   );
 }
-const $t = (i, t) => {
+const Tt = (i, t) => {
   for (const [e, s] of t) {
     const n = i.get(e);
     n === void 0 ? i.set(e, s) : n !== 0n && i.set(e, n | s);
   }
   return i;
-}, bt = mt(
+}, zt = bt(
   ({ World: i }) => [i()],
   async function(t) {
     const e = (await t.threads.send(
       "thyseus::getCommandQueue"
-    )).reduce($t, t.commands.queue);
+    )).reduce(Tt, t.commands.queue);
     for (const [s, n] of e)
       t.moveEntity(s, n);
     e.clear();
   }
 );
-function pt(i, t) {
-  const e = [...t];
-  return [...i].reduce(
-    (s, n, r) => s.set(n, e[r]),
-    /* @__PURE__ */ new Map()
-  );
-}
 class d {
-  static schema = m.u64 | m.u32;
+  static schema = p.u64 | p.u32;
   static size = 8;
   __$$s;
   __$$b;
   #t;
-  commands;
+  #e;
   constructor(t, e, s) {
-    this.__$$s = t, this.#t = e, this.__$$b = e * d.size, this.commands = s;
+    this.__$$s = t, this.#t = e, this.__$$b = e * d.size, this.#e = s;
   }
   get __$$i() {
     return this.#t;
@@ -453,40 +558,46 @@ class d {
     return this.__$$s.u32[(this.__$$b >> 2) + 1];
   }
   insert(t) {
-    return this.commands.insertInto(this.id, t), this;
+    return this.#e.insertInto(this.id, t), this;
   }
   remove(t) {
-    return this.commands.removeFrom(this.id, t), this;
+    return this.#e.removeFrom(this.id, t), this;
   }
   despawn() {
-    this.commands.despawn(this.id);
+    this.#e.despawn(this.id);
   }
 }
-const wt = Object.entries(M);
-function N(i, t, e = i.config.getNewTableSize(0)) {
-  const s = i.createBuffer(t.size * e);
-  return wt.reduce(
-    (n, [r, o]) => ((m[r] & t.schema) === m[r] && (n[r] = new o(s)), n),
-    { buffer: s, u8: new Uint8Array(s) }
-  );
+const [, ...Bt] = Object.entries(U);
+function Y(i, t) {
+  return Bt.reduce((e, [s, n]) => ((p[s] & i.schema) === p[s] && (e[s] = new n(e.buffer)), e), t);
 }
-const yt = Object.entries(M);
-function Et(i, t, e) {
+function k(i, t, e) {
+  const s = i.createBuffer(t.size * e);
+  return Y(t, {
+    buffer: s,
+    u8: new Uint8Array(s)
+  });
+}
+function St(i, t, e) {
   const s = new i.buffer.constructor(
     t.size * e
   ), n = new Uint8Array(s);
-  return n.set(i.u8), yt.reduce(
-    (r, [o, a]) => ((m[o] & t.schema) === m[o] && (r[o] = new a(s)), r),
-    { buffer: s, u8: n }
-  );
+  return n.set(i.u8), i.buffer = s, i.u8 = n, Y(t, i);
 }
-class x {
+class Q {
   columns;
   meta;
   static create(t, e) {
     const s = new Uint32Array(t.createBuffer(8));
     return s[1] = t.config.getNewTableSize(0), new this(
-      e.reduce((n, r) => (r.size > 0 && n.set(r, N(t, r)), n), /* @__PURE__ */ new Map()),
+      e.reduce((n, r) => (r.size > 0 && n.set(
+        r,
+        k(
+          t,
+          r,
+          t.config.getNewTableSize(0)
+        )
+      ), n), /* @__PURE__ */ new Map()),
       s
     );
   }
@@ -538,23 +649,23 @@ class x {
   grow(t) {
     this.capacity = t.config.getNewTableSize(this.capacity);
     for (const [e, s] of this.columns)
-      this.columns.set(e, Et(s, e, this.capacity));
+      this.columns.set(e, St(s, e, this.capacity));
   }
 }
-function At(i) {
-  i.addSystem(bt, { afterAll: !0 }), i.registerComponent(d), i.registerThreadChannel("thyseus::getCommandQueue", (t) => () => {
+function Mt(i) {
+  i.addSystem(zt, { afterAll: !0 }), i.registerComponent(d), i.registerThreadChannel("thyseus::getCommandQueue", (t) => () => {
     const e = new Map(t.commands.queue);
     return t.commands.queue.clear(), e;
   }), i.registerThreadChannel(
     "thyseus::newTable",
     (t) => ([e, s, n]) => {
-      const r = pt(
-        [...B(e)].map((a) => t.components[a]),
-        s
-      ), o = new x(r, n);
+      const r = [...M(e)].reduce(
+        (h, a, g) => h.set(t.components[a], s[g]),
+        /* @__PURE__ */ new Map()
+      ), o = new Q(r, n);
       t.archetypes.set(e, o);
-      for (const a of t.queries)
-        a.testAdd(e, o);
+      for (const h of t.queries)
+        h.testAdd(e, o);
     }
   ), i.registerThreadChannel(
     "thyseus::growTable",
@@ -566,12 +677,12 @@ function At(i) {
     }
   );
 }
-class E {
+class A {
   static isMainThread = !!globalThis.document;
-  isMainThread = E.isMainThread;
+  isMainThread = A.isMainThread;
   static spawn(t, e) {
     return new this(
-      E.isMainThread ? Array.from(
+      A.isMainThread ? Array.from(
         { length: t },
         () => new Worker(e, { type: "module" })
       ) : [globalThis]
@@ -579,8 +690,8 @@ class E {
   }
   #t = 0;
   #e = /* @__PURE__ */ new Map();
-  #s = {};
-  #i = [];
+  #i = {};
+  #s = [];
   #n;
   constructor(t) {
     this.#n = t;
@@ -588,20 +699,20 @@ class E {
       currentTarget: s,
       data: [n, r, o]
     }) => {
-      this.#e.has(n) ? (this.#e.get(n)(o), this.#e.delete(n)) : r in this.#s ? s.postMessage([
+      this.#e.has(n) ? (this.#e.get(n)(o), this.#e.delete(n)) : r in this.#i ? s.postMessage([
         n,
         r,
-        this.#s[r](o)
+        this.#i[r](o)
       ]) : s.postMessage([n, r, null]);
     };
     for (const s of this.#n)
       s.addEventListener("message", e);
   }
   setListener(t, e) {
-    this.#s[t] = e;
+    this.#i[t] = e;
   }
   deleteListener(t) {
-    delete this.#s[t];
+    delete this.#i[t];
   }
   send(t, e) {
     return Promise.all(
@@ -612,23 +723,23 @@ class E {
     );
   }
   queue(t) {
-    if (E.isMainThread) {
+    if (A.isMainThread) {
       const e = t();
-      return this.#i.push(e), e;
+      return this.#s.push(e), e;
     } else
-      return this.#i.shift();
+      return this.#s.shift();
   }
   async wrapInQueue(t) {
     const e = "@@";
     let s;
-    return this.isMainThread ? (s = await t(), await this.send(e, this.#i)) : (s = await new Promise(
+    return this.isMainThread ? (s = await t(), await this.send(e, this.#s)) : (s = await new Promise(
       (n) => this.setListener(e, (r) => {
-        this.#i = r, n(t());
+        this.#s = r, n(t());
       })
-    ), this.deleteListener(e)), this.#i.length = 0, s;
+    ), this.deleteListener(e)), this.#s.length = 0, s;
   }
 }
-class Tt {
+class qt {
   systems = [];
   systemDependencies = [];
   #t = [];
@@ -638,7 +749,7 @@ class Tt {
   config;
   url;
   constructor(t, e) {
-    this.config = t, this.url = e, At(this);
+    this.config = t, this.url = e, Mt(this);
   }
   addSystem(t, e) {
     return this.systems.push(t), this.systemDependencies.push(e), this.#e(t), this;
@@ -659,8 +770,8 @@ class Tt {
     return this.threadChannels[t] = e, this;
   }
   async build() {
-    const t = E.spawn(this.config.threads - 1, this.url), e = await t.wrapInQueue(
-      () => new Ot(
+    const t = A.spawn(this.config.threads - 1, this.url), e = await t.wrapInQueue(
+      () => new Nt(
         this.config,
         t,
         [...this.components],
@@ -687,8 +798,8 @@ class Tt {
     t.parameters.forEach((e) => e.onAddSystem(this));
   }
 }
-const C = 0b11111111n;
-class P {
+const q = 0b11111111n;
+class L {
   static getBufferLength(t, e) {
     return Math.ceil(t / 8) * e;
   }
@@ -715,20 +826,20 @@ class P {
   set(t, e) {
     const s = this.#t * t;
     for (let n = 0; n < this.#t; n++)
-      this.#e[s + n] = Number(e >> BigInt(n * 8) & C);
+      this.#e[s + n] = Number(e >> BigInt(n * 8) & q);
   }
   OR(t, e) {
     const s = this.#t * t;
     for (let n = 0; n < this.#t; n++)
-      this.#e[s + n] |= Number(e >> BigInt(n * 8) & C);
+      this.#e[s + n] |= Number(e >> BigInt(n * 8) & q);
   }
   XOR(t, e) {
     const s = this.#t * t;
     for (let n = 0; n < this.#t; n++)
-      this.#e[s + n] ^= Number(e >> BigInt(n * 8) & C);
+      this.#e[s + n] ^= Number(e >> BigInt(n * 8) & q);
   }
 }
-const p = {
+const w = {
   push(i, t) {
     i[i[i.length - 1]] = t, i[i.length - 1]++;
   },
@@ -741,65 +852,65 @@ const p = {
       yield i[e];
   },
   delete(i, t) {
-    i[t] = i[p.size(i) - 1], i[i.length - 1]--;
+    i[t] = i[w.size(i) - 1], i[i.length - 1]--;
   }
 };
-let zt = 0;
-class Bt {
+let It = 0;
+class Rt {
   static fromWorld(t, e, s) {
     const n = t.threads.queue(
-      () => _t(e)
+      () => At(e)
     ), r = t.threads.queue(
-      () => dt(e, s, n)
+      () => yt(e, s, n)
     ), o = t.threads.isMainThread ? e.reduce(
-      (b, q, Y) => q.parameters.some(
-        (v) => v.isLocalToThread()
-      ) ? b.add(Y) : b,
+      (z, V, X) => V.parameters.some(
+        (Z) => Z.isLocalToThread()
+      ) ? z.add(X) : z,
       /* @__PURE__ */ new Set()
-    ) : /* @__PURE__ */ new Set(), a = t.threads.queue(
+    ) : /* @__PURE__ */ new Set(), h = t.threads.queue(
       () => new Uint16Array(t.createBuffer(2 * e.length + 2))
-    ), h = new P(
+    ), a = new L(
       e.length,
       2,
       t.threads.queue(
         () => new Uint8Array(
           t.createBuffer(
-            P.getBufferLength(e.length, 2)
+            L.getBufferLength(e.length, 2)
           )
         )
       )
-    ), u = t.threads.queue(() => String(zt++));
+    ), g = t.threads.queue(() => String(It++));
     return new this(
       n,
       r,
-      a,
       h,
+      a,
       o,
-      u
+      g
     );
   }
   #t = new BroadcastChannel("thyseus::executor");
   #e = [];
-  #s;
   #i;
+  #s;
   #n;
   #r;
   #o;
-  #a;
+  #h;
   constructor(t, e, s, n, r, o) {
-    this.#s = t, this.#i = e, this.#n = s, this.#r = n, this.#o = r, this.#a = o, this.#t.addEventListener("message", () => {
-      this.#e.forEach((a) => a(0)), this.#e.length = 0;
+    this.#i = t, this.#s = e, this.#n = s, this.#r = n, this.#o = r, this.#h = o, this.#t.addEventListener("message", () => {
+      this.#e.forEach((h) => h(0)), this.#e.length = 0;
     });
   }
   start() {
-    this.#h();
+    this.#a();
   }
   reset() {
     this.#r.set(0, 0n), this.#r.set(1, 0n);
-    for (let t = 0; t < this.#i.length; t++)
-      this.#o.has(t) || p.push(this.#n, t);
+    for (let t = 0; t < this.#s.length; t++)
+      this.#o.has(t) || w.push(this.#n, t);
   }
-  #h() {
+  #a() {
     this.#t.postMessage(0), this.#e.forEach((t) => t(0)), this.#e.length = 0;
   }
   async #c() {
@@ -810,75 +921,75 @@ class Bt {
   }
   async *[Symbol.asyncIterator]() {
     const t = new Set(this.#o);
-    for (; p.size(this.#n) + t.size > 0; ) {
-      const e = p.size(this.#n);
+    for (; w.size(this.#n) + t.size > 0; ) {
+      const e = w.size(this.#n);
       let s = -1;
-      await navigator.locks.request(this.#a, () => {
+      await navigator.locks.request(this.#h, () => {
         const n = this.#r.get(0), r = this.#r.get(1);
         for (const o of [
           ...t,
-          ...p.iter(this.#n)
+          ...w.iter(this.#n)
         ])
-          if ((n & this.#s[o]) === 0n && (r & this.#i[o]) === this.#i[o]) {
-            s = o, t.has(o) ? t.delete(o) : p.delete(
+          if ((n & this.#i[o]) === 0n && (r & this.#s[o]) === this.#s[o]) {
+            s = o, t.has(o) ? t.delete(o) : w.delete(
               this.#n,
               this.#n.indexOf(o)
             ), this.#r.OR(0, 1n << BigInt(o));
             break;
           }
-      }), s > -1 ? (yield s, await navigator.locks.request(this.#a, () => {
+      }), s > -1 ? (yield s, await navigator.locks.request(this.#h, () => {
         this.#r.XOR(0, 1n << BigInt(s)), this.#r.OR(1, 1n << BigInt(s));
-      }), this.#h()) : (e !== 0 || t.size !== 0) && await this.#c();
+      }), this.#a()) : (e !== 0 || t.size !== 0) && await this.#c();
     }
   }
 }
-class St {
+class vt {
   queue = /* @__PURE__ */ new Map();
   #t;
   #e;
-  #s;
   #i;
+  #s;
   constructor(t, e) {
     this.#t = t;
     const s = new ArrayBuffer(8);
-    this.#s = new BigUint64Array(1), this.#e = new d(
-      { buffer: s, u8: new Uint8Array(s), u64: this.#s },
+    this.#i = new BigUint64Array(1), this.#e = new d(
+      { buffer: s, u8: new Uint8Array(s), u64: this.#i },
       0,
       this
-    ), this.#i = e;
+    ), this.#s = e;
   }
   spawn() {
     const t = this.#t.spawn();
-    return this.#s[0] = t, this.insertInto(t, d), this.#e;
+    return this.#i[0] = t, this.insertInto(t, d), this.#e;
   }
   despawn(t) {
     return this.queue.set(t, 0n), this;
   }
   get(t) {
-    return this.#s[0] = t, this.#e;
+    return this.#i[0] = t, this.#e;
   }
   insertInto(t, e) {
     this.queue.set(
       t,
-      (this.queue.get(t) ?? this.#t.getTableId(t)) | 1n << BigInt(this.#i.indexOf(e))
+      (this.queue.get(t) ?? this.#t.getTableId(t)) | 1n << BigInt(this.#s.indexOf(e))
     );
   }
   removeFrom(t, e) {
     this.queue.set(
       t,
-      (this.queue.get(t) ?? this.#t.getTableId(t)) ^ 1n << BigInt(this.#i.indexOf(e))
+      (this.queue.get(t) ?? this.#t.getTableId(t)) ^ 1n << BigInt(this.#s.indexOf(e))
     );
   }
 }
-const Mt = 0, I = 1, D = 32n, qt = 0x00000000ffffffffn, y = (i) => Number(i & qt), Ct = (i) => Number(i >> D);
-class U {
+const Ct = 0, I = 1, j = 32n, Lt = 0x00000000ffffffffn, E = (i) => Number(i & Lt), Ot = (i) => Number(i >> j);
+class D {
   static fromWorld(t) {
     const e = t.config.maxEntities;
-    return new U(
+    return new D(
       t.threads.queue(
         () => new Uint32Array(t.createBuffer(e * 4))
       ),
-      new P(
+      new L(
         t.components.length,
         e,
         t.threads.queue(() => new Uint8Array(e))
@@ -910,15 +1021,15 @@ class U {
         const s = Atomics.load(this.#e, e);
         if (s === 0)
           break;
-        const n = It(s);
+        const n = Pt(s);
         if (Atomics.xor(this.#e, e, 1 << n) === s)
-          return Atomics.sub(this.#t, I, 1), BigInt(this.generations[n]) << D | BigInt(32 * e + n);
+          return Atomics.sub(this.#t, I, 1), BigInt(this.generations[n]) << j | BigInt(32 * e + n);
       }
-    const t = Atomics.add(this.#t, Mt, 1);
+    const t = Atomics.add(this.#t, Ct, 1);
     return BigInt(t);
   }
   despawn(t) {
-    const e = y(t), s = Ct(t);
+    const e = E(t), s = Ot(t);
     Atomics.compareExchange(
       this.generations,
       e,
@@ -927,48 +1038,48 @@ class U {
     ) === s && (Atomics.or(this.#e, e >> 5, 1 << (e & 31)), Atomics.add(this.#t, I, 1));
   }
   getTableId(t) {
-    return this.tableIds.get(y(t));
+    return this.tableIds.get(E(t));
   }
   getRow(t) {
-    return this.row[y(t)];
+    return this.row[E(t)];
   }
   setLocation(t, e, s) {
-    this.tableIds.set(y(t), e), this.row[y(t)] = s;
+    this.tableIds.set(E(t), e), this.row[E(t)] = s;
   }
 }
-const It = (i) => (i >>>= 0, 31 - Math.clz32(i & -i)), Rt = (i = {}) => ({
+const Pt = (i) => (i >>>= 0, 31 - Math.clz32(i & -i)), xt = (i = {}) => ({
   threads: 1,
   maxEntities: 2 ** 16,
   getNewTableSize: (t) => t === 0 ? 8 : t * 2,
   ...i
-}), Pt = ({ threads: i, maxEntities: t }, e) => {
-  i > 1 && (g(
+}), Wt = ({ threads: i, maxEntities: t }, e) => {
+  i > 1 && (u(
     isSecureContext,
     "Invalid config - Multithreading (threads > 1) requires a secure context."
-  ), g(
+  ), u(
     typeof SharedArrayBuffer < "u",
     "Invalid config - Multithreading (threads > 1) requires SharedArrayBuffer."
-  ), g(
+  ), u(
     e,
     "Invalid config - Multithreading (threads > 1) requires a module URL parameter.",
     TypeError
-  )), g(
+  )), u(
     Number.isInteger(i) && 0 < i && i < 64,
     "Invalid config - 'threads' must be an integer such that 0 < threads < 64",
     RangeError
-  ), g(
+  ), u(
     Number.isInteger(t) && 0 < t && t < 2 ** 32,
     "Invalid config - 'maxEntities' must be an integer such that 0 < maxEntities < 2**32",
     RangeError
   );
 };
-function Lt(i, t) {
-  const e = Rt(i);
-  return Pt(e, t), e;
+function Ut(i, t) {
+  const e = xt(i);
+  return Wt(e, t), e;
 }
-class Ot {
+class Nt {
   static new(t, e) {
-    return new Tt(Lt(t, e), e);
+    return new qt(Ut(t, e), e);
   }
   archetypes = /* @__PURE__ */ new Map();
   queries = [];
@@ -977,31 +1088,30 @@ class Ot {
   resources;
   threads;
   systems;
-  #e;
+  executor;
   commands;
   entities;
   components;
-  constructor(t, e, s, n, r, o, a) {
+  constructor(t, e, s, n, r, o, h) {
     this.#t = t.threads > 1 ? SharedArrayBuffer : ArrayBuffer, this.config = t, this.threads = e;
-    for (const u in a)
-      this.threads.setListener(u, a[u](this));
-    this.components = s, this.entities = U.fromWorld(this), this.commands = new St(this.entities, this.components), this.#e = Bt.fromWorld(this, r, o), this.resources = /* @__PURE__ */ new Map();
-    for (const u of n)
-      if (W(u)) {
-        const b = e.queue(
-          () => N(this, u, 1)
+    for (const a in h)
+      this.threads.setListener(a, h[a](this));
+    this.components = s, this.entities = D.fromWorld(this), this.commands = new vt(this.entities, this.components), this.executor = Rt.fromWorld(this, r, o), this.resources = /* @__PURE__ */ new Map();
+    for (const a of n)
+      if (F(a)) {
+        const g = e.queue(
+          () => k(this, a, 1)
         );
         this.resources.set(
-          u,
-          new u(b, 0, this.commands)
+          a,
+          new a(g, 0, this.commands)
         );
       } else
-        e.isMainThread && this.resources.set(u, new u());
-    const h = ({ fn: u, parameters: b }) => ({
-      execute: u,
-      args: b.map((q) => q.intoArgument(this))
-    });
-    this.systems = r.map(h), this.#e.onReady(() => this.#s());
+        e.isMainThread && this.resources.set(a, new a());
+    this.systems = r.map(({ fn: a, parameters: g }) => ({
+      execute: a,
+      args: g.map((z) => z.intoArgument(this))
+    })), this.executor.onReady(() => this.#e());
   }
   moveEntity(t, e) {
     const s = this.entities.getTableId(t), n = this.archetypes.get(s);
@@ -1009,8 +1119,8 @@ class Ot {
       this.#i(t);
       return;
     }
-    const r = this.#n(e);
-    r.isFull && this.#r(e, r), n ? (this.entities.setLocation(
+    const r = this.#s(e);
+    r.isFull && this.#n(e, r), n ? (this.entities.setLocation(
       n.columns.get(d).u64[n.size - 1],
       s,
       this.entities.getRow(t)
@@ -1024,14 +1134,14 @@ class Ot {
     return new this.#t(t);
   }
   async update() {
-    this.#e.reset(), this.#e.start();
+    this.executor.reset(), this.executor.start();
   }
-  async #s() {
-    for await (const t of this.#e) {
+  async #e() {
+    for await (const t of this.executor) {
       const e = this.systems[t];
       await e.execute(...e.args);
     }
-    this.#e.onReady(() => this.#s());
+    this.executor.onReady(() => this.#e());
   }
   #i(t) {
     const e = this.entities.getTableId(t), s = this.archetypes.get(e);
@@ -1045,11 +1155,11 @@ class Ot {
     }
     this.entities.setLocation(t, 0n, 0);
   }
-  #n(t) {
+  #s(t) {
     if (!this.archetypes.has(t)) {
-      const e = x.create(
+      const e = Q.create(
         this,
-        [...B(t)].map((s) => this.components[s])
+        [...M(t)].map((s) => this.components[s])
       );
       this.threads.send("thyseus::newTable", [
         t,
@@ -1061,7 +1171,7 @@ class Ot {
     }
     return this.archetypes.get(t);
   }
-  #r(t, e) {
+  #n(t, e) {
     e.grow(this), this.threads.send("thyseus::growTable", [
       t,
       [...e.columns.values()],
@@ -1069,14 +1179,14 @@ class Ot {
     ]);
   }
 }
-function Ut(i) {
+function Dt(i) {
   return i;
 }
 export {
   d as Entity,
-  Ot as World,
-  bt as applyCommands,
-  Ut as definePlugin,
-  mt as defineSystem,
+  Nt as World,
+  zt as applyCommands,
+  Dt as definePlugin,
+  bt as defineSystem,
   c as struct
 };
