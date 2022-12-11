@@ -21,12 +21,14 @@ type IteratorItem<I> = I extends Optional<infer X>
 
 export class Query<A extends Accessors, F extends Filter = []> {
 	#tables = [] as Table[];
+	#elementOffset = 0;
 	#elements: object[];
 
 	#with: bigint[];
 	#without: bigint[];
 	#components: Struct[];
 	#isIndividual: boolean;
+	#commands: WorldCommands;
 	constructor(
 		withFilters: bigint[],
 		withoutFilters: bigint[],
@@ -38,8 +40,9 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		this.#isIndividual = isIndividual;
 		this.#without = withoutFilters;
 		this.#components = components;
+		this.#commands = commands;
 		this.#elements = this.#components.map(
-			// NOTE: This will cause a de-opt - refactor to not pass an empty object
+			// TODO: This will cause a de-opt - refactor to not pass an empty object
 			Component => new Component({} as any, 0, commands),
 		);
 	}
@@ -49,18 +52,31 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	}
 
 	*[Symbol.iterator](): QueryIterator<A> {
-		const elements: Array<object | null> = [...this.#elements];
+		if (this.#elementOffset >= this.#elements.length) {
+			this.#elements.push(
+				...this.#components.map(
+					Component => new Component({} as any, 0, this.#commands),
+				),
+			);
+		}
+
+		const elements: Array<object | null> = this.#elements.slice(
+			this.#elementOffset,
+			this.#elementOffset + this.#components.length,
+		);
+		const offset = this.#elementOffset;
+		this.#elementOffset += this.#components.length;
+
 		for (const table of this.#tables) {
-			this.#elements.forEach((el, i) => {
-				const store = table.columns.get(
-					Object.getPrototypeOf(el).constructor,
-				);
+			elements.forEach((_, i) => {
+				const element = this.#elements[i + offset];
+				const store = table.columns.get(element.constructor as any);
 				if (!store) {
 					elements[i] = null;
 				} else {
-					elements[i] = el;
+					elements[i] = element;
 					//@ts-ignore
-					el.__$$s = store;
+					elements[i].__$$s = store;
 				}
 			});
 
@@ -147,7 +163,7 @@ if (import.meta.vitest) {
 			},
 			config: {
 				getNewTableSize() {
-					return 8;
+					return 16;
 				},
 			},
 		};
@@ -228,10 +244,40 @@ if (import.meta.vitest) {
 			let j = 0;
 			for (const vec of query) {
 				expect(vec).toBeInstanceOf(Vec3);
-
 				j++;
 			}
 			expect(j).toBe(10);
+		});
+
+		it('yields unique elements for nested iteration', () => {
+			const query = new Query<[Vec3, Entity2]>(
+				[0n],
+				[0n],
+				false,
+				[Vec3, Entity],
+				{} as any,
+			);
+			const table = Table.create(mockWorld, [Entity, Vec3]);
+
+			query.testAdd(0n, table);
+			expect(query.size).toBe(0);
+			for (let i = 0; i < 8; i++) {
+				table.add(BigInt(i));
+				expect(query.size).toBe(i + 1);
+			}
+
+			let i = 0;
+			for (const [vec1, ent1] of query) {
+				let j = 0;
+				for (const [vec2, ent2] of query) {
+					expect(vec1).not.toBe(vec2);
+					expect(ent1).not.toBe(ent2);
+					expect(ent1.id).toBe(BigInt(i));
+					expect(ent2.id).toBe(BigInt(j));
+					j++;
+				}
+				i++;
+			}
 		});
 	});
 }
