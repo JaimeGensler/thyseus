@@ -1,5 +1,77 @@
 # Changelog
 
+## v0.7.0 (December 11, 2022)
+
+Query improvements are here, with a [docs](./docs/queries.md) page too!
+
+### 💥 Breaking Changes
+
+-   The value returned by `Mut()` has changed from an array to an instance of
+    the new `Mut` class.
+    -   This does not impact you unless you directly accessed the return of
+        `Mut()`.
+-   Trying to use zero-sized ("tag") components as accessors in queries will
+    throw during system construction now.
+    -   With the new filters feature for queries, the correct way to query for
+        ZSTs is to specify `With(MyZST)` / `Without(MyZST)`.
+    -   Previously, this would cause errors to be thrown downstream anyway.
+        We're forcing this error to happen earlier to highlight that this is an
+        invalid use and to offer a clearer resolution.
+
+### ✨ Features
+
+-   **_Query Filters!_** The `Query()` parameter now permits a second argument
+    that can be used to specify additional filters on queries. These filters are
+    available on the parameters object provided by `defineSystem`, and are only
+    permitted in the second argument of the `Query()` descriptor function.
+    -   `With()` - specifies that queried entities must have a specific
+        component.
+        -   Accepts structs or tuples of structs as arguments.
+    -   `Without()` - the opposite of With. Matched entities will **_not_** have
+        the specified component.
+        -   Acccepts structs or tuples of structs as arguments.
+    -   `Or()` - allows more complex querying logic, where multiple conditions
+        may be permitted.
+        -   Accepts two arguments.
+        -   Arguments must be instances of `With`, `Without`, `Or`, or tuples of
+            those items.
+    -   **And** - tuples of any size (`[ComponentA, ComponentB, ...]`) specify
+        "And" clauses.
+    -   Some additional notes:
+        -   Filters do not grant access to components and do not impact whether
+            systems can run in parallel.
+        -   With the exception of `Optional()`, accessors are processed as
+            `With` clauses automatically and do not need to be added to the
+            filter list.
+        -   Queries are validated and will remove impossible combinations of
+            filters. If no valid filters remain, an error will be thrown. For
+            example:
+            -   `[With(A), Without(A)]` will throw.
+            -   `[Or(With(A), With(B)), Or(Without(A), Without(B))]` will not
+                throw, and will simplify to expect `(A && !B) || (!A && B)`
+                (removing the logically impossible `(A && !A) || (B && !B)`).
+-   Added `Optional()` to parameters object, accepted by `Query()` parameters
+    (only permitted in first argument).
+    -   Use `Optional()` if you want access to a component _only if_ an entity
+        contains it. Optional has no affect on query matches (both entities with
+        and without the component will match the query).
+    -   Iterating queries with `Optional()` will yield an instance of the
+        component if it exists, or `null` if not.
+-   Queries no longer have to be tuples - if you need a single item, you can use
+    `Query(MyComponent)` and the iterator will yield plain `MyComponent`
+    instances.
+-   Nested query iteration now works!
+    -   Previously, queries held a single instance of elements, which meant that
+        nesting query iterators would override other element values. Now,
+        invoking the iterator guarantees new instances.
+-   Added `size` to `Query` instances, a getter that returns the number of
+    entities that currently match.
+-   `executor` on worlds is now public.
+
+### 🔧 Maintenance
+
+-   Bump Typescript version.
+
 ## v0.6.0 (November 18, 2022)
 
 Structs just got a lot more powerful!
