@@ -4,54 +4,55 @@ import type { World } from '../World';
 import type { StructStore, Struct } from '../struct';
 
 export class Table {
-	columns: Map<Struct, StructStore>;
-	meta: Uint32Array;
-
-	static create(world: World, components: Struct[]) {
-		const meta = new Uint32Array(world.createBuffer(8));
-		meta[1] = world.config.getNewTableSize(0);
+	static create(
+		world: World,
+		components: Struct[],
+		lengths: Uint32Array,
+		id: number,
+	) {
+		const capacity = world.config.getNewTableSize(0);
 		return new this(
 			components.reduce((acc, component) => {
 				if (component.size! > 0) {
-					acc.set(
-						component,
-						createStore(
-							world,
-							component,
-							world.config.getNewTableSize(0),
-						),
-					);
+					acc.set(component, createStore(world, component, capacity));
 				}
 				return acc;
 			}, new Map<Struct, StructStore>()),
-			meta,
+			capacity,
+			lengths,
+			id,
 		);
 	}
 
-	constructor(columns: Map<Struct, StructStore>, meta: Uint32Array) {
+	columns: Map<Struct, StructStore>;
+	capacity: number;
+	#lengths: Uint32Array;
+	#id: number;
+	constructor(
+		columns: Map<Struct, StructStore>,
+		capacity: number,
+		lengths: Uint32Array,
+		id: number,
+	) {
 		this.columns = columns;
-		this.meta = meta;
+		this.capacity = capacity;
+		this.#lengths = lengths;
+		this.#id = id;
 	}
 
+	get id() {
+		return this.#id;
+	}
 	get size() {
-		return this.meta[0];
+		return this.#lengths[this.#id];
 	}
 	set size(value: number) {
-		this.meta[0] = value;
-	}
-	get capacity() {
-		return this.meta[1];
-	}
-	set capacity(val: number) {
-		this.meta[1] = val;
+		this.#lengths[this.#id] = value;
 	}
 	get isFull() {
 		return this.capacity === this.size;
 	}
 
-	add(entityId: bigint) {
-		this.columns.get(Entity)!.u64![this.size++] = entityId;
-	}
 	delete(index: number) {
 		this.size--;
 		for (const [struct, store] of this.columns) {
@@ -66,6 +67,7 @@ export class Table {
 				this.size * struct.size! + struct.size!,
 			);
 		}
+		return this.columns.get(Entity)!.u64![index];
 	}
 	move(index: number, targetTable: Table) {
 		for (const [struct, store] of this.columns) {
@@ -81,8 +83,8 @@ export class Table {
 					);
 			}
 		}
-		this.delete(index);
 		targetTable.size++;
+		return this.delete(index);
 	}
 
 	grow(world: World) {
@@ -99,6 +101,9 @@ export class Table {
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
 	const { struct } = await import('../struct');
+	const { Uncreated } = await import('./Uncreated');
+
+	const uncreated = new Uncreated();
 
 	@struct()
 	class Vec3 {
@@ -118,37 +123,39 @@ if (import.meta.vitest) {
 			getNewTableSize: (n: number) => (n === 0 ? 8 : n * 2),
 		},
 	} as any;
+	const createTable = (...components: Struct[]) =>
+		Table.create(mockWorld, components, new Uint32Array(1), 0);
 
 	it('adds an element', () => {
-		const table = Table.create(mockWorld, [Entity]);
+		const table = createTable(Entity);
 		expect(table.size).toBe(0);
 		expect(table.capacity).toBe(8);
 		expect(table.isFull).toBe(false);
-		table.add(0n);
+		uncreated.move(0, table);
 		expect(table.columns.get(Entity)!.u64![0]).toBe(0n);
 		expect(table.size).toBe(1);
-		table.add(3n);
+		uncreated.move(3, table);
 		expect(table.columns.get(Entity)!.u64![0]).toBe(0n);
 		expect(table.columns.get(Entity)!.u64![1]).toBe(3n);
 		expect(table.size).toBe(2);
 	});
 
 	it('isFull is true when no more elements can be added', () => {
-		const table = Table.create(mockWorld, [Entity]);
+		const table = createTable(Entity);
 		for (let i = 0; i < 8; i++) {
 			expect(table.isFull).toBe(false);
-			table.add(BigInt(i));
+			uncreated.move(i, table);
 		}
 		expect(table.isFull).toBe(true);
 	});
 
 	it('moves elements from one table to another', () => {
-		const fromTable = Table.create(mockWorld, [Entity, Vec3]);
-		const toTable = Table.create(mockWorld, [Entity, Vec3]);
+		const fromTable = createTable(Entity, Vec3);
+		const toTable = createTable(Entity, Vec3);
 
-		fromTable.add(3n);
-		fromTable.add(1n);
-		toTable.add(4n);
+		uncreated.move(3, fromTable);
+		uncreated.move(1, fromTable);
+		uncreated.move(4, toTable);
 
 		expect(fromTable.size).toBe(2);
 		expect(toTable.size).toBe(1);
@@ -186,14 +193,14 @@ if (import.meta.vitest) {
 	});
 
 	it('deletes elements, swaps in last elements', () => {
-		const table = Table.create(mockWorld, [Entity, Vec3]);
+		const table = createTable(Entity, Vec3);
 		const vec = new Vec3(table.columns.get(Vec3)!, 0);
 		const ent = new Entity(table.columns.get(Entity)!, 0, {} as any);
 
-		table.add(1n);
-		table.add(2n);
-		table.add(3n);
-		table.add(4n);
+		uncreated.move(1, table);
+		uncreated.move(2, table);
+		uncreated.move(3, table);
+		uncreated.move(4, table);
 		expect(table.size).toBe(4);
 
 		vec.x = 1;
@@ -236,9 +243,9 @@ if (import.meta.vitest) {
 	});
 
 	it('grows correctly', () => {
-		const table = Table.create(mockWorld, [Entity]);
+		const table = createTable(Entity);
 
-		table.add(1n);
+		uncreated.move(1, table);
 
 		expect(table.capacity).toBe(8);
 		expect(table.columns.get(Entity)!.u64!).toHaveLength(8);
@@ -251,12 +258,12 @@ if (import.meta.vitest) {
 
 	// v0.6 changelog bugfix
 	it('backfills elements for ALL stores', () => {
-		const fromTable = Table.create(mockWorld, [Entity, Vec3]);
-		const toTable = Table.create(mockWorld, [Entity]);
+		const fromTable = createTable(Entity, Vec3);
+		const toTable = createTable(Entity);
 
-		fromTable.add(3n);
-		fromTable.add(1n);
-		toTable.add(4n);
+		uncreated.move(3, fromTable);
+		uncreated.move(1, fromTable);
+		uncreated.move(4, toTable);
 
 		expect(fromTable.size).toBe(2);
 		expect(toTable.size).toBe(1);
@@ -285,10 +292,10 @@ if (import.meta.vitest) {
 
 	// v0.6 changelog bugfix
 	it('does not contain stale data when adding element', () => {
-		const table = Table.create(mockWorld, [Entity, Vec3]);
+		const table = createTable(Entity, Vec3);
 
-		table.add(25n);
-		table.add(233n);
+		uncreated.move(25, table);
+		uncreated.move(233, table);
 
 		const vec = new Vec3(table.columns.get(Vec3)!, 0);
 		const ent = new Entity(table.columns.get(Entity)!, 0, {} as any);
@@ -304,7 +311,7 @@ if (import.meta.vitest) {
 		vec.z = Math.PI;
 
 		table.delete(1);
-		table.add(26n);
+		uncreated.move(26, table);
 
 		vec.__$$i = 0;
 		//@ts-ignore
@@ -330,7 +337,7 @@ if (import.meta.vitest) {
 			static alignment = 1;
 			static schema = 0;
 		}
-		const table = Table.create(mockWorld, [Entity, Vec3, ZST]);
+		const table = createTable(Entity, Vec3, ZST);
 		expect(table.columns.size).toBe(2);
 		expect(table.columns.has(ZST)).toBe(false);
 	});
