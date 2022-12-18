@@ -1,5 +1,4 @@
 import {
-	createFilter,
 	Query,
 	Mut,
 	Optional,
@@ -7,6 +6,8 @@ import {
 	With,
 	Without,
 	Or,
+	registerFilters,
+	createFilterBitfields,
 } from '../../Queries';
 import { assert } from '../../utils/assert';
 import type { WorldBuilder } from '../../World/WorldBuilder';
@@ -84,43 +85,27 @@ export class QueryDescriptor<
 
 	onAddSystem(builder: WorldBuilder) {
 		this.components.forEach(comp => builder.registerComponent(comp));
-		this.#addFilters(this.filters, builder);
+		registerFilters(builder, this.filters);
 	}
 
-	intoArgument(world: World): Query<
-		A extends any[]
-			? {
-					[Index in keyof A]: UnwrapElement<A[Index]>;
-			  }
-			: UnwrapElement<A>,
-		F
-	> {
-		const query = new Query(
-			...createFilter(
-				world.components,
-				this.components,
-				this.optionals,
-				this.filters,
-			),
-			this.isIndividual,
+	intoArgument(world: World) {
+		const { withs, withouts } = createFilterBitfields(
+			world.components,
 			this.components,
-			world.commands,
+			this.optionals,
+			this.filters,
 		);
-		world.queries.push(query);
-		return query as any;
-	}
 
-	#addFilters(filters: Filter, builder: WorldBuilder) {
-		[filters].flat().forEach(f => {
-			if (f instanceof With || f instanceof Without) {
-				[f.value]
-					.flat()
-					.forEach(comp => builder.registerComponent(comp));
-			} else if (f instanceof Or) {
-				this.#addFilters(f.l, builder);
-				this.#addFilters(f.r, builder);
-			}
-		});
+		const query = new Query<
+			A extends any[]
+				? {
+						[Index in keyof A]: UnwrapElement<A[Index]>;
+				  }
+				: UnwrapElement<A>,
+			F
+		>(withs, withouts, this.isIndividual, this.components, world.commands);
+		world.queries.push(query);
+		return query;
 	}
 }
 
