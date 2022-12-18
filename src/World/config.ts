@@ -1,3 +1,4 @@
+import { DEV } from 'esm-env';
 import { assert } from '../utils/assert';
 
 export interface WorldConfig {
@@ -55,7 +56,9 @@ export function validateAndCompleteConfig(
 	url: string | URL | undefined,
 ) {
 	const completeConfig = getCompleteConfig(inConfig);
-	validateConfig(completeConfig, url);
+	if (DEV) {
+		validateConfig(completeConfig, url);
+	}
 	return completeConfig;
 }
 
