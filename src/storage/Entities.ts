@@ -1,5 +1,5 @@
-import { Entity, Table } from '../storage';
-import type { World } from './World';
+import { Entity, type Table } from '.';
+import type { World } from '../World/World';
 
 const NEXT_ID = 0;
 const CURSOR = 1;
@@ -84,7 +84,7 @@ export class Entities {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { Table } = await import('../storage');
+	const { Table } = await import('.');
 
 	it('returns incrementing generational integers', () => {
 		const entities = new Entities(
