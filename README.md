@@ -20,7 +20,6 @@ out of the box, including:
     unsafe code_**.
 -   Archetypal storage for lean memory use and cache-friendly iteration.
 -   First-class Resources (i.e., singletons).
--   Zero dependencies.
 
 **Please note: Thyseus is in early development and is not yet feature-complete
 or nearly as performant as it could be. Pre-1.0.0 releases may have frequent
