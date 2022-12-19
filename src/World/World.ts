@@ -1,9 +1,8 @@
 import { WorldBuilder } from './WorldBuilder';
 import { Executor } from './Executor';
 import { WorldCommands } from './WorldCommands';
-import { Entities } from './Entities';
 import { bits } from '../utils/bits';
-import { createStore, Table, Entity } from '../storage';
+import { createStore, Entities, Table } from '../storage';
 import { isStruct, type Class, type Struct } from '../struct';
 import {
 	validateAndCompleteConfig,
@@ -13,6 +12,8 @@ import {
 import type { SendableType, ThreadGroup } from '../utils/ThreadGroup';
 import type { Dependencies, System, SystemDefinition } from '../Systems';
 import type { Query } from '../Queries';
+
+const TABLE_BATCH_SIZE = 64;
 
 export class World {
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
@@ -24,18 +25,23 @@ export class World {
 		return new WorldBuilder(validateAndCompleteConfig(config, url), url);
 	}
 
-	archetypes = new Map<bigint, Table>();
-	queries = [] as Query<any, any>[];
 	#bufferType: ArrayBufferConstructor | SharedArrayBufferConstructor;
 
-	config: WorldConfig;
-	resources: Map<Class, object>;
-	threads: ThreadGroup;
-	systems: System[];
+	#archetypeLookup = new Map<bigint, number>();
+	#tableLengths: Uint32Array;
+	archetypes = [] as Table[];
+
+	queries = [] as Query<any, any>[];
+
 	executor: Executor;
 	commands: WorldCommands;
 	entities: Entities;
+
+	config: WorldConfig;
+	threads: ThreadGroup;
 	components: Struct[];
+	resources: Map<Class, object>;
+	systems: System[];
 	constructor(
 		config: WorldConfig,
 		threads: ThreadGroup,
@@ -53,6 +59,15 @@ export class World {
 		this.config = config;
 		this.threads = threads;
 
+		this.#tableLengths = this.threads.queue(
+			() =>
+				new Uint32Array(
+					this.createBuffer(
+						TABLE_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT,
+					),
+				),
+		);
+
 		for (const channel in channels) {
 			this.threads.setListener(channel, channels[channel](this));
 		}
@@ -66,7 +81,7 @@ export class World {
 		this.resources = new Map<Class, object>();
 		for (const Resource of resourceTypes) {
 			if (isStruct(Resource)) {
-				const store = threads.queue(() =>
+				const store = this.threads.queue(() =>
 					createStore(this, Resource, 1),
 				);
 				this.resources.set(
@@ -78,44 +93,23 @@ export class World {
 			}
 		}
 
-		this.systems = systems.map(({ fn, parameters }) => ({
-			execute: fn,
-			args: parameters.map(descriptor => descriptor.intoArgument(this)),
-		}));
+		this.systems = [];
+		for (const { fn, parameters } of systems) {
+			this.systems.push({
+				execute: fn,
+				args: parameters.map(descriptor =>
+					descriptor.intoArgument(this),
+				),
+			});
+		}
 
 		this.executor.onReady(() => this.#runSystems());
 	}
 
-	moveEntity(entityId: bigint, targetTableId: bigint) {
-		const currentTableId = this.entities.getTableId(entityId);
-		const currentTable = this.archetypes.get(currentTableId);
-		if (targetTableId === 0n) {
-			this.#deleteEntity(entityId);
-			return;
-		}
-
-		const targetTable = this.#getTable(targetTableId);
-		if (targetTable.isFull) {
-			this.#resizeTable(targetTableId, targetTable);
-		}
-
-		if (currentTable) {
-			this.entities.setLocation(
-				currentTable.columns.get(Entity)!.u64![currentTable.size - 1],
-				currentTableId,
-				this.entities.getRow(entityId),
-			);
-			currentTable.move(this.entities.getRow(entityId), targetTable);
-		} else {
-			targetTable.add(entityId);
-		}
-		this.entities.setLocation(
-			entityId,
-			targetTableId,
-			targetTable.size - 1,
-		);
-	}
-
+	/**
+	 * Creates a buffer of the specified byte length.
+	 * Returns a SharedArrayBuffer if multithreading, and a normal ArrayBuffer if not.
+	 */
 	createBuffer(byteLength: number): ArrayBufferLike {
 		return new this.#bufferType(byteLength);
 	}
@@ -124,7 +118,6 @@ export class World {
 		this.executor.reset();
 		this.executor.start();
 	}
-
 	async #runSystems() {
 		for await (const sid of this.executor) {
 			const system = this.systems[sid];
@@ -132,46 +125,67 @@ export class World {
 		}
 		this.executor.onReady(() => this.#runSystems());
 	}
-	#deleteEntity(entityId: bigint) {
-		const tableId = this.entities.getTableId(entityId);
-		const table = this.archetypes.get(tableId);
-		if (table) {
-			const entityRow = this.entities.getRow(entityId);
-			this.entities.setLocation(
-				table.columns.get(Entity)!.u64![table.size - 1],
-				tableId,
-				entityRow,
-			);
-			table.delete(this.entities.getRow(entityId));
+
+	moveEntity(entityId: bigint, targetTableId: bigint) {
+		// TODO: If we're moving into the Recycled table, we need to make sure we increment the generation
+		const currentTable =
+			this.archetypes[this.entities.getTableIndex(entityId)];
+
+		const targetTable = this.#getTable(targetTableId);
+		if (targetTable.isFull) {
+			this.#resizeTable(targetTableId, targetTable);
 		}
-		this.entities.setLocation(entityId, 0n, 0);
+
+		const row = this.entities.getRow(entityId);
+		// TODO: What if entity was the last member? (This case is probably broken)
+		const backfilledEntity = currentTable.move(row, targetTable);
+
+		this.entities.setRow(backfilledEntity, row);
+		this.entities.setTableIndex(entityId, targetTable.id);
+		this.entities.setRow(entityId, targetTable.size - 1);
 	}
 
 	#getTable(tableId: bigint): Table {
-		if (!this.archetypes.has(tableId)) {
+		if (!this.#archetypeLookup.has(tableId)) {
+			if (this.archetypes.length === this.#tableLengths.length) {
+				const oldLengths = this.#tableLengths;
+				this.#tableLengths = new Uint32Array(
+					this.createBuffer(
+						oldLengths.length +
+							TABLE_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT,
+					),
+				);
+				this.#tableLengths.set(oldLengths);
+				this.threads.send('thyseus::sendLengths', this.#tableLengths);
+			}
+			const id = this.archetypes.length++;
 			const table = Table.create(
 				this,
 				[...bits(tableId)].map(cid => this.components[cid]),
+				this.#tableLengths,
+				id,
 			);
+			this.#archetypeLookup.set(tableId, id);
+			this.archetypes.push(table);
+
 			this.threads.send('thyseus::newTable', [
 				tableId,
 				[...table.columns.values()],
-				table.meta,
+				{} as any,
 			]);
-			this.archetypes.set(tableId, table);
 			for (const query of this.queries) {
-				//@ts-ignore
 				query.testAdd(tableId, table);
 			}
 		}
-		return this.archetypes.get(tableId)!;
+		return this.archetypes[this.#archetypeLookup.get(tableId)!];
 	}
+
 	#resizeTable(tableId: bigint, table: Table) {
 		table.grow(this);
 		this.threads.send('thyseus::growTable', [
 			tableId,
 			[...table.columns.values()],
-			table.meta,
+			{} as any,
 		]);
 	}
 }
