@@ -25,5 +25,6 @@ export const applyCommands = defineSystem(
 		}
 
 		queue.clear();
+		world.entities.resetCursor();
 	},
 );
