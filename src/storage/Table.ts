@@ -26,6 +26,7 @@ export class Table {
 
 	columns: Map<Struct, StructStore>;
 	capacity: number;
+	// TODO: Box this! This Uint32Array grows and is (supposed to be) dropped!
 	#lengths: Uint32Array;
 	#id: number;
 	constructor(
