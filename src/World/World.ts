@@ -2,7 +2,13 @@ import { WorldBuilder } from './WorldBuilder';
 import { Executor } from './Executor';
 import { WorldCommands } from './WorldCommands';
 import { bits } from '../utils/bits';
-import { createStore, Entities, Table } from '../storage';
+import {
+	createStore,
+	Entities,
+	Entity,
+	Table,
+	UncreatedEntitiesTable,
+} from '../storage';
 import { isStruct, type Class, type Struct } from '../struct';
 import {
 	validateAndCompleteConfig,
@@ -66,6 +72,11 @@ export class World {
 						TABLE_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT,
 					),
 				),
+		);
+		this.#archetypeLookup.set(0n, 1);
+		this.archetypes.push(
+			new UncreatedEntitiesTable(),
+			Table.create(this, [Entity], this.#tableLengths, 1),
 		);
 
 		for (const channel in channels) {

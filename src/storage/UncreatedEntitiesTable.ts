@@ -4,7 +4,7 @@ import { Table } from './Table';
 /**
  * A "table" of entities that have not yet been spawned.
  */
-export class Uncreated extends Table {
+export class UncreatedEntitiesTable extends Table {
 	constructor() {
 		super(new Map(), 0, new Uint32Array(0), 0);
 	}

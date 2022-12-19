@@ -102,9 +102,9 @@ export class Table {
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
 	const { struct } = await import('../struct');
-	const { Uncreated } = await import('./Uncreated');
+	const { UncreatedEntitiesTable } = await import('./UncreatedEntitiesTable');
 
-	const uncreated = new Uncreated();
+	const uncreated = new UncreatedEntitiesTable();
 
 	@struct()
 	class Vec3 {
