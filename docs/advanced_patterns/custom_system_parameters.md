@@ -58,7 +58,7 @@ The return type of `intoArgument` determines the parameter type for your system,
 so your parameters can have strong type support!
 
 > System creation is the last step of World construction, so all World
-> properties will be set **except systems**.
+> properties are set, but world.systems will be incomplete.
 
 ## Recreating the Resource Parameter Descriptor
 
