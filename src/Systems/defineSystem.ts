@@ -1,12 +1,7 @@
-import {
-	descriptors,
-	type Descriptors,
-	type Descriptor,
-	type DescriptorToArgument,
-} from './Descriptors';
+import { descriptors, type Descriptors, type Descriptor } from './Descriptors';
 
 type Parameters<T extends Descriptor[]> = {
-	[Index in keyof T]: DescriptorToArgument<T[Index]>;
+	[Index in keyof T]: ReturnType<T[Index]['intoArgument']>;
 };
 
 export interface SystemDefinition<T extends Descriptor[] = Descriptor[]> {

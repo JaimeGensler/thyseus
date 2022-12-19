@@ -3,7 +3,7 @@ import { QueryDescriptor } from './QueryDescriptor';
 import { ResourceDescriptor } from './ResourceDescriptor';
 import { WorldDescriptor } from './WorldDescriptor';
 import { Mut, Optional, With, Without, Or, OrContent } from '../../Queries';
-export type { Descriptor, DescriptorToArgument } from './Descriptor';
+export type { Descriptor } from './Descriptor';
 
 function wrap<P extends any[], I extends object>(Descriptor: {
 	new (...args: P): I;
