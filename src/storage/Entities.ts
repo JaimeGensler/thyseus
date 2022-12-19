@@ -84,7 +84,7 @@ export class Entities {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { Table } = await import('.');
+	const { Table } = await import('./Table');
 
 	it('returns incrementing generational integers', () => {
 		const entities = new Entities(
