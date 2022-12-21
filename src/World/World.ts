@@ -108,9 +108,7 @@ export class World {
 		for (const { fn, parameters } of systems) {
 			this.systems.push({
 				execute: fn,
-				args: parameters.map(descriptor =>
-					descriptor.intoArgument(this),
-				),
+				args: parameters.map(p => p.intoArgument(this)),
 			});
 		}
 
@@ -138,18 +136,22 @@ export class World {
 	}
 
 	moveEntity(entityId: bigint, targetTableId: bigint) {
-		// TODO: If we're moving into the Recycled table, we need to make sure we increment the generation
+		if (!this.entities.isAlive(entityId)) {
+			return;
+		}
 		const currentTable =
 			this.archetypes[this.entities.getTableIndex(entityId)];
-
 		const targetTable = this.#getTable(targetTableId);
+
 		if (targetTable.isFull) {
 			this.#resizeTable(targetTableId, targetTable);
 		}
 
 		const row = this.entities.getRow(entityId);
-		// TODO: What if entity was the last member? (This case is probably broken)
 		const backfilledEntity = currentTable.move(row, targetTable);
+		if (targetTableId === 0n) {
+			targetTable.incrementGeneration(row);
+		}
 
 		this.entities.setRow(backfilledEntity, row);
 		this.entities.setTableIndex(entityId, targetTable.id);
@@ -157,38 +159,39 @@ export class World {
 	}
 
 	#getTable(tableId: bigint): Table {
-		if (!this.#archetypeLookup.has(tableId)) {
-			if (this.archetypes.length === this.#tableLengths.length) {
-				const oldLengths = this.#tableLengths;
-				this.#tableLengths = new Uint32Array(
-					this.createBuffer(
-						oldLengths.length +
-							TABLE_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT,
-					),
-				);
-				this.#tableLengths.set(oldLengths);
-				this.threads.send('thyseus::sendLengths', this.#tableLengths);
-			}
-			const id = this.archetypes.length++;
-			const table = Table.create(
-				this,
-				[...bits(tableId)].map(cid => this.components[cid]),
-				this.#tableLengths,
-				id,
-			);
-			this.#archetypeLookup.set(tableId, id);
-			this.archetypes.push(table);
-
-			this.threads.send('thyseus::newTable', [
-				tableId,
-				[...table.columns.values()],
-				{} as any,
-			]);
-			for (const query of this.queries) {
-				query.testAdd(tableId, table);
-			}
+		if (this.#archetypeLookup.has(tableId)) {
+			return this.archetypes[this.#archetypeLookup.get(tableId)!];
 		}
-		return this.archetypes[this.#archetypeLookup.get(tableId)!];
+		if (this.archetypes.length === this.#tableLengths.length) {
+			const oldLengths = this.#tableLengths;
+			this.#tableLengths = new Uint32Array(
+				this.createBuffer(
+					oldLengths.length +
+						TABLE_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT,
+				),
+			);
+			this.#tableLengths.set(oldLengths);
+			this.threads.send('thyseus::sendLengths', this.#tableLengths);
+		}
+		const id = this.archetypes.length++;
+		const table = Table.create(
+			this,
+			[...bits(tableId)].map(cid => this.components[cid]),
+			this.#tableLengths,
+			id,
+		);
+		this.#archetypeLookup.set(tableId, id);
+		this.archetypes.push(table);
+
+		this.threads.send('thyseus::newTable', [
+			tableId,
+			[...table.columns.values()],
+			{} as any,
+		]);
+		for (const query of this.queries) {
+			query.testAdd(tableId, table);
+		}
+		return table;
 	}
 
 	#resizeTable(tableId: bigint, table: Table) {

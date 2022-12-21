@@ -12,8 +12,9 @@ export class UncreatedEntitiesTable extends Table {
 		return false;
 	}
 	move(index: number, targetTable: Table) {
-		targetTable.columns.get(Entity)!.u64![targetTable.size] = BigInt(index);
+		const id = BigInt(index);
+		targetTable.columns.get(Entity)!.u64![targetTable.size] = id;
 		targetTable.size++;
-		return 0n;
+		return id;
 	}
 }

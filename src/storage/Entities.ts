@@ -1,5 +1,6 @@
-import { Entity, type Table } from '.';
-import type { World } from '../World/World';
+import { Entity } from './Entity';
+import type { Table } from './Table';
+import type { World } from '../World';
 
 const NEXT_ID = 0;
 const CURSOR = 1;
@@ -11,6 +12,7 @@ const ENTITY_BATCH_SIZE = 256;
 export class Entities {
 	static fromWorld(world: World): Entities {
 		return new this(
+			world,
 			world.threads.queue(
 				() =>
 					new Uint32Array(
@@ -24,10 +26,17 @@ export class Entities {
 		);
 	}
 
+	#world: World;
 	#locations: Uint32Array;
 	#data: Uint32Array; // [NEXT_ID, CURSOR]
 	#recycled: Table;
-	constructor(locations: Uint32Array, data: Uint32Array, recycled: Table) {
+	constructor(
+		world: World,
+		locations: Uint32Array,
+		data: Uint32Array,
+		recycled: Table,
+	) {
+		this.#world = world;
 		this.#locations = locations;
 		this.#data = data;
 		this.#recycled = recycled;
@@ -54,6 +63,16 @@ export class Entities {
 			currentCursor = Atomics.load(this.#data, CURSOR);
 		}
 		return BigInt(Atomics.add(this.#data, NEXT_ID, 1));
+	}
+
+	isAlive(entityId: bigint) {
+		const index = this.getTableIndex(entityId);
+		const row = this.getRow(entityId);
+		return (
+			index > 0 &&
+			this.#world.archetypes[this.#locations[index]].columns.get(Entity)!
+				.u64![row] === entityId
+		);
 	}
 
 	resetCursor() {
@@ -88,6 +107,7 @@ if (import.meta.vitest) {
 
 	it('returns incrementing generational integers', () => {
 		const entities = new Entities(
+			{} as any,
 			new Uint32Array(256 * 2),
 			new Uint32Array(3),
 			new Table(new Map(), 0, new Uint32Array(1), 0),
@@ -107,6 +127,7 @@ if (import.meta.vitest) {
 		);
 
 		const entities = new Entities(
+			{} as any,
 			new Uint32Array(256 * 2),
 			new Uint32Array(3),
 			table,

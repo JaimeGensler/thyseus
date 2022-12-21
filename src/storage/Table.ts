@@ -68,9 +68,10 @@ export class Table {
 				this.size * struct.size! + struct.size!,
 			);
 		}
-		return this.columns.get(Entity)!.u64![index];
 	}
+
 	move(index: number, targetTable: Table) {
+		const lastEntity = this.columns.get(Entity)!.u64![this.size - 1];
 		for (const [struct, store] of this.columns) {
 			if (targetTable.columns.has(struct)) {
 				targetTable.columns
@@ -85,7 +86,8 @@ export class Table {
 			}
 		}
 		targetTable.size++;
-		return this.delete(index);
+		this.delete(index);
+		return lastEntity;
 	}
 
 	grow(world: World) {
@@ -93,6 +95,10 @@ export class Table {
 		for (const [struct, store] of this.columns) {
 			this.columns.set(struct, resizeStore(store, struct, this.capacity));
 		}
+	}
+
+	incrementGeneration(row: number) {
+		this.columns.get(Entity)!.u32![(row << 1) + 1]++;
 	}
 }
 
@@ -341,5 +347,26 @@ if (import.meta.vitest) {
 		const table = createTable(Entity, Vec3, ZST);
 		expect(table.columns.size).toBe(2);
 		expect(table.columns.has(ZST)).toBe(false);
+	});
+
+	it('increments generations', () => {
+		const table = createTable(Entity);
+		const ent = new Entity(table.columns.get(Entity)!, 0, {} as any);
+		expect(ent.generation).toBe(0);
+		table.incrementGeneration(0);
+		expect(ent.generation).toBe(1);
+		table.incrementGeneration(0);
+		expect(ent.generation).toBe(2);
+		table.incrementGeneration(1);
+		expect(ent.generation).toBe(2);
+		expect(ent.id).toBe(0x00000002_00000000n);
+		//@ts-ignore
+		ent.__$$i = 1;
+		expect(ent.generation).toBe(1);
+		expect(ent.id).toBe(0x00000001_00000000n);
+		//@ts-ignore
+		ent.__$$i = 2;
+		expect(ent.generation).toBe(0);
+		expect(ent.id).toBe(0x00000000_00000000n);
 	});
 }
