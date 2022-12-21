@@ -119,6 +119,9 @@ if (import.meta.vitest) {
 	const { it, expect, describe } = import.meta.vitest;
 	const { Entity } = await import('../storage/Entity');
 	const { Table } = await import('../storage/Table');
+	const { UncreatedEntitiesTable } = await import(
+		'../storage/UncreatedEntitiesTable'
+	);
 
 	it('testAdd adds tables only if a filter passes', () => {
 		const query1 = new Query([0b0001n], [0b0000n], false, [], {} as any);
@@ -167,6 +170,10 @@ if (import.meta.vitest) {
 				},
 			},
 		};
+		const createTable = (...components: Struct[]) =>
+			Table.create(mockWorld, components, new Uint32Array(1), 0);
+		const uncreated = new UncreatedEntitiesTable();
+
 		class Vec3 {
 			static size = 24;
 		}
@@ -180,13 +187,13 @@ if (import.meta.vitest) {
 				[Vec3, Entity],
 				{} as any,
 			);
-			const table1 = Table.create(mockWorld, [Entity, Vec3]);
-			const table2 = Table.create(mockWorld, [Entity, Vec3]);
+			const table1 = createTable(Entity, Vec3);
+			const table2 = createTable(Entity, Vec3);
 			query.testAdd(0n, table1);
 			query.testAdd(0n, table2);
 			expect(query.size).toBe(0);
 			for (let i = 0; i < 10; i++) {
-				(i < 5 ? table1 : table2).add(BigInt(i));
+				uncreated.move(i, i < 5 ? table1 : table2);
 				expect(query.size).toBe(i + 1);
 			}
 			let j = 0;
@@ -207,14 +214,14 @@ if (import.meta.vitest) {
 				[Vec3, Entity],
 				{} as any,
 			);
-			const vecTable = Table.create(mockWorld, [Entity, Vec3]);
-			const noVecTable = Table.create(mockWorld, [Entity]);
+			const vecTable = createTable(Entity, Vec3);
+			const noVecTable = createTable(Entity);
 
 			query.testAdd(0n, noVecTable);
 			query.testAdd(0n, vecTable);
 			expect(query.size).toBe(0);
 			for (let i = 0; i < 10; i++) {
-				(i < 5 ? noVecTable : vecTable).add(BigInt(i));
+				uncreated.move(i, i < 5 ? noVecTable : vecTable);
 				expect(query.size).toBe(i + 1);
 			}
 			let j = 0;
@@ -233,12 +240,12 @@ if (import.meta.vitest) {
 
 		it('yields individual elements for non-tuple iterators', () => {
 			const query = new Query<Vec3>([0n], [0n], true, [Vec3], {} as any);
-			const table = Table.create(mockWorld, [Entity, Vec3]);
+			const table = createTable(Entity, Vec3);
 
 			query.testAdd(0n, table);
 			expect(query.size).toBe(0);
 			for (let i = 0; i < 10; i++) {
-				table.add(BigInt(i));
+				uncreated.move(i, table);
 				expect(query.size).toBe(i + 1);
 			}
 			let j = 0;
@@ -257,12 +264,12 @@ if (import.meta.vitest) {
 				[Vec3, Entity],
 				{} as any,
 			);
-			const table = Table.create(mockWorld, [Entity, Vec3]);
+			const table = createTable(Entity, Vec3);
 
 			query.testAdd(0n, table);
 			expect(query.size).toBe(0);
 			for (let i = 0; i < 8; i++) {
-				table.add(BigInt(i));
+				uncreated.move(i, table);
 				expect(query.size).toBe(i + 1);
 			}
 
