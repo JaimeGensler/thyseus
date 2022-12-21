@@ -1,5 +1,5 @@
 import { TYPE_IDS, type Struct, type StructStore } from '../struct';
-import type { WorldCommands } from '../World/WorldCommands';
+import type { Commands } from '../World/Commands';
 
 export class Entity {
 	static schema = TYPE_IDS.u64 | TYPE_IDS.u32;
@@ -9,8 +9,8 @@ export class Entity {
 	private __$$b: number;
 	#index: number;
 
-	#commands: WorldCommands;
-	constructor(store: StructStore, index: number, commands: WorldCommands) {
+	#commands: Commands;
+	constructor(store: StructStore, index: number, commands: Commands) {
 		this.__$$s = store;
 		this.#index = index;
 		this.__$$b = index * Entity.size;

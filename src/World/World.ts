@@ -1,6 +1,6 @@
 import { WorldBuilder } from './WorldBuilder';
 import { Executor } from './Executor';
-import { WorldCommands } from './WorldCommands';
+import { Commands } from './Commands';
 import { bits } from '../utils/bits';
 import {
 	createStore,
@@ -40,7 +40,7 @@ export class World {
 	queries = [] as Query<any, any>[];
 
 	executor: Executor;
-	commands: WorldCommands;
+	commands: Commands;
 	entities: Entities;
 
 	config: WorldConfig;
@@ -85,7 +85,7 @@ export class World {
 
 		this.components = components;
 		this.entities = Entities.fromWorld(this);
-		this.commands = new WorldCommands(this.entities, this.components);
+		this.commands = new Commands(this.entities, this.components);
 
 		this.executor = Executor.fromWorld(this, systems, dependencies);
 

@@ -15,7 +15,7 @@ import {
 import { string } from './string';
 import { array } from './array';
 import { substruct } from './substruct';
-import type { WorldCommands } from '../World/WorldCommands';
+import type { Commands } from '../World/Commands';
 
 export interface Class {
 	new (...args: any[]): object;
@@ -51,7 +51,7 @@ export interface Struct {
 	 */
 	size?: number;
 
-	new (store: StructStore, index: number, commands: WorldCommands): object;
+	new (store: StructStore, index: number, commands: Commands): object;
 }
 
 export function struct() {

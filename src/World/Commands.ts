@@ -1,8 +1,8 @@
 import { Entity } from '../storage';
 import type { Struct } from '../struct';
-import type { Entities } from './Entities';
+import type { Entities } from '../storage/Entities';
 
-export class WorldCommands {
+export class Commands {
 	queue = new Map<bigint, bigint>(); // Map<eid, tableid>
 
 	#entities: Entities;

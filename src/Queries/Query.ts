@@ -1,6 +1,6 @@
 import type { Struct } from '../struct';
 import type { Table } from '../storage';
-import type { WorldCommands } from '../World/WorldCommands';
+import type { Commands } from '../World/Commands';
 import type { Mut, Optional, Filter } from './modifiers';
 
 type Accessors = object | object[];
@@ -28,13 +28,13 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	#without: bigint[];
 	#components: Struct[];
 	#isIndividual: boolean;
-	#commands: WorldCommands;
+	#commands: Commands;
 	constructor(
 		withFilters: bigint[],
 		withoutFilters: bigint[],
 		isIndividual: boolean,
 		components: Struct[],
-		commands: WorldCommands,
+		commands: Commands,
 	) {
 		this.#with = withFilters;
 		this.#isIndividual = isIndividual;

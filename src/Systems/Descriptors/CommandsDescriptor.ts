@@ -1,6 +1,6 @@
 import type { World } from '../../World';
 import type { WorldBuilder } from '../../World/WorldBuilder';
-import type { WorldCommands } from '../../World/WorldCommands';
+import type { Commands } from '../../World/Commands';
 import type { Descriptor } from './Descriptor';
 
 export class CommandsDescriptor implements Descriptor {
@@ -10,7 +10,7 @@ export class CommandsDescriptor implements Descriptor {
 	intersectsWith(other: unknown) {
 		return false;
 	}
-	intoArgument(world: World): WorldCommands {
+	intoArgument(world: World): Commands {
 		return world.commands;
 	}
 	onAddSystem(builder: WorldBuilder) {}
