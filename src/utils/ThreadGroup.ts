@@ -39,7 +39,7 @@ type ThreadMessage = [id: number, channel: string, data: SendableType];
 type ThreadMessageEvent = MessageEvent<ThreadMessage> & {
 	currentTarget: WorkerOrGlobal;
 };
-interface WorkerOrGlobal {
+type WorkerOrGlobal = {
 	postMessage(content: SendableType): void;
 	addEventListener(
 		type: 'message',
@@ -49,7 +49,7 @@ interface WorkerOrGlobal {
 		type: 'message',
 		fn: (event: MessageEvent<ThreadMessage>) => void,
 	): void;
-}
+};
 
 export class ThreadGroup {
 	static isMainThread = !!globalThis.document;

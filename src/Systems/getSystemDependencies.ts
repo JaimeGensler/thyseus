@@ -2,12 +2,12 @@ import { assert } from '../utils/assert';
 import { bits } from '../utils/bits';
 import type { SystemDefinition } from './defineSystem';
 
-export interface Dependencies {
+export type Dependencies = {
 	before?: SystemDefinition[];
 	after?: SystemDefinition[];
 	beforeAll?: boolean;
 	afterAll?: boolean;
-}
+};
 
 export function getSystemDependencies(
 	systems: SystemDefinition[],

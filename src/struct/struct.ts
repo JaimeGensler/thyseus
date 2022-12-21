@@ -17,9 +17,9 @@ import { array } from './array';
 import { substruct } from './substruct';
 import type { Commands } from '../World/Commands';
 
-export interface Class {
+export type Class = {
 	new (...args: any[]): object;
-}
+};
 export type StructStore = {
 	buffer: ArrayBuffer;
 	u8: Uint8Array;
@@ -33,7 +33,7 @@ export type StructStore = {
 	f32?: Float32Array;
 	f64?: Float64Array;
 };
-export interface Struct {
+export type Struct = {
 	// NOTE: Types have been loosened to be optional here, as decorators do not provide type info.
 
 	/**
@@ -52,7 +52,7 @@ export interface Struct {
 	size?: number;
 
 	new (store: StructStore, index: number, commands: Commands): object;
-}
+};
 
 export function struct() {
 	return function structDecorator(targetClass: Class): any {

@@ -1,14 +1,14 @@
 import { DEV } from 'esm-env';
 import { assert } from '../utils/assert';
 
-export interface WorldConfig {
+export type WorldConfig = {
 	threads: number;
 	maxEntities: number;
 	getNewTableSize(prev: number): number;
-}
-export interface SingleThreadedWorldConfig extends WorldConfig {
+};
+export type SingleThreadedWorldConfig = WorldConfig & {
 	threads: 1;
-}
+};
 
 const getCompleteConfig = (config: Partial<WorldConfig> | undefined = {}) => ({
 	threads: 1,

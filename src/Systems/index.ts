@@ -7,7 +7,7 @@ export {
 export { getSystemIntersections } from './getSystemIntersections';
 export { applyCommands } from './applyCommands';
 
-export interface System {
+export type System = {
 	args: any[];
 	execute(...args: any[]): void | Promise<void>;
-}
+};
