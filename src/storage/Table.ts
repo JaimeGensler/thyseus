@@ -4,14 +4,10 @@ import type { World } from '../World';
 import type { StructStore, Struct } from '../struct';
 
 export class Table {
-	static create(
-		world: World,
-		components: Struct[],
-		lengths: Uint32Array,
-		id: number,
-	) {
+	static create(world: World, components: Struct[], id: number) {
 		const capacity = world.config.getNewTableSize(0);
 		return new this(
+			world,
 			components.reduce((acc, component) => {
 				if (component.size! > 0) {
 					acc.set(component, createStore(world, component, capacity));
@@ -19,25 +15,23 @@ export class Table {
 				return acc;
 			}, new Map<Struct, StructStore>()),
 			capacity,
-			lengths,
 			id,
 		);
 	}
 
+	#world: World;
 	columns: Map<Struct, StructStore>;
 	capacity: number;
-	// TODO: Box this! This Uint32Array grows and is (supposed to be) dropped!
-	#lengths: Uint32Array;
 	#id: number;
 	constructor(
+		world: World,
 		columns: Map<Struct, StructStore>,
 		capacity: number,
-		lengths: Uint32Array,
 		id: number,
 	) {
+		this.#world = world;
 		this.columns = columns;
 		this.capacity = capacity;
-		this.#lengths = lengths;
 		this.#id = id;
 	}
 
@@ -45,10 +39,10 @@ export class Table {
 		return this.#id;
 	}
 	get size() {
-		return this.#lengths[this.#id];
+		return this.#world.tableLengths[this.#id];
 	}
 	set size(value: number) {
-		this.#lengths[this.#id] = value;
+		this.#world.tableLengths[this.#id] = value;
 	}
 	get isFull() {
 		return this.capacity === this.size;
@@ -131,7 +125,11 @@ if (import.meta.vitest) {
 		},
 	} as any;
 	const createTable = (...components: Struct[]) =>
-		Table.create(mockWorld, components, new Uint32Array(1), 0);
+		Table.create(
+			{ ...mockWorld, tableLengths: new Uint32Array(1) } as any,
+			components,
+			0,
+		);
 
 	it('adds an element', () => {
 		const table = createTable(Entity);
