@@ -1,53 +1,22 @@
-export type SendableType =
-	| void
-	| null
-	| undefined
-	| boolean
-	| number
-	| string
-	| bigint
-	| ArrayBuffer
-	| SharedArrayBuffer
-	| Uint8Array
-	| Uint16Array
-	| Uint32Array
-	| BigUint64Array
-	| Int8Array
-	| Int16Array
-	| Int32Array
-	| BigInt64Array
-	| Float32Array
-	| Float64Array
-	| Uint8ClampedArray
-	| DataView
-	| Date
-	| RegExp
-	| Blob
-	| File
-	| FileList
-	| ImageBitmap
-	| ImageData
-	| SendableType[]
-	| { [key: string]: SendableType }
-	| Map<SendableType, SendableType>
-	| Set<SendableType>;
+import {
+	createMessageChannel,
+	type ThreadMessage,
+	type SendableType,
+} from './createMessageChannel';
 
-type Listener<I extends SendableType = void, O extends SendableType = void> = (
-	data: I,
-) => O;
-type ThreadMessage = [id: number, channel: string, data: SendableType];
-type ThreadMessageEvent = MessageEvent<ThreadMessage> & {
+type Listener = (...data: SendableType[]) => SendableType;
+type ThreadMessageEvent = MessageEvent<ThreadMessage<SendableType[], any>> & {
 	currentTarget: WorkerOrGlobal;
 };
 type WorkerOrGlobal = {
 	postMessage(content: SendableType): void;
 	addEventListener(
 		type: 'message',
-		fn: (event: MessageEvent<ThreadMessage>) => void,
+		fn: (event: ThreadMessageEvent) => void,
 	): void;
 	removeEventListener(
 		type: 'message',
-		fn: (event: MessageEvent<ThreadMessage>) => void,
+		fn: (event: ThreadMessageEvent) => void,
 	): void;
 };
 
@@ -66,9 +35,8 @@ export class ThreadGroup {
 		);
 	}
 
-	#nextId = 0;
 	#resolvers = new Map<number, (value: any) => void>();
-	#listeners = {} as Record<string, Listener<any>>;
+	#listeners = {} as Record<string, Listener>;
 	#queue = [] as SendableType[];
 
 	#threads: WorkerOrGlobal[];
@@ -77,45 +45,34 @@ export class ThreadGroup {
 
 		const handleMessage = ({
 			currentTarget,
-			data: [id, channel, message],
+			data: [channel, id, message],
 		}: ThreadMessageEvent) => {
 			if (this.#resolvers.has(id)) {
 				this.#resolvers.get(id)!(message);
 				this.#resolvers.delete(id);
 			} else if (channel in this.#listeners) {
 				currentTarget.postMessage([
-					id,
 					channel,
-					this.#listeners[channel](message),
+					id,
+					this.#listeners[channel](...message),
 				]);
 			} else {
-				currentTarget.postMessage([id, channel, null]);
+				currentTarget.postMessage([channel, id, null]);
 			}
 		};
 		for (const thread of this.#threads) {
-			thread.addEventListener('message', handleMessage as any);
+			thread.addEventListener('message', handleMessage);
 		}
 	}
 
-	/**
-	 * Sets a callback to be called when a message is received on a particular channel.
-	 * **NOTE**: Only **one** listener can be set per channel.
-	 * @param channel The channel to listen to.
-	 * @param listener A callback that is called when a message is received on this channel. The callback receives the content of the message, and its return will be sent in response.
-	 */
-	setListener<I extends SendableType = void, O extends SendableType = void>(
-		channel: string,
-		listener: Listener<I, O>,
+	setListener<I extends SendableType[], O extends SendableType>(
+		channelName: string,
+		listener: (...args: I) => O,
 	) {
-		this.#listeners[channel] = listener;
+		this.#listeners[channelName] = listener as any;
 	}
-
-	/**
-	 * Deletes the listener for a message channel.
-	 * @param channel The channel to unsubscribe from.
-	 */
-	deleteListener(channel: string) {
-		delete this.#listeners[channel];
+	deleteListener(channelName: string) {
+		delete this.#listeners[channelName];
 	}
 
 	/**
@@ -124,15 +81,11 @@ export class ThreadGroup {
 	 * @param message The value to send.
 	 * @returns A promise, resolves to an array of results from all threads.
 	 */
-	send<T extends SendableType = void>(
-		channel: string,
-		message: SendableType,
-	): Promise<T[]> {
+	send<T>(message: ThreadMessage<any, T>): Promise<T[]> {
 		return Promise.all(
 			this.#threads.map(thread => {
-				const id = this.#nextId++;
-				thread.postMessage([id, channel, message]);
-				return new Promise<T>(r => this.#resolvers.set(id, r));
+				thread.postMessage(message);
+				return new Promise<T>(r => this.#resolvers.set(message[1], r));
 			}),
 		);
 	}
@@ -151,20 +104,19 @@ export class ThreadGroup {
 			const val = create();
 			this.#queue.push(val);
 			return val;
-		} else {
-			return this.#queue.shift() as T;
 		}
+		return this.#queue.shift() as T;
 	}
 
 	async wrapInQueue<T = void>(callback: () => T | Promise<T>): Promise<T> {
-		const channel = '@@';
+		const channel = 'threadGroup::queue';
 		let result: T;
 		if (this.isMainThread) {
 			result = await callback();
-			await this.send(channel, this.#queue);
+			await this.send([channel, 0, [this.#queue]]);
 		} else {
 			result = await new Promise(resolve =>
-				this.setListener<SendableType[]>(channel, queue => {
+				this.setListener(channel, (queue: any) => {
 					this.#queue = queue;
 					resolve(callback());
 				}),
@@ -211,21 +163,38 @@ if (import.meta.vitest) {
 
 	it('send returns a promise with an array of results from workers', async () => {
 		const [group1, group2] = getMockThreads();
-		group2.setListener<number>('add2', data => data + 2);
-		group2.setListener<{ x: number }>('set3', data => ({ ...data, x: 3 }));
-		expect(await group1.send('add2', 0)).toStrictEqual([2]);
-		expect(await group1.send('add2', 1)).toStrictEqual([3]);
-		expect(await group1.send('add2', 3.5)).toStrictEqual([5.5]);
-		expect(await group1.send('set3', { x: 2 })).toStrictEqual([{ x: 3 }]);
+		const add2 = createMessageChannel(
+			'add2',
+			() => (data: number) => data + 2,
+		);
+		const set3 = createMessageChannel(
+			'set3',
+			() => (data: { x: number }) => ({
+				...data,
+				x: 3,
+			}),
+		);
+		group2.setListener(add2.channelName, add2.onReceive({} as any));
+		group2.setListener(set3.channelName, set3.onReceive({} as any));
+		expect(await group1.send(add2(0))).toStrictEqual([2]);
+		expect(await group1.send(add2(1))).toStrictEqual([3]);
+		expect(await group1.send(add2(3.5))).toStrictEqual([5.5]);
+		expect(await group1.send(set3({ x: 2 }))).toStrictEqual([{ x: 3 }]);
 	});
 
 	it('receives null back if no listener is set up', async () => {
 		const [group1, group2] = getMockThreads();
-		expect(await group1.send('do something!', 0)).toStrictEqual([null]);
-		group2.setListener<number>('do something!', n => n * 2);
-		expect(await group1.send('do something!', 8)).toStrictEqual([16]);
+		expect(await group1.send(['do something!', 0, []])).toStrictEqual([
+			null,
+		]);
+		group2.setListener('do something!', (n: number) => n * 2);
+		expect(await group1.send(['do something!', 1, [8]])).toStrictEqual([
+			16,
+		]);
 		group2.deleteListener('do something!');
-		expect(await group1.send('do something!', 0)).toStrictEqual([null]);
+		expect(await group1.send(['do something!', 2, [0]])).toStrictEqual([
+			null,
+		]);
 	});
 
 	it.todo('queue and wrapInQueue works', async () => {});

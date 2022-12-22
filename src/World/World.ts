@@ -9,15 +9,17 @@ import {
 	Table,
 	UncreatedEntitiesTable,
 } from '../storage';
+import { RESIZE_TABLE, RESIZE_TABLE_LENGTHS, SEND_TABLE } from './channels';
 import { isStruct, type Class, type Struct } from '../struct';
 import {
 	validateAndCompleteConfig,
 	type WorldConfig,
 	type SingleThreadedWorldConfig,
 } from './config';
-import type { SendableType, ThreadGroup } from '../utils/ThreadGroup';
+import type { ThreadGroup } from '../utils/ThreadGroup';
 import type { Dependencies, System, SystemDefinition } from '../Systems';
 import type { Query } from '../Queries';
+import type { ThreadMessageChannel } from '../utils/createMessageChannel';
 
 const TABLE_BATCH_SIZE = 64;
 
@@ -33,8 +35,8 @@ export class World {
 
 	#bufferType: ArrayBufferConstructor | SharedArrayBufferConstructor;
 
-	#archetypeLookup = new Map<bigint, number>();
-	#tableLengths: Uint32Array;
+	archetypeLookup = new Map<bigint, number>();
+	tableLengths: Uint32Array;
 	archetypes = [] as Table[];
 
 	queries = [] as Query<any, any>[];
@@ -55,17 +57,14 @@ export class World {
 		resourceTypes: Class[],
 		systems: SystemDefinition[],
 		dependencies: (Dependencies | undefined)[],
-		channels: Record<
-			string,
-			(world: World) => (data: SendableType) => SendableType
-		>,
+		channels: ThreadMessageChannel[],
 	) {
 		this.#bufferType = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
 
 		this.config = config;
 		this.threads = threads;
 
-		this.#tableLengths = this.threads.queue(
+		this.tableLengths = this.threads.queue(
 			() =>
 				new Uint32Array(
 					this.createBuffer(
@@ -73,20 +72,22 @@ export class World {
 					),
 				),
 		);
-		this.#archetypeLookup.set(0n, 1);
+		this.archetypeLookup.set(0n, 1);
 		this.archetypes.push(
 			new UncreatedEntitiesTable(),
-			Table.create(this, [Entity], this.#tableLengths, 1),
+			Table.create(this, [Entity], this.tableLengths, 1),
 		);
 
-		for (const channel in channels) {
-			this.threads.setListener(channel, channels[channel](this));
+		for (const channel of channels) {
+			this.threads.setListener(
+				channel.channelName,
+				channel.onReceive(this),
+			);
 		}
 
 		this.components = components;
 		this.entities = Entities.fromWorld(this);
-		this.commands = new Commands(this.entities, this.components);
-
+		this.commands = Commands.fromWorld(this);
 		this.executor = Executor.fromWorld(this, systems, dependencies);
 
 		this.resources = new Map<Class, object>();
@@ -144,7 +145,7 @@ export class World {
 		const targetTable = this.#getTable(targetTableId);
 
 		if (targetTable.isFull) {
-			this.#resizeTable(targetTableId, targetTable);
+			this.#resizeTable(targetTable);
 		}
 
 		const row = this.entities.getRow(entityId);
@@ -159,47 +160,48 @@ export class World {
 	}
 
 	#getTable(tableId: bigint): Table {
-		if (this.#archetypeLookup.has(tableId)) {
-			return this.archetypes[this.#archetypeLookup.get(tableId)!];
+		if (this.archetypeLookup.has(tableId)) {
+			return this.archetypes[this.archetypeLookup.get(tableId)!];
 		}
-		if (this.archetypes.length === this.#tableLengths.length) {
-			const oldLengths = this.#tableLengths;
-			this.#tableLengths = new Uint32Array(
+		if (this.archetypes.length === this.tableLengths.length) {
+			const oldLengths = this.tableLengths;
+			this.tableLengths = new Uint32Array(
 				this.createBuffer(
 					oldLengths.length +
 						TABLE_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT,
 				),
 			);
-			this.#tableLengths.set(oldLengths);
-			this.threads.send('thyseus::sendLengths', this.#tableLengths);
+			this.tableLengths.set(oldLengths);
+			this.threads.send(RESIZE_TABLE_LENGTHS(this.tableLengths));
 		}
 		const id = this.archetypes.length++;
 		const table = Table.create(
 			this,
 			[...bits(tableId)].map(cid => this.components[cid]),
-			this.#tableLengths,
+			this.tableLengths,
 			id,
 		);
-		this.#archetypeLookup.set(tableId, id);
+		this.archetypeLookup.set(tableId, id);
 		this.archetypes.push(table);
 
-		this.threads.send('thyseus::newTable', [
-			tableId,
-			[...table.columns.values()],
-			{} as any,
-		]);
+		this.threads.send(
+			SEND_TABLE(
+				[...table.columns.values()],
+				table.capacity,
+				id,
+				tableId,
+			),
+		);
 		for (const query of this.queries) {
 			query.testAdd(tableId, table);
 		}
 		return table;
 	}
 
-	#resizeTable(tableId: bigint, table: Table) {
+	#resizeTable(table: Table) {
 		table.grow(this);
-		this.threads.send('thyseus::growTable', [
-			tableId,
-			[...table.columns.values()],
-			{} as any,
-		]);
+		this.threads.send(
+			RESIZE_TABLE(table.id, table.capacity, [...table.columns.values()]),
+		);
 	}
 }

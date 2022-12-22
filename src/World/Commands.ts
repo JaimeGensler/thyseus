@@ -1,8 +1,12 @@
 import { Entity } from '../storage';
 import type { Struct } from '../struct';
 import type { Entities } from '../storage/Entities';
+import type { World } from './World';
 
 export class Commands {
+	static fromWorld(world: World) {
+		return new this(world.entities, world.components);
+	}
 	queue = new Map<bigint, bigint>(); // Map<eid, tableid>
 
 	#entities: Entities;

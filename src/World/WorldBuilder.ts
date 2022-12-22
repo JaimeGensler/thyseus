@@ -1,10 +1,11 @@
 import { World } from './World';
 import { defaultPlugin } from './defaultPlugin';
-import { ThreadGroup, type SendableType } from '../utils/ThreadGroup';
+import { ThreadGroup } from '../utils/ThreadGroup';
 import type { Dependencies, SystemDefinition } from '../Systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
+import type { ThreadMessageChannel } from '../utils/createMessageChannel';
 
 export class WorldBuilder {
 	systems = [] as SystemDefinition[];
@@ -13,7 +14,7 @@ export class WorldBuilder {
 
 	components = new Set<Struct>();
 	resources = new Set<Class>();
-	threadChannels = {} as Record<string, (world: World) => (data: any) => any>;
+	threadChannels = [] as ThreadMessageChannel[];
 
 	config: WorldConfig;
 	url: string | URL | undefined;
@@ -78,19 +79,13 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Registers a channel for threads. When a thread receives a message, it will run the callback created by `listenerCreator`.
+	 * Registers a message channel for threads. When a thread receives a message, it will run the callback created by `listenerCreator`.
 	 * @param channel The **_unique_** name of the channel. _NOTE: Calling this method again with the same channel will override the previous listener!_
 	 * @param listenerCreator A creator function that will be called with the world when built. Should return a function that receives whatever data that is sent across threads, and returns data to be sent back.
 	 * @returns `this`, for chaining.
 	 */
-	registerThreadChannel<
-		I extends SendableType = void,
-		O extends SendableType = void,
-	>(
-		channel: string,
-		listenerCreator: (world: World) => (data: I) => O,
-	): this {
-		this.threadChannels[channel] = listenerCreator;
+	registerThreadChannel(channel: ThreadMessageChannel<any, any>): this {
+		this.threadChannels.push(channel);
 		return this;
 	}
 
