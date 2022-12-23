@@ -1,3 +1,4 @@
+import { DEV } from 'esm-env';
 import { assert } from '../utils/assert';
 import { bits } from '../utils/bits';
 import type { SystemDefinition } from './defineSystem';
@@ -27,10 +28,12 @@ export function getSystemDependencies(
 			if (beforeIndex === -1) {
 				continue;
 			}
-			assert(
-				!isDependentOn(currentIndex, beforeIndex),
-				`Circular dependency detected: ${systems[currentIndex].fn.name} (${currentIndex}) and ${systems[beforeIndex].fn.name} (${beforeIndex}) depend on each other.`,
-			);
+			if (DEV) {
+				assert(
+					!isDependentOn(currentIndex, beforeIndex),
+					`Circular dependency detected: ${systems[currentIndex].fn.name} (${currentIndex}) and ${systems[beforeIndex].fn.name} (${beforeIndex}) depend on each other.`,
+				);
+			}
 			dependencyMasks[beforeIndex] |= 1n << BigInt(currentIndex);
 		}
 		for (const afterSystem of dependency.after ?? []) {
@@ -38,20 +41,24 @@ export function getSystemDependencies(
 			if (afterIndex === -1) {
 				continue;
 			}
-			assert(
-				!isDependentOn(afterIndex, currentIndex),
-				`Circular dependency detected: ${systems[currentIndex].fn.name} (${currentIndex}) and ${systems[afterIndex].fn.name} (${afterIndex}) depend on each other.`,
-			);
+			if (DEV) {
+				assert(
+					!isDependentOn(afterIndex, currentIndex),
+					`Circular dependency detected: ${systems[currentIndex].fn.name} (${currentIndex}) and ${systems[afterIndex].fn.name} (${afterIndex}) depend on each other.`,
+				);
+			}
 			dependencyMasks[currentIndex] |= 1n << BigInt(afterIndex);
 		}
 	});
 
-	dependencyMasks.forEach((_, i) => {
-		assert(
-			!isDependentOn(i, i),
-			`Circular dependency detected: ${systems[i].fn.name} (${i}) and ${systems[i].fn.name} (${i}) depend on each other.`,
-		);
-	});
+	if (DEV) {
+		dependencyMasks.forEach((_, i) => {
+			assert(
+				!isDependentOn(i, i),
+				`Circular dependency detected: ${systems[i].fn.name} (${i}) and ${systems[i].fn.name} (${i}) depend on each other.`,
+			);
+		});
+	}
 
 	dependencies.forEach((dependency, currentIndex) => {
 		if (!dependency) return;

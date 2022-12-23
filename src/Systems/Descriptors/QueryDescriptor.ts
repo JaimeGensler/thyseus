@@ -1,3 +1,4 @@
+import { DEV } from 'esm-env';
 import {
 	Query,
 	Mut,
@@ -58,10 +59,12 @@ export class QueryDescriptor<
 						? accessor.value.value
 						: accessor.value
 					: accessor;
-			assert(
-				component.size! > 0,
-				'You may not request direct access to ZSTs - use a With filter instead.',
-			);
+			if (DEV) {
+				assert(
+					component.size! > 0,
+					'You may not request direct access to ZSTs - use a With filter instead.',
+				);
+			}
 			this.components.push(component);
 		}
 		this.filters = filters;
