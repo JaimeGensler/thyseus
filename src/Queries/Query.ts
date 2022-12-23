@@ -174,9 +174,10 @@ if (import.meta.vitest) {
 			Table.create(
 				{ ...mockWorld, tableLengths: new Uint32Array(1) },
 				components,
+				0n,
 				0,
 			);
-		const uncreated = new UncreatedEntitiesTable();
+		const uncreated = new UncreatedEntitiesTable(mockWorld);
 
 		class Vec3 {
 			static size = 24;

@@ -4,7 +4,12 @@ import type { World } from '../World';
 import type { StructStore, Struct } from '../struct';
 
 export class Table {
-	static create(world: World, components: Struct[], id: number) {
+	static create(
+		world: World,
+		components: Struct[],
+		bitfield: bigint,
+		id: number,
+	) {
 		const capacity = world.config.getNewTableSize(0);
 		return new this(
 			world,
@@ -15,6 +20,7 @@ export class Table {
 				return acc;
 			}, new Map<Struct, StructStore>()),
 			capacity,
+			bitfield,
 			id,
 		);
 	}
@@ -22,16 +28,19 @@ export class Table {
 	#world: World;
 	columns: Map<Struct, StructStore>;
 	capacity: number;
+	bitfield: bigint;
 	#id: number;
 	constructor(
 		world: World,
 		columns: Map<Struct, StructStore>,
 		capacity: number,
+		bitfield: bigint,
 		id: number,
 	) {
 		this.#world = world;
 		this.columns = columns;
 		this.capacity = capacity;
+		this.bitfield = bitfield;
 		this.#id = id;
 	}
 
@@ -104,7 +113,7 @@ if (import.meta.vitest) {
 	const { struct } = await import('../struct');
 	const { UncreatedEntitiesTable } = await import('./UncreatedEntitiesTable');
 
-	const uncreated = new UncreatedEntitiesTable();
+	const uncreated = new UncreatedEntitiesTable({} as any);
 
 	@struct()
 	class Vec3 {
@@ -128,6 +137,7 @@ if (import.meta.vitest) {
 		Table.create(
 			{ ...mockWorld, tableLengths: new Uint32Array(1) } as any,
 			components,
+			0n,
 			0,
 		);
 

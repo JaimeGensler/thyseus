@@ -71,12 +71,13 @@ export class Entities {
 	}
 
 	isAlive(entityId: bigint) {
-		const index = this.getTableIndex(entityId);
+		const tableIndex = this.getTableIndex(entityId);
 		const row = this.getRow(entityId);
 		return (
-			index > 0 &&
-			this.#world.archetypes[this.#locations[index]].columns.get(Entity)!
-				.u64![row] === entityId
+			tableIndex === 0 ||
+			this.#world.archetypes[tableIndex].columns.get(Entity)!.u64![
+				row
+			] === entityId
 		);
 	}
 
@@ -99,14 +100,14 @@ export class Entities {
 		this.#locations = newLocations;
 	}
 
-	getTableIndex(entityId: bigint): number {
+	getTableIndex(entityId: bigint) {
 		return this.#locations[getIndex(entityId) << 1] ?? 0;
 	}
 	setTableIndex(entityId: bigint, tableIndex: number) {
 		this.#locations[getIndex(entityId) << 1] = tableIndex;
 	}
 
-	getRow(entityId: bigint): number {
+	getRow(entityId: bigint) {
 		return this.#locations[(getIndex(entityId) << 1) + 1] ?? 0;
 	}
 	setRow(entityId: bigint, row: number) {
@@ -130,6 +131,7 @@ if (import.meta.vitest) {
 				{ tableLengths: new Uint32Array(1) } as any,
 				new Map(),
 				0,
+				0n,
 				0,
 			),
 		);
@@ -144,6 +146,7 @@ if (import.meta.vitest) {
 			{ tableLengths: new Uint32Array(1) } as any,
 			new Map().set(Entity, { u64: new BigUint64Array(8) }),
 			0,
+			0n,
 			0,
 		);
 

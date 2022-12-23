@@ -27,7 +27,7 @@ export const SEND_TABLE = createMessageChannel(
 				}
 				return acc;
 			}, new Map<Struct, StructStore>());
-			const table = new Table(world, columns, capacity, id);
+			const table = new Table(world, columns, capacity, bitfield, id);
 			world.archetypes[id] = table;
 			for (const query of world.queries) {
 				query.testAdd(bitfield, table);

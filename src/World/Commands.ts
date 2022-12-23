@@ -5,15 +5,17 @@ import type { World } from './World';
 
 export class Commands {
 	static fromWorld(world: World) {
-		return new this(world.entities, world.components);
+		return new this(world, world.entities, world.components);
 	}
 	queue = new Map<bigint, bigint>(); // Map<eid, tableid>
 
+	#world: World;
 	#entities: Entities;
 	#entity: Entity;
 	#store: BigUint64Array;
 	#components: Struct[];
-	constructor(entities: Entities, components: Struct[]) {
+	constructor(world: World, entities: Entities, components: Struct[]) {
+		this.#world = world;
 		this.#entities = entities;
 		const buffer = new ArrayBuffer(8);
 		this.#store = new BigUint64Array(1);
@@ -61,18 +63,26 @@ export class Commands {
 		return this.#entity;
 	}
 
-	insertInto(id: bigint, Component: Struct) {
+	insertInto(entityId: bigint, Component: Struct) {
 		this.queue.set(
-			id,
-			(this.queue.get(id) ?? this.#entities.getTableId(id)) |
+			entityId,
+			this.#getBitset(entityId) |
 				(1n << BigInt(this.#components.indexOf(Component))),
 		);
 	}
-	removeFrom(id: bigint, Component: Struct) {
+	removeFrom(entityId: bigint, Component: Struct) {
 		this.queue.set(
-			id,
-			(this.queue.get(id) ?? this.#entities.getTableId(id)) ^
+			entityId,
+			this.#getBitset(entityId) ^
 				(1n << BigInt(this.#components.indexOf(Component))),
+		);
+	}
+
+	#getBitset(entityId: bigint) {
+		return (
+			this.queue.get(entityId) ??
+			this.#world.archetypes[this.#entities.getTableIndex(entityId)]
+				.bitfield
 		);
 	}
 }

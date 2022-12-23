@@ -75,7 +75,7 @@ export class World {
 		this.archetypeLookup.set(0n, 1);
 		this.archetypes.push(
 			new UncreatedEntitiesTable(this),
-			Table.create(this, [Entity], 1),
+			Table.create(this, [Entity], 0n, 1),
 		);
 
 		for (const channel of channels) {
@@ -174,10 +174,11 @@ export class World {
 			this.tableLengths.set(oldLengths);
 			this.threads.send(RESIZE_TABLE_LENGTHS(this.tableLengths));
 		}
-		const id = this.archetypes.length++;
+		const id = this.archetypes.length;
 		const table = Table.create(
 			this,
 			[...bits(tableId)].map(cid => this.components[cid]),
+			tableId,
 			id,
 		);
 		this.archetypeLookup.set(tableId, id);

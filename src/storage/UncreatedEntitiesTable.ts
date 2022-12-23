@@ -7,7 +7,7 @@ import type { World } from '../World';
  */
 export class UncreatedEntitiesTable extends Table {
 	constructor(world: World) {
-		super(world, new Map(), 0, 0);
+		super(world, new Map(), 0, 0n, 0);
 	}
 	get isFull() {
 		return false;
