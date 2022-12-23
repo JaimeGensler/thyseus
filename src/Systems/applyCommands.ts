@@ -15,6 +15,9 @@ const mergeQueues = (a: Map<bigint, bigint>, b: Map<bigint, bigint>) => {
 export const applyCommands = defineSystem(
 	({ World }) => [World()],
 	async function applyCommands(world) {
+		if (world.entities.isFull) {
+			world.entities.grow(world);
+		}
 		const queue = (await world.threads.send(GET_COMMAND_QUEUE())).reduce(
 			mergeQueues,
 			world.commands.queue,

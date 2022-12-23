@@ -43,6 +43,10 @@ export class Entities {
 		this.#recycled = recycled;
 	}
 
+	get isFull() {
+		return this.#data[0] >= this.#locations.length;
+	}
+
 	/**
 	 * A lockfree method to obtain a new Entity ID
 	 */
