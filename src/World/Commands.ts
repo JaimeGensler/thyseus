@@ -18,7 +18,12 @@ export class Commands {
 		const buffer = new ArrayBuffer(8);
 		this.#store = new BigUint64Array(1);
 		this.#entity = new Entity(
-			{ buffer, u8: new Uint8Array(buffer), u64: this.#store },
+			{
+				buffer,
+				u8: new Uint8Array(buffer),
+				u32: new Uint32Array(buffer),
+				u64: this.#store,
+			},
 			0,
 			this,
 		);
