@@ -74,7 +74,7 @@ export class World {
 		);
 		this.archetypeLookup.set(0n, 1);
 		this.archetypes.push(
-			new UncreatedEntitiesTable(),
+			new UncreatedEntitiesTable(this),
 			Table.create(this, [Entity], 1),
 		);
 
