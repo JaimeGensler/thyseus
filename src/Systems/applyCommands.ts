@@ -1,3 +1,4 @@
+import { GET_COMMAND_QUEUE } from '../World/channels';
 import { defineSystem } from './defineSystem';
 
 const mergeQueues = (a: Map<bigint, bigint>, b: Map<bigint, bigint>) => {
@@ -14,11 +15,10 @@ const mergeQueues = (a: Map<bigint, bigint>, b: Map<bigint, bigint>) => {
 export const applyCommands = defineSystem(
 	({ World }) => [World()],
 	async function applyCommands(world) {
-		const queue = (
-			await world.threads.send<Map<bigint, bigint>>(
-				'thyseus::getCommandQueue',
-			)
-		).reduce(mergeQueues, world.commands.queue);
+		const queue = (await world.threads.send(GET_COMMAND_QUEUE())).reduce(
+			mergeQueues,
+			world.commands.queue,
+		);
 
 		for (const [entityId, tableId] of queue) {
 			world.moveEntity(entityId, tableId);

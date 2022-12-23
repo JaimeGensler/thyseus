@@ -171,7 +171,11 @@ if (import.meta.vitest) {
 			},
 		};
 		const createTable = (...components: Struct[]) =>
-			Table.create(mockWorld, components, new Uint32Array(1), 0);
+			Table.create(
+				{ ...mockWorld, tableLengths: new Uint32Array(1) },
+				components,
+				0,
+			);
 		const uncreated = new UncreatedEntitiesTable();
 
 		class Vec3 {

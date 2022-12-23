@@ -1,4 +1,5 @@
 import { Entity } from './Entity';
+import { RESIZE_ENTITY_LOCATIONS } from '../World/channels';
 import type { Table } from './Table';
 import type { World } from '../World';
 
@@ -80,7 +81,18 @@ export class Entities {
 	}
 
 	grow(world: World) {
-		// TODO
+		const newLocations = new Uint32Array(
+			world.createBuffer(
+				this.#locations.byteLength +
+					ENTITY_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT,
+			),
+		);
+		newLocations.set(this.#locations);
+		this.#locations = newLocations;
+		world.threads.send(RESIZE_ENTITY_LOCATIONS(this.#locations));
+	}
+	setLocations(newLocations: Uint32Array) {
+		this.#locations = newLocations;
 	}
 
 	getTableIndex(entityId: bigint): number {
@@ -110,7 +122,12 @@ if (import.meta.vitest) {
 			{} as any,
 			new Uint32Array(256 * 2),
 			new Uint32Array(3),
-			new Table(new Map(), 0, new Uint32Array(1), 0),
+			new Table(
+				{ tableLengths: new Uint32Array(1) } as any,
+				new Map(),
+				0,
+				0,
+			),
 		);
 
 		for (let i = 0n; i < 256n; i++) {
@@ -120,9 +137,9 @@ if (import.meta.vitest) {
 
 	it('returns entities from the Recycled table', () => {
 		const table = new Table(
+			{ tableLengths: new Uint32Array(1) } as any,
 			new Map().set(Entity, { u64: new BigUint64Array(8) }),
 			0,
-			new Uint32Array(1),
 			0,
 		);
 

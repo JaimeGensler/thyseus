@@ -27,7 +27,7 @@ export const SEND_TABLE = createMessageChannel(
 				}
 				return acc;
 			}, new Map<Struct, StructStore>());
-			const table = new Table(columns, capacity, world.tableLengths, id);
+			const table = new Table(world, columns, capacity, id);
 			world.archetypes[id] = table;
 			for (const query of world.queries) {
 				query.testAdd(bitfield, table);
@@ -48,7 +48,9 @@ export const RESIZE_TABLE = createMessageChannel(
 );
 export const RESIZE_TABLE_LENGTHS = createMessageChannel(
 	'thyseus::resizeTableLengths',
-	world => (lengths: Uint32Array) => {
-		world.tableLengths = lengths;
-	},
+	world => (lengths: Uint32Array) => (world.tableLengths = lengths),
+);
+export const RESIZE_ENTITY_LOCATIONS = createMessageChannel(
+	'thyseus::resizeEntityLocations',
+	world => (locs: Uint32Array) => world.entities.setLocations(locs),
 );
