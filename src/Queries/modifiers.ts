@@ -1,32 +1,44 @@
 import type { Struct } from '../struct';
 
 export class Optional<T extends object | Mut<object>> {
-	value: Struct | Mut<any>;
+	#value: Struct | Mut<any>;
 	constructor(value: T | { new (...args: any): T }) {
-		this.value = value as any;
+		this.#value = value as any;
+	}
+	get value() {
+		return this.#value;
 	}
 }
 export class Mut<T extends object> {
-	value: Struct;
+	#value: Struct;
 	constructor(value: { new (...args: any): T }) {
-		this.value = value;
+		this.#value = value;
+	}
+	get value() {
+		return this.#value;
 	}
 }
 
 export class With<T extends object | object[]> {
-	value: Struct | Struct[];
+	#value: Struct | Struct[];
 	constructor(
 		value: { new (...args: any): T } | { new (...args: any): T }[],
 	) {
-		this.value = value;
+		this.#value = value;
+	}
+	get value() {
+		return this.#value;
 	}
 }
 export class Without<T extends object | object[]> {
-	value: Struct | Struct[];
+	#value: Struct | Struct[];
 	constructor(
 		value: { new (...args: any): T } | { new (...args: any): T }[],
 	) {
-		this.value = value;
+		this.#value = value;
+	}
+	get value() {
+		return this.#value;
 	}
 }
 
@@ -36,11 +48,17 @@ export type OrContent =
 	| Or<OrContent, OrContent>
 	| OrContent[];
 export class Or<L extends OrContent, R extends OrContent> {
-	l: OrContent;
-	r: OrContent;
+	#l: OrContent;
+	#r: OrContent;
 	constructor(l: L, r: R) {
-		this.l = l;
-		this.r = r;
+		this.#l = l;
+		this.#r = r;
+	}
+	get l() {
+		return this.#l;
+	}
+	get r() {
+		return this.#r;
 	}
 }
 
