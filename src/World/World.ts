@@ -41,8 +41,8 @@ export class World {
 
 	queries = [] as Query<any, any>[];
 
-	systems = [] as Array<(...args: any[]) => any>;
-	parameters = [] as Array<any[]>;
+	systems = [] as ((...args: any[]) => any)[];
+	arguments = [] as any[][];
 
 	executor: Executor;
 	commands: Commands;
@@ -107,10 +107,9 @@ export class World {
 			}
 		}
 
-		this.systems = [];
 		for (const { fn, parameters } of systems) {
 			this.systems.push(fn);
-			this.parameters.push(parameters.map(p => p.intoArgument(this)));
+			this.arguments.push(parameters.map(p => p.intoArgument(this)));
 		}
 
 		this.executor.onReady(() => this.#runSystems());
@@ -129,7 +128,7 @@ export class World {
 	}
 	async #runSystems() {
 		for await (const sid of this.executor) {
-			await this.systems[sid](...this.parameters[sid]);
+			await this.systems[sid](...this.arguments[sid]);
 		}
 	}
 
