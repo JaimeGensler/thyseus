@@ -1,7 +1,7 @@
 import { World } from './World';
 import { defaultPlugin } from './defaultPlugin';
 import { ThreadGroup } from '../utils/ThreadGroup';
-import type { Dependencies, SystemDefinition } from '../Systems';
+import { applyCommands, Dependencies, SystemDefinition } from '../Systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
@@ -124,6 +124,7 @@ export class WorldBuilder {
 		}
 
 		await threads.wrapInQueue(() => {});
+		applyCommands.fn(world);
 		return world;
 	}
 
@@ -226,6 +227,6 @@ if (import.meta.vitest) {
 	it('adds defaultPlugin', async () => {
 		const world = await World.new().build();
 		expect(world.components).toStrictEqual([Entity]);
-		expect(world.systems[0].execute).toBe(applyCommands.fn);
+		expect(world.systems[0]).toBe(applyCommands.fn);
 	});
 }

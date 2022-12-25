@@ -17,9 +17,9 @@ import {
 	type SingleThreadedWorldConfig,
 } from './config';
 import type { ThreadGroup } from '../utils/ThreadGroup';
-import type { Dependencies, System, SystemDefinition } from '../Systems';
-import type { Query } from '../Queries';
 import type { ThreadMessageChannel } from '../utils/createMessageChannel';
+import type { Dependencies, SystemDefinition } from '../Systems';
+import type { Query } from '../Queries';
 
 const TABLE_BATCH_SIZE = 64;
 
@@ -41,6 +41,9 @@ export class World {
 
 	queries = [] as Query<any, any>[];
 
+	systems = [] as Array<(...args: any[]) => any>;
+	parameters = [] as Array<any[]>;
+
 	executor: Executor;
 	commands: Commands;
 	entities: Entities;
@@ -49,7 +52,6 @@ export class World {
 	threads: ThreadGroup;
 	components: Struct[];
 	resources: Map<Class, object>;
-	systems: System[];
 	constructor(
 		config: WorldConfig,
 		threads: ThreadGroup,
@@ -107,10 +109,8 @@ export class World {
 
 		this.systems = [];
 		for (const { fn, parameters } of systems) {
-			this.systems.push({
-				execute: fn,
-				args: parameters.map(p => p.intoArgument(this)),
-			});
+			this.systems.push(fn);
+			this.parameters.push(parameters.map(p => p.intoArgument(this)));
 		}
 
 		this.executor.onReady(() => this.#runSystems());
@@ -125,15 +125,12 @@ export class World {
 	}
 
 	async update() {
-		this.executor.reset();
 		this.executor.start();
 	}
 	async #runSystems() {
 		for await (const sid of this.executor) {
-			const system = this.systems[sid];
-			await system.execute(...system.args);
+			await this.systems[sid](...this.parameters[sid]);
 		}
-		this.executor.onReady(() => this.#runSystems());
 	}
 
 	moveEntity(entityId: bigint, targetTableId: bigint) {

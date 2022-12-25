@@ -6,8 +6,3 @@ export {
 } from './getSystemDependencies';
 export { getSystemIntersections } from './getSystemIntersections';
 export { applyCommands } from './applyCommands';
-
-export type System = {
-	args: any[];
-	execute(...args: any[]): void | Promise<void>;
-};
