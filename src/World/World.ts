@@ -1,5 +1,4 @@
 import { WorldBuilder } from './WorldBuilder';
-import { Executor } from './Executor';
 import { Commands } from './Commands';
 import { bits } from '../utils/bits';
 import {
@@ -16,6 +15,7 @@ import {
 	type WorldConfig,
 	type SingleThreadedWorldConfig,
 } from './config';
+import type { ExecutorInstance, ExecutorType } from './Executor';
 import type { ThreadGroup } from '../utils/ThreadGroup';
 import type { ThreadMessageChannel } from '../utils/createMessageChannel';
 import type { Dependencies, SystemDefinition } from '../Systems';
@@ -44,7 +44,7 @@ export class World {
 	systems = [] as ((...args: any[]) => any)[];
 	arguments = [] as any[][];
 
-	executor: Executor;
+	executor: ExecutorInstance;
 	commands: Commands;
 	entities: Entities;
 
@@ -55,6 +55,7 @@ export class World {
 	constructor(
 		config: WorldConfig,
 		threads: ThreadGroup,
+		executor: ExecutorType,
 		components: Struct[],
 		resourceTypes: Class[],
 		systems: SystemDefinition[],
@@ -90,7 +91,7 @@ export class World {
 		this.components = components;
 		this.entities = Entities.fromWorld(this);
 		this.commands = Commands.fromWorld(this);
-		this.executor = Executor.fromWorld(this, systems, dependencies);
+		this.executor = executor.fromWorld(this, systems, dependencies);
 
 		this.resources = new Map<Class, object>();
 		for (const Resource of resourceTypes) {
@@ -111,8 +112,6 @@ export class World {
 			this.systems.push(fn);
 			this.arguments.push(parameters.map(p => p.intoArgument(this)));
 		}
-
-		this.executor.onReady(() => this.#runSystems());
 	}
 
 	/**
@@ -124,12 +123,7 @@ export class World {
 	}
 
 	async update() {
-		this.executor.start();
-	}
-	async #runSystems() {
-		for await (const sid of this.executor) {
-			await this.systems[sid](...this.arguments[sid]);
-		}
+		return this.executor.start();
 	}
 
 	moveEntity(entityId: bigint, targetTableId: bigint) {

@@ -1,7 +1,12 @@
 import { World } from './World';
 import { defaultPlugin } from './defaultPlugin';
 import { ThreadGroup } from '../utils/ThreadGroup';
-import { applyCommands, Dependencies, SystemDefinition } from '../Systems';
+import {
+	applyCommands,
+	type Dependencies,
+	type SystemDefinition,
+} from '../Systems';
+import { Executor, type ExecutorType } from './Executor';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
@@ -15,6 +20,7 @@ export class WorldBuilder {
 	components = new Set<Struct>();
 	resources = new Set<Class>();
 	threadChannels = [] as ThreadMessageChannel[];
+	executor: ExecutorType = Executor;
 
 	config: WorldConfig;
 	url: string | URL | undefined;
@@ -90,6 +96,16 @@ export class WorldBuilder {
 	}
 
 	/**
+	 * Sets the Executor that this world will use.
+	 * @param executor The Executor to use.
+	 * @returns `this`, for chaining.
+	 */
+	setExecutor(executor: ExecutorType): this {
+		this.executor = executor;
+		return this;
+	}
+
+	/**
 	 * Builds the world.
 	 * `World` instances cannot add new systems or register new types.
 	 * @returns `Promise<World>`
@@ -102,6 +118,7 @@ export class WorldBuilder {
 				new World(
 					this.config,
 					threads,
+					this.executor,
 					[...this.components],
 					[...this.resources],
 					this.systems,
