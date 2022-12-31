@@ -1,9 +1,9 @@
-import { BigUintArray } from '../utils/BigUintArray';
-import { createMessageChannel } from '../utils/createMessageChannel';
+import { BigUintArray } from './BigUintArray';
+import { createMessageChannel } from '../threads/createMessageChannel';
 import { vecUtils } from './vecUtils';
 import { type Dependencies, type SystemDefinition } from '../Systems';
 import type { World } from '../World';
-import type { ThreadGroup } from '../utils/ThreadGroup';
+import type { ThreadGroup } from '../threads/ThreadGroup';
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
 
