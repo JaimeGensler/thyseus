@@ -16,8 +16,7 @@ import {
 	type SingleThreadedWorldConfig,
 } from './config';
 import type { ExecutorInstance, ExecutorType } from '../Executor';
-import type { ThreadGroup } from '../utils/ThreadGroup';
-import type { ThreadMessageChannel } from '../utils/createMessageChannel';
+import type { ThreadGroup, ThreadMessageChannel } from '../threads';
 import type { Dependencies, SystemDefinition } from '../Systems';
 import type { Query } from '../Queries';
 

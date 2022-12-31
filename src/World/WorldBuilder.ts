@@ -1,6 +1,6 @@
 import { World } from './World';
 import { defaultPlugin } from './defaultPlugin';
-import { ThreadGroup } from '../utils/ThreadGroup';
+import { ThreadGroup, type ThreadMessageChannel } from '../threads';
 import {
 	applyCommands,
 	type Dependencies,
@@ -10,7 +10,6 @@ import { ParallelExecutor, type ExecutorType } from '../Executor';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
-import type { ThreadMessageChannel } from '../utils/createMessageChannel';
 
 export class WorldBuilder {
 	systems = [] as SystemDefinition[];

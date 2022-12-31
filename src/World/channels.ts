@@ -1,7 +1,7 @@
 import { Table } from '../storage';
-import { Struct, StructStore } from '../struct';
 import { bits } from '../utils/bits';
-import { createMessageChannel } from '../utils/createMessageChannel';
+import { createMessageChannel } from '../threads';
+import type { Struct, StructStore } from '../struct';
 
 export const GET_COMMAND_QUEUE = createMessageChannel(
 	'thyseus::getCommandQueue',
