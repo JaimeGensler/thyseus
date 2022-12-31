@@ -1,14 +1,8 @@
 import { DEV } from 'esm-env';
 import { assert } from '../utils/assert';
 import { bits } from '../utils/bits';
-import type { SystemDefinition } from './defineSystem';
-
-export type Dependencies = {
-	before?: SystemDefinition[];
-	after?: SystemDefinition[];
-	beforeAll?: boolean;
-	afterAll?: boolean;
-};
+import type { SystemDefinition } from '../Systems/defineSystem';
+import { Dependencies } from '../Systems';
 
 export function getSystemDependencies(
 	systems: SystemDefinition[],

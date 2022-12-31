@@ -1,15 +1,23 @@
 import { BigUintArray } from '../utils/BigUintArray';
-import { vecUtils } from '../utils/vecUtils';
-import {
-	getSystemDependencies,
-	getSystemIntersections,
-	type Dependencies,
-	type SystemDefinition,
-} from '../Systems';
-import type { World } from './World';
+import { createMessageChannel } from '../utils/createMessageChannel';
+import { vecUtils } from './vecUtils';
+import { type Dependencies, type SystemDefinition } from '../Systems';
+import type { World } from '../World';
+import type { ThreadGroup } from '../utils/ThreadGroup';
+import { getSystemIntersections } from './getSystemIntersections';
+import { getSystemDependencies } from './getSystemDependencies';
+
+export type ExecutorInstance = { start(): Promise<void> };
+export type ExecutorType = {
+	fromWorld(
+		world: World,
+		systems: SystemDefinition[],
+		dependencies: (Dependencies | undefined)[],
+	): ExecutorInstance;
+};
 
 let nextId = 0;
-export class Executor {
+export class ParallelExecutor {
 	static fromWorld(
 		world: World,
 		systems: SystemDefinition[],
@@ -24,9 +32,7 @@ export class Executor {
 		const local = world.threads.isMainThread
 			? systems.reduce(
 					(acc, val, i) =>
-						val.parameters.some((param: any) =>
-							param.isLocalToThread(),
-						)
+						val.parameters.some(param => param.isLocalToThread())
 							? acc.add(i)
 							: acc,
 					new Set<number>(),
@@ -52,6 +58,7 @@ export class Executor {
 		const id = world.threads.queue(() => String(nextId++));
 
 		return new this(
+			world,
 			intersections,
 			dependencyMasks,
 			systemVec,
@@ -61,8 +68,7 @@ export class Executor {
 		);
 	}
 
-	#channel = new BroadcastChannel('thyseus::executor');
-	#signals = [] as ((val: any) => void)[];
+	#resolver = () => {};
 
 	#intersections: bigint[];
 	#dependencies: bigint[];
@@ -70,7 +76,11 @@ export class Executor {
 	#status: BigUintArray; // [ SystemsRunning, SystemsCompleted ]
 	#local: Set<number>;
 	#id: string;
+	#systems: ((...args: any[]) => any)[];
+	#arguments: any[][];
+	#threads: ThreadGroup;
 	constructor(
+		world: World,
 		intersections: bigint[],
 		dependencies: bigint[],
 		systemsToExecute: Uint16Array,
@@ -84,17 +94,20 @@ export class Executor {
 		this.#status = status;
 		this.#local = local;
 		this.#id = id;
+		this.#systems = world.systems;
+		this.#arguments = world.arguments;
+		this.#threads = world.threads;
 
-		this.#channel.addEventListener('message', () => {
-			this.#signals.forEach(s => s(0));
-			this.#signals.length = 0;
+		this.#threads.setListener('thyseus::defaultExecutor', (val: number) => {
+			if (val === 0) {
+				this.#runSystems();
+			} else {
+				this.#resolver();
+			}
 		});
 	}
 
-	start() {
-		this.#sendSignal();
-	}
-	reset() {
+	async start() {
 		this.#status.set(0, 0n);
 		this.#status.set(1, 0n);
 		for (let i = 0; i < this.#dependencies.length; i++) {
@@ -102,27 +115,15 @@ export class Executor {
 				vecUtils.push(this.#systemsToExecute, i);
 			}
 		}
+		this.#sendSignal(0);
+		return this.#runSystems();
 	}
 
-	#sendSignal() {
-		this.#channel.postMessage(0);
-		this.#signals.forEach(s => s(0));
-		this.#signals.length = 0;
-	}
-	async #receiveSignal() {
-		return new Promise(r => this.#signals.push(r));
-	}
-
-	async onReady(fn: () => void) {
-		await this.#receiveSignal();
-		fn();
-	}
-
-	async *[Symbol.asyncIterator]() {
+	async #runSystems() {
 		const local = new Set(this.#local);
 		while (vecUtils.size(this.#systemsToExecute) + local.size > 0) {
 			const size = vecUtils.size(this.#systemsToExecute);
-			let runningSystem = -1;
+			let sid = -1;
 
 			await navigator.locks.request(this.#id, () => {
 				const active = this.#status.get(0);
@@ -136,7 +137,7 @@ export class Executor {
 						(deps & this.#dependencies[systemId]) ===
 							this.#dependencies[systemId]
 					) {
-						runningSystem = systemId;
+						sid = systemId;
 						if (local.has(systemId)) {
 							local.delete(systemId);
 						} else {
@@ -151,18 +152,25 @@ export class Executor {
 				}
 			});
 
-			if (runningSystem > -1) {
-				yield runningSystem;
+			if (sid > -1) {
+				console.log(sid);
+				await this.#systems[sid](...this.#arguments[sid]);
 
 				await navigator.locks.request(this.#id, () => {
-					this.#status.XOR(0, 1n << BigInt(runningSystem));
-					this.#status.OR(1, 1n << BigInt(runningSystem));
+					this.#status.XOR(0, 1n << BigInt(sid));
+					this.#status.OR(1, 1n << BigInt(sid));
 				});
-				this.#sendSignal();
+				this.#sendSignal(1);
 			} else if (size !== 0 || local.size !== 0) {
 				await this.#receiveSignal();
 			}
 		}
+	}
+	#sendSignal(val: number) {
+		//TODO
+	}
+	async #receiveSignal() {
+		// TODO
 	}
 }
 
@@ -174,29 +182,6 @@ if (import.meta.vitest) {
 
 	const emptyMask = [0b0000n, 0b0000n, 0b0000n, 0b0000n];
 
-	let channel: any;
-	vi.stubGlobal(
-		'BroadcastChannel',
-		class {
-			listeners = new Set<Function>();
-			constructor() {
-				if (!channel) {
-					channel = this;
-				}
-				return channel;
-			}
-
-			addEventListener(_: 'message', listener: any) {
-				this.listeners.add(listener);
-			}
-			removeEventListener(_: 'message', listener: any) {
-				this.listeners.delete(listener);
-			}
-			postMessage() {
-				setTimeout(() => this.listeners.forEach(l => l()), 10);
-			}
-		},
-	);
 	vi.stubGlobal('navigator', {
 		locks: {
 			async request(_: any, cb: () => void) {
@@ -206,8 +191,15 @@ if (import.meta.vitest) {
 		},
 	});
 
-	const createExecutor = (i: bigint[], d: bigint[], l: Set<number>) =>
-		new Executor(
+	const createExecutor = (
+		i: bigint[],
+		d: bigint[],
+		l: Set<number>,
+		systems: ((...args: any[]) => any)[],
+		args: any[],
+	) =>
+		new ParallelExecutor(
+			{ systems, arguments: args } as any,
 			i,
 			d,
 			new Uint16Array(i.length + 1),
@@ -220,21 +212,22 @@ if (import.meta.vitest) {
 			'',
 		);
 
-	it('calls whenReady callback when started', async () => {
+	it.only('calls a systems when started', async () => {
+		const spy = vi.fn();
+		const args = [1, {}, 3];
 		const exec = createExecutor(
 			[0b110n, 0b000n, 0b000n],
 			[0b000n, 0b000n, 0b000n],
 			new Set(),
+			[spy],
+			[args],
 		);
-		const spy = vi.fn();
-		const promise = exec.onReady(spy);
-		expect(spy).not.toHaveBeenCalled();
-		exec.start();
-		await promise;
-		expect(spy).toHaveBeenCalled();
+		await exec.start();
+		expect(spy).toHaveBeenCalledOnce();
+		expect(spy).toHaveBeenCalledWith(...args);
 	});
 
-	it('iterates all elements with no intersections, no dependencies)', async () => {
+	it('iterates all elements with no intersections, no dependencies', async () => {
 		const exec = createExecutor(emptyMask, emptyMask, new Set());
 		exec.reset();
 

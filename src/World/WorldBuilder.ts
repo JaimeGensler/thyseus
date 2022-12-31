@@ -6,7 +6,7 @@ import {
 	type Dependencies,
 	type SystemDefinition,
 } from '../Systems';
-import { Executor, type ExecutorType } from './Executor';
+import { ParallelExecutor, type ExecutorType } from '../Executor';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
@@ -20,7 +20,7 @@ export class WorldBuilder {
 	components = new Set<Struct>();
 	resources = new Set<Class>();
 	threadChannels = [] as ThreadMessageChannel[];
-	executor: ExecutorType = Executor;
+	executor: ExecutorType = ParallelExecutor;
 
 	config: WorldConfig;
 	url: string | URL | undefined;
