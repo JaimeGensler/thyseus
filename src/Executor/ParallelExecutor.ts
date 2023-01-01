@@ -1,22 +1,19 @@
-import { BigUintArray } from './BigUintArray';
-import { createMessageChannel } from '../threads/createMessageChannel';
-import { vecUtils } from './vecUtils';
-import { type Dependencies, type SystemDefinition } from '../Systems';
-import type { World } from '../World';
-import type { ThreadGroup } from '../threads/ThreadGroup';
+import { createThreadChannel } from '../threads/createThreadChannel';
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
-
-export type ExecutorInstance = { start(): Promise<void> };
-export type ExecutorType = {
-	fromWorld(
-		world: World,
-		systems: SystemDefinition[],
-		dependencies: (Dependencies | undefined)[],
-	): ExecutorInstance;
-};
+import type { Dependencies, SystemDefinition } from '../Systems';
+import type { World } from '../World';
+import type { ThreadGroup } from '../threads/ThreadGroup';
+import { FixedBitSet } from './FixedBitSet';
 
 let nextId = 0;
+const SHARED_LOCK = { mode: 'shared' } as const;
+const EXCLUSIVE_LOCK = { mode: 'exclusive' } as const;
+const executorChannel = createThreadChannel(
+	'thyseus::ParallelExecutor',
+	() => (val: 0 | 1) => {},
+);
+
 export class ParallelExecutor {
 	static fromWorld(
 		world: World,
@@ -26,79 +23,70 @@ export class ParallelExecutor {
 		const intersections = world.threads.queue(() =>
 			getSystemIntersections(systems),
 		);
-		const dependencyMasks = world.threads.queue(() =>
+		const dependencies = world.threads.queue(() =>
 			getSystemDependencies(systems, systemDependencies, intersections),
 		);
-		const local = world.threads.isMainThread
-			? systems.reduce(
-					(acc, val, i) =>
-						val.parameters.some(param => param.isLocalToThread())
-							? acc.add(i)
-							: acc,
-					new Set<number>(),
-			  )
-			: new Set<number>();
-
-		const systemVec = world.threads.queue(
-			// Storing current length
-			() => new Uint16Array(world.createBuffer(2 * systems.length + 2)),
-		);
-		const status = new BigUintArray(
-			systems.length,
-			2,
-			world.threads.queue(
-				() =>
-					new Uint8Array(
-						world.createBuffer(
-							BigUintArray.getBufferLength(systems.length, 2),
-						),
-					),
-			),
-		);
-		const id = world.threads.queue(() => String(nextId++));
+		const locals = world.threads.isMainThread
+			? systems.map(() => true)
+			: systems.map(s => !s.parameters.some(p => p.isLocalToThread()));
 
 		return new this(
 			world,
+			new FixedBitSet(systems.length, l =>
+				world.threads.queue(() => world.createBuffer(l)),
+			),
+			new FixedBitSet(systems.length, l =>
+				world.threads.queue(() => world.createBuffer(l)),
+			),
+			new FixedBitSet(systems.length, l =>
+				world.threads.queue(() => world.createBuffer(l)),
+			),
 			intersections,
-			dependencyMasks,
-			systemVec,
-			status,
-			local,
-			id,
+			dependencies,
+			locals,
+			`${executorChannel.channelName}${nextId++}`,
 		);
 	}
 
-	#resolver = () => {};
+	#resolver = (...args: any[]) => {};
+	#executingSystems: FixedBitSet;
+	#completedSystems: FixedBitSet;
+	#toExecuteSystems: FixedBitSet;
 
+	#local: boolean[];
 	#intersections: bigint[];
 	#dependencies: bigint[];
-	#systemsToExecute: Uint16Array;
-	#status: BigUintArray; // [ SystemsRunning, SystemsCompleted ]
-	#local: Set<number>;
-	#id: string;
+
+	#lockName: string;
+
 	#systems: ((...args: any[]) => any)[];
 	#arguments: any[][];
 	#threads: ThreadGroup;
 	constructor(
 		world: World,
+		executingSystems: FixedBitSet,
+		completedSystems: FixedBitSet,
+		toExecuteSystems: FixedBitSet,
 		intersections: bigint[],
 		dependencies: bigint[],
-		systemsToExecute: Uint16Array,
-		status: BigUintArray,
-		local: Set<number>,
-		id: string,
+		local: boolean[],
+		lockName: string,
 	) {
-		this.#intersections = intersections;
-		this.#dependencies = dependencies;
-		this.#systemsToExecute = systemsToExecute;
-		this.#status = status;
-		this.#local = local;
-		this.#id = id;
 		this.#systems = world.systems;
 		this.#arguments = world.arguments;
 		this.#threads = world.threads;
 
-		this.#threads.setListener('thyseus::defaultExecutor', (val: number) => {
+		this.#intersections = intersections;
+		this.#dependencies = dependencies;
+		this.#local = local;
+
+		this.#executingSystems = executingSystems;
+		this.#completedSystems = completedSystems;
+		this.#toExecuteSystems = toExecuteSystems;
+
+		this.#lockName = lockName;
+
+		this.#threads.setListener(executorChannel.channelName, (val: 0 | 1) => {
 			if (val === 0) {
 				this.#runSystems();
 			} else {
@@ -108,69 +96,55 @@ export class ParallelExecutor {
 	}
 
 	async start() {
-		this.#status.set(0, 0n);
-		this.#status.set(1, 0n);
-		for (let i = 0; i < this.#dependencies.length; i++) {
-			if (!this.#local.has(i)) {
-				vecUtils.push(this.#systemsToExecute, i);
-			}
-		}
-		this.#sendSignal(0);
+		this.#startOnAllThreads();
 		return this.#runSystems();
 	}
 
 	async #runSystems() {
-		const local = new Set(this.#local);
-		while (vecUtils.size(this.#systemsToExecute) + local.size > 0) {
-			const size = vecUtils.size(this.#systemsToExecute);
-			let sid = -1;
-
-			await navigator.locks.request(this.#id, () => {
-				const active = this.#status.get(0);
-				const deps = this.#status.get(1);
-				for (const systemId of [
-					...local,
-					...vecUtils.iter(this.#systemsToExecute),
-				]) {
-					if (
-						(active & this.#intersections[systemId]) === 0n &&
-						(deps & this.#dependencies[systemId]) ===
-							this.#dependencies[systemId]
-					) {
-						sid = systemId;
-						if (local.has(systemId)) {
-							local.delete(systemId);
-						} else {
-							vecUtils.delete(
-								this.#systemsToExecute,
-								this.#systemsToExecute.indexOf(systemId),
-							);
-						}
-						this.#status.OR(0, 1n << BigInt(systemId));
-						break;
-					}
-				}
+		while (this.#toExecuteSystems.setCount() > 0) {
+			let systemId = -1;
+			await navigator.locks.request(this.#lockName, SHARED_LOCK, () => {
+				// prettier-ignore
+				systemId = this.#toExecuteSystems.find(id =>
+					this.#completedSystems.overlaps(this.#dependencies[id]) &&
+					this.#executingSystems.overlaps(this.#intersections[id]) &&
+					this.#local[id],
+				);
 			});
 
-			if (sid > -1) {
-				console.log(sid);
-				await this.#systems[sid](...this.#arguments[sid]);
-
-				await navigator.locks.request(this.#id, () => {
-					this.#status.XOR(0, 1n << BigInt(sid));
-					this.#status.OR(1, 1n << BigInt(sid));
-				});
-				this.#sendSignal(1);
-			} else if (size !== 0 || local.size !== 0) {
-				await this.#receiveSignal();
+			if (systemId === -1) {
+				await this.#awaitExecutingSystemsChanged();
+			} else {
+				await navigator.locks.request(
+					this.#lockName,
+					EXCLUSIVE_LOCK,
+					() => {
+						this.#toExecuteSystems.clear(systemId);
+						this.#executingSystems.set(systemId);
+					},
+				);
+				await this.#systems[systemId](...this.#arguments[systemId]);
+				await navigator.locks.request(
+					this.#lockName,
+					EXCLUSIVE_LOCK,
+					() => {
+						this.#toExecuteSystems.clear(systemId);
+						this.#executingSystems.set(systemId);
+					},
+				);
+				this.#alertExecutingSystemsChanged();
 			}
 		}
 	}
-	#sendSignal(val: number) {
-		//TODO
+
+	#startOnAllThreads() {
+		this.#threads.send(executorChannel(0));
 	}
-	async #receiveSignal() {
-		// TODO
+	#alertExecutingSystemsChanged() {
+		this.#threads.send(executorChannel(1));
+	}
+	async #awaitExecutingSystemsChanged() {
+		return new Promise(r => (this.#resolver = r));
 	}
 }
 
@@ -197,20 +171,18 @@ if (import.meta.vitest) {
 		l: Set<number>,
 		systems: ((...args: any[]) => any)[],
 		args: any[],
-	) =>
-		new ParallelExecutor(
-			{ systems, arguments: args } as any,
-			i,
-			d,
-			new Uint16Array(i.length + 1),
-			new BigUintArray(
-				i.length,
-				2,
-				new Uint8Array(BigUintArray.getBufferLength(i.length, 2)),
-			),
-			l,
-			'',
-		);
+	) => new ParallelExecutor();
+	// { systems, arguments: args } as any,
+	// i,
+	// d,
+	// new Uint16Array(i.length + 1),
+	// // new BigUintArray(
+	// // 	i.length,
+	// // 	2,
+	// // 	new Uint8Array(BigUintArray.getBufferLength(i.length, 2)),
+	// // ),
+	// l,
+	// '',
 
 	it.only('calls a systems when started', async () => {
 		const spy = vi.fn();
