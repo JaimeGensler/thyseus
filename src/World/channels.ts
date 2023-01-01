@@ -1,9 +1,9 @@
 import { Table } from '../storage';
 import { bits } from '../utils/bits';
-import { createMessageChannel } from '../threads';
+import { createThreadChannel } from '../threads';
 import type { Struct, StructStore } from '../struct';
 
-export const GET_COMMAND_QUEUE = createMessageChannel(
+export const GET_COMMAND_QUEUE = createThreadChannel(
 	'thyseus::getCommandQueue',
 	world => () => {
 		const ret = new Map(world.commands.queue);
@@ -11,7 +11,7 @@ export const GET_COMMAND_QUEUE = createMessageChannel(
 		return ret;
 	},
 );
-export const SEND_TABLE = createMessageChannel(
+export const SEND_TABLE = createThreadChannel(
 	'thyseus::sendTable',
 	world =>
 		(
@@ -34,7 +34,7 @@ export const SEND_TABLE = createMessageChannel(
 			}
 		},
 );
-export const RESIZE_TABLE = createMessageChannel(
+export const RESIZE_TABLE = createThreadChannel(
 	'thyseus::resizeTable',
 	world =>
 		(tableId: number, newCapacity: number, newColumns: StructStore[]) => {
@@ -46,11 +46,11 @@ export const RESIZE_TABLE = createMessageChannel(
 			}
 		},
 );
-export const RESIZE_TABLE_LENGTHS = createMessageChannel(
+export const RESIZE_TABLE_LENGTHS = createThreadChannel(
 	'thyseus::resizeTableLengths',
 	world => (lengths: Uint32Array) => (world.tableLengths = lengths),
 );
-export const RESIZE_ENTITY_LOCATIONS = createMessageChannel(
+export const RESIZE_ENTITY_LOCATIONS = createThreadChannel(
 	'thyseus::resizeEntityLocations',
 	world => (locs: Uint32Array) => world.entities.setLocations(locs),
 );

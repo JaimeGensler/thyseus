@@ -49,7 +49,7 @@ export type ThreadMessageChannel<
 };
 
 let messageCount = 1;
-export function createMessageChannel<
+export function createThreadChannel<
 	I extends SendableType[],
 	O extends SendableType,
 >(channelName: string, onReceive: OnReceive<I, O>): ThreadMessageChannel<I, O> {

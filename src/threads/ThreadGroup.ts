@@ -1,8 +1,8 @@
 import {
-	createMessageChannel,
+	createThreadChannel,
 	type ThreadMessage,
 	type SendableType,
-} from './createMessageChannel';
+} from './createThreadChannel';
 
 type Listener = (...data: SendableType[]) => SendableType;
 type ThreadMessageEvent = MessageEvent<ThreadMessage<SendableType[], any>> & {
@@ -163,11 +163,11 @@ if (import.meta.vitest) {
 
 	it('send returns a promise with an array of results from workers', async () => {
 		const [group1, group2] = getMockThreads();
-		const add2 = createMessageChannel(
+		const add2 = createThreadChannel(
 			'add2',
 			() => (data: number) => data + 2,
 		);
-		const set3 = createMessageChannel(
+		const set3 = createThreadChannel(
 			'set3',
 			() => (data: { x: number }) => ({
 				...data,

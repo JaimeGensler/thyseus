@@ -1,12 +1,12 @@
 import { World } from './World';
 import { defaultPlugin } from './defaultPlugin';
 import { ThreadGroup, type ThreadMessageChannel } from '../threads';
+import { ParallelExecutor, type ExecutorType } from '../Executor';
 import {
 	applyCommands,
 	type Dependencies,
 	type SystemDefinition,
 } from '../Systems';
-import { ParallelExecutor, type ExecutorType } from '../Executor';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';

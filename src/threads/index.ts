@@ -1,5 +1,5 @@
 export { ThreadGroup } from './ThreadGroup';
 export {
-	createMessageChannel,
+	createThreadChannel,
 	type ThreadMessageChannel,
-} from './createMessageChannel';
+} from './createThreadChannel';
