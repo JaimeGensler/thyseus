@@ -7,8 +7,7 @@ import type { ThreadGroup } from '../threads/ThreadGroup';
 import { FixedBitSet } from './FixedBitSet';
 
 let nextId = 0;
-const SHARED_LOCK = { mode: 'shared' } as const;
-const EXCLUSIVE_LOCK = { mode: 'exclusive' } as const;
+const noop = (...args: any[]) => {};
 const executorChannel = createThreadChannel(
 	'thyseus::ParallelExecutor',
 	() => (val: 0 | 1) => {},
@@ -26,34 +25,38 @@ export class ParallelExecutor {
 		const dependencies = world.threads.queue(() =>
 			getSystemDependencies(systems, systemDependencies, intersections),
 		);
-		const locals = world.threads.isMainThread
+		const locallyAvailable = world.threads.isMainThread
 			? systems.map(() => true)
 			: systems.map(s => !s.parameters.some(p => p.isLocalToThread()));
 
+		const bufferLength = FixedBitSet.getBufferLength(systems.length);
 		return new this(
 			world,
-			new FixedBitSet(systems.length, l =>
-				world.threads.queue(() => world.createBuffer(l)),
+			new FixedBitSet(
+				systems.length,
+				world.threads.queue(() => world.createBuffer(bufferLength)),
 			),
-			new FixedBitSet(systems.length, l =>
-				world.threads.queue(() => world.createBuffer(l)),
+			new FixedBitSet(
+				systems.length,
+				world.threads.queue(() => world.createBuffer(bufferLength)),
 			),
-			new FixedBitSet(systems.length, l =>
-				world.threads.queue(() => world.createBuffer(l)),
+			new FixedBitSet(
+				systems.length,
+				world.threads.queue(() => world.createBuffer(bufferLength)),
 			),
 			intersections,
 			dependencies,
-			locals,
+			locallyAvailable,
 			`${executorChannel.channelName}${nextId++}`,
 		);
 	}
 
-	#resolver = (...args: any[]) => {};
+	#resolver = noop;
 	#executingSystems: FixedBitSet;
 	#completedSystems: FixedBitSet;
 	#toExecuteSystems: FixedBitSet;
 
-	#local: boolean[];
+	#locallyAvailable: boolean[];
 	#intersections: bigint[];
 	#dependencies: bigint[];
 
@@ -69,7 +72,7 @@ export class ParallelExecutor {
 		toExecuteSystems: FixedBitSet,
 		intersections: bigint[],
 		dependencies: bigint[],
-		local: boolean[],
+		locallyAvailable: boolean[],
 		lockName: string,
 	) {
 		this.#systems = world.systems;
@@ -78,7 +81,7 @@ export class ParallelExecutor {
 
 		this.#intersections = intersections;
 		this.#dependencies = dependencies;
-		this.#local = local;
+		this.#locallyAvailable = locallyAvailable;
 
 		this.#executingSystems = executingSystems;
 		this.#completedSystems = completedSystems;
@@ -91,6 +94,7 @@ export class ParallelExecutor {
 				this.#runSystems();
 			} else {
 				this.#resolver();
+				this.#resolver = noop;
 			}
 		});
 	}
@@ -101,39 +105,31 @@ export class ParallelExecutor {
 	}
 
 	async #runSystems() {
-		while (this.#toExecuteSystems.setCount() > 0) {
+		while (this.#toExecuteSystems.setBitCount > 0) {
 			let systemId = -1;
-			await navigator.locks.request(this.#lockName, SHARED_LOCK, () => {
+			await navigator.locks.request(this.#lockName, () => {
 				// prettier-ignore
 				systemId = this.#toExecuteSystems.find(id =>
 					this.#completedSystems.overlaps(this.#dependencies[id]) &&
 					this.#executingSystems.overlaps(this.#intersections[id]) &&
-					this.#local[id],
+					this.#locallyAvailable[id],
 				);
+				if (systemId !== -1) {
+					this.#toExecuteSystems.clear(systemId);
+					this.#executingSystems.set(systemId);
+				}
 			});
 
 			if (systemId === -1) {
 				await this.#awaitExecutingSystemsChanged();
-			} else {
-				await navigator.locks.request(
-					this.#lockName,
-					EXCLUSIVE_LOCK,
-					() => {
-						this.#toExecuteSystems.clear(systemId);
-						this.#executingSystems.set(systemId);
-					},
-				);
-				await this.#systems[systemId](...this.#arguments[systemId]);
-				await navigator.locks.request(
-					this.#lockName,
-					EXCLUSIVE_LOCK,
-					() => {
-						this.#toExecuteSystems.clear(systemId);
-						this.#executingSystems.set(systemId);
-					},
-				);
-				this.#alertExecutingSystemsChanged();
+				continue;
 			}
+			await this.#systems[systemId](...this.#arguments[systemId]);
+			await navigator.locks.request(this.#lockName, () => {
+				this.#executingSystems.clear(systemId);
+				this.#completedSystems.set(systemId);
+			});
+			this.#alertExecutingSystemsChanged();
 		}
 	}
 
