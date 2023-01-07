@@ -45,12 +45,12 @@
 	"author": "Jaime Gensler",
 	"license": "MIT",
 	"devDependencies": {
-		"@vitest/coverage-c8": "^0.26.2",
-		"@vitest/web-worker": "^0.26.2",
+		"@vitest/coverage-c8": "^0.26.3",
+		"@vitest/web-worker": "^0.26.3",
 		"dts-bundle-generator": "^7.1.0",
 		"typescript": "^4.9.4",
-		"vite": "^4.0.3",
-		"vitest": "^0.26.2"
+		"vite": "^4.0.4",
+		"vitest": "^0.26.3"
 	},
 	"dependencies": {
 		"esm-env": "^1.0.0"
