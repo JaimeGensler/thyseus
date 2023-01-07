@@ -30,11 +30,7 @@ method. This method accepts one argument - an `ExecutorType`, shown below:
 
 ```ts
 type ExecutorType = {
-	fromWorld(
-		world: World,
-		systems: SystemDefinition[],
-		dependencies: (Dependencies | undefined)[],
-	): ExecutorInstance;
+	fromWorld(world: World, systems: SystemDefinition[]): ExecutorInstance;
 };
 type ExecutorInstance = { start(): Promise<void> };
 ```
@@ -46,7 +42,6 @@ class SimpleExecutor {
 	static fromWorld(
 		world: World,
 		systems: SystemDefinition[],
-		dependencies: (Dependencies | undefined)[],
 	): SimpleExecutor {}
 
 	constructor(/* ... */) {}
@@ -58,8 +53,8 @@ class SimpleExecutor {
 And as with most APIs, you may choose to implement this however you wish!
 
 > NOTE: The world is still being constructed when `fromWorld()` is called. All
-> properties _except executor_ have been set, but not necessarily populated
-> (e.g., `world.resources` is accessible but will have no contents).
+> properties (except executor) have been set, _but not all properties have been
+> populated_ (e.g., `world.resources` is accessible but will have no contents).
 
 ## ThreadGroup Queues
 
