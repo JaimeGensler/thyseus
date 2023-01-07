@@ -48,7 +48,7 @@ flags) for entities, and whose storage does not take up any space.
 
 ## Archetype (Table)
 
-There are a few different approaches to writing an ECS - Thyseus is an
+There are a few different approaches to writing an ECS - Thyseus uses an
 [archetypal](https://github.com/SanderMertens/ecs-faq#archetypes-aka-dense-ecs-or-table-based-ecs)
 design. An entity's **Archetype** is the collection of component types it has;
 entities with the same archetype are stored together. This storage strategy uses
