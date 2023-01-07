@@ -12,15 +12,11 @@ const ENTITY_BATCH_SIZE = 256;
 
 export class Entities {
 	static fromWorld(world: World): Entities {
+		const bufferSize = ENTITY_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT;
 		return new this(
 			world,
 			world.threads.queue(
-				() =>
-					new Uint32Array(
-						world.createBuffer(
-							ENTITY_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT,
-						),
-					),
+				() => new Uint32Array(world.createBuffer(bufferSize)),
 			),
 			world.threads.queue(() => new Uint32Array(world.createBuffer(8))),
 			world.archetypes[0],
@@ -51,25 +47,26 @@ export class Entities {
 	 * A lockfree method to obtain a new Entity ID
 	 */
 	spawn(): bigint {
-		let currentCursor = Atomics.load(this.#data, CURSOR);
 		const recycledSize = this.#recycled.size;
-		while (currentCursor < recycledSize) {
-			const preExchangeValue = Atomics.compareExchange(
-				this.#data,
-				CURSOR,
-				currentCursor,
-				currentCursor + 1,
-			);
-			if (currentCursor === preExchangeValue) {
+		for (
+			let currentCursor = this.#getCursor();
+			currentCursor < recycledSize;
+			currentCursor = this.#getCursor()
+		) {
+			if (this.#tryCursorMove(currentCursor)) {
 				return this.#recycled.columns.get(Entity)!.u64![
 					recycledSize - currentCursor - 1
 				];
 			}
-			currentCursor = Atomics.load(this.#data, CURSOR);
 		}
 		return BigInt(Atomics.add(this.#data, NEXT_ID, 1));
 	}
 
+	/**
+	 * Checks if an entity is currently alive or not.
+	 * @param entityId The entity id to check
+	 * @returns `true` if alive, `false` if not.
+	 */
 	isAlive(entityId: bigint) {
 		const tableIndex = this.getTableIndex(entityId);
 		const row = this.getRow(entityId);
@@ -81,15 +78,37 @@ export class Entities {
 		);
 	}
 
+	/**
+	 * Atomically grabs the current cursor.
+	 * @returns The current cursor value.
+	 */
+	#getCursor() {
+		return Atomics.load(this.#data, CURSOR);
+	}
+
+	/**
+	 * Tries to atomically move the cursor by one.
+	 * @param expected The value the cursor is currently expected to be.
+	 * @returns A boolean, indicating if the move was successful or not.
+	 */
+	#tryCursorMove(expected: number) {
+		return (
+			expected ===
+			Atomics.compareExchange(this.#data, CURSOR, expected, expected + 1)
+		);
+	}
+
 	resetCursor() {
 		this.#data[CURSOR] = 0;
 	}
 
 	grow(world: World) {
+		// TODO: TEST
 		const newLocations = new Uint32Array(
 			world.createBuffer(
-				this.#locations.byteLength +
-					ENTITY_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT,
+				Uint32Array.BYTES_PER_ELEMENT *
+					Math.ceil(this.#data[0] / ENTITY_BATCH_SIZE) *
+					ENTITY_BATCH_SIZE,
 			),
 		);
 		newLocations.set(this.#locations);
