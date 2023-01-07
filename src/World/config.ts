@@ -17,7 +17,6 @@ const getCompleteConfig = (config: Partial<WorldConfig> | undefined = {}) => ({
 	...config,
 });
 
-// TODO: Provide better info on how to resolve these errors.
 const validateConfig = (
 	{ threads, maxEntities }: WorldConfig,
 	url: string | URL | undefined,
@@ -37,7 +36,6 @@ const validateConfig = (
 			TypeError,
 		);
 	}
-	// TODO: Lower max threads further? The "correct" max is navigator.hardwareConcurrency
 	assert(
 		Number.isInteger(threads) && 0 < threads && threads < 64,
 		"Invalid config - 'threads' must be an integer such that 0 < threads < 64",
