@@ -61,19 +61,19 @@ Javascript numbers are (or must behave as)
 Thyseus requires you declare more specifically what sort of number a property
 is. The primitive types are all properties of `@struct`, and are listed below:
 
-| **Name** | **Description**              | **Size (bytes)** | **Javascript Type** |
-| -------- | ---------------------------- | ---------------- | ------------------- |
-| u8       | Unsigned 8-bit integer       | 1                | number              |
-| u16      | Unsigned 16-bit integer      | 2                | number              |
-| u32      | Unsigned 32-bit integer      | 4                | number              |
-| u64      | Unsigned 64-bit integer      | 8                | bigint              |
-| i8       | Signed 8-bit integer         | 1                | number              |
-| i16      | Signed 16-bit integer        | 2                | number              |
-| i32      | Signed 32-bit integer        | 4                | number              |
-| i64      | Signed 64-bit integer        | 8                | bigint              |
-| f32      | 32-bit Floating Point number | 4                | number              |
-| f64      | 64-bit Floating Point number | 8                | number              |
-| bool     | Boolean (`true`/`false`)     | 1                | boolean             |
+| **Name** | **Description**              | **Size (bytes)** | **JS Type** |
+| -------- | ---------------------------- | ---------------- | ----------- |
+| u8       | Unsigned 8-bit integer       | 1                | number      |
+| u16      | Unsigned 16-bit integer      | 2                | number      |
+| u32      | Unsigned 32-bit integer      | 4                | number      |
+| u64      | Unsigned 64-bit integer      | 8                | bigint      |
+| i8       | Signed 8-bit integer         | 1                | number      |
+| i16      | Signed 16-bit integer        | 2                | number      |
+| i32      | Signed 32-bit integer        | 4                | number      |
+| i64      | Signed 64-bit integer        | 8                | bigint      |
+| f32      | 32-bit Floating Point number | 4                | number      |
+| f64      | 64-bit Floating Point number | 8                | number      |
+| bool     | Boolean (`true`/`false`)     | 1                | boolean     |
 
 If you're coming from a typical JS background and are not used to working with
 multiple numeric types, don't worry; `@struct.f64()` works like the numbers
