@@ -39,6 +39,7 @@ export class World {
 	archetypes = [] as Table[];
 
 	queries = [] as Query<any, any>[];
+	resources = new Map<Class, object>();
 
 	systems = [] as ((...args: any[]) => any)[];
 	arguments = [] as any[][];
@@ -46,11 +47,9 @@ export class World {
 	executor: ExecutorInstance;
 	commands: Commands;
 	entities: Entities;
-
 	config: WorldConfig;
 	threads: ThreadGroup;
 	components: Struct[];
-	resources: Map<Class, object>;
 	constructor(
 		config: WorldConfig,
 		threads: ThreadGroup,
@@ -75,10 +74,13 @@ export class World {
 				),
 		);
 		this.archetypeLookup.set(0n, 1);
-		this.archetypes.push(
-			new UncreatedEntitiesTable(this),
-			Table.create(this, [Entity], 0n, 1),
+
+		const recycledTable = Table.create(this, [Entity], 0n, 1);
+		recycledTable.columns.set(
+			Entity,
+			this.threads.queue(() => recycledTable.columns.get(Entity)!),
 		);
+		this.archetypes.push(new UncreatedEntitiesTable(this), recycledTable);
 
 		for (const channel of channels) {
 			this.threads.setListener(
@@ -92,7 +94,6 @@ export class World {
 		this.commands = Commands.fromWorld(this);
 		this.executor = executor.fromWorld(this, systems, dependencies);
 
-		this.resources = new Map<Class, object>();
 		for (const Resource of resourceTypes) {
 			if (isStruct(Resource)) {
 				const store = this.threads.queue(() =>
