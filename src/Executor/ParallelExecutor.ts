@@ -1,10 +1,10 @@
 import { createThreadChannel } from '../threads/createThreadChannel';
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
+import { overlaps } from './overlaps';
 import type { Dependencies, SystemDefinition } from '../Systems';
 import type { World } from '../World';
 import type { ThreadGroup } from '../threads/ThreadGroup';
-import { FixedBitSet } from './FixedBitSet';
 
 let nextId = 0;
 const noop = (...args: any[]) => {};
@@ -29,32 +29,30 @@ export class ParallelExecutor {
 			? systems.map(() => true)
 			: systems.map(s => !s.parameters.some(p => p.isLocalToThread()));
 
-		const bufferLength = FixedBitSet.getBufferLength(systems.length);
+		const buffer = world.threads.queue(() =>
+			world.createBuffer(4 + systems.length * 3),
+		);
+		const lockName = world.threads.queue(
+			() => `${executorChannel.channelName}${nextId++}`,
+		);
 		return new this(
 			world,
-			new FixedBitSet(
-				systems.length,
-				world.threads.queue(() => world.createBuffer(bufferLength)),
-			),
-			new FixedBitSet(
-				systems.length,
-				world.threads.queue(() => world.createBuffer(bufferLength)),
-			),
-			new FixedBitSet(
-				systems.length,
-				world.threads.queue(() => world.createBuffer(bufferLength)),
-			),
+			new Uint32Array(buffer),
+			new Uint8Array(buffer, 4),
+			new Uint8Array(buffer, 4 + systems.length),
+			new Uint8Array(buffer, 4 + systems.length * 2),
 			intersections,
 			dependencies,
 			locallyAvailable,
-			`${executorChannel.channelName}${nextId++}`,
+			lockName,
 		);
 	}
 
 	#resolver = noop;
-	#executingSystems: FixedBitSet;
-	#completedSystems: FixedBitSet;
-	#toExecuteSystems: FixedBitSet;
+	#remainingSystems: Uint32Array;
+	#toExecuteSystems: Uint8Array;
+	#executingSystems: Uint8Array;
+	#completedSystems: Uint8Array;
 
 	#locallyAvailable: boolean[];
 	#intersections: bigint[];
@@ -67,9 +65,10 @@ export class ParallelExecutor {
 	#threads: ThreadGroup;
 	constructor(
 		world: World,
-		executingSystems: FixedBitSet,
-		completedSystems: FixedBitSet,
-		toExecuteSystems: FixedBitSet,
+		remainingSystems: Uint32Array, // [ numSystems ]
+		toExecuteSystems: Uint8Array,
+		executingSystems: Uint8Array,
+		completedSystems: Uint8Array,
 		intersections: bigint[],
 		dependencies: bigint[],
 		locallyAvailable: boolean[],
@@ -83,9 +82,10 @@ export class ParallelExecutor {
 		this.#dependencies = dependencies;
 		this.#locallyAvailable = locallyAvailable;
 
+		this.#remainingSystems = remainingSystems;
+		this.#toExecuteSystems = toExecuteSystems;
 		this.#executingSystems = executingSystems;
 		this.#completedSystems = completedSystems;
-		this.#toExecuteSystems = toExecuteSystems;
 
 		this.#lockName = lockName;
 
@@ -100,23 +100,29 @@ export class ParallelExecutor {
 	}
 
 	async start() {
+		this.#remainingSystems[0] = this.#systems.length;
+		this.#toExecuteSystems.fill(1);
+		this.#completedSystems.fill(0);
+		this.#executingSystems.fill(0);
 		this.#startOnAllThreads();
 		return this.#runSystems();
 	}
 
 	async #runSystems() {
-		while (this.#toExecuteSystems.setBitCount > 0) {
+		while (this.#remainingSystems[0] > 0) {
 			let systemId = -1;
 			await navigator.locks.request(this.#lockName, () => {
 				// prettier-ignore
-				systemId = this.#toExecuteSystems.find(id =>
-					this.#completedSystems.overlaps(this.#dependencies[id]) &&
-					this.#executingSystems.overlaps(this.#intersections[id]) &&
+				systemId = this.#toExecuteSystems.findIndex((isSet, id) =>
+					!!isSet &&
+					overlaps(this.#completedSystems, this.#dependencies[id], 0) &&
+					overlaps(this.#executingSystems, this.#intersections[id], 1) &&
 					this.#locallyAvailable[id],
 				);
 				if (systemId !== -1) {
-					this.#toExecuteSystems.clear(systemId);
-					this.#executingSystems.set(systemId);
+					this.#toExecuteSystems[systemId] = 0;
+					this.#executingSystems[systemId] = 1;
+					this.#remainingSystems[0]--;
 				}
 			});
 
@@ -126,8 +132,8 @@ export class ParallelExecutor {
 			}
 			await this.#systems[systemId](...this.#arguments[systemId]);
 			await navigator.locks.request(this.#lockName, () => {
-				this.#executingSystems.clear(systemId);
-				this.#completedSystems.set(systemId);
+				this.#executingSystems[systemId] = 0;
+				this.#completedSystems[systemId] = 1;
 			});
 			this.#alertExecutingSystemsChanged();
 		}
@@ -148,7 +154,7 @@ export class ParallelExecutor {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi } = import.meta.vitest;
+	const { it, expect, vi, afterEach } = import.meta.vitest;
 
 	const emptyMask = [0b0000n, 0b0000n, 0b0000n, 0b0000n];
 
@@ -160,133 +166,156 @@ if (import.meta.vitest) {
 			},
 		},
 	});
+	const cbs: any[] = [];
 
+	afterEach(() => {
+		cbs.length = 0;
+	});
+
+	const createArrs = (l: number) =>
+		[
+			new Uint32Array(1),
+			new Uint8Array(l),
+			new Uint8Array(l),
+			new Uint8Array(l),
+		] as [Uint32Array, Uint8Array, Uint8Array, Uint8Array];
 	const createExecutor = (
 		i: bigint[],
 		d: bigint[],
-		l: Set<number>,
+		l: boolean[],
 		systems: ((...args: any[]) => any)[],
-		args: any[],
-	) => new ParallelExecutor();
-	// { systems, arguments: args } as any,
-	// i,
-	// d,
-	// new Uint16Array(i.length + 1),
-	// // new BigUintArray(
-	// // 	i.length,
-	// // 	2,
-	// // 	new Uint8Array(BigUintArray.getBufferLength(i.length, 2)),
-	// // ),
-	// l,
-	// '',
+		args: any[][],
+		arrs = createArrs(systems.length),
+	) =>
+		new ParallelExecutor(
+			{
+				systems,
+				arguments: args,
+				threads: {
+					id: 0,
+					setListener(_: any, cb: any) {
+						this.id = cbs.push(cb) - 1;
+					},
+					send([_, __, [val]]: any) {
+						cbs.forEach((l, id) => {
+							if (id !== this.id) {
+								l(val);
+							}
+						});
+					},
+				},
+			} as any,
+			...arrs,
+			i,
+			d,
+			l,
+			'lock',
+		);
 
-	it.only('calls a systems when started', async () => {
-		const spy = vi.fn();
-		const args = [1, {}, 3];
+	it('executes all systems with no intersections, no dependencies', async () => {
+		const systems = [vi.fn(), vi.fn(), vi.fn()];
+		const args = [[1], [2], [3]];
 		const exec = createExecutor(
-			[0b110n, 0b000n, 0b000n],
-			[0b000n, 0b000n, 0b000n],
-			new Set(),
-			[spy],
-			[args],
+			emptyMask,
+			emptyMask,
+			[true, true, true],
+			systems,
+			args,
+		);
+		for (const sys of systems) {
+			expect(sys).not.toHaveBeenCalled();
+		}
+		await exec.start();
+
+		for (let i = 0; i < systems.length; i++) {
+			expect(systems[i]).toHaveBeenCalledTimes(1);
+			expect(systems[i]).toHaveBeenCalledWith(...args[i]);
+		}
+	});
+
+	it('executes systems with intersections', async () => {
+		let resolver: any = () => {};
+		const order: number[] = [];
+		const systems = [
+			async () => {
+				order.push(0);
+				await new Promise(r => (resolver = r));
+			},
+			() => order.push(1),
+			() => {
+				resolver();
+				order.push(2);
+			},
+		];
+		const arrs = createArrs(systems.length);
+		const exec1 = createExecutor(
+			[0b0010n, 0b0001n, 0b0000n],
+			emptyMask,
+			systems.map(() => true),
+			systems,
+			systems.map(() => []),
+			arrs,
+		);
+		const exec2 = createExecutor(
+			[0b0010n, 0b0001n, 0b0000n],
+			emptyMask,
+			systems.map(() => true),
+			systems,
+			systems.map(() => []),
+			arrs,
+		);
+		await exec1.start();
+
+		expect(order).toStrictEqual([0, 2, 1]);
+	});
+
+	it('executes systems with dependencies', async () => {
+		const order: number[] = [];
+		const systems = [
+			() => order.push(0),
+			() => order.push(1),
+			() => order.push(2),
+			() => order.push(3),
+		];
+		const exec = createExecutor(
+			emptyMask,
+			[0b0000n, 0b0100n, 0b1000n, 0b0000n],
+			systems.map(() => true),
+			systems,
+			systems.map(() => []),
 		);
 		await exec.start();
-		expect(spy).toHaveBeenCalledOnce();
-		expect(spy).toHaveBeenCalledWith(...args);
+
+		expect(order).toStrictEqual([0, 3, 2, 1]);
 	});
 
-	it('iterates all elements with no intersections, no dependencies', async () => {
-		const exec = createExecutor(emptyMask, emptyMask, new Set());
-		exec.reset();
-
-		const visited: number[] = [];
-		for await (const id of exec) {
-			expect(visited).not.toContain(id);
-			visited.push(id);
-		}
-		for (let i = 0; i < 4; i++) {
-			expect(visited).toContain(i);
-		}
-		expect(visited).toStrictEqual([0, 3, 2, 1]);
-	});
-
-	it('iterates elements with intersections', async () => {
-		const exec = createExecutor(
-			// Last element will move to first and so would normally be next,
-			// but intersection prevents it from running from happening
-			[0b1000n, 0b0000n, 0b0000n, 0b0001n],
+	it('does not execute locally unavailable systems', async () => {
+		const systems = [vi.fn(), vi.fn(), vi.fn(), vi.fn()];
+		const arrs = createArrs(systems.length);
+		const exec1 = createExecutor(
 			emptyMask,
-			new Set(),
-		);
-		exec.reset();
-
-		const iter1 = exec[Symbol.asyncIterator]();
-		const iter2 = exec[Symbol.asyncIterator]();
-
-		let res1 = await iter1.next();
-		expect(res1.value).toBe(0);
-
-		// Would normally be 3, but can't because it's held.
-		let res2 = await iter2.next();
-		expect(res2.value).toBe(1);
-
-		res2 = await iter2.next();
-		expect(res2.value).toBe(2);
-
-		expect(await Promise.all([iter2.next(), iter1.next()])).toStrictEqual([
-			{ value: 3, done: false },
-			{ value: undefined, done: true },
-		]);
-	});
-
-	it('iterates elements with dependencies', async () => {
-		const exec = createExecutor(
 			emptyMask,
-			[0b0000n, 0b0000n, 0b0000n, 0b0110n],
-			new Set(),
+			[false, false, true, true],
+			systems,
+			[[1], [1], [1], [1]],
+			arrs,
 		);
-		exec.reset();
-
-		const iter = exec[Symbol.asyncIterator]();
-		expect((await iter.next()).value).toBe(0);
-
-		// Would normally be 3, but can't because 1 hasn't run yet
-		expect((await iter.next()).value).toBe(1);
-
-		// Would normally be 3, but can't because 2 hasn't run yet
-		expect((await iter.next()).value).toBe(2);
-
-		expect((await iter.next()).value).toBe(3);
-
-		expect((await iter.next()).done).toBe(true);
-	});
-
-	it('does not run callbacks in whenReady queue when iterating', async () => {
-		const exec = createExecutor(
+		const exec2 = createExecutor(
 			emptyMask,
-			[0b0000n, 0b0000n, 0b0000n, 0b0001n],
-			new Set(),
+			emptyMask,
+			[true, true, false, false],
+			systems,
+			[[2], [2], [2], [2]],
+			arrs,
 		);
-		exec.reset();
-
-		const iter1 = exec[Symbol.asyncIterator]();
-		const iter2 = exec[Symbol.asyncIterator]();
-		await iter1.next();
-		await iter2.next();
-		await iter2.next();
-
-		expect(await Promise.all([iter2.next(), iter1.next()])).toStrictEqual([
-			{ value: 3, done: false },
-			{ value: undefined, done: true },
-		]);
-
-		const spy = vi.fn();
-		exec.onReady(spy);
-		expect(await iter1.next()).toStrictEqual({
-			value: undefined,
-			done: true,
-		});
-		await Promise.resolve();
-		expect(spy).not.toHaveBeenCalled();
+		await exec1.start();
+		expect(systems[0]).toHaveBeenCalledTimes(1);
+		expect(systems[1]).toHaveBeenCalledTimes(1);
+		expect(systems[2]).toHaveBeenCalledTimes(1);
+		expect(systems[3]).toHaveBeenCalledTimes(1);
+		expect(systems[0]).toHaveBeenCalledWith(2);
+		expect(systems[1]).toHaveBeenCalledWith(2);
+		expect(systems[2]).toHaveBeenCalledWith(1);
+		expect(systems[3]).toHaveBeenCalledWith(1);
 	});
 }
