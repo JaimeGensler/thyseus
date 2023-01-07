@@ -10,7 +10,15 @@ export default defineConfig({
 			name: 'Thyseus',
 			fileName: 'thyseus',
 		},
-		rollupOptions: { output: { exports: 'named' } },
+		rollupOptions: {
+			external: ['esm-env'],
+			output: {
+				exports: 'named',
+				globals: {
+					'esm-env': 'esm_env',
+				},
+			},
+		},
 	},
 	define: {
 		'import.meta.vitest': 'undefined',
