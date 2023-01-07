@@ -1,7 +1,11 @@
 import { World } from './World';
 import { defaultPlugin } from './defaultPlugin';
 import { ThreadGroup, type ThreadMessageChannel } from '../threads';
-import { ParallelExecutor, type ExecutorType } from '../Executor';
+import {
+	ParallelExecutor,
+	SimpleExecutor,
+	type ExecutorType,
+} from '../Executor';
 import {
 	applyCommands,
 	type Dependencies,
@@ -19,13 +23,14 @@ export class WorldBuilder {
 	components = new Set<Struct>();
 	resources = new Set<Class>();
 	threadChannels = [] as ThreadMessageChannel[];
-	executor: ExecutorType = ParallelExecutor;
+	executor: ExecutorType;
 
 	config: WorldConfig;
 	url: string | URL | undefined;
 	constructor(config: WorldConfig, url: string | URL | undefined) {
 		this.config = config;
 		this.url = url;
+		this.executor = config.threads > 1 ? ParallelExecutor : SimpleExecutor;
 		defaultPlugin(this);
 	}
 
@@ -38,7 +43,7 @@ export class WorldBuilder {
 	addSystem(system: SystemDefinition, dependencies?: Dependencies): this {
 		this.systems.push(system);
 		this.systemDependencies.push(dependencies);
-		this.#processSystem(system);
+		system.parameters.forEach(descriptor => descriptor.onAddSystem(this));
 		return this;
 	}
 
@@ -49,7 +54,7 @@ export class WorldBuilder {
 	 */
 	addStartupSystem(system: SystemDefinition): this {
 		this.#startupSystems.push(system);
-		this.#processSystem(system);
+		system.parameters.forEach(descriptor => descriptor.onAddSystem(this));
 		return this;
 	}
 
@@ -137,15 +142,10 @@ export class WorldBuilder {
 			for (const { fn, parameters } of this.#startupSystems) {
 				await fn(...parameters.map(d => d.intoArgument(world)));
 			}
+			await applyCommands.fn(world);
 		}
 
-		await threads.wrapInQueue(() => {});
-		applyCommands.fn(world);
 		return world;
-	}
-
-	#processSystem(system: SystemDefinition): void {
-		system.parameters.forEach(descriptor => descriptor.onAddSystem(this));
 	}
 }
 
