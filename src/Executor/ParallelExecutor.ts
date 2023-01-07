@@ -10,7 +10,7 @@ let nextId = 0;
 const noop = (...args: any[]) => {};
 const executorChannel = createThreadChannel(
 	'thyseus::ParallelExecutor',
-	() => (val: 0 | 1) => {},
+	() => (val: 0 | 1 | 2) => {},
 );
 
 export class ParallelExecutor {
@@ -26,17 +26,17 @@ export class ParallelExecutor {
 			: systems.map(s => !s.parameters.some(p => p.isLocalToThread()));
 
 		const buffer = world.threads.queue(() =>
-			world.createBuffer(4 + systems.length * 3),
+			world.createBuffer(8 + systems.length * 3),
 		);
 		const lockName = world.threads.queue(
 			() => `${executorChannel.channelName}${nextId++}`,
 		);
 		return new this(
 			world,
-			new Uint32Array(buffer),
-			new Uint8Array(buffer, 4),
-			new Uint8Array(buffer, 4 + systems.length),
-			new Uint8Array(buffer, 4 + systems.length * 2),
+			new Uint32Array(buffer, 0, 2),
+			new Uint8Array(buffer, 8),
+			new Uint8Array(buffer, 8 + systems.length),
+			new Uint8Array(buffer, 8 + systems.length * 2),
 			intersections,
 			dependencies,
 			locallyAvailable,
@@ -44,8 +44,10 @@ export class ParallelExecutor {
 		);
 	}
 
-	#resolver = noop;
-	#remainingSystems: Uint32Array;
+	#resolveExecutionChange = noop;
+	#resolveExecutionComplete = noop;
+
+	#status: Uint32Array;
 	#toExecuteSystems: Uint8Array;
 	#executingSystems: Uint8Array;
 	#completedSystems: Uint8Array;
@@ -61,7 +63,7 @@ export class ParallelExecutor {
 	#threads: ThreadGroup;
 	constructor(
 		world: World,
-		remainingSystems: Uint32Array, // [ numSystems ]
+		status: Uint32Array, // [ needingExecution, completedExecution ]
 		toExecuteSystems: Uint8Array,
 		executingSystems: Uint8Array,
 		completedSystems: Uint8Array,
@@ -78,34 +80,46 @@ export class ParallelExecutor {
 		this.#dependencies = dependencies;
 		this.#locallyAvailable = locallyAvailable;
 
-		this.#remainingSystems = remainingSystems;
+		this.#status = status;
 		this.#toExecuteSystems = toExecuteSystems;
 		this.#executingSystems = executingSystems;
 		this.#completedSystems = completedSystems;
 
 		this.#lockName = lockName;
 
-		this.#threads.setListener(executorChannel.channelName, (val: 0 | 1) => {
-			if (val === 0) {
-				this.#runSystems();
-			} else {
-				this.#resolver();
-				this.#resolver = noop;
-			}
-		});
+		this.#threads.setListener(
+			executorChannel.channelName,
+			(val: 0 | 1 | 2) => {
+				if (val === 0) {
+					this.#runSystems();
+				} else if (val === 1) {
+					this.#resolveExecutionChange();
+					this.#resolveExecutionChange = noop;
+				} else {
+					this.#resolveExecutionComplete();
+					this.#resolveExecutionComplete = noop;
+				}
+			},
+		);
 	}
 
 	async start() {
-		this.#remainingSystems[0] = this.#systems.length;
+		this.#systemsRemaining = this.#systems.length;
 		this.#toExecuteSystems.fill(1);
 		this.#completedSystems.fill(0);
 		this.#executingSystems.fill(0);
 		this.#startOnAllThreads();
 		return this.#runSystems();
 	}
+	get #systemsRemaining() {
+		return this.#status[0];
+	}
+	set #systemsRemaining(val: number) {
+		this.#status[0] = val;
+	}
 
 	async #runSystems() {
-		while (this.#remainingSystems[0] > 0) {
+		while (this.#systemsRemaining > 0) {
 			let systemId = -1;
 			await navigator.locks.request(this.#lockName, () => {
 				// prettier-ignore
@@ -118,31 +132,46 @@ export class ParallelExecutor {
 				if (systemId !== -1) {
 					this.#toExecuteSystems[systemId] = 0;
 					this.#executingSystems[systemId] = 1;
-					this.#remainingSystems[0]--;
+					this.#systemsRemaining--;
 				}
 			});
 
 			if (systemId === -1) {
-				await this.#awaitExecutingSystemsChanged();
+				await this.#awaitExecutionChange();
 				continue;
 			}
 			await this.#systems[systemId](...this.#arguments[systemId]);
 			await navigator.locks.request(this.#lockName, () => {
 				this.#executingSystems[systemId] = 0;
 				this.#completedSystems[systemId] = 1;
+				Atomics.add(this.#status, 1, 1);
 			});
-			this.#alertExecutingSystemsChanged();
+			this.#alertExecutionChange();
+		}
+		if (
+			this.#threads.isMainThread &&
+			Atomics.load(this.#status, 1) !== this.#systems.length
+		) {
+			await this.#awaitExecutionComplete();
 		}
 	}
 
 	#startOnAllThreads() {
 		this.#threads.send(executorChannel(0));
 	}
-	#alertExecutingSystemsChanged() {
-		this.#threads.send(executorChannel(1));
+	#alertExecutionChange() {
+		if (Atomics.load(this.#status, 1) === this.#systems.length) {
+			this.#threads.send(executorChannel(2));
+		} else {
+			this.#threads.send(executorChannel(1));
+		}
 	}
-	async #awaitExecutingSystemsChanged() {
-		return new Promise(r => (this.#resolver = r));
+
+	async #awaitExecutionChange() {
+		return new Promise(r => (this.#resolveExecutionChange = r));
+	}
+	async #awaitExecutionComplete() {
+		return new Promise(r => (this.#resolveExecutionComplete = r));
 	}
 }
 
@@ -170,7 +199,7 @@ if (import.meta.vitest) {
 
 	const createArrs = (l: number) =>
 		[
-			new Uint32Array(1),
+			new Uint32Array(2),
 			new Uint8Array(l),
 			new Uint8Array(l),
 			new Uint8Array(l),
@@ -314,4 +343,6 @@ if (import.meta.vitest) {
 		expect(systems[2]).toHaveBeenCalledWith(1);
 		expect(systems[3]).toHaveBeenCalledWith(1);
 	});
+
+	it('does not resolve until all systems have COMPLETED execution', () => {});
 }
