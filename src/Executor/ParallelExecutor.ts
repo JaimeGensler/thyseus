@@ -1,17 +1,11 @@
-import { createThreadChannel } from '../threads/createThreadChannel';
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
 import { overlaps } from './overlaps';
 import type { SystemDefinition } from '../Systems';
 import type { World } from '../World';
-import type { ThreadGroup } from '../threads/ThreadGroup';
 
 let nextId = 0;
 const noop = (...args: any[]) => {};
-const executorChannel = createThreadChannel(
-	'thyseus::ParallelExecutor',
-	() => (val: 0 | 1 | 2) => {},
-);
 
 export class ParallelExecutor {
 	static fromWorld(world: World, systems: SystemDefinition[]) {
@@ -29,7 +23,7 @@ export class ParallelExecutor {
 			world.createBuffer(8 + systems.length * 3),
 		);
 		const lockName = world.threads.queue(
-			() => `${executorChannel.channelName}${nextId++}`,
+			() => `thyseus::ParallelExecutor${nextId++}`,
 		);
 		return new this(
 			world,
@@ -57,10 +51,11 @@ export class ParallelExecutor {
 	#dependencies: bigint[];
 
 	#lockName: string;
+	#channel: BroadcastChannel;
+	#isMainThread: boolean;
 
 	#systems: ((...args: any[]) => any)[];
 	#arguments: any[][];
-	#threads: ThreadGroup;
 	constructor(
 		world: World,
 		status: Uint32Array, // [ needingExecution, completedExecution ]
@@ -74,7 +69,7 @@ export class ParallelExecutor {
 	) {
 		this.#systems = world.systems;
 		this.#arguments = world.arguments;
-		this.#threads = world.threads;
+		this.#isMainThread = world.threads.isMainThread;
 
 		this.#intersections = intersections;
 		this.#dependencies = dependencies;
@@ -85,14 +80,16 @@ export class ParallelExecutor {
 		this.#executingSystems = executingSystems;
 		this.#completedSystems = completedSystems;
 
+		this.#channel = new BroadcastChannel(lockName);
+
 		this.#lockName = lockName;
 
-		this.#threads.setListener(
-			executorChannel.channelName,
-			(val: 0 | 1 | 2) => {
-				if (val === 0) {
+		this.#channel.addEventListener(
+			'message',
+			({ data }: MessageEvent<0 | 1 | 2>) => {
+				if (data === 0) {
 					this.#runSystems();
-				} else if (val === 1) {
+				} else if (data === 1) {
 					this.#resolveExecutionChange();
 					this.#resolveExecutionChange = noop;
 				} else {
@@ -149,7 +146,7 @@ export class ParallelExecutor {
 			this.#alertExecutionChange();
 		}
 		if (
-			this.#threads.isMainThread &&
+			this.#isMainThread &&
 			Atomics.load(this.#status, 1) !== this.#systems.length
 		) {
 			await this.#awaitExecutionComplete();
@@ -157,13 +154,13 @@ export class ParallelExecutor {
 	}
 
 	#startOnAllThreads() {
-		this.#threads.send(executorChannel(0));
+		this.#channel.postMessage(0);
 	}
 	#alertExecutionChange() {
 		if (Atomics.load(this.#status, 1) === this.#systems.length) {
-			this.#threads.send(executorChannel(2));
+			this.#channel.postMessage(2);
 		} else {
-			this.#threads.send(executorChannel(1));
+			this.#channel.postMessage(1);
 		}
 	}
 
