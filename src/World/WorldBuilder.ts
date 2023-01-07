@@ -6,18 +6,13 @@ import {
 	SimpleExecutor,
 	type ExecutorType,
 } from '../Executor';
-import {
-	applyCommands,
-	type Dependencies,
-	type SystemDefinition,
-} from '../Systems';
+import { applyCommands, type SystemDefinition } from '../Systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
 
 export class WorldBuilder {
 	systems = [] as SystemDefinition[];
-	systemDependencies = [] as (Dependencies | undefined)[];
 	#startupSystems = [] as SystemDefinition[];
 
 	components = new Set<Struct>();
@@ -40,9 +35,8 @@ export class WorldBuilder {
 	 * @param dependencies The dependencies of this system.
 	 * @returns `this`, for chaining.
 	 */
-	addSystem(system: SystemDefinition, dependencies?: Dependencies): this {
+	addSystem(system: SystemDefinition): this {
 		this.systems.push(system);
-		this.systemDependencies.push(dependencies);
 		system.parameters.forEach(descriptor => descriptor.onAddSystem(this));
 		return this;
 	}
@@ -126,7 +120,6 @@ export class WorldBuilder {
 					[...this.components],
 					[...this.resources],
 					this.systems,
-					this.systemDependencies,
 					this.threadChannels,
 				),
 		);
@@ -139,8 +132,8 @@ export class WorldBuilder {
 				),
 			);
 
-			for (const { fn, parameters } of this.#startupSystems) {
-				await fn(...parameters.map(d => d.intoArgument(world)));
+			for (const system of this.#startupSystems) {
+				await system.fn(...system.getArguments(world));
 			}
 			await applyCommands.fn(world);
 		}

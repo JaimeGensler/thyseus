@@ -2,7 +2,7 @@ import { createThreadChannel } from '../threads/createThreadChannel';
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
 import { overlaps } from './overlaps';
-import type { Dependencies, SystemDefinition } from '../Systems';
+import type { SystemDefinition } from '../Systems';
 import type { World } from '../World';
 import type { ThreadGroup } from '../threads/ThreadGroup';
 
@@ -14,16 +14,12 @@ const executorChannel = createThreadChannel(
 );
 
 export class ParallelExecutor {
-	static fromWorld(
-		world: World,
-		systems: SystemDefinition[],
-		systemDependencies: (Dependencies | undefined)[],
-	) {
+	static fromWorld(world: World, systems: SystemDefinition[]) {
 		const intersections = world.threads.queue(() =>
 			getSystemIntersections(systems),
 		);
 		const dependencies = world.threads.queue(() =>
-			getSystemDependencies(systems, systemDependencies, intersections),
+			getSystemDependencies(systems, intersections),
 		);
 		const locallyAvailable = world.threads.isMainThread
 			? systems.map(() => true)

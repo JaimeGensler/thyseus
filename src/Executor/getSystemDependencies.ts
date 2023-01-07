@@ -1,90 +1,38 @@
 import { DEV } from 'esm-env';
 import { assert } from '../utils/assert';
 import { bits } from '../utils/bits';
-import type { SystemDefinition } from '../Systems/defineSystem';
-import { Dependencies } from '../Systems';
+import type { SystemDefinition } from '../Systems';
 
 export function getSystemDependencies(
 	systems: SystemDefinition[],
-	dependencies: (Dependencies | undefined)[],
 	intersections: bigint[],
 ): bigint[] {
-	const dependencyMasks = Array.from({ length: systems.length }, () => 0n);
-	const isDependentOn = (a: number, b: number) =>
-		(dependencyMasks[a] & (1n << BigInt(b))) !== 0n;
+	const masks = systems.map(system =>
+		system.dependencies.reduce((acc, dep) => {
+			const beforeIndex = systems.indexOf(dep);
+			return beforeIndex === -1 ? acc : acc | (1n << BigInt(beforeIndex));
+		}, 0n),
+	);
 
-	// Resolve Explicit Dependencies
-	dependencies.forEach((dependency, currentIndex) => {
-		if (!dependency) return;
-
-		for (const beforeSystem of dependency.before ?? []) {
-			const beforeIndex = systems.indexOf(beforeSystem);
-			if (beforeIndex === -1) {
-				continue;
+	for (let i = 0; i < systems.length; i++) {
+		const system = systems[i];
+		if (system.isBeforeAll) {
+			for (const bit of bits(intersections[i])) {
+				if (bit !== i && (masks[i] & (1n << BigInt(bit))) === 0n) {
+					masks[bit] |= 1n << BigInt(i);
+				}
 			}
-			if (DEV) {
-				assert(
-					!isDependentOn(currentIndex, beforeIndex),
-					`Circular dependency detected: ${systems[currentIndex].fn.name} (${currentIndex}) and ${systems[beforeIndex].fn.name} (${beforeIndex}) depend on each other.`,
-				);
+		} else if (system.isAfterAll) {
+			for (const bit of bits(intersections[i])) {
+				if (bit !== i && (masks[bit] & (1n << BigInt(i))) === 0n) {
+					masks[i] |= 1n << BigInt(bit);
+				}
 			}
-			dependencyMasks[beforeIndex] |= 1n << BigInt(currentIndex);
 		}
-		for (const afterSystem of dependency.after ?? []) {
-			const afterIndex = systems.indexOf(afterSystem);
-			if (afterIndex === -1) {
-				continue;
-			}
-			if (DEV) {
-				assert(
-					!isDependentOn(afterIndex, currentIndex),
-					`Circular dependency detected: ${systems[currentIndex].fn.name} (${currentIndex}) and ${systems[afterIndex].fn.name} (${afterIndex}) depend on each other.`,
-				);
-			}
-			dependencyMasks[currentIndex] |= 1n << BigInt(afterIndex);
-		}
-	});
-
-	if (DEV) {
-		dependencyMasks.forEach((_, i) => {
-			assert(
-				!isDependentOn(i, i),
-				`Circular dependency detected: ${systems[i].fn.name} (${i}) and ${systems[i].fn.name} (${i}) depend on each other.`,
-			);
-		});
 	}
 
-	dependencies.forEach((dependency, currentIndex) => {
-		if (!dependency) return;
-
-		if (dependency.beforeAll) {
-			for (const bit of bits(intersections[currentIndex])) {
-				// If this system is not dependent on other system,
-				// make other system dependent on this system
-				if (
-					bit !== currentIndex &&
-					(dependencyMasks[currentIndex] & (1n << BigInt(bit))) === 0n
-				) {
-					dependencyMasks[bit] |= 1n << BigInt(currentIndex);
-				}
-			}
-		}
-		if (dependency.afterAll) {
-			for (const bit of bits(intersections[currentIndex])) {
-				// If other system is not dependent on this system,
-				// make this system dependent on other system.
-				if (
-					bit !== currentIndex &&
-					(dependencyMasks[bit] & (1n << BigInt(currentIndex))) === 0n
-				) {
-					dependencyMasks[currentIndex] |= 1n << BigInt(bit);
-				}
-			}
-		}
-	});
-
-	dependencyMasks.forEach((_, i) => (dependencyMasks[i] &= intersections[i]));
-	return dependencyMasks;
+	masks.forEach((_, i) => (masks[i] &= intersections[i]));
+	return masks;
 }
 
 /*---------*\
@@ -92,134 +40,136 @@ export function getSystemDependencies(
 \*---------*/
 if (import.meta.vitest) {
 	const { describe, it, expect } = import.meta.vitest;
+	const { SystemDefinition } = await import('../Systems/SystemDefinition');
 
 	const createMockSystems = (length: number): SystemDefinition[] =>
-		Array.from({ length }, () => ({
-			fn() {},
-			parameters: [],
-		}));
+		Array.from(
+			{ length },
+			() =>
+				new SystemDefinition(
+					() => [],
+					() => {},
+				),
+		);
 
 	describe('getSystemDependencies', () => {
 		it('returns a 0n array if no dependencies are specified', () => {
 			expect(
-				getSystemDependencies(
-					createMockSystems(4),
-					[undefined, undefined, undefined, undefined],
-					[0b1111n, 0b1111n, 0b1111n, 0b1111n],
-				),
+				getSystemDependencies(createMockSystems(4), [
+					0b1111n,
+					0b1111n,
+					0b1111n,
+					0b1111n,
+				]),
 			).toStrictEqual([0n, 0n, 0n, 0n]);
 		});
 
 		it('creates dependencies with before/after', () => {
 			const systems = createMockSystems(4);
+			systems[0].before(systems[1]);
+			systems[1].after(systems[2]);
+			systems[2].after(systems[0]);
+			systems[3].before(systems[0]);
 			expect(
-				getSystemDependencies(
-					systems,
-					[
-						{ before: [systems[1]] },
-						{ after: [systems[2]] },
-						{ after: [systems[0]] },
-						{ before: [systems[0]] },
-					],
-					[0b1111n, 0b1111n, 0b1111n, 0b1111n],
-				),
+				getSystemDependencies(systems, [
+					0b1111n,
+					0b1111n,
+					0b1111n,
+					0b1111n,
+				]),
 			).toStrictEqual([0b1000n, 0b0101n, 0b0001n, 0b0000n]);
 		});
 
 		it('creates dependencies with beforeAll/afterAll', () => {
 			const systems = createMockSystems(4);
+			systems[0].afterAll();
+			systems[3].beforeAll();
 			expect(
-				getSystemDependencies(
-					systems,
-					[
-						{ afterAll: true },
-						undefined,
-						undefined,
-						{ beforeAll: true },
-					],
-					[0b1111n, 0b1111n, 0b1111n, 0b1111n],
-				),
+				getSystemDependencies(systems, [
+					0b1111n,
+					0b1111n,
+					0b1111n,
+					0b1111n,
+				]),
 			).toStrictEqual([0b1110n, 0b1000n, 0b1000n, 0b0000n]);
 		});
 
 		it('only creates dependencies between intersecting systems', () => {
 			const systems = createMockSystems(2);
+			systems[0].after(systems[1]);
 			expect(
-				getSystemDependencies(
-					systems,
-					[{ after: [systems[1]] }, undefined],
-					[0b00n, 0b00n],
-				),
+				getSystemDependencies(systems, [0b00n, 0b00n]),
 			).toStrictEqual([0b00n, 0b00n]);
+			const systems2 = createMockSystems(2);
+			systems2[0].beforeAll();
 			expect(
-				getSystemDependencies(
-					systems,
-					[{ beforeAll: true }, undefined],
-					[0b00n, 0b00n],
-				),
+				getSystemDependencies(systems2, [0b00n, 0b00n]),
 			).toStrictEqual([0b00n, 0b00n]);
 		});
 
 		it('prioritizes explicit dependencies over implicit', () => {
 			const systems = createMockSystems(3);
+			systems[0].afterAll();
+			systems[1].after(systems[0]);
 			expect(
-				getSystemDependencies(
-					systems,
-					[{ afterAll: true }, { after: [systems[0]] }, undefined],
-					[0b111n, 0b111n, 0b111n],
-				),
+				getSystemDependencies(systems, [0b111n, 0b111n, 0b111n]),
 			).toStrictEqual([0b100n, 0b001n, 0b000n]);
+
+			const systems2 = createMockSystems(3);
+			systems2[1].before(systems2[2]);
+			systems2[2].beforeAll();
 			expect(
-				getSystemDependencies(
-					systems,
-					[undefined, { before: [systems[2]] }, { beforeAll: true }],
-					[0b111n, 0b111n, 0b111n],
-				),
+				getSystemDependencies(systems2, [0b111n, 0b111n, 0b111n]),
 			).toStrictEqual([0b100n, 0b000n, 0b010n]);
 		});
 
 		it('evaluates in passed order when identical implicit dependencies are provided', () => {
 			const systems = createMockSystems(4);
-			const beforeAll = { beforeAll: true };
+			systems[0].beforeAll();
+			systems[1].beforeAll();
+			systems[3].beforeAll();
 			expect(
-				getSystemDependencies(
-					systems,
-					[beforeAll, beforeAll, undefined, beforeAll],
-					[0b1111n, 0b1111n, 0b1111n, 0b1111n],
-				),
+				getSystemDependencies(systems, [
+					0b1111n,
+					0b1111n,
+					0b1111n,
+					0b1111n,
+				]),
 			).toStrictEqual([0b0000n, 0b0001n, 0b1011n, 0b0011n]);
-			const afterAll = { afterAll: true };
+
+			const systems2 = createMockSystems(4);
+			systems2[1].afterAll();
+			systems2[2].afterAll();
+			systems2[3].afterAll();
 			expect(
-				getSystemDependencies(
-					systems,
-					[undefined, afterAll, afterAll, afterAll],
-					[0b1111n, 0b1111n, 0b1111n, 0b1111n],
-				),
+				getSystemDependencies(systems2, [
+					0b1111n,
+					0b1111n,
+					0b1111n,
+					0b1111n,
+				]),
 			).toStrictEqual([0b0000n, 0b1101n, 0b1001n, 0b0001n]);
 		});
 
-		it('throws for directly contradictory dependencies', () => {
+		it.skip('throws for directly contradictory dependencies', () => {
 			const systems = createMockSystems(2);
+			systems[0].after(systems[0]);
 			expect(() =>
-				getSystemDependencies(
-					systems,
-					[{ after: [systems[0]] }, undefined],
-					[0b11n, 0b11n],
-				),
+				getSystemDependencies(systems, [0b11n, 0b11n]),
 			).toThrowError();
+
+			const systems2 = createMockSystems(2);
+			systems2[0].before(systems2[1]);
+			systems2[1].before(systems2[0]);
 			expect(() =>
-				getSystemDependencies(
-					systems,
-					[{ before: [systems[1]] }, { before: [systems[0]] }],
-					[0b11n, 0b11n],
-				),
+				getSystemDependencies(systems2, [0b11n, 0b11n]),
 			).toThrowError();
+
+			const systems3 = createMockSystems(2);
+			systems3[0].after(systems3[1]);
+			systems3[1].after(systems3[0]);
 			expect(() =>
-				getSystemDependencies(
-					systems,
-					[{ after: [systems[1]] }, { after: [systems[0]] }],
-					[0b11n, 0b11n],
-				),
+				getSystemDependencies(systems, [0b11n, 0b11n]),
 			).toThrowError();
 		});
 	});

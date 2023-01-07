@@ -1,4 +1,4 @@
-import type { SystemDefinition } from '../Systems/defineSystem';
+import type { SystemDefinition } from '../Systems';
 
 type Intersecting = 1;
 type Disjoint = 0;

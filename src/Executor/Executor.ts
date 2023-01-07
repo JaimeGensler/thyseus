@@ -1,11 +1,10 @@
-import { Dependencies, SystemDefinition } from '../Systems';
-import { World } from '../World';
+import type { World } from '../World';
+import type { SystemDefinition } from '../Systems';
 
 export type ExecutorInstance = { start(): Promise<void> };
 export type ExecutorType = {
 	fromWorld(
 		world: World,
-		systems: SystemDefinition[],
-		dependencies: (Dependencies | undefined)[],
+		systemDefinitions: SystemDefinition[],
 	): ExecutorInstance;
 };
