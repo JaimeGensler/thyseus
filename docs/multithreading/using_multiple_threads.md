@@ -89,3 +89,9 @@ executes the first system it finds if one is available. If there aren't any that
 can be run, it waits until another thread has finished executing a system and
 tries again. This means that, except for mainthread-only systems, any system can
 run on any thread, and can change which thread it executes from frame to frame.
+
+Thyseus also does not have a robust notion of thread identity. That is, a thread
+is either the main thread (which has some additional
+capabilities/responsibilities), or it's one of the worker threads. There is at
+present no way of dedicating one particular thread for one particular type of
+task or set of systems.
