@@ -3,8 +3,6 @@ import { RESIZE_ENTITY_LOCATIONS } from '../world/channels';
 import type { Table } from './Table';
 import type { World } from '../world';
 
-const NEXT_ID = 0;
-const CURSOR = 1;
 const lo32 = 0x00_00_00_00_ff_ff_ff_ffn;
 const getIndex = (id: bigint): number => Number(id & lo32);
 
@@ -12,7 +10,7 @@ const ENTITY_BATCH_SIZE = 256;
 
 export class Entities {
 	static fromWorld(world: World): Entities {
-		const bufferSize = ENTITY_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT;
+		const bufferSize = BigUint64Array.BYTES_PER_ELEMENT * ENTITY_BATCH_SIZE;
 		return new this(
 			world,
 			world.threads.queue(
@@ -40,7 +38,7 @@ export class Entities {
 	}
 
 	get isFull() {
-		return this.#data[0] >= this.#locations.length;
+		return this.#data[0] >= this.#locations.length >> 1;
 	}
 
 	/**
@@ -59,7 +57,7 @@ export class Entities {
 				];
 			}
 		}
-		return BigInt(Atomics.add(this.#data, NEXT_ID, 1));
+		return BigInt(Atomics.add(this.#data, 0, 1));
 	}
 
 	/**
@@ -83,7 +81,7 @@ export class Entities {
 	 * @returns The current cursor value.
 	 */
 	#getCursor() {
-		return Atomics.load(this.#data, CURSOR);
+		return Atomics.load(this.#data, 1);
 	}
 
 	/**
@@ -94,27 +92,29 @@ export class Entities {
 	#tryCursorMove(expected: number) {
 		return (
 			expected ===
-			Atomics.compareExchange(this.#data, CURSOR, expected, expected + 1)
+			Atomics.compareExchange(this.#data, 1, expected, expected + 1)
 		);
 	}
 
 	resetCursor() {
-		this.#data[CURSOR] = 0;
+		this.#data[1] = 0;
 	}
 
 	grow(world: World) {
-		// TODO: TEST
-		const newLocations = new Uint32Array(
-			world.createBuffer(
-				Uint32Array.BYTES_PER_ELEMENT *
-					Math.ceil(this.#data[0] / ENTITY_BATCH_SIZE) *
-					ENTITY_BATCH_SIZE,
-			),
-		);
+		const bufferSize =
+			BigUint64Array.BYTES_PER_ELEMENT *
+			Math.ceil((this.#data[0] + 1) / ENTITY_BATCH_SIZE) *
+			ENTITY_BATCH_SIZE;
+		const newLocations = new Uint32Array(world.createBuffer(bufferSize));
 		newLocations.set(this.#locations);
 		this.#locations = newLocations;
 		world.threads.send(RESIZE_ENTITY_LOCATIONS(this.#locations));
 	}
+
+	/**
+	 * Sets the locations array to the new specified array. Make sure all entity location data has been copied into the new array!
+	 * @param newLocations The new locations array.
+	 */
 	setLocations(newLocations: Uint32Array) {
 		this.#locations = newLocations;
 	}
@@ -138,7 +138,7 @@ export class Entities {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect } = import.meta.vitest;
+	const { it, expect, vi } = import.meta.vitest;
 	const { Table } = await import('./Table');
 
 	it('returns incrementing generational integers', () => {
@@ -189,5 +189,54 @@ if (import.meta.vitest) {
 		expect(entities.spawn()).toBe(1n);
 		expect(entities.spawn()).toBe(0n);
 		expect(entities.spawn()).toBe(3n);
+	});
+
+	it('grows by at least as many have been spawned', () => {
+		const sendSpy = vi.fn();
+		const mockWorld = {
+			createBuffer: (l: number) => new ArrayBuffer(l),
+			threads: { send: sendSpy },
+		} as any;
+
+		const table = new Table(
+			{ tableLengths: new Uint32Array(1) } as any,
+			new Map().set(Entity, { u64: new BigUint64Array(8) }),
+			0,
+			0n,
+			0,
+		);
+
+		const entities = new Entities(
+			{} as any,
+			new Uint32Array(ENTITY_BATCH_SIZE * 2),
+			new Uint32Array(3),
+			table,
+		);
+
+		expect(entities.isFull).toBe(false);
+		for (let i = 0; i < ENTITY_BATCH_SIZE - 1; i++) {
+			entities.spawn();
+		}
+		expect(entities.isFull).toBe(false);
+		entities.spawn();
+		expect(entities.isFull).toBe(true);
+
+		entities.grow(mockWorld);
+		expect(entities.isFull).toBe(false);
+		expect(sendSpy).toHaveBeenCalledTimes(1);
+		// Add another entity batch, 2 elements per entity
+		expect(sendSpy.mock.calls[0][0][2][0].length).toBe(256 * 2 * 2);
+
+		sendSpy.mockReset();
+
+		for (let i = 0; i < ENTITY_BATCH_SIZE * 3; i++) {
+			entities.spawn();
+		}
+		expect(entities.isFull).toBe(true);
+		entities.grow(mockWorld);
+		expect(entities.isFull).toBe(false);
+		expect(sendSpy).toHaveBeenCalledTimes(1);
+		// Filled 4 batches, now on fifth, 2 elements per entity
+		expect(sendSpy.mock.calls[0][0][2][0].length).toBe(256 * 5 * 2);
 	});
 }
