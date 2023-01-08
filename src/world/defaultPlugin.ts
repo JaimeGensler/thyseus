@@ -1,4 +1,4 @@
-import { applyCommands } from '../Systems';
+import { applyCommands } from '../systems';
 import { Entity } from '../storage';
 import {
 	GET_COMMAND_QUEUE,

@@ -15,7 +15,7 @@ import {
 import { string } from './string';
 import { array } from './array';
 import { substruct } from './substruct';
-import type { Commands } from '../World/Commands';
+import type { Commands } from '../world/Commands';
 
 export type Class = {
 	new (...args: any[]): object;

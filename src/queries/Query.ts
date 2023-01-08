@@ -1,6 +1,6 @@
 import type { Struct } from '../struct';
 import type { Table } from '../storage';
-import type { Commands } from '../World/Commands';
+import type { Commands } from '../world/Commands';
 import type { Mut, Optional, Filter } from './modifiers';
 
 type Accessors = object | object[];

@@ -1,7 +1,7 @@
 import { DEV } from 'esm-env';
 import { assert } from '../utils/assert';
 import { bits } from '../utils/bits';
-import type { SystemDefinition } from '../Systems';
+import type { SystemDefinition } from '../systems';
 
 export function getSystemDependencies(
 	systems: SystemDefinition[],
@@ -40,7 +40,7 @@ export function getSystemDependencies(
 \*---------*/
 if (import.meta.vitest) {
 	const { describe, it, expect } = import.meta.vitest;
-	const { SystemDefinition } = await import('../Systems/SystemDefinition');
+	const { SystemDefinition } = await import('../systems/SystemDefinition');
 
 	const createMockSystems = (length: number): SystemDefinition[] =>
 		Array.from(

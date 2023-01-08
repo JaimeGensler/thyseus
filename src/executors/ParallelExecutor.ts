@@ -1,8 +1,8 @@
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
 import { overlaps } from './overlaps';
-import type { SystemDefinition } from '../Systems';
-import type { World } from '../World';
+import type { SystemDefinition } from '../systems';
+import type { World } from '../world';
 
 let nextId = 0;
 const noop = (...args: any[]) => {};

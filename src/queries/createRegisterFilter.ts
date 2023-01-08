@@ -2,7 +2,7 @@ import { DEV } from 'esm-env';
 import { Or, With, Without, type Filter } from './modifiers';
 import { assert } from '../utils/assert';
 import type { Struct } from '../struct';
-import type { WorldBuilder } from '../World/WorldBuilder';
+import type { WorldBuilder } from '../world';
 
 const getBitfieldForComponentSet = (
 	allComponents: Struct[],

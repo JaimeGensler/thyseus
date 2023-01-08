@@ -1,5 +1,5 @@
 import { TYPE_IDS, type Struct, type StructStore } from '../struct';
-import type { Commands } from '../World/Commands';
+import type { Commands } from '../world/Commands';
 
 export class Entity {
 	static schema = TYPE_IDS.u64 | TYPE_IDS.u32;

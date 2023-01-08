@@ -1,5 +1,5 @@
-import type { SystemDefinition } from '../Systems';
-import type { World } from '../World';
+import type { SystemDefinition } from '../systems';
+import type { World } from '../world';
 
 export class SimpleExecutor {
 	static fromWorld(world: World, systems: SystemDefinition[]) {
@@ -30,7 +30,7 @@ export class SimpleExecutor {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, vi } = import.meta.vitest;
-	const { SystemDefinition } = await import('../Systems/SystemDefinition');
+	const { SystemDefinition } = await import('../systems/SystemDefinition');
 
 	const createOrderTracking = (length: number) => {
 		const order: number[] = [];

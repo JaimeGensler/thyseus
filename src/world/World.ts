@@ -15,10 +15,10 @@ import {
 	type WorldConfig,
 	type SingleThreadedWorldConfig,
 } from './config';
-import type { ExecutorInstance, ExecutorType } from '../Executor';
+import type { ExecutorInstance, ExecutorType } from '../executors';
 import type { ThreadGroup, ThreadMessageChannel } from '../threads';
-import type { SystemDefinition } from '../Systems';
-import type { Query } from '../Queries';
+import type { SystemDefinition } from '../systems';
+import type { Query } from '../queries';
 
 const TABLE_BATCH_SIZE = 64;
 

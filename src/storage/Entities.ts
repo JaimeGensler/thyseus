@@ -1,7 +1,7 @@
 import { Entity } from './Entity';
-import { RESIZE_ENTITY_LOCATIONS } from '../World/channels';
+import { RESIZE_ENTITY_LOCATIONS } from '../world/channels';
 import type { Table } from './Table';
-import type { World } from '../World';
+import type { World } from '../world';
 
 const NEXT_ID = 0;
 const CURSOR = 1;

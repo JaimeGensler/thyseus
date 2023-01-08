@@ -1,4 +1,4 @@
-import type { World } from '../World';
+import type { World } from '../world';
 
 export type SendableType =
 	| void

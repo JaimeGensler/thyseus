@@ -1,4 +1,4 @@
-import { GET_COMMAND_QUEUE } from '../World/channels';
+import { GET_COMMAND_QUEUE } from '../world/channels';
 import { defineSystem } from './defineSystem';
 
 const mergeQueues = (a: Map<bigint, bigint>, b: Map<bigint, bigint>) => {

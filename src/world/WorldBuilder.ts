@@ -5,8 +5,8 @@ import {
 	ParallelExecutor,
 	SimpleExecutor,
 	type ExecutorType,
-} from '../Executor';
-import { applyCommands, type SystemDefinition } from '../Systems';
+} from '../executors';
+import { applyCommands, type SystemDefinition } from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
@@ -147,9 +147,9 @@ export class WorldBuilder {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, vi } = import.meta.vitest;
-	const { defineSystem } = await import('../Systems');
+	const { defineSystem } = await import('../systems');
 	const { Entity } = await import('../storage');
-	const { applyCommands } = await import('../Systems');
+	const { applyCommands } = await import('../systems');
 
 	class MockChannel {
 		static channel: MockChannel;

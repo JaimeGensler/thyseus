@@ -9,11 +9,10 @@ import {
 	Or,
 	registerFilters,
 	createFilterBitfields,
-} from '../../Queries';
+} from '../../queries';
 import { assert } from '../../utils/assert';
-import type { WorldBuilder } from '../../World/WorldBuilder';
+import type { World, WorldBuilder } from '../../world';
 import type { Descriptor } from './Descriptor';
-import type { World } from '../../World';
 import type { Class, Struct } from '../../struct';
 
 export type AccessDescriptor =

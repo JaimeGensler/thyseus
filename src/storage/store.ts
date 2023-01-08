@@ -4,7 +4,7 @@ import {
 	type Struct,
 	type StructStore,
 } from '../struct';
-import type { World } from '../World';
+import type { World } from '../world';
 
 const [, ...namesAndConstructors] = Object.entries(TYPE_TO_CONSTRUCTOR) as [
 	keyof typeof TYPE_TO_CONSTRUCTOR,

@@ -1,6 +1,6 @@
 import { Entity } from './Entity';
 import { createStore, resizeStore } from './store';
-import type { World } from '../World';
+import type { World } from '../world';
 import type { StructStore, Struct } from '../struct';
 
 export class Table {

@@ -1,5 +1,5 @@
-import type { World } from '../World';
-import type { SystemDefinition } from '../Systems';
+import type { World } from '../world';
+import type { SystemDefinition } from '../systems';
 
 export type ExecutorInstance = { start(): Promise<void> };
 export type ExecutorType = {

@@ -1,5 +1,5 @@
-export { World, definePlugin } from './World';
-export { defineSystem, applyCommands } from './Systems';
+export { World, definePlugin } from './world';
+export { defineSystem, applyCommands } from './systems';
 export { Entity } from './storage';
 export { struct } from './struct';
 export { createThreadChannel } from './threads';

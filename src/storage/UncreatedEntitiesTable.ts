@@ -1,6 +1,6 @@
 import { Entity } from './Entity';
 import { Table } from './Table';
-import type { World } from '../World';
+import type { World } from '../world';
 
 /**
  * A "table" of entities that have not yet been spawned.

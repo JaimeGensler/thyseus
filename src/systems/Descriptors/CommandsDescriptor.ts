@@ -1,6 +1,5 @@
-import type { World } from '../../World';
-import type { WorldBuilder } from '../../World/WorldBuilder';
-import type { Commands } from '../../World/Commands';
+import type { World, WorldBuilder } from '../../world';
+import type { Commands } from '../../world/Commands';
 import type { Descriptor } from './Descriptor';
 
 export class CommandsDescriptor implements Descriptor {

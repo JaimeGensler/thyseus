@@ -1,6 +1,5 @@
-import { Entity } from '../storage';
+import { Entity, type Entities } from '../storage';
 import type { Struct } from '../struct';
-import type { Entities } from '../storage/Entities';
 import type { World } from './World';
 
 export class Commands {
