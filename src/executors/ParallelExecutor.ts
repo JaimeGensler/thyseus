@@ -180,6 +180,26 @@ if (import.meta.vitest) {
 
 	const emptyMask = [0b0000n, 0b0000n, 0b0000n, 0b0000n];
 
+	const cbs = [] as any[];
+	afterEach(() => {
+		cbs.length = 0;
+	});
+	vi.stubGlobal(
+		'BroadcastChannel',
+		class {
+			id = 0;
+			addEventListener(_: 'message', listener: any) {
+				this.id = cbs.push(listener) - 1;
+			}
+			postMessage(data: any) {
+				cbs.forEach((l, id) => {
+					if (id !== this.id) {
+						l({ data });
+					}
+				});
+			}
+		},
+	);
 	vi.stubGlobal('navigator', {
 		locks: {
 			async request(_: any, cb: () => void) {
@@ -187,11 +207,6 @@ if (import.meta.vitest) {
 				cb();
 			},
 		},
-	});
-	const cbs: any[] = [];
-
-	afterEach(() => {
-		cbs.length = 0;
 	});
 
 	const createArrs = (l: number) =>
@@ -208,6 +223,7 @@ if (import.meta.vitest) {
 		systems: ((...args: any[]) => any)[],
 		args: any[][],
 		arrs = createArrs(systems.length),
+		isMainThread = true,
 	) =>
 		new ParallelExecutor(
 			{
@@ -215,16 +231,7 @@ if (import.meta.vitest) {
 				arguments: args,
 				threads: {
 					id: 0,
-					setListener(_: any, cb: any) {
-						this.id = cbs.push(cb) - 1;
-					},
-					send([_, __, [val]]: any) {
-						cbs.forEach((l, id) => {
-							if (id !== this.id) {
-								l(val);
-							}
-						});
-					},
+					isMainThread,
 				},
 			} as any,
 			...arrs,
@@ -277,6 +284,7 @@ if (import.meta.vitest) {
 			systems,
 			systems.map(() => []),
 			arrs,
+			true,
 		);
 		const exec2 = createExecutor(
 			[0b0010n, 0b0001n, 0b0000n],
@@ -285,6 +293,7 @@ if (import.meta.vitest) {
 			systems,
 			systems.map(() => []),
 			arrs,
+			false,
 		);
 		await exec1.start();
 
@@ -321,6 +330,7 @@ if (import.meta.vitest) {
 			systems,
 			[[1], [1], [1], [1]],
 			arrs,
+			true,
 		);
 		const exec2 = createExecutor(
 			emptyMask,
@@ -329,6 +339,7 @@ if (import.meta.vitest) {
 			systems,
 			[[2], [2], [2], [2]],
 			arrs,
+			false,
 		);
 		await exec1.start();
 		expect(systems[0]).toHaveBeenCalledTimes(1);
@@ -341,5 +352,40 @@ if (import.meta.vitest) {
 		expect(systems[3]).toHaveBeenCalledWith(1);
 	});
 
-	it('does not resolve until all systems have COMPLETED execution', () => {});
+	it('does not resolve until all systems have completed execution', async () => {
+		let hasFinalPromiseResolved = false;
+
+		const systems = [
+			() => {},
+			async () => {
+				return new Promise(r => setTimeout(r, 1000)).then(() => {
+					hasFinalPromiseResolved = true;
+				});
+			},
+		];
+		const arrs = createArrs(systems.length);
+		const exec1 = createExecutor(
+			emptyMask,
+			emptyMask,
+			[true, false],
+			systems,
+			[[], []],
+			arrs,
+			true,
+		);
+		const exec2 = createExecutor(
+			emptyMask,
+			emptyMask,
+			[false, true],
+			systems,
+			[[], []],
+			arrs,
+			false,
+		);
+		await exec1.start();
+		// The timeout is so long that this would have found the opportunity
+		// to resolve if it wasn't waiting on the final system
+		// But it can't resolve, because we're waiting on all systems to finish!
+		expect(hasFinalPromiseResolved).toBe(true);
+	});
 }
