@@ -1,5 +1,5 @@
 import { SystemDefinition, type SystemArguments } from './SystemDefinition';
-import type { Descriptors, Descriptor } from './Descriptors';
+import type { Descriptors, Descriptor } from './descriptors';
 
 export function defineSystem<T extends Descriptor[]>(
 	parameters: (descriptors: Descriptors) => [...T],

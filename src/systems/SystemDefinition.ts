@@ -1,4 +1,4 @@
-import { descriptors, type Descriptors, type Descriptor } from './Descriptors';
+import { descriptors, type Descriptors, type Descriptor } from './descriptors';
 import type { World } from '../world';
 
 type ParameterCreator<T extends Descriptor[]> = (
