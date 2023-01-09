@@ -14,18 +14,43 @@ export function getSystemDependencies(
 		}, 0n),
 	);
 
+	const deepDependencies = [...masks];
+	deepDependencies.forEach(function mergeDependencies(mask, i) {
+		for (const bit of bits(mask)) {
+			mergeDependencies(deepDependencies[bit], bit);
+			deepDependencies[i] |= deepDependencies[bit];
+		}
+	});
+
+	if (DEV) {
+		deepDependencies.forEach((mask, i) => {
+			assert(
+				(mask & (1n << BigInt(i))) === 0n,
+				`Circular Dependency Detected - Sytem #${i} (${systems[i].fn.name}) depends on itself!`,
+			);
+		});
+	}
+
 	for (let i = 0; i < systems.length; i++) {
 		const system = systems[i];
 		if (system.isBeforeAll) {
 			for (const bit of bits(intersections[i])) {
-				if (bit !== i && (masks[i] & (1n << BigInt(bit))) === 0n) {
+				if (
+					bit !== i &&
+					(deepDependencies[i] & (1n << BigInt(bit))) === 0n
+				) {
 					masks[bit] |= 1n << BigInt(i);
+					deepDependencies[bit] |= 1n << BigInt(i);
 				}
 			}
 		} else if (system.isAfterAll) {
 			for (const bit of bits(intersections[i])) {
-				if (bit !== i && (masks[bit] & (1n << BigInt(i))) === 0n) {
+				if (
+					bit !== i &&
+					(deepDependencies[bit] & (1n << BigInt(i))) === 0n
+				) {
 					masks[i] |= 1n << BigInt(bit);
+					deepDependencies[i] |= 1n << BigInt(bit);
 				}
 			}
 		}
@@ -151,7 +176,23 @@ if (import.meta.vitest) {
 			).toStrictEqual([0b0000n, 0b1101n, 0b1001n, 0b0001n]);
 		});
 
-		it.skip('throws for directly contradictory dependencies', () => {
+		// Changelog v0.8 bugfix
+		it('does not create circular dependencies', () => {
+			const systems = createMockSystems(3);
+			systems[0].before(systems[1]);
+			systems[1].before(systems[2]);
+			systems[2].beforeAll();
+			expect(
+				getSystemDependencies(systems, [
+					0b111n,
+					0b111n,
+					0b111n,
+					0b111n,
+				]),
+			).toStrictEqual([0b000n, 0b001n, 0b010n]);
+		});
+
+		it('throws for directly contradictory dependencies', () => {
 			const systems = createMockSystems(2);
 			systems[0].after(systems[0]);
 			expect(() =>
@@ -169,7 +210,15 @@ if (import.meta.vitest) {
 			systems3[0].after(systems3[1]);
 			systems3[1].after(systems3[0]);
 			expect(() =>
-				getSystemDependencies(systems, [0b11n, 0b11n]),
+				getSystemDependencies(systems3, [0b11n, 0b11n]),
+			).toThrowError();
+
+			const systems4 = createMockSystems(3);
+			systems4[0].before(systems4[1]);
+			systems4[1].before(systems4[2]);
+			systems4[2].before(systems4[0]);
+			expect(() =>
+				getSystemDependencies(systems4, [0b111n, 0b111n]),
 			).toThrowError();
 		});
 	});
