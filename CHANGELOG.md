@@ -1,5 +1,86 @@
 # Changelog
 
+## v0.8.0 (January 8, 2023)
+
+This update prioritizes some necessary cleanup and stability improvements, and
+so is a bit light on features and heavier on breaking changes. As part of this
+cleanup, worlds use less memory and bundles should be smaller (especially in
+production builds)!
+
+### 💥 Breaking Changes
+
+-   The Dependencies API has changed:
+    -   `defineSystem` returns an instance of the new `SystemDefinition` class.
+    -   `addSystem` only accepts one argument, a `SystemDefinition`.
+    -   `SystemDefinition` instances have `before(other: SystemDefinition)`,
+        `after(other: SystemDefinition)`, `beforeAll()`, and `afterAll()`
+        methods. These are now how you declare dependencies.
+    -   Dependencies behave the same as before (see
+        [v0.2.0 changelog](#v020-july-31-2022) for a refresher).
+    -   As before, dependencies remain unused for startup systems, though this
+        will likely change in the future.
+-   `WorldBuilder`'s `registerThreadChannel` method and `ThreadGroup`'s `send`
+    have been modified.
+    -   A `createThreadChannel` function is now exported. This function accepts
+        a channel name (string) and a message handler creator - just like the
+        previous `registerThreadChannel` function signature.
+    -   `registerTheadChannel` now accepts a single `ThreadMessageChannel`
+        argument, which is the value returned by `createThreadChannel`.
+    -   The `send` method on `ThreadGroup` now accepts a single `ThreadMessage`
+        argument, which is created by calling your thread message channel with
+        the data you want to send.
+    -   This new API has much more robust type safety - the types of the data
+        sent to threads and the data returned is all intrinsically linked.
+-   All validation now only occurs in development builds.
+    -   This currently includes:
+        -   Validation of world config.
+        -   Validation preventing direct access of ZSTs.
+        -   Validation that queries have some possible match criteria.
+        -   Validation that system dependencies are not circular.
+    -   Most validation prevents more cryptic errors from being thrown later,
+        but some (e.g. queries that do not match) are silent.
+    -   This change only impacts you if you have significant differences between
+        your world in prod vs. development, **which should not be the case!**
+-   Partial rewrites of `Entities`, `Table`.
+    -   This only impacts you if you directly access properties/methods!
+-   `world.archetypes` is now a `Table[]` (previously `Map<Bigint, Table>`).
+-   `world.systems` is now a `((...args: any[]) => any)[]`
+    -   Worlds now also have `arguments: any[][]`, so each system has a
+        corresponding member in the arguments array (incl. empty arrays).
+
+### ✨ Features
+
+-   Added `esm-env` as a dependency.
+    -   This allows Thyseus to check whether you're building for development or
+        production. We'll use more of these checks in the future to provide
+        better correctness guarantees in dev and better performance in prod!
+-   Added `isAlive(entityId: bigint)` to `Entities` (`world.entities`), if you
+    need to check if an entity is still alive.
+-   Dependencies are now recursively validated.
+    -   Previously, errors were only thrown if dependencies were directly
+        circular (e.g., `A before B before A` or `A before A`).
+    -   We now detect chains of dependencies and throw for those (e.g.
+        `A before B before C before A` will throw).
+-   Added `setExecutor(executor: ExecutorType)` method to `WorldBuilder`, so you
+    may pass a custom executor implementation.
+    -   Custom executors are an especially advanced pattern - some documentation
+        around API requirements has been added.
+
+### 🐛 Bug Fixes
+
+-   Fixed bug where Executors could get into a bad state that prevented system
+    execution.
+-   Fixed types for `Query` iterators.
+-   Fixed issue where commands could be added for despawned entities, causing
+    entities with recycled ids to incorrectly add/remove components.
+-   Fixed entities not being correctly despawned.
+-   Fixed Commands not properly creating `Entity` stores, preventing access to
+    entity `index` and `generation` for (spawned) entity handles.
+-   The promise returned by `world.update()` now (correctly) only resolves when
+    all systems have finished executing.
+-   Fixed a rare bug where `beforeAll`/`afterAll` could introduce undetected
+    circular dependencies.
+
 ## v0.7.0 (December 11, 2022)
 
 Query improvements are here, with a [docs](./docs/queries.md) page too!
