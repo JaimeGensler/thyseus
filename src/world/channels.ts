@@ -23,7 +23,7 @@ export const SEND_TABLE = createThreadChannel(
 			const columns = [...bits(bitfield)].reduce((acc, cid, i) => {
 				const component = world.components[cid];
 				if (component.size! > 0) {
-					acc.set(world.components[cid], stores[i]);
+					acc.set(world.components[cid], stores.shift()!);
 				}
 				return acc;
 			}, new Map<Struct, StructStore>());

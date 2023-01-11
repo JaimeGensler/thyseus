@@ -20,6 +20,7 @@ type WorkerOrGlobal = {
 	): void;
 };
 
+const EMPTY: [] = [];
 export class ThreadGroup {
 	static isMainThread = !!globalThis.document;
 	isMainThread = ThreadGroup.isMainThread;
@@ -36,6 +37,7 @@ export class ThreadGroup {
 	}
 
 	#resolvers = new Map<number, (value: any) => void>();
+	#resolvedData = new Map<number, SendableType[]>();
 	#listeners = {} as Record<string, Listener>;
 	#queue = [] as SendableType[];
 
@@ -48,8 +50,13 @@ export class ThreadGroup {
 			data: [channel, id, message],
 		}: ThreadMessageEvent) => {
 			if (this.#resolvers.has(id)) {
-				this.#resolvers.get(id)!(message);
-				this.#resolvers.delete(id);
+				const data = this.#resolvedData.get(id)!;
+				data.push(message);
+				if (data.length === this.#threads.length) {
+					this.#resolvers.get(id)!(data);
+					this.#resolvers.delete(id);
+					this.#resolvedData.delete(id);
+				}
 			} else if (channel in this.#listeners) {
 				currentTarget.postMessage([
 					channel,
@@ -82,12 +89,16 @@ export class ThreadGroup {
 	 * @returns A promise, resolves to an array of results from all threads.
 	 */
 	send<T>(message: ThreadMessage<any, T>): Promise<T[]> {
-		return Promise.all(
-			this.#threads.map(thread => {
+		if (this.#threads.length === 0) {
+			return Promise.resolve(EMPTY);
+		}
+		return new Promise(r => {
+			for (const thread of this.#threads) {
 				thread.postMessage(message);
-				return new Promise<T>(r => this.#resolvers.set(message[1], r));
-			}),
-		);
+			}
+			this.#resolvedData.set(message[1], []);
+			this.#resolvers.set(message[1], r);
+		});
 	}
 
 	/**

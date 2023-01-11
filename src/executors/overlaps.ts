@@ -13,7 +13,7 @@ export function overlaps(arr: Uint8Array, big: bigint, mode: 0 | 1): boolean {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi } = import.meta.vitest;
+	const { it, expect } = import.meta.vitest;
 	it('returns true if all bit indices are set, false otherwise', () => {
 		expect(overlaps(Uint8Array.from([0]), 0b0n, 0)).toBe(true);
 		expect(overlaps(Uint8Array.from([0, 0, 1, 0]), 0b0100n, 0)).toBe(true);

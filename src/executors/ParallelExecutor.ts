@@ -28,9 +28,9 @@ export class ParallelExecutor {
 		return new this(
 			world,
 			new Uint32Array(buffer, 0, 2),
-			new Uint8Array(buffer, 8),
-			new Uint8Array(buffer, 8 + systems.length),
-			new Uint8Array(buffer, 8 + systems.length * 2),
+			new Uint8Array(buffer, 8, systems.length),
+			new Uint8Array(buffer, 8 + systems.length, systems.length),
+			new Uint8Array(buffer, 8 + systems.length * 2, systems.length),
 			intersections,
 			dependencies,
 			locallyAvailable,
@@ -102,6 +102,7 @@ export class ParallelExecutor {
 
 	async start() {
 		this.#systemsRemaining = this.#systems.length;
+		this.#status[1] = 0;
 		this.#toExecuteSystems.fill(1);
 		this.#completedSystems.fill(0);
 		this.#executingSystems.fill(0);
