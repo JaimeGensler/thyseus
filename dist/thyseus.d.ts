@@ -502,10 +502,8 @@ declare class SystemDefinition<T extends any[] = any[]> {
 	after(...others: SystemDefinition<any>[]): this;
 	beforeAll(): this;
 	afterAll(): this;
-	getAndClearDependencies(): {
-		dependencies: SystemDefinition<any>[];
-		implicitPosition: 0 | 1 | -1;
-	};
+	clone(): SystemDefinition<T>;
+	getAndClearDependencies(): SystemDependencies;
 }
 type SystemArguments<T extends Descriptor[]> = {
 	[Index in keyof T]: ReturnType<T[Index]['intoArgument']>;

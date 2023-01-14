@@ -1,5 +1,5 @@
 import { DEV as I } from "esm-env";
-class et {
+class st {
   isLocalToThread() {
     return !1;
   }
@@ -12,7 +12,7 @@ class et {
   onAddSystem(t) {
   }
 }
-class st {
+class it {
   #t = [];
   #e = 0;
   #s;
@@ -125,14 +125,14 @@ function b(n, t, e) {
     i = t(i, s);
   return i;
 }
-function it(n, t) {
+function nt(n, t) {
   b(t, function e(i, s) {
     s instanceof U || s instanceof W ? (Array.isArray(s.value) ? s.value : [s.value]).forEach(
       (r) => n.registerComponent(r)
     ) : s instanceof N && (b(s.l, e), b(s.r, e));
   });
 }
-function nt(n, t, e, i) {
+function rt(n, t, e, i) {
   const s = b(
     i,
     function o(h, a) {
@@ -211,15 +211,15 @@ class O {
     ) : !1;
   }
   onAddSystem(t) {
-    this.components.forEach((e) => t.registerComponent(e)), it(t, this.filters);
+    this.components.forEach((e) => t.registerComponent(e)), nt(t, this.filters);
   }
   intoArgument(t) {
-    const { withs: e, withouts: i } = nt(
+    const { withs: e, withouts: i } = rt(
       t.components,
       this.components,
       this.optionals,
       this.filters
-    ), s = new st(e, i, this.isIndividual, this.components, t.commands);
+    ), s = new it(e, i, this.isIndividual, this.components, t.commands);
     return t.queries.push(s), s;
   }
 }
@@ -246,7 +246,7 @@ const y = {
   i64: BigInt64Array,
   f32: Float32Array,
   f64: Float64Array
-}, rt = (n, t, e) => {
+}, ot = (n, t, e) => {
   const i = _.reduce(
     (r, o, h) => o < t && h < r ? h : r,
     _.length
@@ -261,9 +261,9 @@ const y = {
     E[m[r]] += e;
 };
 function S(n, t, e, i = 0) {
-  return T = Math.max(T, t), q |= i, rt(n, t, e), C += e, E;
+  return T = Math.max(T, t), q |= i, ot(n, t, e), C += e, E;
 }
-function ot() {
+function ht() {
   const n = {
     schema: q,
     size: Math.ceil(C / T) * T,
@@ -295,7 +295,7 @@ function d(n) {
     };
   };
 }
-const ht = d("u8"), at = d("u16"), ut = d("u32"), ct = d("u64"), lt = d("i8"), ft = d("i16"), dt = d("i32"), mt = d("i64"), gt = d("f32"), pt = d("f64"), _t = function() {
+const at = d("u8"), ut = d("u16"), ct = d("u32"), lt = d("u64"), ft = d("i8"), dt = d("i16"), mt = d("i32"), gt = d("i64"), pt = d("f32"), _t = d("f64"), Et = function() {
   return function(t, e) {
     const i = S(
       e,
@@ -313,8 +313,8 @@ const ht = d("u8"), at = d("u16"), ut = d("u32"), ct = d("u64"), lt = d("i8"), f
       }
     });
   };
-}, Et = new TextEncoder(), wt = new TextDecoder();
-function yt({
+}, wt = new TextEncoder(), yt = new TextDecoder();
+function $t({
   characterCount: n,
   byteLength: t
 }) {
@@ -328,7 +328,7 @@ function yt({
     Object.defineProperty(i, s, {
       enumerable: !0,
       get() {
-        return wt.decode(
+        return yt.decode(
           this.__$$s.u8.subarray(
             this.__$$b + r[s],
             this.__$$b + r[s] + t
@@ -336,7 +336,7 @@ function yt({
         ).split("\0")[0];
       },
       set(o) {
-        Et.encodeInto(
+        wt.encodeInto(
           o,
           this.__$$s.u8.subarray(
             this.__$$b + r[s],
@@ -347,7 +347,7 @@ function yt({
     });
   };
 }
-function $t({ type: n, length: t }) {
+function Tt({ type: n, length: t }) {
   return function(i, s) {
     const r = D[n], o = S(
       s,
@@ -372,7 +372,7 @@ function $t({ type: n, length: t }) {
     });
   };
 }
-function Tt(n) {
+function bt(n) {
   return function(e, i) {
     const s = S(
       i,
@@ -397,7 +397,7 @@ function Tt(n) {
 }
 function f() {
   return function(t) {
-    const { schema: e, size: i, alignment: s } = ot();
+    const { schema: e, size: i, alignment: s } = ht();
     return class extends t {
       static schema = e | (t.schema ?? 0);
       static size = i;
@@ -417,21 +417,21 @@ function f() {
     };
   };
 }
-f.bool = _t;
-f.u8 = ht;
-f.u16 = at;
-f.u32 = ut;
-f.u64 = ct;
-f.i8 = lt;
-f.i16 = ft;
-f.i32 = dt;
-f.i64 = mt;
-f.f32 = gt;
-f.f64 = pt;
-f.string = yt;
-f.array = $t;
-f.substruct = Tt;
-function Q(n) {
+f.bool = Et;
+f.u8 = at;
+f.u16 = ut;
+f.u32 = ct;
+f.u64 = lt;
+f.i8 = ft;
+f.i16 = dt;
+f.i32 = mt;
+f.i64 = gt;
+f.f32 = pt;
+f.f64 = _t;
+f.string = $t;
+f.array = Tt;
+f.substruct = bt;
+function j(n) {
   return typeof n == "function" && typeof n.size == "number" && typeof n.alignment == "number" && typeof n.schema == "number";
 }
 class Y {
@@ -442,7 +442,7 @@ class Y {
     this.resource = e ? t.value : t, this.canWrite = e;
   }
   isLocalToThread() {
-    return !Q(this.resource);
+    return !j(this.resource);
   }
   intersectsWith(t) {
     return t instanceof Y ? this.resource === t.resource && (this.canWrite || t.canWrite) : !1;
@@ -454,7 +454,7 @@ class Y {
     return t.resources.get(this.resource);
   }
 }
-class bt {
+class At {
   isLocalToThread() {
     return !0;
   }
@@ -470,11 +470,11 @@ class bt {
 function g(n) {
   return (...t) => new n(...t);
 }
-const At = {
-  Commands: g(et),
+const St = {
+  Commands: g(st),
   Query: g(O),
   Res: g(Y),
-  World: g(bt),
+  World: g(At),
   Mut: g($),
   Optional: g(M),
   With: g(U),
@@ -483,7 +483,7 @@ const At = {
     return new N(n, t);
   }
 };
-class St {
+class F {
   #t = 0;
   #e = [];
   #s;
@@ -492,7 +492,7 @@ class St {
     this.#s = t, this.fn = e;
   }
   get parameters() {
-    return this.#s(At);
+    return this.#s(St);
   }
   before(...t) {
     for (const e of t)
@@ -510,6 +510,9 @@ class St {
   afterAll() {
     return this.#t = 1, this;
   }
+  clone() {
+    return new F(this.#s, this.fn);
+  }
   getAndClearDependencies() {
     const t = {
       dependencies: this.#e,
@@ -519,7 +522,7 @@ class St {
   }
 }
 function zt(n, t) {
-  return new St(n, t);
+  return new F(n, t);
 }
 class l {
   static schema = y.u64 | y.u32;
@@ -557,12 +560,12 @@ class l {
   }
 }
 const [, ...vt] = Object.entries(D);
-function j(n, t) {
+function Z(n, t) {
   return vt.reduce((e, [i, s]) => ((y[i] & n.schema) === y[i] && (e[i] = new s(e.buffer)), e), t);
 }
-function Z(n, t, e) {
+function V(n, t, e) {
   const i = n.createBuffer(t.size * e);
-  return j(t, {
+  return Z(t, {
     buffer: i,
     u8: new Uint8Array(i)
   });
@@ -571,14 +574,14 @@ function Bt(n, t, e) {
   const i = new n.buffer.constructor(
     t.size * e
   ), s = new Uint8Array(i);
-  return s.set(n.u8), n.buffer = i, n.u8 = s, j(t, n);
+  return s.set(n.u8), n.buffer = i, n.u8 = s, Z(t, n);
 }
 class L {
   static create(t, e, i, s) {
     const r = t.config.getNewTableSize(0);
     return new this(
       t,
-      e.reduce((o, h) => (h.size > 0 && o.set(h, Z(t, h, r)), o), /* @__PURE__ */ new Map()),
+      e.reduce((o, h) => (h.size > 0 && o.set(h, V(t, h, r)), o), /* @__PURE__ */ new Map()),
       r,
       i,
       s
@@ -791,13 +794,13 @@ class A {
     ), this.deleteListener(e)), this.#i.length = 0, i;
   }
 }
-const V = z(
+const G = z(
   "thyseus::getCommandQueue",
   (n) => () => {
     const t = new Map(n.commands.queue);
     return n.commands.queue.clear(), t;
   }
-), G = z(
+), H = z(
   "thyseus::sendTable",
   (n) => (t, e, i, s) => {
     const r = [...w(s)].reduce((h, a, c) => (n.components[a].size > 0 && h.set(n.components[a], t.shift()), h), /* @__PURE__ */ new Map()), o = new L(n, r, e, s, i);
@@ -805,7 +808,7 @@ const V = z(
     for (const h of n.queries)
       h.testAdd(s, o);
   }
-), H = z(
+), J = z(
   "thyseus::resizeTable",
   (n) => (t, e, i) => {
     const s = n.archetypes[t];
@@ -814,7 +817,7 @@ const V = z(
     for (const o of s.columns.keys())
       s.columns.set(o, i[r++]);
   }
-), J = z(
+), X = z(
   "thyseus::resizeTableLengths",
   (n) => (t) => {
     n.tableLengths = t;
@@ -830,11 +833,11 @@ const V = z(
     s === void 0 ? n.set(e, i) : s !== 0n && n.set(e, s | i);
   }
   return n;
-}, X = zt(
+}, K = zt(
   ({ World: n }) => [n()],
   async function(t) {
     t.entities.isFull && t.entities.grow(t);
-    const e = (await t.threads.send(V())).reduce(
+    const e = (await t.threads.send(G())).reduce(
       Rt,
       t.commands.queue
     );
@@ -844,7 +847,7 @@ const V = z(
   }
 );
 function qt(n) {
-  n.registerComponent(l), n.addSystem(X.afterAll()), n.registerThreadChannel(V), n.registerThreadChannel(G), n.registerThreadChannel(H), n.registerThreadChannel(J);
+  n.registerComponent(l), n.addSystem(K.afterAll()), n.registerThreadChannel(G), n.registerThreadChannel(H), n.registerThreadChannel(J), n.registerThreadChannel(X);
 }
 function Ut(n, t) {
   return n.parameters.some(
@@ -853,7 +856,7 @@ function Ut(n, t) {
     )
   ) ? 1 : 0;
 }
-function K(n) {
+function tt(n) {
   return n.map(
     (t) => n.reduce(
       (e, i, s) => e | BigInt(Ut(t, i)) << BigInt(s),
@@ -861,7 +864,7 @@ function K(n) {
     )
   );
 }
-function tt(n, t, e) {
+function et(n, t, e) {
   const i = t.map(
     (r) => r.dependencies.reduce((o, h) => {
       const a = n.indexOf(h);
@@ -888,7 +891,7 @@ function tt(n, t, e) {
   }
   return i.forEach((r, o) => i[o] &= e[o]), i;
 }
-function F(n, t, e) {
+function k(n, t, e) {
   for (const i of w(t))
     if (n[i] === e)
       return !1;
@@ -900,9 +903,9 @@ const B = (...n) => {
 class Nt {
   static fromWorld(t, e, i) {
     const s = t.threads.queue(
-      () => K(e)
+      () => tt(e)
     ), r = t.threads.queue(
-      () => tt(e, i, s)
+      () => et(e, i, s)
     ), o = t.threads.isMainThread ? e.map(() => !0) : e.map((c) => !c.parameters.some((u) => u.isLocalToThread())), h = t.threads.queue(
       () => t.createBuffer(8 + e.length * 3)
     ), a = t.threads.queue(
@@ -956,7 +959,7 @@ class Nt {
       let t = -1;
       if (await navigator.locks.request(this.#f, () => {
         t = this.#i.findIndex(
-          (e, i) => !!e && F(this.#r, this.#c[i], 0) && F(this.#n, this.#h[i], 1) && this.#o[i]
+          (e, i) => !!e && k(this.#r, this.#c[i], 0) && k(this.#n, this.#h[i], 1) && this.#o[i]
         ), t !== -1 && (this.#i[t] = 0, this.#n[t] = 1, this.#l--);
       }), t === -1) {
         await this.#E();
@@ -983,10 +986,10 @@ class Nt {
 }
 class Ot {
   static fromWorld(t, e, i) {
-    const s = tt(
+    const s = et(
       e,
       i,
-      K(e)
+      tt(e)
     ), r = s.reduce(function o(h, a, c) {
       for (const u of w(a))
         o(h, s[u], u);
@@ -1063,7 +1066,7 @@ class Dt {
         await i.fn(
           ...i.parameters.map((s) => s.intoArgument(e))
         );
-      await X.fn(e);
+      await K.fn(e);
     }
     return e;
   }
@@ -1148,7 +1151,7 @@ function Qt(n, t) {
   const e = Ft(n);
   return I && kt(e, t), e;
 }
-const k = 64;
+const Q = 64;
 class jt {
   static new(t, e) {
     return new Dt(Qt(t, e), e);
@@ -1171,7 +1174,7 @@ class jt {
     this.#t = t.threads > 1 ? SharedArrayBuffer : ArrayBuffer, this.config = t, this.threads = e, this.tableLengths = this.threads.queue(
       () => new Uint32Array(
         this.createBuffer(
-          k * Uint32Array.BYTES_PER_ELEMENT
+          Q * Uint32Array.BYTES_PER_ELEMENT
         )
       )
     ), this.archetypeLookup.set(0n, 1);
@@ -1187,9 +1190,9 @@ class jt {
       );
     this.components = s, this.entities = Ct.fromWorld(this), this.commands = Yt.fromWorld(this), this.executor = i.fromWorld(this, o, h);
     for (const u of r)
-      if (Q(u)) {
+      if (j(u)) {
         const x = this.threads.queue(
-          () => Z(this, u, 1)
+          () => V(this, u, 1)
         );
         this.resources.set(
           u,
@@ -1223,9 +1226,9 @@ class jt {
       const s = this.tableLengths;
       this.tableLengths = new Uint32Array(
         this.createBuffer(
-          s.length + k * Uint32Array.BYTES_PER_ELEMENT
+          s.length + Q * Uint32Array.BYTES_PER_ELEMENT
         )
-      ), this.tableLengths.set(s), this.threads.send(J(this.tableLengths));
+      ), this.tableLengths.set(s), this.threads.send(X(this.tableLengths));
     }
     const e = this.archetypes.length, i = L.create(
       this,
@@ -1234,7 +1237,7 @@ class jt {
       e
     );
     this.archetypeLookup.set(t, e), this.archetypes.push(i), this.threads.send(
-      G(
+      H(
         [...i.columns.values()],
         i.capacity,
         e,
@@ -1247,7 +1250,7 @@ class jt {
   }
   #s(t) {
     t.grow(this), this.threads.send(
-      H(t.id, t.capacity, [...t.columns.values()])
+      J(t.id, t.capacity, [...t.columns.values()])
     );
   }
 }
@@ -1257,7 +1260,7 @@ function Vt(n) {
 export {
   l as Entity,
   jt as World,
-  X as applyCommands,
+  K as applyCommands,
   z as createThreadChannel,
   Vt as definePlugin,
   zt as defineSystem,
