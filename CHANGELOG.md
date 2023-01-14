@@ -9,9 +9,9 @@ production builds)!
 
 ### 💥 Breaking Changes
 
--   The Dependencies API has changed:
+-   The Dependency API has changed:
     -   `defineSystem` returns an instance of the new `SystemDefinition` class.
-    -   `addSystem` only accepts one argument, a `SystemDefinition`.
+    -   `addSystem` only accepts one argument - a `SystemDefinition`.
     -   `SystemDefinition` instances have
         `before(...others: SystemDefinition[]): this`,
         `after(...others: SystemDefinition[]): this`, `beforeAll(): this`, and
@@ -36,7 +36,7 @@ production builds)!
         argument, which is created by calling your thread message channel with
         the data you want to send.
     -   This new API has much more robust type safety - the types of the data
-        sent to threads and the data returned is all intrinsically linked.
+        sent to threads and the data returned are intrinsically linked.
 -   All validation now only occurs in development builds.
     -   This currently includes:
         -   Validation of world config.
