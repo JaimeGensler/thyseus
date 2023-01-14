@@ -1,19 +1,23 @@
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
 import { overlaps } from './overlaps';
-import type { SystemDefinition } from '../systems';
+import type { SystemDefinition, SystemDependencies } from '../systems';
 import type { World } from '../world';
 
 let nextId = 0;
 const noop = (...args: any[]) => {};
 
 export class ParallelExecutor {
-	static fromWorld(world: World, systems: SystemDefinition[]) {
+	static fromWorld(
+		world: World,
+		systems: SystemDefinition[],
+		systemDependencies: SystemDependencies[],
+	) {
 		const intersections = world.threads.queue(() =>
 			getSystemIntersections(systems),
 		);
 		const dependencies = world.threads.queue(() =>
-			getSystemDependencies(systems, intersections),
+			getSystemDependencies(systems, systemDependencies, intersections),
 		);
 		const locallyAvailable = world.threads.isMainThread
 			? systems.map(() => true)

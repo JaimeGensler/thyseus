@@ -1,56 +1,59 @@
 import { descriptors, type Descriptors, type Descriptor } from './descriptors';
-import type { World } from '../world';
 
-type ParameterCreator<T extends Descriptor[]> = (
-	descriptors: Descriptors,
-) => [...T];
-export type SystemArguments<T extends Descriptor[]> = {
-	[Index in keyof T]: ReturnType<T[Index]['intoArgument']>;
+type ParameterCreator = (descriptors: Descriptors) => Descriptor[];
+type SystemFn<T extends any[]> = (...args: T) => void | Promise<void>;
+export type SystemDependencies = {
+	dependencies: SystemDefinition[];
+	implicitPosition: -1 | 0 | 1;
 };
-type SystemExecute<T extends Descriptor[]> = (
-	...args: SystemArguments<T>
-) => void | Promise<void>;
 
-export class SystemDefinition<T extends Descriptor[] = Descriptor[]> {
-	isBeforeAll = false;
-	isAfterAll = false;
+export class SystemDefinition<T extends any[] = any[]> {
+	#implicitPosition = 0 as -1 | 0 | 1;
+	#dependencies = [] as SystemDefinition<any>[];
 
-	dependencies = [] as SystemDefinition<any>[];
-	dependents = [] as SystemDefinition<any>[];
-
-	#parameterCreator: ParameterCreator<T>;
-	fn: SystemExecute<T>;
-	constructor(parameters: ParameterCreator<T>, fn: SystemExecute<T>) {
+	#parameterCreator: ParameterCreator;
+	fn: SystemFn<T>;
+	constructor(parameters: ParameterCreator, fn: SystemFn<T>) {
 		this.#parameterCreator = parameters;
 		this.fn = fn;
 	}
-	get parameters(): T {
+	get parameters(): Descriptor[] {
 		return this.#parameterCreator(descriptors);
 	}
 
-	before(other: SystemDefinition): this {
-		this.dependents.push(other);
-		other.dependencies.push(this);
+	before(...others: SystemDefinition<any>[]): this {
+		for (const other of others) {
+			other.after(this);
+		}
 		return this;
 	}
-	after(other: SystemDefinition): this {
-		this.dependencies.push(other);
-		other.dependents.push(this);
+	after(...others: SystemDefinition<any>[]): this {
+		for (const other of others) {
+			this.#dependencies.push(other);
+		}
 		return this;
 	}
 
 	beforeAll(): this {
-		this.isAfterAll = false;
-		this.isBeforeAll = true;
+		this.#implicitPosition = -1;
 		return this;
 	}
 	afterAll(): this {
-		this.isBeforeAll = false;
-		this.isAfterAll = true;
+		this.#implicitPosition = 1;
 		return this;
 	}
 
-	getArguments(world: World): SystemArguments<T> {
-		return this.parameters.map(p => p.intoArgument(world)) as any;
+	clone(): SystemDefinition<T> {
+		return new SystemDefinition(this.#parameterCreator, this.fn);
+	}
+
+	getAndClearDependencies(): SystemDependencies {
+		const result = {
+			dependencies: this.#dependencies,
+			implicitPosition: this.#implicitPosition,
+		};
+		this.#dependencies = [];
+		this.#implicitPosition = 0;
+		return result;
 	}
 }

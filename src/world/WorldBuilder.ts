@@ -6,13 +6,18 @@ import {
 	SimpleExecutor,
 	type ExecutorType,
 } from '../executors';
-import { applyCommands, type SystemDefinition } from '../systems';
+import {
+	applyCommands,
+	SystemDependencies,
+	type SystemDefinition,
+} from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
 
 export class WorldBuilder {
 	systems = [] as SystemDefinition[];
+	#systemDependencies = [] as SystemDependencies[];
 	#startupSystems = [] as SystemDefinition[];
 
 	components = new Set<Struct>();
@@ -37,6 +42,7 @@ export class WorldBuilder {
 	 */
 	addSystem(system: SystemDefinition): this {
 		this.systems.push(system);
+		this.#systemDependencies.push(system.getAndClearDependencies());
 		system.parameters.forEach(descriptor => descriptor.onAddSystem(this));
 		return this;
 	}
@@ -120,6 +126,7 @@ export class WorldBuilder {
 					[...this.components],
 					[...this.resources],
 					this.systems,
+					this.#systemDependencies,
 					this.threadChannels,
 				),
 		);
@@ -133,7 +140,9 @@ export class WorldBuilder {
 			);
 
 			for (const system of this.#startupSystems) {
-				await system.fn(...system.getArguments(world));
+				await system.fn(
+					...system.parameters.map(p => p.intoArgument(world)),
+				);
 			}
 			await applyCommands.fn(world);
 		}
@@ -237,5 +246,19 @@ if (import.meta.vitest) {
 		const world = await World.new().build();
 		expect(world.components).toStrictEqual([Entity]);
 		expect(world.systems[0]).toBe(applyCommands.fn);
+	});
+
+	it('clears dependencies after adding systems', () => {
+		const system = defineSystem(
+			() => [],
+			() => {},
+		);
+		const world = World.new();
+		system.beforeAll();
+		world.addSystem(system);
+		expect(system.getAndClearDependencies()).toStrictEqual({
+			dependencies: [],
+			implicitPosition: 0,
+		});
 	});
 }

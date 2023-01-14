@@ -1,13 +1,18 @@
 import { getSystemDependencies } from './getSystemDependencies';
 import { getSystemIntersections } from './getSystemIntersections';
 import { bits } from '../utils/bits';
-import type { SystemDefinition } from '../systems';
+import type { SystemDefinition, SystemDependencies } from '../systems';
 import type { World } from '../world';
 
 export class SimpleExecutor {
-	static fromWorld(world: World, systems: SystemDefinition[]) {
+	static fromWorld(
+		world: World,
+		systems: SystemDefinition[],
+		systemDependencies: SystemDependencies[],
+	) {
 		const dependencies = getSystemDependencies(
 			systems,
+			systemDependencies,
 			getSystemIntersections(systems),
 		);
 
@@ -71,7 +76,11 @@ if (import.meta.vitest) {
 
 	it('executes systems sequentially if unordered', async () => {
 		const { systems, order, world } = createOrderTracking(5);
-		const exec = SimpleExecutor.fromWorld(world, systems);
+		const exec = SimpleExecutor.fromWorld(
+			world,
+			systems,
+			systems.map(s => s.getAndClearDependencies()),
+		);
 		await exec.start();
 		expect(order).toStrictEqual([0, 1, 2, 3, 4]);
 	});
@@ -81,7 +90,11 @@ if (import.meta.vitest) {
 		systems[0].after(systems[3]);
 		systems[1].before(systems[0]);
 		systems[3].after(systems[4]);
-		const exec = SimpleExecutor.fromWorld(world, systems);
+		const exec = SimpleExecutor.fromWorld(
+			world,
+			systems,
+			systems.map(s => s.getAndClearDependencies()),
+		);
 		await exec.start();
 		expect(order).toStrictEqual([1, 4, 3, 0, 2]);
 	});
@@ -90,7 +103,11 @@ if (import.meta.vitest) {
 		const { systems, order, world } = createOrderTracking(5);
 		systems[1].before(systems[3]);
 		systems[3].beforeAll();
-		const exec = SimpleExecutor.fromWorld(world, systems);
+		const exec = SimpleExecutor.fromWorld(
+			world,
+			systems,
+			systems.map(s => s.getAndClearDependencies()),
+		);
 		await exec.start();
 		expect(order).toStrictEqual([1, 3, 0, 2, 4]);
 	});
@@ -99,7 +116,11 @@ if (import.meta.vitest) {
 		const { systems, order, world } = createOrderTracking(5);
 		systems[1].after(systems[3]);
 		systems[3].afterAll();
-		const exec = SimpleExecutor.fromWorld(world, systems);
+		const exec = SimpleExecutor.fromWorld(
+			world,
+			systems,
+			systems.map(s => s.getAndClearDependencies()),
+		);
 		await exec.start();
 		expect(order).toStrictEqual([0, 2, 4, 3, 1]);
 	});
@@ -111,7 +132,11 @@ if (import.meta.vitest) {
 		systems[1].after(systems[0]);
 		systems[4].before(systems[5]);
 		systems[3].before(systems[2]);
-		const exec = SimpleExecutor.fromWorld(world, systems);
+		const exec = SimpleExecutor.fromWorld(
+			world,
+			systems,
+			systems.map(s => s.getAndClearDependencies()),
+		);
 		await exec.start();
 		expect(order).toStrictEqual([4, 5, 3, 2, 0, 1]);
 	});

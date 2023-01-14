@@ -17,7 +17,7 @@ import {
 } from './config';
 import type { ExecutorInstance, ExecutorType } from '../executors';
 import type { ThreadGroup, ThreadMessageChannel } from '../threads';
-import type { SystemDefinition } from '../systems';
+import type { SystemDefinition, SystemDependencies } from '../systems';
 import type { Query } from '../queries';
 
 const TABLE_BATCH_SIZE = 64;
@@ -57,6 +57,7 @@ export class World {
 		components: Struct[],
 		resourceTypes: Class[],
 		systems: SystemDefinition[],
+		dependencies: SystemDependencies[],
 		channels: ThreadMessageChannel[],
 	) {
 		this.#bufferType = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
@@ -91,7 +92,7 @@ export class World {
 		this.components = components;
 		this.entities = Entities.fromWorld(this);
 		this.commands = Commands.fromWorld(this);
-		this.executor = executor.fromWorld(this, systems);
+		this.executor = executor.fromWorld(this, systems, dependencies);
 
 		for (const Resource of resourceTypes) {
 			if (isStruct(Resource)) {
@@ -109,7 +110,9 @@ export class World {
 
 		for (const system of systems) {
 			this.systems.push(system.fn);
-			this.arguments.push(system.getArguments(this));
+			this.arguments.push(
+				system.parameters.map(p => p.intoArgument(this)),
+			);
 		}
 	}
 

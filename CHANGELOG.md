@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.8.0 (January 8, 2023)
+## v0.8.0 (January 14, 2023)
 
 This update prioritizes some necessary cleanup and stability improvements, and
 so is a bit light on features and heavier on breaking changes. As part of this
@@ -12,11 +12,17 @@ production builds)!
 -   The Dependencies API has changed:
     -   `defineSystem` returns an instance of the new `SystemDefinition` class.
     -   `addSystem` only accepts one argument, a `SystemDefinition`.
-    -   `SystemDefinition` instances have `before(other: SystemDefinition)`,
-        `after(other: SystemDefinition)`, `beforeAll()`, and `afterAll()`
-        methods. These are now how you declare dependencies.
-    -   Dependencies behave the same as before (see
-        [v0.2.0 changelog](#v020-july-31-2022) for a refresher).
+    -   `SystemDefinition` instances have
+        `before(...others: SystemDefinition[]): this`,
+        `after(...others: SystemDefinition[]): this`, `beforeAll(): this`, and
+        `afterAll(): this` methods. These are now how you declare dependencies.
+        -   Dependencies behave the same as before (see
+            [v0.2.0 changelog](#v020-july-31-2022) for a refresher).
+    -   When a system is added to the world, its dependencies are cleared. This
+        allows systems to have different dependencies across worlds.
+        -   For this reason, it is recommended that you either declare
+            dependencies when you add systems to a world, or in the same module
+            you build a world.
     -   As before, dependencies remain unused for startup systems, though this
         will likely change in the future.
 -   `WorldBuilder`'s `registerThreadChannel` method and `ThreadGroup`'s `send`
@@ -56,6 +62,12 @@ production builds)!
         better correctness guarantees in dev and better performance in prod!
 -   Added `isAlive(entityId: bigint)` to `Entities` (`world.entities`), if you
     need to check if an entity is still alive.
+-   Added `clone(): SystemDefinition` method to `SystemDefinition`.
+    -   Useful if you need to add multiple instances of the same system (e.g.,
+        if you'd like to add an additional `applyCommands` system in the middle
+        of your update loop).
+    -   `clone` does not clone dependencies or dependents. It's a completely new
+        system with the same functionality!
 -   Dependencies are now recursively validated.
     -   Previously, errors were only thrown if dependencies were directly
         circular (e.g., `A before B before A` or `A before A`).
@@ -65,6 +77,9 @@ production builds)!
     may pass a custom executor implementation.
     -   Custom executors are an especially advanced pattern - some documentation
         around API requirements has been added.
+-   Added `SimpleExecutor`, which is automatically used in single-threaded
+    worlds.
+    -   `SimpleExecutor` currently performs much better than `ParallelExecutor`.
 
 ### 🐛 Bug Fixes
 
@@ -80,6 +95,12 @@ production builds)!
     all systems have finished executing.
 -   Fixed a rare bug where `beforeAll`/`afterAll` could introduce undetected
     circular dependencies.
+-   Fixed bug where using more than 2 threads would cause unresolveable promises
+    and prevent worlds from being built.
+
+### 🔧 Maintenance
+
+-   Bump dev dependency versions.
 
 ## v0.7.0 (December 11, 2022)
 

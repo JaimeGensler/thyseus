@@ -487,35 +487,34 @@ declare const descriptors: {
 	) => Or<L, R>;
 };
 type Descriptors = typeof descriptors;
-type ParameterCreator<T extends Descriptor[]> = (
-	descriptors: Descriptors,
-) => [...T];
+type ParameterCreator = (descriptors: Descriptors) => Descriptor[];
+type SystemFn<T extends any[]> = (...args: T) => void | Promise<void>;
+type SystemDependencies = {
+	dependencies: SystemDefinition[];
+	implicitPosition: -1 | 0 | 1;
+};
+declare class SystemDefinition<T extends any[] = any[]> {
+	#private;
+	fn: SystemFn<T>;
+	constructor(parameters: ParameterCreator, fn: SystemFn<T>);
+	get parameters(): Descriptor[];
+	before(...others: SystemDefinition<any>[]): this;
+	after(...others: SystemDefinition<any>[]): this;
+	beforeAll(): this;
+	afterAll(): this;
+	getAndClearDependencies(): {
+		dependencies: SystemDefinition<any>[];
+		implicitPosition: 0 | 1 | -1;
+	};
+}
 type SystemArguments<T extends Descriptor[]> = {
 	[Index in keyof T]: ReturnType<T[Index]['intoArgument']>;
 };
-type SystemExecute<T extends Descriptor[]> = (
-	...args: SystemArguments<T>
-) => void | Promise<void>;
-declare class SystemDefinition<T extends Descriptor[] = Descriptor[]> {
-	#private;
-	isBeforeAll: boolean;
-	isAfterAll: boolean;
-	dependencies: SystemDefinition<any>[];
-	dependents: SystemDefinition<any>[];
-	fn: SystemExecute<T>;
-	constructor(parameters: ParameterCreator<T>, fn: SystemExecute<T>);
-	get parameters(): T;
-	before(other: SystemDefinition): this;
-	after(other: SystemDefinition): this;
-	beforeAll(): this;
-	afterAll(): this;
-	getArguments(world: World): SystemArguments<T>;
-}
 export declare function defineSystem<T extends Descriptor[]>(
 	parameters: (descriptors: Descriptors) => [...T],
 	fn: (...args: SystemArguments<T>) => void | Promise<void>,
-): SystemDefinition<T>;
-export declare const applyCommands: SystemDefinition<[WorldDescriptor]>;
+): SystemDefinition<SystemArguments<T>>;
+export declare const applyCommands: SystemDefinition<[World]>;
 type ExecutorInstance = {
 	start(): Promise<void>;
 };
@@ -523,6 +522,7 @@ type ExecutorType = {
 	fromWorld(
 		world: World,
 		systemDefinitions: SystemDefinition[],
+		systemDependencies: SystemDependencies[],
 	): ExecutorInstance;
 };
 type WorldConfig = {
@@ -537,7 +537,7 @@ type Plugin = (worldBuilder: WorldBuilder) => void;
 export declare function definePlugin<T extends Plugin>(plugin: T): T;
 declare class WorldBuilder {
 	#private;
-	systems: SystemDefinition<Descriptor[]>[];
+	systems: SystemDefinition<any[]>[];
 	components: Set<Struct>;
 	resources: Set<Class>;
 	threadChannels: ThreadMessageChannel<[], void>[];
@@ -620,6 +620,7 @@ export declare class World {
 		components: Struct[],
 		resourceTypes: Class[],
 		systems: SystemDefinition[],
+		dependencies: SystemDependencies[],
 		channels: ThreadMessageChannel[],
 	);
 	/**

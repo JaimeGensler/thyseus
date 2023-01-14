@@ -30,7 +30,16 @@ method. This method accepts one argument - an `ExecutorType`, shown below:
 
 ```ts
 type ExecutorType = {
-	fromWorld(world: World, systems: SystemDefinition[]): ExecutorInstance;
+	fromWorld(
+		world: World,
+		systems: SystemDefinition[],
+		systemDependencies: SystemDependencies[],
+	): ExecutorInstance;
+};
+type SystemDependencies = {
+	dependencies: SystemDefinition[];
+	beforeAll: boolean;
+	afterAll: boolean;
 };
 type ExecutorInstance = { start(): Promise<void> };
 ```
@@ -42,6 +51,7 @@ class SimpleExecutor {
 	static fromWorld(
 		world: World,
 		systems: SystemDefinition[],
+		systemDependencies: SystemDependencies[],
 	): SimpleExecutor {}
 
 	constructor(/* ... */) {}
