@@ -96,13 +96,12 @@ export class World {
 
 		for (const Resource of resourceTypes) {
 			if (isStruct(Resource)) {
-				const store = this.threads.queue(() =>
+				const resource = new Resource();
+				//@ts-ignore: __$$s exists.
+				resource.__$$s = this.threads.queue(() =>
 					createStore(this, Resource, 1),
 				);
-				this.resources.set(
-					Resource,
-					new Resource(store, 0, this.commands),
-				);
+				this.resources.set(Resource, new Resource());
 			} else if (threads.isMainThread) {
 				this.resources.set(Resource, new Resource());
 			}

@@ -15,7 +15,8 @@ export function substruct(struct: Struct) {
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				const val: any = new struct(this.__$$s, 0, {} as any);
+				const val: any = new struct();
+				val.__$$s = this.__$$s;
 				val.__$$b =
 					this.__$$b + offset[propertyKey] * struct.alignment!;
 				return val;

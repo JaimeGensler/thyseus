@@ -1,5 +1,5 @@
+import { Entity, type Table } from '../storage';
 import type { Struct } from '../struct';
-import type { Table } from '../storage';
 import type { Commands } from '../world/Commands';
 import type { Mut, Optional, Filter } from './modifiers';
 
@@ -41,9 +41,11 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		this.#without = withoutFilters;
 		this.#components = components;
 		this.#commands = commands;
-		this.#elements = this.#components.map(
-			// TODO: This will cause a de-opt - refactor to not pass an empty object
-			Component => new Component({} as any, 0, commands),
+		this.#elements = this.#components.map(Component =>
+			Component === Entity
+				? //@ts-ignore
+				  new Component(this.#commands)
+				: new Component(),
 		);
 	}
 
@@ -54,8 +56,11 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	*[Symbol.iterator](): QueryIterator<A> {
 		if (this.#elementOffset >= this.#elements.length) {
 			this.#elements.push(
-				...this.#components.map(
-					Component => new Component({} as any, 0, this.#commands),
+				...this.#components.map(Component =>
+					Component === Entity
+						? //@ts-ignore
+						  new Component(this.#commands)
+						: new Component(),
 				),
 			);
 		}

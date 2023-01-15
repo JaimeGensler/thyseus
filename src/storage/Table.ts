@@ -119,12 +119,12 @@ if (import.meta.vitest) {
 	class Vec3 {
 		declare static schema: number;
 		declare static size: number;
-		declare store: StructStore;
+		declare __$$s: StructStore;
 		declare __$$b: number;
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
-		constructor(store: StructStore, index: number) {}
+		constructor() {}
 	}
 
 	const mockWorld: World = {
@@ -176,7 +176,8 @@ if (import.meta.vitest) {
 		expect(toTable.size).toBe(1);
 		expect(fromTable.columns.get(Entity)!.u64![0]).toBe(3n);
 
-		const from = new Vec3(fromTable.columns.get(Vec3)!, 0);
+		const from = new Vec3();
+		from.__$$s = fromTable.columns.get(Vec3)!;
 		from.x = 1;
 		from.y = 2;
 		from.z = 3;
@@ -185,7 +186,8 @@ if (import.meta.vitest) {
 		from.y = 8;
 		from.z = 9;
 
-		const to = new Vec3(toTable.columns.get(Vec3)!, 0);
+		const to = new Vec3();
+		from.__$$s = toTable.columns.get(Vec3)!;
 		expect(to.x).toBe(0);
 		expect(to.y).toBe(0);
 		expect(to.z).toBe(0);
@@ -209,8 +211,10 @@ if (import.meta.vitest) {
 
 	it('deletes elements, swaps in last elements', () => {
 		const table = createTable(Entity, Vec3);
-		const vec = new Vec3(table.columns.get(Vec3)!, 0);
-		const ent = new Entity(table.columns.get(Entity)!, 0, {} as any);
+		const vec = new Vec3();
+		vec.__$$s = table.columns.get(Vec3)!;
+		const ent = new Entity({} as any);
+		(ent as any).__$$s = table.columns.get(Entity)!;
 
 		uncreated.move(1, table);
 		uncreated.move(2, table);
@@ -284,7 +288,8 @@ if (import.meta.vitest) {
 		expect(toTable.size).toBe(1);
 		expect(fromTable.columns.get(Entity)!.u64![0]).toBe(3n);
 
-		const from = new Vec3(fromTable.columns.get(Vec3)!, 0);
+		const from = new Vec3();
+		from.__$$s = fromTable.columns.get(Vec3)!;
 		from.x = 1;
 		from.y = 2;
 		from.z = 3;
@@ -295,7 +300,8 @@ if (import.meta.vitest) {
 
 		fromTable.move(0, toTable);
 
-		const to = new Entity(toTable.columns.get(Entity)!, 0, {} as any);
+		const to = new Entity({} as any);
+		(to as any).__$$s = toTable.columns.get(Entity)!;
 		(to as any).__$$b = Entity.size;
 		expect(to.id).toBe(3n);
 
@@ -313,8 +319,10 @@ if (import.meta.vitest) {
 		uncreated.move(25, table);
 		uncreated.move(233, table);
 
-		const vec = new Vec3(table.columns.get(Vec3)!, 0);
-		const ent = new Entity(table.columns.get(Entity)!, 0, {} as any);
+		const vec = new Vec3();
+		vec.__$$s = table.columns.get(Vec3)!;
+		const ent = new Entity({} as any);
+		(ent as any).__$$s = table.columns.get(Entity)!;
 		vec.x = 100;
 		vec.y = 200;
 		vec.z = 300;
@@ -360,7 +368,8 @@ if (import.meta.vitest) {
 
 	it('increments generations', () => {
 		const table = createTable(Entity);
-		const ent = new Entity(table.columns.get(Entity)!, 0, {} as any);
+		const ent = new Entity();
+		(ent as any).__$$s = table.columns.get(Entity)!;
 		expect(ent.generation).toBe(0);
 		table.incrementGeneration(0);
 		expect(ent.generation).toBe(1);

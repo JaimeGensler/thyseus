@@ -54,7 +54,7 @@ if (import.meta.vitest) {
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
-		constructor(store: StructStore, index: number) {}
+		constructor() {}
 	}
 
 	const mockWorld: World = {
@@ -171,7 +171,8 @@ if (import.meta.vitest) {
 		it('copies previous items', () => {
 			const initialStore = createStore(mockWorld, Vec3, 8);
 
-			const vec = new Vec3(initialStore, 0);
+			const vec = new Vec3();
+			vec.__$$s = initialStore;
 			const values = [1.2, 0, Math.PI, 3.3, 4.4, 5.5, 6, 7.7];
 			values.forEach((val, i) => {
 				vec.__$$b = i * Vec3.size;
