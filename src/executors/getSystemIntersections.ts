@@ -1,20 +1,17 @@
 import type { SystemDefinition } from '../systems';
 
-type Intersecting = 1;
-type Disjoint = 0;
 function getSystemRelationship(
 	left: SystemDefinition,
 	right: SystemDefinition,
-): Intersecting | Disjoint {
+): 0 | 1 {
 	return left.parameters.some(pL =>
 		right.parameters.some(
 			pR => pL.intersectsWith(pR) || pR.intersectsWith(pL),
 		),
 	)
-		? 1
-		: 0;
+		? 1 //  Intersecting
+		: 0; // Disjoint
 }
-
 export function getSystemIntersections(systems: SystemDefinition[]): bigint[] {
 	return systems.map(current =>
 		systems.reduce(
