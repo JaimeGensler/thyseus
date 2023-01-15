@@ -46,7 +46,8 @@ built-in descriptors and third-party descriptors.
 This method is called when a system is added by a `WorldBuilder` instance. It is
 called with the WorldBuilder that added it, and allows the descriptor to do
 whatever it may need with the builder - anything from adding systems or plugins,
-to registering components or other data.
+to registering components or other data. For some descriptors, this may do
+nothing at all!
 
 ### `intoArgument(world: World): any`
 
