@@ -19,8 +19,12 @@ function createSchemaStoreFromRoot(struct: Struct, root: any): StructStore {
 		return acc;
 	}, root);
 }
-export function createStore(world: World, struct: Struct, count: number) {
-	const buffer = world.createBuffer(struct.size! * count);
+export function createStore(
+	bufferType: ArrayBufferConstructor | SharedArrayBufferConstructor,
+	struct: Struct,
+	count: number,
+) {
+	const buffer = new bufferType(struct.size! * count);
 	return createSchemaStoreFromRoot(struct, {
 		buffer,
 		u8: new Uint8Array(buffer),
@@ -57,13 +61,6 @@ if (import.meta.vitest) {
 		constructor() {}
 	}
 
-	const mockWorld: World = {
-		createBuffer: (l: number) => new ArrayBuffer(l),
-		config: {
-			getNewTableSize: () => 8,
-		},
-	} as any;
-
 	describe('createStore', () => {
 		it('returns an object with TypedArray keys for specified fields, using a single buffer', () => {
 			@struct()
@@ -81,7 +78,7 @@ if (import.meta.vitest) {
 				@struct.f32() declare i: number;
 				@struct.f64() declare j: number;
 			}
-			const result = createStore(mockWorld, MyComponent, 8);
+			const result = createStore(ArrayBuffer, MyComponent, 8);
 
 			expect(result.buffer).toBeInstanceOf(ArrayBuffer);
 			expect(result.u8).toBeInstanceOf(Uint8Array);
@@ -111,7 +108,7 @@ if (import.meta.vitest) {
 				@struct.f32() declare c: number;
 			}
 			const buffer = new ArrayBuffer(16);
-			expect(createStore(mockWorld, MyComponent, 1)).toStrictEqual({
+			expect(createStore(ArrayBuffer, MyComponent, 1)).toStrictEqual({
 				buffer,
 				u8: new Uint8Array(buffer),
 				u64: new BigUint64Array(buffer),
@@ -125,7 +122,7 @@ if (import.meta.vitest) {
 				static schema = 0;
 				static size = 1;
 			}
-			const result = createStore(mockWorld, SchemalessComponent, 8);
+			const result = createStore(ArrayBuffer, SchemalessComponent, 8);
 			expect(result).toStrictEqual({
 				buffer: new ArrayBuffer(8),
 				u8: new Uint8Array(8),
@@ -138,13 +135,13 @@ if (import.meta.vitest) {
 				static size = 8;
 				static alignment = 4;
 			}
-			const result1 = createStore(mockWorld, SomeComponent, 1);
+			const result1 = createStore(ArrayBuffer, SomeComponent, 1);
 			expect(result1.buffer.byteLength).toBe(8 * 1);
-			const result2 = createStore(mockWorld, SomeComponent, 3);
+			const result2 = createStore(ArrayBuffer, SomeComponent, 3);
 			expect(result2.buffer.byteLength).toBe(8 * 3);
-			const result3 = createStore(mockWorld, SomeComponent, 7);
+			const result3 = createStore(ArrayBuffer, SomeComponent, 7);
 			expect(result3.buffer.byteLength).toBe(8 * 7);
-			const result4 = createStore(mockWorld, SomeComponent, 63);
+			const result4 = createStore(ArrayBuffer, SomeComponent, 63);
 			expect(result4.buffer.byteLength).toBe(8 * 63);
 
 			expect(result4.i8).toBeInstanceOf(Int8Array);
@@ -155,7 +152,7 @@ if (import.meta.vitest) {
 
 	describe('resizeStore', () => {
 		it('returns an object with the same shape', () => {
-			const initialStore = createStore(mockWorld, Vec3, 8);
+			const initialStore = createStore(ArrayBuffer, Vec3, 8);
 			const resizedStore = resizeStore(initialStore, Vec3, 16);
 
 			expect(initialStore).toBe(resizedStore);
@@ -169,7 +166,7 @@ if (import.meta.vitest) {
 		});
 
 		it('copies previous items', () => {
-			const initialStore = createStore(mockWorld, Vec3, 8);
+			const initialStore = createStore(ArrayBuffer, Vec3, 8);
 
 			const vec = new Vec3();
 			vec.__$$s = initialStore;

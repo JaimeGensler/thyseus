@@ -32,7 +32,7 @@ export class World {
 		return new WorldBuilder(validateAndCompleteConfig(config, url), url);
 	}
 
-	#bufferType: ArrayBufferConstructor | SharedArrayBufferConstructor;
+	buffer: ArrayBufferConstructor | SharedArrayBufferConstructor;
 
 	archetypeLookup = new Map<bigint, number>();
 	tableLengths: Uint32Array;
@@ -60,7 +60,7 @@ export class World {
 		dependencies: SystemDependencies[],
 		channels: ThreadMessageChannel[],
 	) {
-		this.#bufferType = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
+		this.buffer = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
 
 		this.config = config;
 		this.threads = threads;
@@ -99,7 +99,7 @@ export class World {
 				const resource = new Resource();
 				//@ts-ignore: __$$s exists.
 				resource.__$$s = this.threads.queue(() =>
-					createStore(this, Resource, 1),
+					createStore(this.buffer, Resource, 1),
 				);
 				this.resources.set(Resource, new Resource());
 			} else if (threads.isMainThread) {
@@ -120,7 +120,7 @@ export class World {
 	 * Returns a SharedArrayBuffer if multithreading, and a normal ArrayBuffer if not.
 	 */
 	createBuffer(byteLength: number): ArrayBufferLike {
-		return new this.#bufferType(byteLength);
+		return new this.buffer(byteLength);
 	}
 
 	async update() {

@@ -15,7 +15,10 @@ export class Table {
 			world,
 			components.reduce((acc, component) => {
 				if (component.size! > 0) {
-					acc.set(component, createStore(world, component, capacity));
+					acc.set(
+						component,
+						createStore(world.buffer, component, capacity),
+					);
 				}
 				return acc;
 			}, new Map<Struct, StructStore>()),
