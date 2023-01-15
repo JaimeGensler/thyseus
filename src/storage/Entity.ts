@@ -1,18 +1,17 @@
-import { TYPE_IDS, type Struct, type StructStore } from '../struct';
+import { initStruct, TYPE_IDS, type Struct, type StructStore } from '../struct';
 import type { Commands } from '../world/Commands';
 
 export class Entity {
 	static schema = TYPE_IDS.u64 | TYPE_IDS.u32;
 	static size = 8;
 
-	private __$$s: StructStore;
-	private __$$b: number;
+	private declare __$$s: StructStore;
+	private declare __$$b: number;
 
 	#commands: Commands;
-	constructor(store: StructStore, index: number, commands: Commands) {
-		this.__$$s = store;
-		this.__$$b = 0;
-		this.#commands = commands;
+	constructor(commands?: Commands) {
+		initStruct(this);
+		this.#commands = commands!;
 	}
 
 	/**
