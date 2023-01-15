@@ -15,7 +15,7 @@ import {
 import { string } from './string';
 import { array } from './array';
 import { substruct } from './substruct';
-import type { Commands } from '../world/Commands';
+import { initStruct } from './initStruct';
 
 export type Class = {
 	new (...args: any[]): object;
@@ -51,7 +51,7 @@ export type Struct = {
 	 */
 	size?: number;
 
-	new (store: StructStore, index: number, commands: Commands): object;
+	new (): object;
 };
 
 export function struct() {
@@ -62,13 +62,12 @@ export function struct() {
 			static size = size;
 			static alignment = alignment;
 
-			__$$s: StructStore;
-			__$$b: number;
+			declare __$$s: StructStore;
+			declare __$$b: number;
 
-			constructor(store: StructStore, byteOffset: number) {
+			constructor() {
 				super();
-				this.__$$s = store;
-				this.__$$b = byteOffset;
+				initStruct(this);
 			}
 		};
 	};
@@ -100,10 +99,11 @@ if (import.meta.vitest) {
 		declare static schema: number;
 		declare static size: number;
 		declare __$$b: number;
+		declare __$$s: StructStore;
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
-		constructor(store: StructStore, index: number) {}
+		constructor() {}
 	}
 
 	it('adds a schema, size, and alignment to decorated classes', () => {
@@ -151,7 +151,8 @@ if (import.meta.vitest) {
 		store.f64[1] = 2;
 		store.f64[2] = 3;
 
-		const vec = new Vec3(store, 0);
+		const vec = new Vec3();
+		vec.__$$s = store;
 
 		expect(vec.x).toBe(1);
 		expect(vec.y).toBe(2);
@@ -197,11 +198,12 @@ if (import.meta.vitest) {
 		] of fields) {
 			@struct()
 			class Comp {
+				declare __$$s: StructStore;
 				declare __$$b: number;
 				declare static schema: number;
 				declare static size: number;
 				@decorator() declare field: any;
-				constructor(store: StructStore, index: number) {}
+				constructor() {}
 			}
 
 			expect(Comp.schema).toBe(TYPE_IDS[schemaField]);
@@ -215,7 +217,8 @@ if (import.meta.vitest) {
 				[schemaField]: new FieldConstructor(buffer),
 			};
 
-			const comp = new Comp(store, 0);
+			const comp = new Comp();
+			comp.__$$s = store;
 			expect(comp.field).toBe(init);
 			comp.field = val;
 			expect(comp.field).toBe(val);
@@ -294,12 +297,13 @@ if (import.meta.vitest) {
 		class Comp {
 			declare static size: number;
 			declare static schema: number;
+			declare __$$s: StructStore;
 			declare __$$b: number;
 			@struct.u8() declare a: number;
 			@struct.u64() declare b: bigint;
 			@struct.i16() declare c: number;
 			@struct.f32() declare d: number;
-			constructor(store: StructStore, index: number) {}
+			constructor() {}
 		}
 		const buffer = new ArrayBuffer(Comp.size * 2);
 		const store = {
@@ -309,7 +313,8 @@ if (import.meta.vitest) {
 			i16: new Int16Array(buffer),
 			f32: new Float32Array(buffer),
 		};
-		const comp = new Comp(store, 0);
+		const comp = new Comp();
+		comp.__$$s = store;
 		expect(comp.a).toBe(0);
 		expect(comp.b).toBe(0n);
 		expect(comp.c).toBe(0);
@@ -331,11 +336,12 @@ if (import.meta.vitest) {
 		class Transform {
 			declare static size: number;
 			declare static schema: number;
+			declare __$$s: StructStore;
 			declare __$$b: number;
 			@struct.substruct(Vec3) declare position: Vec3;
 			@struct.f32() declare scale: number;
 			@struct.substruct(Vec3) declare rotation: Vec3;
-			constructor(store: StructStore, index: number) {}
+			constructor() {}
 		}
 
 		const buffer = new ArrayBuffer(Transform.size * 2);
@@ -345,7 +351,8 @@ if (import.meta.vitest) {
 			f32: new Float32Array(buffer),
 			f64: new Float64Array(buffer),
 		};
-		const transform = new Transform(store, 0);
+		const transform = new Transform();
+		transform.__$$s = store;
 		expect(transform.position.x).toBe(0);
 		expect(transform.position.y).toBe(0);
 		expect(transform.position.z).toBe(0);
