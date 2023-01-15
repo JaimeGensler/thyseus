@@ -64,20 +64,11 @@ export function struct() {
 
 			__$$s: StructStore;
 			__$$b: number;
-			#index: number;
-			get __$$i() {
-				return this.#index;
-			}
-			set __$$i(value: number) {
-				this.#index = value;
-				this.__$$b = value * (this.constructor as any).size;
-			}
 
-			constructor(store: StructStore, index: number) {
+			constructor(store: StructStore, byteOffset: number) {
 				super();
 				this.__$$s = store;
-				this.#index = index;
-				this.__$$b = index * (this.constructor as any).size;
+				this.__$$b = byteOffset;
 			}
 		};
 	};
@@ -107,7 +98,8 @@ if (import.meta.vitest) {
 	@struct()
 	class Vec3 {
 		declare static schema: number;
-		declare __$$i: number;
+		declare static size: number;
+		declare __$$b: number;
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
@@ -168,7 +160,7 @@ if (import.meta.vitest) {
 		vec.x = Math.PI;
 		expect(vec.x).toBe(Math.PI);
 
-		vec.__$$i = 1;
+		vec.__$$b = Vec3.size;
 
 		expect(vec.x).toBe(0);
 		expect(vec.y).toBe(0);
@@ -205,8 +197,9 @@ if (import.meta.vitest) {
 		] of fields) {
 			@struct()
 			class Comp {
-				declare __$$i: number;
+				declare __$$b: number;
 				declare static schema: number;
+				declare static size: number;
 				@decorator() declare field: any;
 				constructor(store: StructStore, index: number) {}
 			}
@@ -226,7 +219,7 @@ if (import.meta.vitest) {
 			expect(comp.field).toBe(init);
 			comp.field = val;
 			expect(comp.field).toBe(val);
-			comp.__$$i = 1;
+			comp.__$$b = Comp.size;
 			expect(comp.field).toBe(init);
 		}
 	});
@@ -270,7 +263,7 @@ if (import.meta.vitest) {
 		class Comp {
 			declare static size: number;
 			declare static schema: number;
-			declare __$$i: number;
+			declare __$$b: number;
 			@struct.array({ type: 'u8', length: 8 }) declare value: Uint8Array;
 			@struct.array({ type: 'f64', length: 3 })
 			declare value2: Float64Array;
@@ -290,7 +283,7 @@ if (import.meta.vitest) {
 		comp.value2 = new Float64Array(3).fill(Math.PI);
 		expect(comp.value).toStrictEqual(new Uint8Array(8).fill(3));
 		expect(comp.value2).toStrictEqual(new Float64Array(3).fill(Math.PI));
-		comp.__$$i = 1;
+		comp.__$$b = Comp.size;
 
 		expect(comp.value).toStrictEqual(new Uint8Array(8));
 		expect(comp.value2).toStrictEqual(new Float64Array(3));
@@ -301,7 +294,7 @@ if (import.meta.vitest) {
 		class Comp {
 			declare static size: number;
 			declare static schema: number;
-			declare __$$i: number;
+			declare __$$b: number;
 			@struct.u8() declare a: number;
 			@struct.u64() declare b: bigint;
 			@struct.i16() declare c: number;
@@ -338,7 +331,7 @@ if (import.meta.vitest) {
 		class Transform {
 			declare static size: number;
 			declare static schema: number;
-			declare __$$i: number;
+			declare __$$b: number;
 			@struct.substruct(Vec3) declare position: Vec3;
 			@struct.f32() declare scale: number;
 			@struct.substruct(Vec3) declare rotation: Vec3;

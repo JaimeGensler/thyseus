@@ -84,7 +84,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 				for (const element of elements) {
 					if (element) {
 						//@ts-ignore
-						element.__$$i = i;
+						element.__$$b = i * element.constructor.size;
 					}
 				}
 

@@ -7,22 +7,12 @@ export class Entity {
 
 	private __$$s: StructStore;
 	private __$$b: number;
-	#index: number;
 
 	#commands: Commands;
 	constructor(store: StructStore, index: number, commands: Commands) {
 		this.__$$s = store;
-		this.#index = index;
-		this.__$$b = index * Entity.size;
+		this.__$$b = 0;
 		this.#commands = commands;
-	}
-
-	private get __$$i() {
-		return this.#index;
-	}
-	private set __$$i(val: number) {
-		this.#index = val;
-		this.__$$b = val * Entity.size;
 	}
 
 	/**

@@ -120,7 +120,7 @@ if (import.meta.vitest) {
 		declare static schema: number;
 		declare static size: number;
 		declare store: StructStore;
-		declare __$$i: number;
+		declare __$$b: number;
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
@@ -180,7 +180,7 @@ if (import.meta.vitest) {
 		from.x = 1;
 		from.y = 2;
 		from.z = 3;
-		from.__$$i = 1;
+		from.__$$b = Vec3.size;
 		from.x = 7;
 		from.y = 8;
 		from.z = 9;
@@ -195,12 +195,12 @@ if (import.meta.vitest) {
 		expect(fromTable.size).toBe(1);
 		expect(toTable.size).toBe(2);
 
-		to.__$$i = 1;
+		to.__$$b = Vec3.size;
 		expect(to.x).toBe(1);
 		expect(to.y).toBe(2);
 		expect(to.z).toBe(3);
 
-		from.__$$i = 0;
+		from.__$$b = 0;
 		expect(from.x).toBe(7);
 		expect(from.y).toBe(8);
 		expect(from.z).toBe(9);
@@ -221,15 +221,15 @@ if (import.meta.vitest) {
 		vec.x = 1;
 		vec.y = 2;
 		vec.z = 3;
-		vec.__$$i = 1;
+		vec.__$$b = Vec3.size;
 		vec.x = 4;
 		vec.y = 5;
 		vec.z = 6;
-		vec.__$$i = 2;
+		vec.__$$b = Vec3.size * 2;
 		vec.x = 7;
 		vec.y = 8;
 		vec.z = 9;
-		vec.__$$i = 3;
+		vec.__$$b = Vec3.size * 3;
 		vec.x = 10;
 		vec.y = 11;
 		vec.z = 12;
@@ -237,20 +237,20 @@ if (import.meta.vitest) {
 		table.delete(1);
 		expect(table.size).toBe(3);
 
-		vec.__$$i = 0;
-		(ent as any).__$$i = 0;
+		vec.__$$b = 0;
+		(ent as any).__$$b = 0;
 		expect(ent.id).toBe(1n);
 		expect(vec.x).toBe(1);
 		expect(vec.y).toBe(2);
 		expect(vec.z).toBe(3);
-		vec.__$$i = 1;
-		(ent as any).__$$i = 1;
+		vec.__$$b = Vec3.size;
+		(ent as any).__$$b = Entity.size;
 		expect(ent.id).toBe(4n);
 		expect(vec.x).toBe(10);
 		expect(vec.y).toBe(11);
 		expect(vec.z).toBe(12);
-		vec.__$$i = 2;
-		(ent as any).__$$i = 2;
+		vec.__$$b = Vec3.size * 2;
+		(ent as any).__$$b = Entity.size * 2;
 		expect(ent.id).toBe(3n);
 		expect(vec.x).toBe(7);
 		expect(vec.y).toBe(8);
@@ -288,17 +288,18 @@ if (import.meta.vitest) {
 		from.x = 1;
 		from.y = 2;
 		from.z = 3;
-		from.__$$i = 1;
+		from.__$$b = Vec3.size;
 		from.x = 7;
 		from.y = 8;
 		from.z = 9;
 
 		fromTable.move(0, toTable);
 
-		const to = new Entity(toTable.columns.get(Entity)!, 1, {} as any);
+		const to = new Entity(toTable.columns.get(Entity)!, 0, {} as any);
+		(to as any).__$$b = Entity.size;
 		expect(to.id).toBe(3n);
 
-		from.__$$i = 0;
+		from.__$$b = 0;
 		expect(fromTable.columns.get(Entity)!.u64![0]).toBe(1n);
 		expect(from.x).toBe(7);
 		expect(from.y).toBe(8);
@@ -320,7 +321,7 @@ if (import.meta.vitest) {
 		expect(vec.x).toBe(100);
 		expect(vec.y).toBe(200);
 		expect(vec.z).toBe(300);
-		vec.__$$i = 1;
+		vec.__$$b = Vec3.size;
 		vec.x = Math.PI;
 		vec.y = Math.PI;
 		vec.z = Math.PI;
@@ -328,17 +329,17 @@ if (import.meta.vitest) {
 		table.delete(1);
 		uncreated.move(26, table);
 
-		vec.__$$i = 0;
+		vec.__$$b = 0;
 		//@ts-ignore
-		ent.__$$i = 0;
+		ent.__$$b = 0;
 		expect(vec.x).toBe(100);
 		expect(vec.y).toBe(200);
 		expect(vec.z).toBe(300);
 		expect(ent.id).toBe(25n);
 
-		vec.__$$i = 1;
+		vec.__$$b = Vec3.size;
 		//@ts-ignore
-		ent.__$$i = 1;
+		ent.__$$b = Entity.size;
 		expect(vec.x).toBe(0);
 		expect(vec.y).toBe(0);
 		expect(vec.z).toBe(0);
@@ -369,11 +370,11 @@ if (import.meta.vitest) {
 		expect(ent.generation).toBe(2);
 		expect(ent.id).toBe(0x00000002_00000000n);
 		//@ts-ignore
-		ent.__$$i = 1;
+		ent.__$$b = Entity.size;
 		expect(ent.generation).toBe(1);
 		expect(ent.id).toBe(0x00000001_00000000n);
 		//@ts-ignore
-		ent.__$$i = 2;
+		ent.__$$b = Entity.size * 2;
 		expect(ent.generation).toBe(0);
 		expect(ent.id).toBe(0x00000000_00000000n);
 	});
