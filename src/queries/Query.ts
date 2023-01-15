@@ -166,9 +166,7 @@ if (import.meta.vitest) {
 
 	describe('iteration', () => {
 		const mockWorld: any = {
-			createBuffer(size: number) {
-				return new ArrayBuffer(size);
-			},
+			buffer: ArrayBuffer,
 			config: {
 				getNewTableSize() {
 					return 16;

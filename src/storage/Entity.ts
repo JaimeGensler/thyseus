@@ -1,4 +1,6 @@
-import { initStruct, TYPE_IDS, type Struct, type StructStore } from '../struct';
+import { initStruct } from './initStruct';
+import { TYPE_IDS } from './typeIds';
+import type { Struct, StructStore } from '../struct';
 import type { Commands } from '../world/Commands';
 
 export class Entity {

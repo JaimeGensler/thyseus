@@ -131,6 +131,7 @@ if (import.meta.vitest) {
 	}
 
 	const mockWorld: World = {
+		buffer: ArrayBuffer,
 		createBuffer: (l: number) => new ArrayBuffer(l),
 		config: {
 			getNewTableSize: (n: number) => (n === 0 ? 8 : n * 2),
@@ -190,7 +191,7 @@ if (import.meta.vitest) {
 		from.z = 9;
 
 		const to = new Vec3();
-		from.__$$s = toTable.columns.get(Vec3)!;
+		to.__$$s = toTable.columns.get(Vec3)!;
 		expect(to.x).toBe(0);
 		expect(to.y).toBe(0);
 		expect(to.z).toBe(0);

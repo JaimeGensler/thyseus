@@ -1,4 +1,5 @@
-import { addField, TYPE_IDS, TYPE_TO_CONSTRUCTOR } from './addField';
+import { TYPE_IDS, TYPE_TO_CONSTRUCTOR } from '../storage';
+import { addField } from './addField';
 
 type TypedArray =
 	| Uint8Array

@@ -1,4 +1,4 @@
-import { createStore } from '../storage';
+import { createStore } from './store';
 
 export function initStruct(instance: object) {
 	//@ts-ignore

@@ -1,10 +1,5 @@
-import {
-	TYPE_IDS,
-	TYPE_TO_CONSTRUCTOR,
-	type Struct,
-	type StructStore,
-} from '../struct';
-import type { World } from '../world';
+import { TYPE_IDS, TYPE_TO_CONSTRUCTOR } from './typeIds';
+import type { Struct, StructStore } from '../struct';
 
 const [, ...namesAndConstructors] = Object.entries(TYPE_TO_CONSTRUCTOR) as [
 	keyof typeof TYPE_TO_CONSTRUCTOR,

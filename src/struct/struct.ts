@@ -1,4 +1,4 @@
-import { resetFields, TYPE_IDS } from './addField';
+import { resetFields } from './addField';
 import {
 	u8,
 	u16,
@@ -15,7 +15,7 @@ import {
 import { string } from './string';
 import { array } from './array';
 import { substruct } from './substruct';
-import { initStruct } from './initStruct';
+import { initStruct, TYPE_IDS } from '../storage';
 
 export type Class = {
 	new (...args: any[]): object;
@@ -267,18 +267,19 @@ if (import.meta.vitest) {
 			declare static size: number;
 			declare static schema: number;
 			declare __$$b: number;
+			declare __$$s: StructStore;
 			@struct.array({ type: 'u8', length: 8 }) declare value: Uint8Array;
 			@struct.array({ type: 'f64', length: 3 })
 			declare value2: Float64Array;
-			constructor(store: StructStore, index: number) {}
+			constructor() {}
 		}
 		const buffer = new ArrayBuffer(Comp.size * 2);
-		const store = {
+		const comp = new Comp();
+		comp.__$$s = {
 			buffer,
 			u8: new Uint8Array(buffer),
 			f64: new Float64Array(buffer),
 		};
-		const comp = new Comp(store, 0);
 		expect(comp.value).toBeInstanceOf(Uint8Array);
 		expect(comp.value2).toBeInstanceOf(Float64Array);
 
