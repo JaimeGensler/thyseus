@@ -1,7 +1,7 @@
 import { descriptors, type Descriptors, type Descriptor } from './descriptors';
 
+export type SystemFunction<T extends any[]> = (...args: T) => any;
 type ParameterCreator = (descriptors: Descriptors) => Descriptor[];
-type SystemFn<T extends any[]> = (...args: T) => void | Promise<void>;
 export type SystemDependencies = {
 	dependencies: SystemDefinition[];
 	implicitPosition: -1 | 0 | 1;
@@ -12,8 +12,8 @@ export class SystemDefinition<T extends any[] = any[]> {
 	#dependencies = [] as SystemDefinition<any>[];
 
 	#parameterCreator: ParameterCreator;
-	fn: SystemFn<T>;
-	constructor(parameters: ParameterCreator, fn: SystemFn<T>) {
+	fn: SystemFunction<T>;
+	constructor(parameters: ParameterCreator, fn: SystemFunction<T>) {
 		this.#parameterCreator = parameters;
 		this.fn = fn;
 	}
