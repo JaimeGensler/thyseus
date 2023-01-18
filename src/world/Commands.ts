@@ -14,6 +14,9 @@ export class Commands {
 			const data = new Uint8Array(world.createBuffer(size));
 			let offset = 0;
 			for (const component of world.components) {
+				if (component.size === 0) {
+					continue;
+				}
 				const instance = new component() as { __$$s: StructStore };
 				data.set(instance.__$$s.u8, offset);
 				offset += component.size!;
@@ -31,9 +34,9 @@ export class Commands {
 		return new this(world, initialValues, initialValueOffsets);
 	}
 
-	queue = new Map<bigint, bigint>(); // Map<eid, tableid>
+	#queue = new Map<bigint, bigint>(); // Map<eid, tableid>
 	#usedData = 0;
-	queueData: Uint8Array;
+	#queueData: Uint8Array;
 
 	#entities: Entities;
 	#components: Struct[];
@@ -47,7 +50,7 @@ export class Commands {
 		this.#initialValues = initial;
 		this.#initialValuesOffset = offsets;
 
-		this.queueData = new Uint8Array(world.createBuffer(8));
+		this.#queueData = new Uint8Array(world.createBuffer(64));
 		this.#entities = world.entities;
 		this.#components = world.components;
 	}
@@ -68,7 +71,7 @@ export class Commands {
 	 * @returns `this`, for chaining.
 	 */
 	despawn(id: bigint): this {
-		this.queue.set(id, 0n);
+		this.#queue.set(id, 0n);
 		return this;
 	}
 
@@ -81,46 +84,67 @@ export class Commands {
 		return new Entity(this, id);
 	}
 
+	getData(): [Map<bigint, bigint>, Uint8Array] {
+		return [this.#queue, this.#queueData.subarray(0, this.#usedData)];
+	}
 	reset() {
-		this.queue.clear();
-		this.queueData.fill(0);
+		this.#queue.clear();
+		this.#queueData.fill(0);
 		this.#usedData = 0;
 	}
 
 	insertInto<T extends object>(entityId: bigint, component: NotFunction<T>) {
 		const componentType: Struct = component.constructor as any;
 		this.#insert(entityId, componentType);
-		this.queueData.set(
+		this.#queueData.set(
 			//@ts-ignore
-			component.__$$s.u8.slice(component.__$$b, componentType),
+			component.__$$s.u8.slice(component.__$$b, componentType.size),
 			this.#usedData,
 		);
 		this.#usedData += componentType.size!;
 	}
 	insertTypeInto(entityId: bigint, componentType: Struct) {
 		this.#insert(entityId, componentType);
-		this.queueData.set(
+		if (componentType.size === 0) {
+			return;
+		}
+		this.#queueData.set(
 			this.#initialValues.slice(
 				this.#initialValuesOffset[
 					this.#components.indexOf(componentType)
 				],
 				componentType.size!,
 			),
+			this.#usedData,
 		);
 		this.#usedData += componentType.size!;
 	}
 	#insert(entityId: bigint, componentType: Struct) {
-		if (this.#usedData + componentType.size! > this.queueData.byteLength) {
+		if (
+			this.#usedData + componentType.size! + 16 >
+			this.#queueData.byteLength
+		) {
 			this.#growQueueData();
 		}
-		this.queue.set(
+		this.#queue.set(
 			entityId,
 			this.#getBitset(entityId) | this.#getComponentId(componentType),
 		);
+		if (componentType.size === 0) {
+			return;
+		}
+
+		const view = new DataView(this.#queueData.buffer);
+		view.setBigUint64(this.#usedData, entityId);
+		view.setUint32(
+			this.#usedData + 8,
+			this.#components.indexOf(componentType),
+		);
+		this.#usedData += 16;
 	}
 
 	removeFrom(entityId: bigint, componentType: Struct) {
-		this.queue.set(
+		this.#queue.set(
 			entityId,
 			this.#getBitset(entityId) ^ this.#getComponentId(componentType),
 		);
@@ -128,7 +152,7 @@ export class Commands {
 
 	#getBitset(entityId: bigint) {
 		return (
-			this.queue.get(entityId) ??
+			this.#queue.get(entityId) ??
 			this.#world.archetypes[this.#entities.getTableIndex(entityId)]
 				.bitfield
 		);
@@ -137,10 +161,11 @@ export class Commands {
 		return 1n << BigInt(this.#components.indexOf(component));
 	}
 	#growQueueData() {
-		const newLength = this.queueData.byteLength * 2;
-		const oldData = this.queueData;
-		this.queueData = new Uint8Array(this.#world.createBuffer(newLength));
-		this.queueData.set(oldData);
+		// TODO: Ensure we grow by at least enough to store the new component
+		const newLength = this.#queueData.byteLength * 2;
+		const oldData = this.#queueData;
+		this.#queueData = new Uint8Array(this.#world.createBuffer(newLength));
+		this.#queueData.set(oldData);
 	}
 }
 

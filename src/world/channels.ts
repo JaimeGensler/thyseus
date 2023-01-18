@@ -5,10 +5,12 @@ import type { Struct, StructStore } from '../struct';
 
 export const GET_COMMAND_QUEUE = createThreadChannel(
 	'thyseus::getCommandQueue',
+	world => () => world.commands.getData(),
+);
+export const CLEAR_COMMAND_QUEUE = createThreadChannel(
+	'thyseus::clearCommandQueue',
 	world => () => {
-		const ret = new Map(world.commands.queue);
-		world.commands.queue.clear();
-		return ret;
+		world.commands.reset();
 	},
 );
 export const SEND_TABLE = createThreadChannel(
