@@ -48,7 +48,7 @@ export class Entity {
 	 * @param component The component instance to insert into the entity.
 	 * @returns `this`, for chaining.
 	 */
-	insert<T extends object>(component: NotFunction<T>): this {
+	add<T extends object>(component: NotFunction<T>): this {
 		this.#commands.insertInto(this.id, component);
 		return this;
 	}
@@ -58,7 +58,7 @@ export class Entity {
 	 * @param componentType The component class to insert into the entity.
 	 * @returns `this`, for chaining.
 	 */
-	insertType(componentType: Struct): this {
+	addType(componentType: Struct): this {
 		this.#commands.insertTypeInto(this.id, componentType);
 		return this;
 	}
