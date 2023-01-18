@@ -65,8 +65,8 @@ export function struct() {
 			declare __$$s: StructStore;
 			declare __$$b: number;
 
-			constructor() {
-				super();
+			constructor(...args: any[]) {
+				super(...args);
 				initStruct(this);
 			}
 		};
