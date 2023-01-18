@@ -1,36 +1,65 @@
 import { Entity, type Entities } from '../storage';
-import type { Struct } from '../struct';
+import type { Struct, StructStore } from '../struct';
 import type { World } from './World';
+
+type NotFunction<T> = T extends Function ? never : T;
 
 export class Commands {
 	static fromWorld(world: World) {
-		return new this(world, world.entities, world.components);
+		const initialValues = world.threads.queue(() => {
+			const size = world.components.reduce(
+				(acc, val) => acc + val.size!,
+				0,
+			);
+			const data = new Uint8Array(world.createBuffer(size));
+			let offset = 0;
+			for (const component of world.components) {
+				const instance = new component() as { __$$s: StructStore };
+				data.set(instance.__$$s.u8, offset);
+				offset += component.size!;
+			}
+			return data;
+		});
+		const initialValueOffsets = world.threads.queue(() => {
+			let offset = 0;
+			return world.components.map(comp => {
+				const val = offset;
+				offset += comp.size!;
+				return val;
+			});
+		});
+		return new this(world, initialValues, initialValueOffsets);
 	}
+
 	queue = new Map<bigint, bigint>(); // Map<eid, tableid>
+	#usedData = 0;
+	queueData: Uint8Array;
+
+	#entities: Entities;
+	#components: Struct[];
 
 	#world: World;
-	#entities: Entities;
-	#entity: Entity;
-	#store: BigUint64Array;
-	#components: Struct[];
-	constructor(world: World, entities: Entities, components: Struct[]) {
+	#initialValues: Uint8Array;
+	#initialValuesOffset: number[];
+
+	constructor(world: World, initial: Uint8Array, offsets: number[]) {
 		this.#world = world;
-		this.#entities = entities;
-		this.#entity = new Entity();
-		//@ts-ignore
-		this.#store = this.#entity.__$$s.u64;
-		this.#components = components;
+		this.#initialValues = initial;
+		this.#initialValuesOffset = offsets;
+
+		this.queueData = new Uint8Array(world.createBuffer(8));
+		this.#entities = world.entities;
+		this.#components = world.components;
 	}
 
 	/**
 	 * Queues an entity to be spawned.
-	 * @returns `EntityCommands` to add/remove components from an entity.
+	 * @returns An `Entity` instance, to add/remove components from an entity.
 	 */
 	spawn(): Entity {
-		const id = this.#entities.spawn();
-		this.#store[0] = id;
-		this.insertInto(id, Entity);
-		return this.#entity;
+		const entity = new Entity(this, this.#entities.spawn());
+		this.insertTypeInto(entity.id, Entity);
+		return entity;
 	}
 
 	/**
@@ -46,25 +75,54 @@ export class Commands {
 	/**
 	 * Gets an entity to modify.
 	 * @param id The id of the entity to get.
-	 * @returns `EntityCommands` to add/remove components from an entity.
+	 * @returns An `Entity` instance, to add/remove components from an entity.
 	 */
 	get(id: bigint): Entity {
-		this.#store[0] = id;
-		return this.#entity;
+		return new Entity(this, id);
 	}
 
-	insertInto(entityId: bigint, Component: Struct) {
+	reset() {
+		this.queue.clear();
+		this.queueData.fill(0);
+		this.#usedData = 0;
+	}
+
+	insertInto<T extends object>(entityId: bigint, component: NotFunction<T>) {
+		const componentType: Struct = component.constructor as any;
+		this.#insert(entityId, componentType);
+		this.queueData.set(
+			//@ts-ignore
+			component.__$$s.u8.slice(component.__$$b, componentType),
+			this.#usedData,
+		);
+		this.#usedData += componentType.size!;
+	}
+	insertTypeInto(entityId: bigint, componentType: Struct) {
+		this.#insert(entityId, componentType);
+		this.queueData.set(
+			this.#initialValues.slice(
+				this.#initialValuesOffset[
+					this.#components.indexOf(componentType)
+				],
+				componentType.size!,
+			),
+		);
+		this.#usedData += componentType.size!;
+	}
+	#insert(entityId: bigint, componentType: Struct) {
+		if (this.#usedData + componentType.size! > this.queueData.byteLength) {
+			this.#growQueueData();
+		}
 		this.queue.set(
 			entityId,
-			this.#getBitset(entityId) |
-				(1n << BigInt(this.#components.indexOf(Component))),
+			this.#getBitset(entityId) | this.#getComponentId(componentType),
 		);
 	}
-	removeFrom(entityId: bigint, Component: Struct) {
+
+	removeFrom(entityId: bigint, componentType: Struct) {
 		this.queue.set(
 			entityId,
-			this.#getBitset(entityId) ^
-				(1n << BigInt(this.#components.indexOf(Component))),
+			this.#getBitset(entityId) ^ this.#getComponentId(componentType),
 		);
 	}
 
@@ -75,4 +133,22 @@ export class Commands {
 				.bitfield
 		);
 	}
+	#getComponentId(component: Struct) {
+		return 1n << BigInt(this.#components.indexOf(component));
+	}
+	#growQueueData() {
+		const newLength = this.queueData.byteLength * 2;
+		const oldData = this.queueData;
+		this.queueData = new Uint8Array(this.#world.createBuffer(newLength));
+		this.queueData.set(oldData);
+	}
+}
+
+/*---------*\
+|   TESTS   |
+\*---------*/
+if (import.meta.vitest) {
+	const { describe, it, expect } = import.meta.vitest;
+
+	it('works');
 }

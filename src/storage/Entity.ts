@@ -3,6 +3,8 @@ import { TYPE_IDS } from './typeIds';
 import type { Struct, StructStore } from '../struct';
 import type { Commands } from '../world/Commands';
 
+type NotFunction<T> = T extends Function ? never : T;
+
 export class Entity {
 	static schema = TYPE_IDS.u64 | TYPE_IDS.u32;
 	static size = 8;
@@ -11,9 +13,12 @@ export class Entity {
 	private declare __$$b: number;
 
 	#commands: Commands;
-	constructor(commands?: Commands) {
+	constructor(commands?: Commands, id?: bigint) {
 		initStruct(this);
 		this.#commands = commands!;
+		if (id !== undefined) {
+			this.__$$s.u64![0] = id;
+		}
 	}
 
 	/**
@@ -40,11 +45,21 @@ export class Entity {
 
 	/**
 	 * Queues a component to be inserted into this entity.
-	 * @param Component The Component **class** to insert into the entity.
+	 * @param component The component instance to insert into the entity.
 	 * @returns `this`, for chaining.
 	 */
-	insert(Component: Struct): this {
-		this.#commands.insertInto(this.id, Component);
+	insert<T extends object>(component: NotFunction<T>): this {
+		this.#commands.insertInto(this.id, component);
+		return this;
+	}
+
+	/**
+	 * Queues a component type to be inserted into this entity.
+	 * @param componentType The component class to insert into the entity.
+	 * @returns `this`, for chaining.
+	 */
+	insertType(componentType: Struct): this {
+		this.#commands.insertTypeInto(this.id, componentType);
 		return this;
 	}
 
