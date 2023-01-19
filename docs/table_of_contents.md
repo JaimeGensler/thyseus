@@ -7,7 +7,7 @@
 -   [Components](./components.md)
 -   [Queries](./queries.md)
 -   (TODO) Resources
--   (TODO) Systems
+-   [Systems](./systems.md)
 -   [Multithreading](./multithreading/index.md)
     -   [Rules](./multithreading/rules.md)
     -   [Using Multiple Threads](./multithreading/using_multiple_threads.md)
