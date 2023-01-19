@@ -68,6 +68,11 @@ export class Table {
 				this.size * struct.size!,
 				this.size * struct.size! + struct.size!,
 			);
+			store.u8.fill(
+				0,
+				this.size * struct.size!,
+				this.size * struct.size! + struct.size!,
+			);
 		}
 	}
 
