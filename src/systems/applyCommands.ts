@@ -54,9 +54,6 @@ export const applyCommands = defineSystem(
 				continue;
 			}
 
-			if (component.name === 'Velocity') {
-				console.log(data.length);
-			}
 			const column = world.archetypes[tableId].columns.get(component)!;
 			const row = world.entities.getRow(entityId);
 			column.u8.set(data, row * component.size!);
