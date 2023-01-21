@@ -57,12 +57,18 @@ If you're interested in contributing, please have a look at the
 To get started, define a component:
 
 ```ts
-import { struct } from 'thyseus';
+import { struct, initStruct } from 'thyseus';
 
 @struct()
 class Vec2 {
 	@struct.f64() declare x: number;
 	@struct.f64() declare y: number;
+
+	constructor(x = 0, y = 0) {
+		initStruct(this);
+		this.x = x;
+		this.y = y;
+	}
 
 	add(other: Vec2) {
 		this.x += other.x;
