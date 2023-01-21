@@ -4,6 +4,8 @@ import type { World } from './World';
 
 type NotFunction<T> = T extends Function ? never : T;
 
+const alignTo8 = (x: number) => Math.ceil(x / 8) * 8;
+
 export class Commands {
 	static fromWorld(world: World) {
 		const initialValues = world.threads.queue(() => {
@@ -108,7 +110,7 @@ export class Commands {
 			component.__$$s.u8.slice(component.__$$b, componentType.size),
 			this.#usedData,
 		);
-		this.#usedData += componentType.size!;
+		this.#usedData += alignTo8(componentType.size!);
 	}
 	insertTypeInto(entityId: bigint, componentType: Struct) {
 		this.#insert(entityId, componentType);
@@ -124,7 +126,7 @@ export class Commands {
 			),
 			this.#usedData,
 		);
-		this.#usedData += componentType.size!;
+		this.#usedData += alignTo8(componentType.size!);
 	}
 	#insert(entityId: bigint, componentType: Struct) {
 		if (
@@ -172,7 +174,7 @@ export class Commands {
 		const newLength =
 			doubledLength > this.#usedData + minimumAdditional
 				? doubledLength
-				: Math.ceil((doubledLength + minimumAdditional) * 8) / 8;
+				: alignTo8(doubledLength + minimumAdditional);
 		const oldData = this.#queueData;
 		const buffer = this.#world.createBuffer(newLength);
 		this.#queueData = new Uint8Array(buffer);
