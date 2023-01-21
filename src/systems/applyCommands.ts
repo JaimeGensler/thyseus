@@ -2,13 +2,12 @@ import { CLEAR_COMMAND_QUEUE, GET_COMMAND_QUEUE } from '../world/channels';
 import { defineSystem } from './defineSystem';
 import type { World } from '../world';
 
-type CommandQueue = [Map<bigint, bigint>, Uint8Array];
+type CommandQueue = [Map<bigint, bigint>, Uint8Array, DataView];
 function* iterateCommands(commandsData: CommandQueue[], world: World) {
-	for (const [, queueData] of commandsData) {
-		const dataview = new DataView(queueData.buffer);
+	for (const [, queueData, queueView] of commandsData) {
 		for (let offset = 0; offset < queueData.byteLength; ) {
-			const entityId = dataview.getBigUint64(offset);
-			const componentId = dataview.getUint32(offset + 8);
+			const entityId = queueView.getBigUint64(offset);
+			const componentId = queueView.getUint32(offset + 8);
 			const component = world.components[componentId];
 			offset += 16;
 			const data = queueData.subarray(offset, offset + component.size!);
@@ -36,7 +35,8 @@ export const applyCommands = defineSystem(
 		if (world.entities.isFull) {
 			world.entities.grow(world);
 		}
-		const [mainQueue, mainQueueData] = world.commands.getData();
+		const [mainQueue, mainQueueData, mainQueueView] =
+			world.commands.getData();
 		const queues = await world.threads.send(GET_COMMAND_QUEUE());
 		const queue = queues.reduce(mergeQueues, mainQueue);
 
@@ -44,7 +44,7 @@ export const applyCommands = defineSystem(
 			world.moveEntity(entityId, tableId);
 		}
 
-		queues.push([mainQueue, mainQueueData]);
+		queues.push([mainQueue, mainQueueData, mainQueueView]);
 		for (const [entityId, component, data] of iterateCommands(
 			queues,
 			world,

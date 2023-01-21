@@ -37,6 +37,7 @@ export class Commands {
 	#queue = new Map<bigint, bigint>(); // Map<eid, tableid>
 	#usedData = 0;
 	#queueData: Uint8Array;
+	#queueView: DataView;
 
 	#entities: Entities;
 	#components: Struct[];
@@ -50,7 +51,9 @@ export class Commands {
 		this.#initialValues = initial;
 		this.#initialValuesOffset = offsets;
 
+		const buffer = world.createBuffer(64);
 		this.#queueData = new Uint8Array(world.createBuffer(64));
+		this.#queueView = new DataView(buffer);
 		this.#entities = world.entities;
 		this.#components = world.components;
 	}
@@ -84,8 +87,12 @@ export class Commands {
 		return new Entity(this, id);
 	}
 
-	getData(): [Map<bigint, bigint>, Uint8Array] {
-		return [this.#queue, this.#queueData.subarray(0, this.#usedData)];
+	getData(): [Map<bigint, bigint>, Uint8Array, DataView] {
+		return [
+			this.#queue,
+			this.#queueData.subarray(0, this.#usedData),
+			this.#queueView,
+		];
 	}
 	reset() {
 		this.#queue.clear();
@@ -124,7 +131,7 @@ export class Commands {
 			this.#usedData + componentType.size! + 16 >
 			this.#queueData.byteLength
 		) {
-			this.#growQueueData();
+			this.#growQueueData(componentType.size!);
 		}
 		this.#queue.set(
 			entityId,
@@ -134,9 +141,8 @@ export class Commands {
 			return;
 		}
 
-		const view = new DataView(this.#queueData.buffer);
-		view.setBigUint64(this.#usedData, entityId);
-		view.setUint32(
+		this.#queueView.setBigUint64(this.#usedData, entityId);
+		this.#queueView.setUint32(
 			this.#usedData + 8,
 			this.#components.indexOf(componentType),
 		);
@@ -160,12 +166,18 @@ export class Commands {
 	#getComponentId(component: Struct) {
 		return 1n << BigInt(this.#components.indexOf(component));
 	}
-	#growQueueData() {
-		// TODO: Ensure we grow by at least enough to store the new component
-		const newLength = this.#queueData.byteLength * 2;
+	#growQueueData(minimumAdditional: number) {
+		minimumAdditional += 16;
+		const doubledLength = this.#queueData.byteLength * 2;
+		const newLength =
+			doubledLength > this.#usedData + minimumAdditional
+				? doubledLength
+				: Math.ceil((doubledLength + minimumAdditional) * 8) / 8;
 		const oldData = this.#queueData;
-		this.#queueData = new Uint8Array(this.#world.createBuffer(newLength));
+		const buffer = this.#world.createBuffer(newLength);
+		this.#queueData = new Uint8Array(buffer);
 		this.#queueData.set(oldData);
+		this.#queueView = new DataView(buffer);
 	}
 }
 
