@@ -3,7 +3,6 @@ import { assert } from '../utils/assert';
 
 export type WorldConfig = {
 	threads: number;
-	maxEntities: number;
 	getNewTableSize(prev: number): number;
 };
 export type SingleThreadedWorldConfig = WorldConfig & {
@@ -12,13 +11,12 @@ export type SingleThreadedWorldConfig = WorldConfig & {
 
 const getCompleteConfig = (config: Partial<WorldConfig> | undefined = {}) => ({
 	threads: 1,
-	maxEntities: 2 ** 16, // 65_536
 	getNewTableSize: (prev: number) => (prev === 0 ? 8 : prev * 2),
 	...config,
 });
 
 const validateConfig = (
-	{ threads, maxEntities }: WorldConfig,
+	{ threads }: WorldConfig,
 	url: string | URL | undefined,
 ) => {
 	if (threads > 1) {
@@ -39,13 +37,6 @@ const validateConfig = (
 	assert(
 		Number.isInteger(threads) && 0 < threads && threads < 64,
 		"Invalid config - 'threads' must be an integer such that 0 < threads < 64",
-		RangeError,
-	);
-	assert(
-		Number.isInteger(maxEntities) &&
-			0 < maxEntities &&
-			maxEntities < 2 ** 32,
-		"Invalid config - 'maxEntities' must be an integer such that 0 < maxEntities < 2**32",
 		RangeError,
 	);
 };
@@ -108,29 +99,16 @@ if (import.meta.vitest) {
 		);
 	});
 
-	it('throws if maxEntities is not a positive integer < 2**32', () => {
-		const expectedError = /'maxEntities' must be an integer/;
-		expect(validate({ maxEntities: 2 ** 32 })).toThrow(expectedError);
-		expect(validate({ maxEntities: Math.PI })).toThrow(expectedError);
-		expect(validate({ maxEntities: -1 })).toThrow(expectedError);
-	});
-
 	it('completes partial config', () => {
 		const result = getCompleteConfig();
 		expect(result).toHaveProperty('threads');
 		expect(result.threads).toBe(1);
-		expect(result).toHaveProperty('maxEntities');
 
 		const result2 = getCompleteConfig({ threads: 2 });
 		expect(result2.threads).toBe(2);
-		expect(result2).toHaveProperty('maxEntities');
 	});
 
 	it('validates and completes partial config', () => {
 		expect(() => validateAndCompleteConfig({ threads: 0 }, '/')).toThrow();
-
-		expect(validateAndCompleteConfig({ threads: 2 }, '/')).toHaveProperty(
-			'maxEntities',
-		);
 	});
 }
