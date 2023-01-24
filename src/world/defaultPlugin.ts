@@ -9,10 +9,11 @@ import {
 import type { WorldBuilder } from './WorldBuilder';
 
 export function defaultPlugin(builder: WorldBuilder) {
-	builder.registerComponent(Entity);
-	builder.addSystem(applyCommands.afterAll());
-	builder.registerThreadChannel(GET_COMMAND_QUEUE);
-	builder.registerThreadChannel(SEND_TABLE);
-	builder.registerThreadChannel(RESIZE_TABLE);
-	builder.registerThreadChannel(RESIZE_TABLE_LENGTHS);
+	builder
+		.registerComponent(Entity)
+		.addSystem(applyCommands.afterAll())
+		.registerThreadChannel(GET_COMMAND_QUEUE)
+		.registerThreadChannel(SEND_TABLE)
+		.registerThreadChannel(RESIZE_TABLE)
+		.registerThreadChannel(RESIZE_TABLE_LENGTHS);
 }
