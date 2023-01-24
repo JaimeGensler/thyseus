@@ -54,7 +54,7 @@ export class Commands {
 		this.#initialValuesOffset = offsets;
 
 		const buffer = world.createBuffer(64);
-		this.#queueData = new Uint8Array(world.createBuffer(64));
+		this.#queueData = new Uint8Array(buffer);
 		this.#queueView = new DataView(buffer);
 		this.#entities = world.entities;
 		this.#components = world.components;
@@ -107,23 +107,20 @@ export class Commands {
 		this.#insert(entityId, componentType);
 		this.#queueData.set(
 			//@ts-ignore
-			component.__$$s.u8.slice(component.__$$b, componentType.size),
+			component.__$$s.u8.subarray(component.__$$b, componentType.size),
 			this.#usedData,
 		);
 		this.#usedData += alignTo8(componentType.size!);
 	}
 	insertTypeInto(entityId: bigint, componentType: Struct) {
 		this.#insert(entityId, componentType);
-		if (componentType.size === 0) {
+		if (componentType.size === 0 || componentType === Entity) {
 			return;
 		}
+		const offset =
+			this.#initialValuesOffset[this.#components.indexOf(componentType)];
 		this.#queueData.set(
-			this.#initialValues.slice(
-				this.#initialValuesOffset[
-					this.#components.indexOf(componentType)
-				],
-				componentType.size!,
-			),
+			this.#initialValues.subarray(offset, offset + componentType.size!),
 			this.#usedData,
 		);
 		this.#usedData += alignTo8(componentType.size!);
@@ -139,7 +136,7 @@ export class Commands {
 			entityId,
 			this.#getBitset(entityId) | this.#getComponentId(componentType),
 		);
-		if (componentType.size === 0) {
+		if (componentType.size === 0 || componentType === Entity) {
 			return;
 		}
 
@@ -187,7 +184,117 @@ export class Commands {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { describe, it, expect } = import.meta.vitest;
+	const { it, expect } = import.meta.vitest;
+	const { initStruct } = await import('../storage');
 
-	it('works');
+	class ZST {
+		static size = 0;
+		static alignment = 1;
+		static schema = 0;
+	}
+	class Struct {
+		static size = 1;
+		static alignment = 1;
+		static schema = 0;
+		constructor() {
+			initStruct(this);
+		}
+	}
+	class CompA extends Struct {}
+	class CompB extends Struct {}
+	class CompC extends Struct {}
+	class CompD {
+		static schema = 0b1111_1111_1111;
+		static size = 8;
+		static alignment = 4;
+
+		declare __$$s: any;
+		set x(val: number) {
+			this.__$$s.u32[0] = val;
+		}
+		set y(val: number) {
+			this.__$$s.u32[1] = val;
+		}
+
+		constructor(x = 23, y = 42) {
+			initStruct(this);
+			this.x = x;
+			this.y = y;
+		}
+	}
+
+	let i = 0n;
+	const mockWorld = {
+		createBuffer: (l: number) => new ArrayBuffer(l),
+		components: [Entity, ZST, CompA, CompB, CompC, CompD],
+		threads: {
+			queue: c => c(),
+		},
+		entities: {
+			spawn: () => i++,
+			getTableIndex: (eid: bigint) => 0,
+		},
+		archetypes: [{ bitfield: 0n }],
+	} as World;
+
+	it('returns unique entity handles', () => {
+		const commands = Commands.fromWorld(mockWorld);
+		const e1 = commands.get(0n);
+		const e2 = commands.get(1n);
+		expect(e1).not.toBe(e2);
+	});
+
+	it('adds Entity component to spawned entities', () => {
+		const commands = Commands.fromWorld(mockWorld);
+		const ent = commands.spawn();
+		const [map] = commands.getData();
+		expect(map.has(ent.id)).toBe(true);
+		expect(map.get(ent.id)).toBe(0b1n); // Just Entity
+	});
+
+	it('inserts ZSTs', () => {
+		const commands = Commands.fromWorld(mockWorld);
+		const ent = commands.spawn().addType(ZST);
+		const [map] = commands.getData();
+		expect(map.get(ent.id)).toBe(0b11n); // Entity, ZST
+	});
+
+	it('removes components', () => {
+		const commands = Commands.fromWorld(mockWorld);
+		const ent = commands.spawn().addType(ZST).remove(ZST);
+		const [map] = commands.getData();
+		expect(map.get(ent.id)).toBe(0b01n); // Entity
+	});
+
+	it('despawns entities', () => {
+		const commands = Commands.fromWorld(mockWorld);
+		const ent = commands.spawn().addType(ZST);
+		ent.despawn();
+		const [map] = commands.getData();
+		expect(map.get(ent.id)).toBe(0n);
+	});
+
+	it('inserts sized types with default data', () => {
+		const commands = Commands.fromWorld(mockWorld);
+		const ent = commands.spawn().addType(CompD);
+		const [map, , dataview] = commands.getData();
+		const u32 = new Uint32Array(dataview.buffer);
+		expect(map.get(ent.id)).toBe(0b0010_0001n);
+		expect(dataview.getBigUint64(0)).toBe(ent.id);
+		expect(dataview.getUint32(8)).toBe(5); // CompD -> 5
+		expect(u32[16 >> 2]).toBe(23);
+		expect(u32[20 >> 2]).toBe(42);
+	});
+
+	it('inserts sized types with specialized data', () => {
+		const commands = Commands.fromWorld(mockWorld);
+		const ent = commands.spawn().add(new CompD(15, 16));
+		const [map, , dataview] = commands.getData();
+		const u32 = new Uint32Array(dataview.buffer);
+		expect(map.get(ent.id)).toBe(0b0010_0001n);
+		expect(dataview.getBigUint64(0)).toBe(ent.id);
+		expect(dataview.getUint32(8)).toBe(5); // CompD -> 5
+		expect(u32[16 >> 2]).toBe(15);
+		expect(u32[20 >> 2]).toBe(16);
+	});
 }
