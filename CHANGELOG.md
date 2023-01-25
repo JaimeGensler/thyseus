@@ -1,5 +1,97 @@
 # Changelog
 
+## v0.9.0 (January 25, 2023)
+
+This update adds some much-needed features for structs and components! While
+these features mark a "useable" baseline for Thyseus, there's still a lot of
+features, cleanup, and performance/DX improvements to come!
+
+### 💥 Breaking Changes
+
+-   Removed `__$$i` from struct instances.
+    -   This index property was only an unnecessary indirection over the byte
+        offset (`__$$b`), which is what should always be used now.
+    -   This only impacts you if you have handwritten structs or have code
+        accessing this property.
+-   Structs no longer receive `store`, `index`, and `commands` arguments. See
+    features for details!
+    -   This only impacts you if you have handwritten structs.
+-   Removed `entity.insert()`, modified signature of `commands.insertInto()`.
+    See features for details!
+-   (_Types only_) Removed `maxEntities` config & validation.
+    -   This config has been unused for a few updates and there are no plans to
+        reintroduce it.
+
+### ✨ Features
+
+-   You can now add your own constructors for structs, allowing you to construct
+    them anytime and set initial values!
+
+    -   Added `initStruct(structInstance: object): void` export. If you pass
+        `this` to initStruct in your constructor, you may safely read/write
+        properties of your struct.
+    -   Constructors must not have any required arguments.
+    -   You can specify the default values of a struct this way. These values
+        will be used as the initial component values any time a component is
+        added to an entity _by type_. The below example demonstrates a `Vec3`
+        component with `x`, `y`, and `z` defaulting to 1, 2, and 3.
+
+    ```ts
+    import { struct, initStruct } from 'thyseus';
+
+    @struct()
+    class Vec3 {
+    	@struct.f64() declare x: number;
+    	@struct.f64() declare y: number;
+    	@struct.f64() declare z: number;
+
+    	constructor(x = 1, y = 2, z = 3) {
+    		// Treat this kind of like super -
+    		// Must be called before accessing properties!
+    		initStruct(this);
+
+    		this.x = x;
+    		this.y = y;
+    		this.z = z;
+    	}
+    }
+    const a = new Vec3(); // x = 1, y = 2, z = 3
+    const b = new Vec3(5.5, -2, 7); // x = 5.5, y = -2, z = 7
+    ```
+
+    -   If you do not create a constructor with default values, values will
+        default to 0.
+    -   Structs you create cannot be recycled by Thyseus, so be aware that they
+        may add additional garbage collection work.
+
+-   Added `entity.add()` and `commands.insertInto()`, which accept _instances_
+    of structs.
+    -   This allows you to set initial values for component data, either from
+        another entity's component data or by constructing a new component
+        instance and passing it.
+    -   Values are _immediately copied_ from the passed object so modifications
+        after adding a component are not reflected.
+-   Added `entity.addType()` and `commands.insertTypeInto()`
+    -   These function the same as the previous `insert` and `insertType`.
+-   `commands.spawn()` now returns a _unique_ `Entity` handle that may be safely
+    used for the rest of the system.
+    -   The current implementation adds some additional garbage collection
+        work - in the future, this may be reworked to reuse `Entity` instances
+        while respecting this guarantee.
+
+### 🐛 Bug Fixes
+
+-   Fixed issue where commands would occasionally not correctly despawn entity
+    if despawn was queued after insert in multithreaded worlds.
+
+### 🔧 Maintenance
+
+-   Changed `System` return types from `void` to `any`. Internally, system
+    returns are treated as `Promise<void>`, but these types can create some
+    annoying Typescript errors - especially if using `Promise.all()` - and so
+    have been relaxed to `any`.
+-   Bump dev dependency versions.
+
 ## v0.8.0 (January 14, 2023)
 
 This update prioritizes some necessary cleanup and stability improvements, and
