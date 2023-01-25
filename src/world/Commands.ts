@@ -1,10 +1,9 @@
+import { alignTo8 } from '../utils/alignTo8';
 import { Entity, type Entities } from '../storage';
 import type { Struct, StructStore } from '../struct';
 import type { World } from './World';
 
 type NotFunction<T> = T extends Function ? never : T;
-
-const alignTo8 = (x: number) => Math.ceil(x / 8) * 8;
 
 export class Commands {
 	static fromWorld(world: World) {
