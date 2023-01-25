@@ -113,17 +113,7 @@ declare function string({
 		characterCount: number;
 	}
 >): (prototype: object, propertyKey: string | symbol) => void;
-type PrimitiveName =
-	| 'u8'
-	| 'u16'
-	| 'u32'
-	| 'u64'
-	| 'i8'
-	| 'i16'
-	| 'i32'
-	| 'i64'
-	| 'f32'
-	| 'f64';
+type PrimitiveName = keyof typeof TYPE_IDS;
 type ArrayOptions = {
 	type: PrimitiveName;
 	length: number;
@@ -164,12 +154,12 @@ type Struct = {
 	 * The size of this struct, including padding. Always a multiple of alignment.
 	 */
 	size?: number;
-	new (store: StructStore, index: number, commands: Commands): object;
+	new (): object;
 };
-export declare function struct(): (targetClass: Class) => any;
 type stringDec = typeof string;
 type arrayDec = typeof array;
 type substructDec = typeof substruct;
+export declare function struct(): (targetClass: Class) => any;
 export declare namespace struct {
 	var bool: () => (prototype: object, propertyKey: string | symbol) => void;
 	var u8: () => (prototype: object, propertyKey: string | symbol) => void;
@@ -213,15 +203,14 @@ declare class Table {
 	grow(world: World): void;
 	incrementGeneration(row: number): void;
 }
+type NotFunction<T> = T extends Function ? never : T;
 export declare class Entity {
 	#private;
 	static schema: number;
 	static size: number;
 	private __$$s;
 	private __$$b;
-	constructor(store: StructStore, index: number, commands: Commands);
-	private get __$$i();
-	private set __$$i(value);
+	constructor(commands?: Commands, id?: bigint);
 	/**
 	 * The entity's world-unique integer id (uint64).
 	 * Composed of an entity's generation & index.
@@ -237,10 +226,16 @@ export declare class Entity {
 	get generation(): number;
 	/**
 	 * Queues a component to be inserted into this entity.
-	 * @param Component The Component **class** to insert into the entity.
+	 * @param component The component instance to insert into the entity.
 	 * @returns `this`, for chaining.
 	 */
-	insert(Component: Struct): this;
+	add<T extends object>(component: NotFunction<T>): this;
+	/**
+	 * Queues a component type to be inserted into this entity.
+	 * @param componentType The component class to insert into the entity.
+	 * @returns `this`, for chaining.
+	 */
+	addType(componentType: Struct): this;
 	/**
 	 * Queues a component to be removed from this entity.
 	 * @param Component The Component **class** to remove from the entity.
@@ -285,14 +280,26 @@ declare class Entities {
 	getRow(entityId: bigint): number;
 	setRow(entityId: bigint, row: number): void;
 }
+export declare function initStruct(instance: object): void;
+declare const TYPE_IDS: {
+	u8: number;
+	u16: number;
+	u32: number;
+	u64: number;
+	i8: number;
+	i16: number;
+	i32: number;
+	i64: number;
+	f32: number;
+	f64: number;
+};
 declare class Commands {
 	#private;
 	static fromWorld(world: World): Commands;
-	queue: Map<bigint, bigint>;
-	constructor(world: World, entities: Entities, components: Struct[]);
+	constructor(world: World, initial: Uint8Array, offsets: number[]);
 	/**
 	 * Queues an entity to be spawned.
-	 * @returns `EntityCommands` to add/remove components from an entity.
+	 * @returns An `Entity` instance, to add/remove components from an entity.
 	 */
 	spawn(): Entity;
 	/**
@@ -304,11 +311,17 @@ declare class Commands {
 	/**
 	 * Gets an entity to modify.
 	 * @param id The id of the entity to get.
-	 * @returns `EntityCommands` to add/remove components from an entity.
+	 * @returns An `Entity` instance, to add/remove components from an entity.
 	 */
 	get(id: bigint): Entity;
-	insertInto(entityId: bigint, Component: Struct): void;
-	removeFrom(entityId: bigint, Component: Struct): void;
+	getData(): [Map<bigint, bigint>, Uint8Array, DataView];
+	reset(): void;
+	insertInto<T extends object>(
+		entityId: bigint,
+		component: NotFunction<T>,
+	): void;
+	insertTypeInto(entityId: bigint, componentType: Struct): void;
+	removeFrom(entityId: bigint, componentType: Struct): void;
 }
 type Descriptor = {
 	isLocalToThread(): boolean;
@@ -487,16 +500,16 @@ declare const descriptors: {
 	) => Or<L, R>;
 };
 type Descriptors = typeof descriptors;
+type SystemFunction<T extends any[]> = (...args: T) => any;
 type ParameterCreator = (descriptors: Descriptors) => Descriptor[];
-type SystemFn<T extends any[]> = (...args: T) => void | Promise<void>;
 type SystemDependencies = {
 	dependencies: SystemDefinition[];
 	implicitPosition: -1 | 0 | 1;
 };
 declare class SystemDefinition<T extends any[] = any[]> {
 	#private;
-	fn: SystemFn<T>;
-	constructor(parameters: ParameterCreator, fn: SystemFn<T>);
+	fn: SystemFunction<T>;
+	constructor(parameters: ParameterCreator, fn: SystemFunction<T>);
 	get parameters(): Descriptor[];
 	before(...others: SystemDefinition<any>[]): this;
 	after(...others: SystemDefinition<any>[]): this;
@@ -505,13 +518,14 @@ declare class SystemDefinition<T extends any[] = any[]> {
 	clone(): SystemDefinition<T>;
 	getAndClearDependencies(): SystemDependencies;
 }
-type SystemArguments<T extends Descriptor[]> = {
-	[Index in keyof T]: ReturnType<T[Index]['intoArgument']>;
-};
 export declare function defineSystem<T extends Descriptor[]>(
 	parameters: (descriptors: Descriptors) => [...T],
-	fn: (...args: SystemArguments<T>) => void | Promise<void>,
-): SystemDefinition<SystemArguments<T>>;
+	fn: SystemFunction<{
+		[Index in keyof T]: ReturnType<T[Index]['intoArgument']>;
+	}>,
+): SystemDefinition<{
+	[Index in keyof T]: ReturnType<T[Index]['intoArgument']>;
+}>;
 export declare const applyCommands: SystemDefinition<[World]>;
 type ExecutorInstance = {
 	start(): Promise<void>;
@@ -525,7 +539,6 @@ type ExecutorType = {
 };
 type WorldConfig = {
 	threads: number;
-	maxEntities: number;
 	getNewTableSize(prev: number): number;
 };
 type SingleThreadedWorldConfig = WorldConfig & {
@@ -598,6 +611,7 @@ export declare class World {
 	#private;
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
 	static new(config: Partial<WorldConfig>, url: string | URL): WorldBuilder;
+	buffer: ArrayBufferConstructor | SharedArrayBufferConstructor;
 	archetypeLookup: Map<bigint, number>;
 	tableLengths: Uint32Array;
 	archetypes: Table[];
