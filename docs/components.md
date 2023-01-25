@@ -80,6 +80,34 @@ multiple numeric types, don't worry; `@struct.f64()` works like the numbers
 you're used to, and is a fine choice! It just may not always be the best fit for
 the job.
 
+You can also use the class constructors for structs, provided you pass `this` to
+the `initStruct` function first (similar to calling `super()` in subclasses):
+
+```ts
+import { struct, initStruct } from 'thyseus';
+
+@struct()
+class Health {
+	@struct.u16() declare max: number;
+	@struct.u16() declare current: number;
+
+	constructor(max = 100, current = max) {
+		initStruct(this);
+
+		this.max = max;
+		this.current = current;
+	}
+
+	// ...
+}
+```
+
+For instances to work, you **must** pass them to `initStruct` _before_ accessing
+fields, and constructors must not have any required arguments. You can use this
+feature to set default values of components when adding them to entities - for
+example, in the above case, if you add the `Health` component to an entity
+without specifying a `current` and `max` value, both will be set to 100.
+
 You've likely noticed at this point that we haven't listed non-primitive types
 like arrays. Don't fret - we've got you covered!
 
