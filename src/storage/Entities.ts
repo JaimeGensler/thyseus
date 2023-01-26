@@ -1,44 +1,34 @@
 import { Entity } from './Entity';
-import { RESIZE_ENTITY_LOCATIONS } from '../world/channels';
 import type { Table } from './Table';
 import type { World } from '../world';
 
 const lo32 = 0x00_00_00_00_ff_ff_ff_ffn;
-const getIndex = (id: bigint): number => Number(id & lo32);
-
 const ENTITY_BATCH_SIZE = 256;
 
 export class Entities {
 	static fromWorld(world: World): Entities {
-		const bufferSize = BigUint64Array.BYTES_PER_ELEMENT * ENTITY_BATCH_SIZE;
 		return new this(
 			world,
-			world.threads.queue(
-				() => new Uint32Array(world.createBuffer(bufferSize)),
-			),
-			world.threads.queue(() => new Uint32Array(world.createBuffer(8))),
-			world.archetypes[0],
+			world.threads.queue(() => {
+				const ptr = world.memory.alloc(4 * 4);
+				world.memory.views.u32[(ptr >> 2) + 2] = world.memory.alloc(
+					8 * ENTITY_BATCH_SIZE,
+				);
+				world.memory.views.u32[(ptr >> 2) + 3] = ENTITY_BATCH_SIZE;
+				return ptr;
+			}),
 		);
 	}
 
+	#data: Uint32Array; // [nextId, cursor, pointer, length]
 	#world: World;
-	#locations: Uint32Array;
-	#data: Uint32Array; // [NEXT_ID, CURSOR]
+	#pointer: number;
 	#recycled: Table;
-	constructor(
-		world: World,
-		locations: Uint32Array,
-		data: Uint32Array,
-		recycled: Table,
-	) {
+	constructor(world: World, pointer: number) {
+		this.#data = world.memory.views.u32;
+		this.#pointer = pointer >> 2;
 		this.#world = world;
-		this.#locations = locations;
-		this.#data = data;
-		this.#recycled = recycled;
-	}
-
-	get isFull() {
-		return this.#data[0] >= this.#locations.length >> 1;
+		this.#recycled = world.archetypes[1];
 	}
 
 	/**
@@ -57,7 +47,7 @@ export class Entities {
 				];
 			}
 		}
-		return BigInt(Atomics.add(this.#data, 0, 1));
+		return BigInt(Atomics.add(this.#data, this.#pointer, 1));
 	}
 
 	/**
@@ -76,12 +66,50 @@ export class Entities {
 		);
 	}
 
+	resetCursor() {
+		this.#data[this.#pointer + 1] = 0;
+		if (this.#data[this.#pointer] >= this.#data[this.#pointer + 3]) {
+			const newElementCount =
+				Math.ceil((this.#data[this.#pointer] + 1) / ENTITY_BATCH_SIZE) *
+				ENTITY_BATCH_SIZE;
+			this.#locationsPointer = this.#world.memory.realloc(
+				this.#locationsPointer,
+				newElementCount * 8,
+			);
+			this.#data[this.#pointer + 3] = newElementCount;
+		}
+	}
+
+	getTableIndex(entityId: bigint) {
+		return this.#data[this.#getOffset(entityId)] ?? 0;
+	}
+	setTableIndex(entityId: bigint, tableIndex: number) {
+		this.#data[this.#getOffset(entityId)] = tableIndex;
+	}
+
+	getRow(entityId: bigint) {
+		return this.#data[this.#getOffset(entityId) + 1] ?? 0;
+	}
+	setRow(entityId: bigint, row: number) {
+		this.#data[this.#getOffset(entityId) + 1] = row;
+	}
+
+	get #locationsPointer() {
+		return this.#data[this.#pointer + 2];
+	}
+	set #locationsPointer(val: number) {
+		this.#data[this.#pointer + 2] = val;
+	}
+	#getOffset(entityId: bigint) {
+		return (this.#locationsPointer >> 2) + (Number(entityId & lo32) << 1);
+	}
+
 	/**
 	 * Atomically grabs the current cursor.
 	 * @returns The current cursor value.
 	 */
 	#getCursor() {
-		return Atomics.load(this.#data, 1);
+		return Atomics.load(this.#data, this.#pointer + 1);
 	}
 
 	/**
@@ -92,45 +120,13 @@ export class Entities {
 	#tryCursorMove(expected: number) {
 		return (
 			expected ===
-			Atomics.compareExchange(this.#data, 1, expected, expected + 1)
+			Atomics.compareExchange(
+				this.#data,
+				this.#pointer + 1,
+				expected,
+				expected + 1,
+			)
 		);
-	}
-
-	resetCursor() {
-		this.#data[1] = 0;
-	}
-
-	grow(world: World) {
-		const bufferSize =
-			BigUint64Array.BYTES_PER_ELEMENT *
-			Math.ceil((this.#data[0] + 1) / ENTITY_BATCH_SIZE) *
-			ENTITY_BATCH_SIZE;
-		const newLocations = new Uint32Array(world.createBuffer(bufferSize));
-		newLocations.set(this.#locations);
-		this.#locations = newLocations;
-		world.threads.send(RESIZE_ENTITY_LOCATIONS(this.#locations));
-	}
-
-	/**
-	 * Sets the locations array to the new specified array. Make sure all entity location data has been copied into the new array!
-	 * @param newLocations The new locations array.
-	 */
-	setLocations(newLocations: Uint32Array) {
-		this.#locations = newLocations;
-	}
-
-	getTableIndex(entityId: bigint) {
-		return this.#locations[getIndex(entityId) << 1] ?? 0;
-	}
-	setTableIndex(entityId: bigint, tableIndex: number) {
-		this.#locations[getIndex(entityId) << 1] = tableIndex;
-	}
-
-	getRow(entityId: bigint) {
-		return this.#locations[(getIndex(entityId) << 1) + 1] ?? 0;
-	}
-	setRow(entityId: bigint, row: number) {
-		this.#locations[(getIndex(entityId) << 1) + 1] = row;
 	}
 }
 
@@ -139,42 +135,26 @@ export class Entities {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, vi } = import.meta.vitest;
-	const { Table } = await import('./Table');
+	const { World } = await import('../world');
+	const { Memory } = await import('../utils/memory');
+	const { ThreadGroup } = await import('../threads');
+	ThreadGroup.isMainThread = true;
 
-	it('returns incrementing generational integers', () => {
-		const entities = new Entities(
-			{} as any,
-			new Uint32Array(256 * 2),
-			new Uint32Array(3),
-			new Table(
-				{ tableLengths: new Uint32Array(1) } as any,
-				new Map(),
-				0,
-				0n,
-				0,
-			),
-		);
+	const createWorld = () => World.new().build();
+
+	it('returns incrementing generational integers', async () => {
+		const world = await createWorld();
+		const entities = world.entities;
 
 		for (let i = 0n; i < 256n; i++) {
 			expect(entities.spawn()).toBe(i);
 		}
 	});
 
-	it('returns entities from the Recycled table', () => {
-		const table = new Table(
-			{ tableLengths: new Uint32Array(1) } as any,
-			new Map().set(Entity, { u64: new BigUint64Array(8) }),
-			0,
-			0n,
-			0,
-		);
-
-		const entities = new Entities(
-			{} as any,
-			new Uint32Array(256 * 2),
-			new Uint32Array(3),
-			table,
-		);
+	it('returns entities from the Recycled table', async () => {
+		const world = await createWorld();
+		const entities = world.entities;
+		const table = world.archetypes[1];
 
 		expect(entities.spawn()).toBe(0n);
 		expect(entities.spawn()).toBe(1n);
@@ -191,52 +171,30 @@ if (import.meta.vitest) {
 		expect(entities.spawn()).toBe(3n);
 	});
 
-	it('grows by at least as many have been spawned', () => {
-		const sendSpy = vi.fn();
-		const mockWorld = {
-			createBuffer: (l: number) => new ArrayBuffer(l),
-			threads: { send: sendSpy },
-		} as any;
+	it('reset grows by at least as many entities have been spawned', async () => {
+		const reallocSpy = vi.spyOn(Memory.prototype, 'realloc');
+		const world = await createWorld();
+		const entities = world.entities;
 
-		const table = new Table(
-			{ tableLengths: new Uint32Array(1) } as any,
-			new Map().set(Entity, { u64: new BigUint64Array(8) }),
-			0,
-			0n,
-			0,
-		);
-
-		const entities = new Entities(
-			{} as any,
-			new Uint32Array(ENTITY_BATCH_SIZE * 2),
-			new Uint32Array(3),
-			table,
-		);
-
-		expect(entities.isFull).toBe(false);
+		expect(reallocSpy).not.toHaveBeenCalled();
 		for (let i = 0; i < ENTITY_BATCH_SIZE - 1; i++) {
 			entities.spawn();
 		}
-		expect(entities.isFull).toBe(false);
+		entities.resetCursor();
+		expect(reallocSpy).not.toHaveBeenCalled();
+
 		entities.spawn();
-		expect(entities.isFull).toBe(true);
+		entities.resetCursor();
+		expect(reallocSpy).toHaveBeenCalledOnce();
+		expect(reallocSpy).toHaveBeenCalledWith(40, 4096);
 
-		entities.grow(mockWorld);
-		expect(entities.isFull).toBe(false);
-		expect(sendSpy).toHaveBeenCalledTimes(1);
-		// Add another entity batch, 2 elements per entity
-		expect(sendSpy.mock.calls[0][0][2][0].length).toBe(256 * 2 * 2);
+		reallocSpy.mockReset();
 
-		sendSpy.mockReset();
-
-		for (let i = 0; i < ENTITY_BATCH_SIZE * 3; i++) {
+		for (let i = 0; i < ENTITY_BATCH_SIZE * 2; i++) {
 			entities.spawn();
 		}
-		expect(entities.isFull).toBe(true);
-		entities.grow(mockWorld);
-		expect(entities.isFull).toBe(false);
-		expect(sendSpy).toHaveBeenCalledTimes(1);
-		// Filled 4 batches, now on fifth, 2 elements per entity
-		expect(sendSpy.mock.calls[0][0][2][0].length).toBe(256 * 5 * 2);
+		entities.resetCursor();
+		expect(reallocSpy).toHaveBeenCalledOnce();
+		expect(reallocSpy).toHaveBeenCalledWith(40, 8192);
 	});
 }

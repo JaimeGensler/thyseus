@@ -19,6 +19,7 @@ import type { ExecutorInstance, ExecutorType } from '../executors';
 import type { ThreadGroup, ThreadMessageChannel } from '../threads';
 import type { SystemDefinition, SystemDependencies } from '../systems';
 import type { Query } from '../queries';
+import { Memory } from '../utils/memory';
 
 const TABLE_BATCH_SIZE = 64;
 
@@ -41,6 +42,8 @@ export class World {
 	queries = [] as Query<any, any>[];
 	resources = new Map<Class, object>();
 
+	declare memory: Memory;
+
 	systems = [] as ((...args: any[]) => any)[];
 	arguments = [] as any[][];
 
@@ -60,6 +63,8 @@ export class World {
 		dependencies: SystemDependencies[],
 		channels: ThreadMessageChannel[],
 	) {
+		// TODO: Create memory from config
+		this.memory = new Memory(1024 * 16, false);
 		this.buffer = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
 
 		this.config = config;

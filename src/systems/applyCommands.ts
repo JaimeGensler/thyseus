@@ -33,9 +33,8 @@ function mergeQueues(acc: Map<bigint, bigint>, [b]: CommandQueue) {
 export const applyCommands = defineSystem(
 	({ World }) => [World()],
 	async function applyCommands(world) {
-		if (world.entities.isFull) {
-			world.entities.grow(world);
-		}
+		world.entities.resetCursor();
+
 		const [mainQueue, mainQueueData, mainQueueView] =
 			world.commands.getData();
 		const queues = await world.threads.send(GET_COMMAND_QUEUE());
@@ -62,7 +61,6 @@ export const applyCommands = defineSystem(
 
 		const clear = world.threads.send(CLEAR_COMMAND_QUEUE());
 		world.commands.reset();
-		world.entities.resetCursor();
 		return clear;
 	},
 );

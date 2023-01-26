@@ -54,9 +54,3 @@ export const RESIZE_TABLE_LENGTHS = createThreadChannel(
 		world.tableLengths = lengths;
 	},
 );
-export const RESIZE_ENTITY_LOCATIONS = createThreadChannel(
-	'thyseus::resizeEntityLocations',
-	world => (locs: Uint32Array) => {
-		world.entities.setLocations(locs);
-	},
-);
