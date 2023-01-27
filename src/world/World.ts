@@ -100,15 +100,15 @@ export class World {
 		this.executor = executor.fromWorld(this, systems, dependencies);
 
 		for (const Resource of resourceTypes) {
-			if (isStruct(Resource)) {
-				const resource = new Resource();
+			const resource = new Resource();
+			this.resources.set(Resource, new Resource());
+			if (isStruct(Resource) && Resource.size! > 0) {
 				//@ts-ignore: __$$s exists.
-				resource.__$$s = this.threads.queue(() =>
-					createStore(this.buffer, Resource, 1),
+				resource.__$$s = this.memory.views;
+				//@ts-ignore: __$$b exists
+				resource.__$$b = this.threads.queue(() =>
+					this.memory.alloc(Resource.size!),
 				);
-				this.resources.set(Resource, new Resource());
-			} else if (threads.isMainThread) {
-				this.resources.set(Resource, new Resource());
 			}
 		}
 
