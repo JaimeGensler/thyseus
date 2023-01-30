@@ -22,8 +22,8 @@ import { struct } from 'thyseus';
 
 @struct
 class Health {
-	@struct.u16() declare max: number;
-	@struct.u16() declare current: number;
+	@struct.u16 declare max: number;
+	@struct.u16 declare current: number;
 
 	heal(amount: number) {
 		// Clamp to max!
@@ -76,9 +76,9 @@ is. The primitive types are all properties of `@struct`, and are listed below:
 | bool     | Boolean (`true`/`false`)     | 1                | boolean     |
 
 If you're coming from a typical JS background and are not used to working with
-multiple numeric types, don't worry; `@struct.f64()` works like the numbers
-you're used to, and is a fine choice! It just may not always be the best fit for
-the job.
+multiple numeric types, don't worry; `@struct.f64` works like the numbers you're
+used to, and is a fine choice! It just may not always be the best fit for the
+job.
 
 You can also use the class constructors for structs, provided you pass `this` to
 the `initStruct` function first (similar to calling `super()` in subclasses):
@@ -88,8 +88,8 @@ import { struct, initStruct } from 'thyseus';
 
 @struct
 class Health {
-	@struct.u16() declare max: number;
-	@struct.u16() declare current: number;
+	@struct.u16 declare max: number;
+	@struct.u16 declare current: number;
 
 	constructor(max = 100, current = max) {
 		initStruct(this);
@@ -159,15 +159,15 @@ number of elements the array contains.
 ```ts
 @struct
 class RGB {
-	@struct.u8() declare r: number;
-	@struct.u8() declare g: number;
-	@struct.u8() declare b: number;
+	@struct.u8 declare r: number;
+	@struct.u8 declare g: number;
+	@struct.u8 declare b: number;
 }
 
 @struct
 class RGBA {
 	@struct.substruct(RGB) declare rgb: RGB;
-	@struct.u8() declare a: number;
+	@struct.u8 declare a: number;
 }
 ```
 
@@ -187,14 +187,14 @@ Bad (will not work as expected):
 ```ts
 @struct
 class Vec2 {
-	@struct.f64() declare x: number;
-	@struct.f64() declare y: number;
+	@struct.f64 declare x: number;
+	@struct.f64 declare y: number;
 }
 
 @struct
 class Vec3 extends Vec2 {
 	// We cannot extend structs with new fields!
-	@struct.f64() declare z: number;
+	@struct.f64 declare z: number;
 }
 ```
 
@@ -203,8 +203,8 @@ Good:
 ```ts
 @struct
 class Vec2 {
-	@struct.f64() declare x: number;
-	@struct.f64() declare y: number;
+	@struct.f64 declare x: number;
+	@struct.f64 declare y: number;
 }
 
 class Vec3 {
@@ -233,9 +233,9 @@ import { struct } from 'thyseus';
 
 @struct
 class Vec3 {
-	@struct.f64() declare x: number;
-	@struct.f64() declare y: number;
-	@struct.f64() declare z: number;
+	@struct.f64 declare x: number;
+	@struct.f64 declare y: number;
+	@struct.f64 declare z: number;
 }
 
 // These don't add additional fields, and so work totally fine!

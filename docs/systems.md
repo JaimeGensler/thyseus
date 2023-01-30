@@ -57,8 +57,8 @@ import { struct, defineSystem } from 'thyseus';
 
 @struct
 class Vec2 {
-	@struct.f64() declare x: number;
-	@struct.f64() declare y: number;
+	@struct.f64 declare x: number;
+	@struct.f64 declare y: number;
 }
 class Position extends Vec2 {}
 class Velocity extends Vec2 {}

@@ -78,9 +78,9 @@ if (import.meta.vitest) {
 		declare static size: number;
 		declare __$$b: number;
 		declare __$$s: any;
-		@struct.f64() declare x: number;
-		@struct.f64() declare y: number;
-		@struct.f64() declare z: number;
+		@struct.f64 declare x: number;
+		@struct.f64 declare y: number;
+		@struct.f64 declare z: number;
 		constructor() {}
 	}
 
@@ -90,14 +90,14 @@ if (import.meta.vitest) {
 
 		@struct
 		class CompB {
-			@struct.i32() declare myField: number;
+			@struct.i32 declare myField: number;
 		}
 
 		@struct
 		class CompC {
-			@struct.u8() declare myField: number;
-			@struct.u16() declare myField2: number;
-			@struct.f64() declare myField3: number;
+			@struct.u8 declare myField: number;
+			@struct.u16 declare myField2: number;
+			@struct.f64 declare myField3: number;
 		}
 
 		expect(CompA).toHaveProperty('size', 0);
@@ -171,7 +171,7 @@ if (import.meta.vitest) {
 				declare __$$s: any;
 				declare __$$b: number;
 				declare static size: number;
-				@decorator() declare field: any;
+				@decorator declare field: any;
 				constructor() {}
 			}
 
@@ -258,10 +258,10 @@ if (import.meta.vitest) {
 			declare static size: number;
 			declare __$$s: any;
 			declare __$$b: number;
-			@struct.u8() declare a: number;
-			@struct.u64() declare b: bigint;
-			@struct.i16() declare c: number;
-			@struct.f32() declare d: number;
+			@struct.u8 declare a: number;
+			@struct.u64 declare b: bigint;
+			@struct.i16 declare c: number;
+			@struct.f32 declare d: number;
 			constructor() {}
 		}
 		const buffer = new ArrayBuffer(Comp.size * 2);
@@ -298,7 +298,7 @@ if (import.meta.vitest) {
 			declare __$$s: any;
 			declare __$$b: number;
 			@struct.substruct(Vec3) declare position: Vec3;
-			@struct.f32() declare scale: number;
+			@struct.f32 declare scale: number;
 			@struct.substruct(Vec3) declare rotation: Vec3;
 			constructor() {}
 		}

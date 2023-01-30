@@ -143,9 +143,9 @@ if (import.meta.vitest) {
 		declare static size: number;
 		declare __$$s: World['memory']['views'];
 		declare __$$b: number;
-		@struct.f64() declare x: number;
-		@struct.f64() declare y: number;
-		@struct.f64() declare z: number;
+		@struct.f64 declare x: number;
+		@struct.f64 declare y: number;
+		@struct.f64 declare z: number;
 		constructor() {}
 	}
 

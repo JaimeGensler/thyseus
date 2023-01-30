@@ -123,20 +123,20 @@ if (import.meta.vitest) {
 	}
 	@struct
 	class A extends Comp {
-		@struct.f32() declare value: number;
+		@struct.f32 declare value: number;
 	}
 	@struct
 	class B extends Comp {
-		@struct.i64() declare value: bigint;
+		@struct.i64 declare value: bigint;
 	}
 
 	@struct
 	class C extends Comp {
-		@struct.u8() declare value: number;
+		@struct.u8 declare value: number;
 	}
 	@struct
 	class D extends Comp {
-		@struct.u8() declare value: number;
+		@struct.u8 declare value: number;
 	}
 
 	it('throws if trying to access ZSTs', () => {

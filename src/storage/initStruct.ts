@@ -36,16 +36,16 @@ if (import.meta.vitest) {
 			@struct
 			class MyComponent {
 				declare static size: number;
-				@struct.u8() declare a: number;
-				@struct.u16() declare b: number;
-				@struct.u32() declare c: number;
-				@struct.u64() declare d: bigint;
-				@struct.i8() declare e: number;
-				@struct.i16() declare f: number;
-				@struct.i32() declare g: number;
-				@struct.i64() declare h: bigint;
-				@struct.f32() declare i: number;
-				@struct.f64() declare j: number;
+				@struct.u8 declare a: number;
+				@struct.u16 declare b: number;
+				@struct.u32 declare c: number;
+				@struct.u64 declare d: bigint;
+				@struct.i8 declare e: number;
+				@struct.i16 declare f: number;
+				@struct.i32 declare g: number;
+				@struct.i64 declare h: bigint;
+				@struct.f32 declare i: number;
+				@struct.f64 declare j: number;
 				declare __$$s: any;
 				declare __$$b: number;
 				constructor() {

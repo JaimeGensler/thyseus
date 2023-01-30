@@ -17,7 +17,7 @@ import { struct, defineSystem } from 'thyseus';
 
 @struct
 class MyComponent {
-	@struct.f64() declare myValue: number;
+	@struct.f64 declare myValue: number;
 }
 
 defineSystem(
@@ -48,11 +48,11 @@ import { struct, defineSystem } from 'thyseus';
 
 @struct
 class CompA {
-	@struct.f64() declare valueA: number;
+	@struct.f64 declare valueA: number;
 }
 @struct
 class CompB {
-	@struct.f64() declare valueB: number;
+	@struct.f64 declare valueB: number;
 }
 
 defineSystem(
@@ -88,9 +88,9 @@ import { struct, defineSystem } from 'thyseus';
 
 @struct
 class Vec3 {
-	@struct.f64() declare x: number;
-	@struct.f64() declare y: number;
-	@struct.f64() declare z: number;
+	@struct.f64 declare x: number;
+	@struct.f64 declare y: number;
+	@struct.f64 declare z: number;
 }
 class Position extends Vec3 {}
 class Velocity extends Vec3 {}
