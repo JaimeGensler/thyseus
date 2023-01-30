@@ -181,8 +181,12 @@ export class Memory {
 		return newPointer;
 	}
 
-	copy(from: Pointer, length: number, destination: Pointer) {
-		this.#u8.copyWithin(destination, from, from + length);
+	copy(from: Pointer, length: number, to: Pointer) {
+		this.#u8.copyWithin(to, from, from + length);
+	}
+
+	set(from: Pointer, length: number, value: number) {
+		this.#u8.fill(value, from, from + length);
 	}
 
 	#spinlock() {

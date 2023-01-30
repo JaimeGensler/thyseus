@@ -185,6 +185,9 @@ export class Commands {
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
 	const { initStruct } = await import('../storage');
+	const { World } = await import('../world');
+	const { ThreadGroup } = await import('../threads/ThreadGroup');
+	ThreadGroup.isMainThread = true;
 
 	class ZST {
 		static size = 0;
@@ -222,59 +225,60 @@ if (import.meta.vitest) {
 		}
 	}
 
-	let i = 0n;
-	const mockWorld = {
-		createBuffer: (l: number) => new ArrayBuffer(l),
-		components: [Entity, ZST, CompA, CompB, CompC, CompD],
-		threads: {
-			queue: c => c(),
-		},
-		entities: {
-			spawn: () => i++,
-			getTableIndex: (eid: bigint) => 0,
-		},
-		archetypes: [{ bitfield: 0n }],
-	} as World;
+	const createWorld = () =>
+		World.new()
+			.registerComponent(ZST)
+			.registerComponent(CompA)
+			.registerComponent(CompB)
+			.registerComponent(CompC)
+			.registerComponent(CompD)
+			.build();
 
-	it('returns unique entity handles', () => {
-		const commands = Commands.fromWorld(mockWorld);
+	it('returns unique entity handles', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
 		const e1 = commands.get(0n);
 		const e2 = commands.get(1n);
 		expect(e1).not.toBe(e2);
 	});
 
-	it('adds Entity component to spawned entities', () => {
-		const commands = Commands.fromWorld(mockWorld);
+	it('adds Entity component to spawned entities', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn();
 		const [map] = commands.getData();
 		expect(map.has(ent.id)).toBe(true);
 		expect(map.get(ent.id)).toBe(0b1n); // Just Entity
 	});
 
-	it('inserts ZSTs', () => {
-		const commands = Commands.fromWorld(mockWorld);
+	it('inserts ZSTs', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().addType(ZST);
 		const [map] = commands.getData();
 		expect(map.get(ent.id)).toBe(0b11n); // Entity, ZST
 	});
 
-	it('removes components', () => {
-		const commands = Commands.fromWorld(mockWorld);
+	it('removes components', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().addType(ZST).remove(ZST);
 		const [map] = commands.getData();
 		expect(map.get(ent.id)).toBe(0b01n); // Entity
 	});
 
-	it('despawns entities', () => {
-		const commands = Commands.fromWorld(mockWorld);
+	it('despawns entities', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().addType(ZST);
 		ent.despawn();
 		const [map] = commands.getData();
 		expect(map.get(ent.id)).toBe(0n);
 	});
 
-	it('inserts sized types with default data', () => {
-		const commands = Commands.fromWorld(mockWorld);
+	it('inserts sized types with default data', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().addType(CompD);
 		const [map, , dataview] = commands.getData();
 		const u32 = new Uint32Array(dataview.buffer);
@@ -285,8 +289,9 @@ if (import.meta.vitest) {
 		expect(u32[20 >> 2]).toBe(42);
 	});
 
-	it('inserts sized types with specialized data', () => {
-		const commands = Commands.fromWorld(mockWorld);
+	it('inserts sized types with specialized data', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().add(new CompD(15, 16));
 		const [map, , dataview] = commands.getData();
 		const u32 = new Uint32Array(dataview.buffer);

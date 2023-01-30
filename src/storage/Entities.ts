@@ -3,6 +3,7 @@ import type { Table } from './Table';
 import type { World } from '../world';
 
 const lo32 = 0x00_00_00_00_ff_ff_ff_ffn;
+const getIndex = (entityId: bigint) => Number(entityId & lo32);
 const ENTITY_BATCH_SIZE = 256;
 
 export class Entities {
@@ -21,11 +22,13 @@ export class Entities {
 	}
 
 	#data: Uint32Array; // [nextId, cursor, pointer, length]
+	#data64: BigUint64Array;
 	#world: World;
 	#pointer: number;
 	#recycled: Table;
 	constructor(world: World, pointer: number) {
 		this.#data = world.memory.views.u32;
+		this.#data64 = world.memory.views.u64;
 		this.#pointer = pointer >> 2;
 		this.#world = world;
 		this.#recycled = world.archetypes[1];
@@ -36,15 +39,14 @@ export class Entities {
 	 */
 	spawn(): bigint {
 		const recycledSize = this.#recycled.size;
+		const recycledPtr = this.#recycled.getColumn(Entity);
 		for (
 			let currentCursor = this.#getCursor();
 			currentCursor < recycledSize;
 			currentCursor = this.#getCursor()
 		) {
 			if (this.#tryCursorMove(currentCursor)) {
-				return this.#recycled.columns.get(Entity)!.u64![
-					recycledSize - currentCursor - 1
-				];
+				return this.#data64[(recycledPtr >> 3) + currentCursor];
 			}
 		}
 		return BigInt(Atomics.add(this.#data, this.#pointer, 1));
@@ -58,11 +60,10 @@ export class Entities {
 	isAlive(entityId: bigint) {
 		const tableIndex = this.getTableIndex(entityId);
 		const row = this.getRow(entityId);
+		const ptr = this.#world.archetypes[tableIndex].getColumn(Entity);
 		return (
-			tableIndex === 0 ||
-			this.#world.archetypes[tableIndex].columns.get(Entity)!.u64![
-				row
-			] === entityId
+			getIndex(entityId) < Atomics.load(this.#data, this.#pointer) &&
+			(tableIndex === 0 || this.#data64[(ptr >> 3) + row] === entityId)
 		);
 	}
 
@@ -101,7 +102,7 @@ export class Entities {
 		this.#data[this.#pointer + 2] = val;
 	}
 	#getOffset(entityId: bigint) {
-		return (this.#locationsPointer >> 2) + (Number(entityId & lo32) << 1);
+		return (this.#locationsPointer >> 2) + (getIndex(entityId) << 1);
 	}
 
 	/**
@@ -154,20 +155,23 @@ if (import.meta.vitest) {
 	it('returns entities from the Recycled table', async () => {
 		const world = await createWorld();
 		const entities = world.entities;
-		const table = world.archetypes[1];
+		const recycledTable = world.archetypes[1];
 
 		expect(entities.spawn()).toBe(0n);
 		expect(entities.spawn()).toBe(1n);
 		expect(entities.spawn()).toBe(2n);
 
-		table.size = 3;
-		table.columns.get(Entity)!.u64![0] = 0n;
-		table.columns.get(Entity)!.u64![1] = 1n;
-		table.columns.get(Entity)!.u64![2] = 2n;
+		recycledTable.size = 3;
 
-		expect(entities.spawn()).toBe(2n);
-		expect(entities.spawn()).toBe(1n);
+		const ptr = recycledTable.getColumn(Entity);
+
+		world.memory.views.u64[(ptr >> 3) + 0] = 0n;
+		world.memory.views.u64[(ptr >> 3) + 1] = 1n;
+		world.memory.views.u64[(ptr >> 3) + 2] = 2n;
+
 		expect(entities.spawn()).toBe(0n);
+		expect(entities.spawn()).toBe(1n);
+		expect(entities.spawn()).toBe(2n);
 		expect(entities.spawn()).toBe(3n);
 	});
 

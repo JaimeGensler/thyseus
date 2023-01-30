@@ -105,7 +105,7 @@ export class QueryDescriptor<
 				  }
 				: UnwrapElement<A>,
 			F
-		>(withs, withouts, this.isIndividual, this.components, world.commands);
+		>(withs, withouts, this.isIndividual, this.components, world);
 		world.queries.push(query);
 		return query;
 	}
@@ -241,6 +241,7 @@ if (import.meta.vitest) {
 			const world: any = {
 				components: [A, B],
 				queries: [],
+				memory: { views: {} },
 			};
 
 			const result = descriptor.intoArgument(world);

@@ -1,14 +1,9 @@
 import { WorldBuilder } from './WorldBuilder';
 import { Commands } from './Commands';
 import { bits } from '../utils/bits';
-import {
-	createStore,
-	Entities,
-	Entity,
-	Table,
-	UncreatedEntitiesTable,
-} from '../storage';
-import { RESIZE_TABLE, RESIZE_TABLE_LENGTHS, SEND_TABLE } from './channels';
+import { Memory } from '../utils/memory';
+import { Entities, Entity, Table, UncreatedEntitiesTable } from '../storage';
+import { SEND_TABLE } from './channels';
 import { isStruct, type Class, type Struct } from '../struct';
 import {
 	validateAndCompleteConfig,
@@ -19,9 +14,6 @@ import type { ExecutorInstance, ExecutorType } from '../executors';
 import type { ThreadGroup, ThreadMessageChannel } from '../threads';
 import type { SystemDefinition, SystemDependencies } from '../systems';
 import type { Query } from '../queries';
-import { Memory } from '../utils/memory';
-
-const TABLE_BATCH_SIZE = 64;
 
 export class World {
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
@@ -36,13 +28,12 @@ export class World {
 	buffer: ArrayBufferConstructor | SharedArrayBufferConstructor;
 
 	archetypeLookup = new Map<bigint, number>();
-	tableLengths: Uint32Array;
 	archetypes = [] as Table[];
 
 	queries = [] as Query<any, any>[];
 	resources = new Map<Class, object>();
 
-	declare memory: Memory;
+	memory: Memory;
 
 	systems = [] as ((...args: any[]) => any)[];
 	arguments = [] as any[][];
@@ -70,21 +61,9 @@ export class World {
 		this.config = config;
 		this.threads = threads;
 
-		this.tableLengths = this.threads.queue(
-			() =>
-				new Uint32Array(
-					this.createBuffer(
-						TABLE_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT,
-					),
-				),
-		);
 		this.archetypeLookup.set(0n, 1);
 
 		const recycledTable = Table.create(this, [Entity], 0n, 1);
-		recycledTable.columns.set(
-			Entity,
-			this.threads.queue(() => recycledTable.columns.get(Entity)!),
-		);
 		this.archetypes.push(new UncreatedEntitiesTable(this), recycledTable);
 
 		for (const channel of channels) {
@@ -140,10 +119,6 @@ export class World {
 			this.archetypes[this.entities.getTableIndex(entityId)];
 		const targetTable = this.#getTable(targetTableId);
 
-		if (targetTable.isFull) {
-			this.#resizeTable(targetTable);
-		}
-
 		const row = this.entities.getRow(entityId);
 		const backfilledEntity = currentTable.move(row, targetTable);
 		if (targetTableId === 0n) {
@@ -159,17 +134,6 @@ export class World {
 		if (this.archetypeLookup.has(tableId)) {
 			return this.archetypes[this.archetypeLookup.get(tableId)!];
 		}
-		if (this.archetypes.length === this.tableLengths.length) {
-			const oldLengths = this.tableLengths;
-			this.tableLengths = new Uint32Array(
-				this.createBuffer(
-					oldLengths.length +
-						TABLE_BATCH_SIZE * Uint32Array.BYTES_PER_ELEMENT,
-				),
-			);
-			this.tableLengths.set(oldLengths);
-			this.threads.send(RESIZE_TABLE_LENGTHS(this.tableLengths));
-		}
 		const id = this.archetypes.length;
 		const table = Table.create(
 			this,
@@ -180,24 +144,10 @@ export class World {
 		this.archetypeLookup.set(tableId, id);
 		this.archetypes.push(table);
 
-		this.threads.send(
-			SEND_TABLE(
-				[...table.columns.values()],
-				table.capacity,
-				id,
-				tableId,
-			),
-		);
+		this.threads.send(SEND_TABLE(table.pointer, id, tableId));
 		for (const query of this.queries) {
 			query.testAdd(tableId, table);
 		}
 		return table;
-	}
-
-	#resizeTable(table: Table) {
-		table.grow(this);
-		this.threads.send(
-			RESIZE_TABLE(table.id, table.capacity, [...table.columns.values()]),
-		);
 	}
 }

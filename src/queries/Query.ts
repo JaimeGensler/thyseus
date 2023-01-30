@@ -1,5 +1,7 @@
 import { Entity, type Table } from '../storage';
 import type { Struct } from '../struct';
+import type { MemoryViews } from '../utils/memory';
+import type { World } from '../world';
 import type { Commands } from '../world/Commands';
 import type { Mut, Optional, Filter } from './modifiers';
 
@@ -18,35 +20,41 @@ type IteratorItem<I> = I extends Optional<infer X>
 	: I extends Mut<infer X>
 	? X
 	: Readonly<I>;
+type Element = { __$$s: MemoryViews; __$$b: number };
 
 export class Query<A extends Accessors, F extends Filter = []> {
 	#tables = [] as Table[];
 	#elementOffset = 0;
-	#elements: object[];
+	#elements: Element[];
 
 	#with: bigint[];
 	#without: bigint[];
 	#components: Struct[];
 	#isIndividual: boolean;
 	#commands: Commands;
+	#views: MemoryViews;
 	constructor(
 		withFilters: bigint[],
 		withoutFilters: bigint[],
 		isIndividual: boolean,
 		components: Struct[],
-		commands: Commands,
+		world: World,
 	) {
 		this.#with = withFilters;
 		this.#isIndividual = isIndividual;
 		this.#without = withoutFilters;
 		this.#components = components;
-		this.#commands = commands;
-		this.#elements = this.#components.map(Component =>
-			Component === Entity
-				? //@ts-ignore
-				  new Component(this.#commands)
-				: new Component(),
-		);
+		this.#commands = world.commands;
+		this.#views = world.memory.views;
+		this.#elements = this.#components.map(Component => {
+			const result =
+				Component === Entity
+					? //@ts-ignore
+					  (new Component(this.#commands) as Element)
+					: (new Component() as Element);
+			result.__$$s = this.#views;
+			return result;
+		});
 	}
 
 	get size() {
@@ -56,16 +64,19 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	*[Symbol.iterator](): QueryIterator<A> {
 		if (this.#elementOffset >= this.#elements.length) {
 			this.#elements.push(
-				...this.#components.map(Component =>
-					Component === Entity
-						? //@ts-ignore
-						  new Component(this.#commands)
-						: new Component(),
-				),
+				...this.#components.map(Component => {
+					const result =
+						Component === Entity
+							? //@ts-ignore
+							  (new Component(this.#commands) as Element)
+							: (new Component() as Element);
+					result.__$$s = this.#views;
+					return result;
+				}),
 			);
 		}
 
-		const elements: Array<object | null> = this.#elements.slice(
+		const elements: Array<Element | null> = this.#elements.slice(
 			this.#elementOffset,
 			this.#elementOffset + this.#components.length,
 		);
@@ -75,28 +86,27 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		for (const table of this.#tables) {
 			elements.forEach((_, i) => {
 				const element = this.#elements[i + offset];
-				const store = table.columns.get(element.constructor as any);
-				if (!store) {
+				if (!table.hasColumn(element.constructor as any)) {
 					elements[i] = null;
 				} else {
 					elements[i] = element;
-					//@ts-ignore
-					elements[i].__$$s = store;
+					elements[i]!.__$$b = table.getColumn(
+						element.constructor as any,
+					);
 				}
 			});
 
 			for (let i = 0; i < table.size; i++) {
-				for (const element of elements) {
-					if (element) {
-						//@ts-ignore
-						element.__$$b = i * element.constructor.size;
-					}
-				}
-
 				if (this.#isIndividual) {
 					yield elements[0] as any;
 				} else {
 					yield elements as any;
+				}
+
+				for (const element of elements) {
+					if (element) {
+						element.__$$b += (element.constructor as Struct).size!;
+					}
 				}
 			}
 		}
@@ -122,14 +132,19 @@ export class Query<A extends Accessors, F extends Filter = []> {
 
 if (import.meta.vitest) {
 	const { it, expect, describe } = import.meta.vitest;
-	const { Entity } = await import('../storage/Entity');
-	const { Table } = await import('../storage/Table');
-	const { UncreatedEntitiesTable } = await import(
-		'../storage/UncreatedEntitiesTable'
-	);
+	const { initStruct, Entity, Table } = await import('../storage');
+	const { World } = await import('../world');
+	const { ThreadGroup } = await import('../threads/ThreadGroup');
+	ThreadGroup.isMainThread = true;
 
-	it('testAdd adds tables only if a filter passes', () => {
-		const query1 = new Query([0b0001n], [0b0000n], false, [], {} as any);
+	const createWorld = (...components: Struct[]) =>
+		components
+			.reduce((acc, comp) => acc.registerComponent(comp), World.new())
+			.build();
+
+	it('testAdd adds tables only if a filter passes', async () => {
+		const world = await createWorld();
+		const query1 = new Query([0b0001n], [0b0000n], false, [], world);
 		const table: Table = { size: 1 } as any;
 		expect(query1.size).toBe(0);
 		query1.testAdd(0b0001n, table);
@@ -137,7 +152,7 @@ if (import.meta.vitest) {
 		query1.testAdd(0b0010n, table);
 		expect(query1.size).toBe(1);
 
-		const query2 = new Query([0b0100n], [0b1011n], false, [], {} as any);
+		const query2 = new Query([0b0100n], [0b1011n], false, [], world);
 		expect(query2.size).toBe(0);
 		query2.testAdd(0b0110n, table);
 		expect(query2.size).toBe(0);
@@ -149,7 +164,7 @@ if (import.meta.vitest) {
 			[0b1000n, 0b0100n, 0b0010n],
 			false,
 			[],
-			{} as any,
+			world,
 		);
 		expect(query3.size).toBe(0);
 		query3.testAdd(0b0001n, table); // Passes 1
@@ -165,38 +180,29 @@ if (import.meta.vitest) {
 	});
 
 	describe('iteration', () => {
-		const mockWorld: any = {
-			buffer: ArrayBuffer,
-			config: {
-				getNewTableSize() {
-					return 16;
-				},
-			},
-		};
-		const createTable = (...components: Struct[]) =>
-			Table.create(
-				{ ...mockWorld, tableLengths: new Uint32Array(1) },
-				components,
-				0n,
-				0,
-			);
-		const uncreated = new UncreatedEntitiesTable(mockWorld);
+		const createTable = (world: World, ...components: Struct[]) =>
+			Table.create(world, components, 0n, 0);
 
 		class Vec3 {
 			static size = 24;
+			constructor() {
+				initStruct(this);
+			}
 		}
 		class Entity2 extends Entity {}
 
-		it('yields normal elements for all table members', () => {
+		it('yields normal elements for all table members', async () => {
+			const world = await createWorld(Vec3);
+			const uncreated = world.archetypes[0];
 			const query = new Query<[Vec3, Entity2]>(
 				[0n],
 				[0n],
 				false,
 				[Vec3, Entity],
-				{} as any,
+				world,
 			);
-			const table1 = createTable(Entity, Vec3);
-			const table2 = createTable(Entity, Vec3);
+			const table1 = createTable(world, Entity, Vec3);
+			const table2 = createTable(world, Entity, Vec3);
 			query.testAdd(0n, table1);
 			query.testAdd(0n, table2);
 			expect(query.size).toBe(0);
@@ -214,16 +220,18 @@ if (import.meta.vitest) {
 			expect(j).toBe(10);
 		});
 
-		it('yields null for optional members', () => {
+		it('yields null for optional members', async () => {
+			const world = await createWorld(Vec3);
+			const uncreated = world.archetypes[0];
 			const query = new Query<[Vec3, Entity2]>(
 				[0n],
 				[0n],
 				false,
 				[Vec3, Entity],
-				{} as any,
+				world,
 			);
-			const vecTable = createTable(Entity, Vec3);
-			const noVecTable = createTable(Entity);
+			const vecTable = createTable(world, Entity, Vec3);
+			const noVecTable = createTable(world, Entity);
 
 			query.testAdd(0n, noVecTable);
 			query.testAdd(0n, vecTable);
@@ -246,9 +254,11 @@ if (import.meta.vitest) {
 			expect(j).toBe(10);
 		});
 
-		it('yields individual elements for non-tuple iterators', () => {
-			const query = new Query<Vec3>([0n], [0n], true, [Vec3], {} as any);
-			const table = createTable(Entity, Vec3);
+		it('yields individual elements for non-tuple iterators', async () => {
+			const world = await createWorld(Vec3);
+			const uncreated = world.archetypes[0];
+			const query = new Query<Vec3>([0n], [0n], true, [Vec3], world);
+			const table = createTable(world, Entity, Vec3);
 
 			query.testAdd(0n, table);
 			expect(query.size).toBe(0);
@@ -264,15 +274,17 @@ if (import.meta.vitest) {
 			expect(j).toBe(10);
 		});
 
-		it('yields unique elements for nested iteration', () => {
+		it('yields unique elements for nested iteration', async () => {
+			const world = await createWorld();
+			const uncreated = world.archetypes[0];
 			const query = new Query<[Vec3, Entity2]>(
 				[0n],
 				[0n],
 				false,
 				[Vec3, Entity],
-				{} as any,
+				world,
 			);
-			const table = createTable(Entity, Vec3);
+			const table = createTable(world, Entity, Vec3);
 
 			query.testAdd(0n, table);
 			expect(query.size).toBe(0);

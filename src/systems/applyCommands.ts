@@ -54,9 +54,9 @@ export const applyCommands = defineSystem(
 				continue;
 			}
 
-			const column = world.archetypes[tableId].columns.get(component)!;
+			const column = world.archetypes[tableId].getColumn(component)!;
 			const row = world.entities.getRow(entityId);
-			column.u8.set(data, row * component.size!);
+			world.memory.views.u8.set(data, column + row * component.size!);
 		}
 
 		const clear = world.threads.send(CLEAR_COMMAND_QUEUE());
@@ -97,11 +97,12 @@ if (import.meta.vitest) {
 		static alignment = 4;
 
 		declare __$$s: any;
+		declare __$$b: number;
 		get x() {
-			return this.__$$s.u32[0];
+			return this.__$$s.u32[this.__$$b >> 2];
 		}
 		get y() {
-			return this.__$$s.u32[1];
+			return this.__$$s.u32[(this.__$$b >> 2) + 1];
 		}
 		set x(val: number) {
 			this.__$$s.u32[0] = val;
@@ -117,7 +118,7 @@ if (import.meta.vitest) {
 		}
 	}
 
-	const getWorld = () =>
+	const createWorld = () =>
 		World.new()
 			.registerComponent(ZST)
 			.registerComponent(CompA)
@@ -127,7 +128,7 @@ if (import.meta.vitest) {
 			.build();
 
 	it('moves entities', async () => {
-		const myWorld = await getWorld();
+		const myWorld = await createWorld();
 		const moveEntitySpy = vi.spyOn(myWorld, 'moveEntity');
 		myWorld.commands.spawn().addType(CompA).add(new CompD());
 		myWorld.commands.spawn().addType(CompB).addType(ZST).add(new CompD());
@@ -137,15 +138,16 @@ if (import.meta.vitest) {
 		expect(moveEntitySpy).toHaveBeenCalledWith(1n, 0b101011n);
 	});
 
-	it('initializes data', async () => {
-		const myWorld = await getWorld();
+	it.only('initializes data', async () => {
+		const myWorld = await createWorld();
 		myWorld.commands.spawn().addType(CompA).add(new CompD(1, 2));
 		await applyCommands.fn(myWorld);
 		const archetypeD = myWorld.archetypes[2];
 		const testComp = new CompD();
 
-		testComp.__$$s = archetypeD.columns.get(CompD)!;
-
+		testComp.__$$s = myWorld.memory.views;
+		testComp.__$$b = archetypeD.getColumn(CompD)!;
+		expect(archetypeD.size).toBe(1);
 		expect(testComp.x).toBe(1);
 		expect(testComp.y).toBe(2);
 	});
