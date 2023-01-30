@@ -21,21 +21,29 @@ const MINIMUM_BLOCK_SIZE = 24; // 16 + 8
 const alignTo8 = (x: number) => Math.ceil(x / 8) * 8;
 
 export class Memory {
+	static withSize(size: number, isShared: boolean = false): Memory {
+		size = alignTo8(size);
+		const bufferType = isShared ? SharedArrayBuffer : ArrayBuffer;
+		const buffer = new bufferType(size);
+		const u32 = new Uint32Array(buffer);
+		u32[0] = size;
+		u32[u32.length - 1] = size;
+		return new this(u32);
+	}
+
+	static fromBuffer(buffer: ArrayBufferLike): Memory {
+		return new this(new Uint32Array(buffer));
+	}
+
 	#buffer: ArrayBuffer | SharedArrayBuffer;
 	#views: MemoryViews;
 	#u8: Uint8Array;
 	#u32: Uint32Array;
 
-	get views() {
-		return this.#views;
-	}
-
-	constructor(size: number, isShared: boolean = false) {
-		size = alignTo8(size);
-		const bufferType = isShared ? SharedArrayBuffer : ArrayBuffer;
-		this.#buffer = new bufferType(size);
+	constructor(u32: Uint32Array) {
+		this.#buffer = u32.buffer;
 		this.#u8 = new Uint8Array(this.#buffer);
-		this.#u32 = new Uint32Array(this.#buffer);
+		this.#u32 = u32;
 		this.#views = {
 			buffer: this.#buffer,
 			u8: this.#u8,
@@ -50,8 +58,10 @@ export class Memory {
 			f64: new Float64Array(this.#buffer),
 			dataview: new DataView(this.#buffer),
 		};
-		this.#u32[0] = size;
-		this.#u32[this.#u32.length - 1] = size;
+	}
+
+	get views() {
+		return this.#views;
 	}
 
 	alloc(size: number): Pointer {
@@ -205,7 +215,7 @@ if (import.meta.vitest) {
 
 	describe('alloc', () => {
 		it('returns a pointer', () => {
-			const memory = new Memory(256);
+			const memory = Memory.withSize(256);
 			const ptr1 = memory.alloc(8);
 			expect(ptr1).toBe(8);
 
@@ -218,7 +228,7 @@ if (import.meta.vitest) {
 
 	describe('free', () => {
 		it('clears a block and allows it to be allocated again', () => {
-			const memory = new Memory(256);
+			const memory = Memory.withSize(256);
 			const ptr1 = memory.alloc(8);
 			expect(ptr1).toBe(8);
 
@@ -228,7 +238,7 @@ if (import.meta.vitest) {
 		});
 
 		it('collects the next block if free', () => {
-			const memory = new Memory(256);
+			const memory = Memory.withSize(256);
 			const ptr1 = memory.alloc(8);
 			expect(ptr1).toBe(8);
 
@@ -238,7 +248,7 @@ if (import.meta.vitest) {
 		});
 
 		it('collects the previous block if free', () => {
-			const memory = new Memory(256);
+			const memory = Memory.withSize(256);
 			const ptr1 = memory.alloc(8);
 			expect(ptr1).toBe(8);
 			const ptr2 = memory.alloc(8);
@@ -254,7 +264,7 @@ if (import.meta.vitest) {
 
 	describe('realloc', () => {
 		it('returns the same pointer if allocated block is large enough already', () => {
-			const memory = new Memory(256);
+			const memory = Memory.withSize(256);
 			const ptr = memory.alloc(3); // This is pushed to 8
 			const newPtr = memory.realloc(ptr, 5);
 			expect(newPtr).toBe(ptr);
@@ -265,14 +275,14 @@ if (import.meta.vitest) {
 		});
 
 		it('returns the same pointer if following block can be used', () => {
-			const memory = new Memory(256);
+			const memory = Memory.withSize(256);
 			const ptr = memory.alloc(8);
 			const newPtr = memory.realloc(ptr, 16);
 			expect(newPtr).toBe(ptr);
 		});
 
 		it('returns the same pointer and entire following block, if necessary', () => {
-			const memory = new Memory(256);
+			const memory = Memory.withSize(256);
 			const ptr1 = memory.alloc(8);
 			const ptr2 = memory.alloc(8);
 			const heldPtr = memory.alloc(8);

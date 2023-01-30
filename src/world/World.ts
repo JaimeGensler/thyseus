@@ -31,16 +31,16 @@ export class World {
 	queries = [] as Query<any, any>[];
 	resources = new Map<Class, object>();
 
-	memory: Memory;
-
 	systems = [] as ((...args: any[]) => any)[];
 	arguments = [] as any[][];
 
-	executor: ExecutorInstance;
+	memory: Memory;
 	commands: Commands;
 	entities: Entities;
+
 	config: WorldConfig;
 	threads: ThreadGroup;
+	executor: ExecutorInstance;
 	components: Struct[];
 	constructor(
 		config: WorldConfig,
@@ -52,10 +52,13 @@ export class World {
 		dependencies: SystemDependencies[],
 		channels: ThreadMessageChannel[],
 	) {
-		this.memory = new Memory(config.memory, config.threads > 1);
-
 		this.config = config;
 		this.threads = threads;
+		const buffer = this.threads.queue(() => {
+			const mem = Memory.withSize(config.memory, config.threads > 1);
+			return mem.views.buffer;
+		});
+		this.memory = Memory.fromBuffer(buffer);
 
 		this.archetypeLookup.set(0n, 1);
 
