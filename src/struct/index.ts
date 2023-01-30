@@ -1,2 +1,2 @@
-export { struct, type Class, type Struct, type StructStore } from './struct';
+export { struct, type Class, type Struct } from './struct';
 export { isStruct } from './isStruct';

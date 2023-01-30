@@ -1,6 +1,7 @@
 import { initStruct } from './initStruct';
-import type { Struct, StructStore } from '../struct';
+import type { Struct } from '../struct';
 import type { Commands } from '../world/Commands';
+import type { MemoryViews } from '../utils/memory';
 
 type NotFunction<T> = T extends Function ? never : T;
 
@@ -8,7 +9,7 @@ export class Entity {
 	static size = 8;
 	static alignment = 8;
 
-	private declare __$$s: StructStore;
+	private declare __$$s: MemoryViews;
 	private declare __$$b: number;
 
 	#commands: Commands;

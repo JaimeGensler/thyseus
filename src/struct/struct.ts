@@ -20,19 +20,6 @@ import { initStruct } from '../storage';
 export type Class = {
 	new (...args: any[]): object;
 };
-export type StructStore = {
-	buffer: ArrayBuffer;
-	u8: Uint8Array;
-	u16?: Uint16Array;
-	u32?: Uint32Array;
-	u64?: BigUint64Array;
-	i8?: Int8Array;
-	i16?: Int16Array;
-	i32?: Int32Array;
-	i64?: BigInt64Array;
-	f32?: Float32Array;
-	f64?: Float64Array;
-};
 export type Struct = {
 	// NOTE: Types have been loosened to be optional here, as decorators do not provide type info.
 
@@ -56,7 +43,7 @@ export function struct() {
 			static size = size;
 			static alignment = alignment;
 
-			declare __$$s: StructStore;
+			declare __$$s: any;
 			declare __$$b: number;
 
 			constructor(...args: any[]) {
@@ -92,7 +79,7 @@ if (import.meta.vitest) {
 	class Vec3 {
 		declare static size: number;
 		declare __$$b: number;
-		declare __$$s: StructStore;
+		declare __$$s: any;
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
 		@struct.f64() declare z: number;
@@ -183,7 +170,7 @@ if (import.meta.vitest) {
 		] of fields) {
 			@struct()
 			class Comp {
-				declare __$$s: StructStore;
+				declare __$$s: any;
 				declare __$$b: number;
 				declare static size: number;
 				@decorator() declare field: any;
@@ -241,7 +228,7 @@ if (import.meta.vitest) {
 		class Comp {
 			declare static size: number;
 			declare __$$b: number;
-			declare __$$s: StructStore;
+			declare __$$s: any;
 			@struct.array({ type: 'u8', length: 8 }) declare value: Uint8Array;
 			@struct.array({ type: 'f64', length: 3 })
 			declare value2: Float64Array;
@@ -271,7 +258,7 @@ if (import.meta.vitest) {
 		@struct()
 		class Comp {
 			declare static size: number;
-			declare __$$s: StructStore;
+			declare __$$s: any;
 			declare __$$b: number;
 			@struct.u8() declare a: number;
 			@struct.u64() declare b: bigint;
@@ -310,7 +297,7 @@ if (import.meta.vitest) {
 		class Transform {
 			declare static size: number;
 
-			declare __$$s: StructStore;
+			declare __$$s: any;
 			declare __$$b: number;
 			@struct.substruct(Vec3) declare position: Vec3;
 			@struct.f32() declare scale: number;

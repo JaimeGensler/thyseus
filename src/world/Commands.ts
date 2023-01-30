@@ -1,6 +1,6 @@
 import { alignTo8 } from '../utils/alignTo8';
 import { Entity, type Entities } from '../storage';
-import type { Struct, StructStore } from '../struct';
+import type { Struct } from '../struct';
 import type { World } from './World';
 import type { MemoryViews } from '../utils/memory';
 
@@ -19,7 +19,7 @@ export class Commands {
 				if (component.size === 0) {
 					continue;
 				}
-				const instance = new component() as { __$$s: StructStore };
+				const instance = new component() as { __$$s: MemoryViews };
 				world.memory.views.u8.set(instance.__$$s.u8, ptr + offset);
 				offset += component.size!;
 			}

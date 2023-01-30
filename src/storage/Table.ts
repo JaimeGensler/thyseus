@@ -1,6 +1,6 @@
 import { Entity } from './Entity';
 import type { World } from '../world';
-import type { StructStore, Struct } from '../struct';
+import type { Struct } from '../struct';
 
 export class Table {
 	static create(
@@ -141,7 +141,7 @@ if (import.meta.vitest) {
 	@struct()
 	class Vec3 {
 		declare static size: number;
-		declare __$$s: StructStore;
+		declare __$$s: World['memory']['views'];
 		declare __$$b: number;
 		@struct.f64() declare x: number;
 		@struct.f64() declare y: number;
