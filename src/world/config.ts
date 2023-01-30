@@ -4,19 +4,23 @@ import { assert } from '../utils/assert';
 export type WorldConfig = {
 	threads: number;
 	getNewTableSize(prev: number): number;
+	memory: number;
 };
 export type SingleThreadedWorldConfig = WorldConfig & {
 	threads: 1;
 };
 
+const MB = 1_048_576;
+
 const getCompleteConfig = (config: Partial<WorldConfig> | undefined = {}) => ({
 	threads: 1,
+	memory: 512 * MB,
 	getNewTableSize: (prev: number) => (prev === 0 ? 8 : prev * 2),
 	...config,
 });
 
 const validateConfig = (
-	{ threads }: WorldConfig,
+	{ threads, memory }: WorldConfig,
 	url: string | URL | undefined,
 ) => {
 	if (threads > 1) {
@@ -38,6 +42,10 @@ const validateConfig = (
 		Number.isInteger(threads) && 0 < threads && threads < 64,
 		"Invalid config - 'threads' must be an integer such that 0 < threads < 64",
 		RangeError,
+	);
+	assert(
+		Number.isInteger(memory) && memory < 2 ** 32,
+		"Invalid config - 'memory' must be at most 4 GB ((2**32) - 1 bytes)",
 	);
 };
 export function validateAndCompleteConfig(

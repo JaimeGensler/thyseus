@@ -54,8 +54,7 @@ export class World {
 		dependencies: SystemDependencies[],
 		channels: ThreadMessageChannel[],
 	) {
-		// TODO: Create memory from config
-		this.memory = new Memory(1024 * 16, false);
+		this.memory = new Memory(config.memory, config.threads > 1);
 		this.buffer = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
 
 		this.config = config;
