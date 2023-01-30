@@ -1,3 +1,4 @@
+import { memory } from '../utils/memory';
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
 import { overlaps } from './overlaps';
@@ -23,9 +24,9 @@ export class ParallelExecutor {
 			? systems.map(() => true)
 			: systems.map(s => !s.parameters.some(p => p.isLocalToThread()));
 
-		const { buffer } = world.memory.views;
+		const { buffer } = memory.views;
 		const pointer = world.threads.queue(() =>
-			world.memory.alloc(8 + systems.length * 3),
+			memory.alloc(8 + systems.length * 3),
 		);
 		const lockName = world.threads.queue(
 			() => `thyseus::ParallelExecutor${nextId++}`,
@@ -191,11 +192,14 @@ export class ParallelExecutor {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi, afterEach } = import.meta.vitest;
+	const { it, expect, vi, beforeEach, afterEach } = import.meta.vitest;
 
 	const emptyMask = [0b0000n, 0b0000n, 0b0000n, 0b0000n];
 
 	const cbs = [] as any[];
+	beforeEach(() => {
+		memory.UNSAFE_CLEAR_ALL();
+	});
 	afterEach(() => {
 		cbs.length = 0;
 	});

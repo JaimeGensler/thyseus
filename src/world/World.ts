@@ -1,7 +1,7 @@
 import { WorldBuilder } from './WorldBuilder';
 import { Commands } from './Commands';
 import { bits } from '../utils/bits';
-import { Memory } from '../utils/memory';
+import { memory } from '../utils/memory';
 import { Entities, Entity, Table, UncreatedEntitiesTable } from '../storage';
 import { SEND_TABLE } from './channels';
 import { isStruct, type Class, type Struct } from '../struct';
@@ -34,7 +34,6 @@ export class World {
 	systems = [] as ((...args: any[]) => any)[];
 	arguments = [] as any[][];
 
-	memory: Memory;
 	commands: Commands;
 	entities: Entities;
 
@@ -54,11 +53,13 @@ export class World {
 	) {
 		this.config = config;
 		this.threads = threads;
-		const buffer = this.threads.queue(() => {
-			const mem = Memory.withSize(config.memory, config.threads > 1);
-			return mem.views.buffer;
-		});
-		this.memory = Memory.fromBuffer(buffer);
+
+		memory.init(
+			this.threads.queue(() => {
+				memory.init(config.memory, config.threads > 1);
+				return memory.views.buffer;
+			}),
+		);
 
 		this.archetypeLookup.set(0n, 1);
 
@@ -85,7 +86,7 @@ export class World {
 				resource.__$$s = this.memory.views;
 				//@ts-ignore: __$$b exists
 				resource.__$$b = this.threads.queue(() =>
-					this.memory.alloc(Resource.size!),
+					memory.alloc(Resource.size!),
 				);
 			}
 		}

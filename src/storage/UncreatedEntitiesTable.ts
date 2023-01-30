@@ -1,3 +1,4 @@
+import { memory } from '../utils/memory';
 import { Entity } from './Entity';
 import { Table } from './Table';
 import type { World } from '../world';
@@ -9,7 +10,7 @@ export class UncreatedEntitiesTable extends Table {
 	#u64: BigUint64Array;
 	constructor(world: World) {
 		super(world, [], 0, 0n, 0);
-		this.#u64 = world.memory.views.u64;
+		this.#u64 = memory.views.u64;
 	}
 	move(index: number, targetTable: Table) {
 		const id = BigInt(index);

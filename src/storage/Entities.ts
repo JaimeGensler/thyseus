@@ -1,3 +1,4 @@
+import { memory } from '../utils/memory';
 import { Entity } from './Entity';
 import type { Table } from './Table';
 import type { World } from '../world';
@@ -11,11 +12,11 @@ export class Entities {
 		return new this(
 			world,
 			world.threads.queue(() => {
-				const ptr = world.memory.alloc(4 * 4);
-				world.memory.views.u32[(ptr >> 2) + 2] = world.memory.alloc(
+				const ptr = memory.alloc(4 * 4);
+				memory.views.u32[(ptr >> 2) + 2] = memory.alloc(
 					8 * ENTITY_BATCH_SIZE,
 				);
-				world.memory.views.u32[(ptr >> 2) + 3] = ENTITY_BATCH_SIZE;
+				memory.views.u32[(ptr >> 2) + 3] = ENTITY_BATCH_SIZE;
 				return ptr;
 			}),
 		);
@@ -27,8 +28,8 @@ export class Entities {
 	#pointer: number;
 	#recycled: Table;
 	constructor(world: World, pointer: number) {
-		this.#data = world.memory.views.u32;
-		this.#data64 = world.memory.views.u64;
+		this.#data = memory.views.u32;
+		this.#data64 = memory.views.u64;
 		this.#pointer = pointer >> 2;
 		this.#world = world;
 		this.#recycled = world.archetypes[1];
@@ -73,7 +74,7 @@ export class Entities {
 			const newElementCount =
 				Math.ceil((this.#data[this.#pointer] + 1) / ENTITY_BATCH_SIZE) *
 				ENTITY_BATCH_SIZE;
-			this.#locationsPointer = this.#world.memory.realloc(
+			this.#locationsPointer = memory.realloc(
 				this.#locationsPointer,
 				newElementCount * 8,
 			);
@@ -135,13 +136,14 @@ export class Entities {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi } = import.meta.vitest;
+	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { World } = await import('../world');
-	const { Memory } = await import('../utils/memory');
 	const { ThreadGroup } = await import('../threads');
 	ThreadGroup.isMainThread = true;
 
 	const createWorld = () => World.new().build();
+
+	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
 
 	it('returns incrementing generational integers', async () => {
 		const world = await createWorld();
@@ -165,9 +167,9 @@ if (import.meta.vitest) {
 
 		const ptr = recycledTable.getColumn(Entity);
 
-		world.memory.views.u64[(ptr >> 3) + 0] = 0n;
-		world.memory.views.u64[(ptr >> 3) + 1] = 1n;
-		world.memory.views.u64[(ptr >> 3) + 2] = 2n;
+		memory.views.u64[(ptr >> 3) + 0] = 0n;
+		memory.views.u64[(ptr >> 3) + 1] = 1n;
+		memory.views.u64[(ptr >> 3) + 2] = 2n;
 
 		expect(entities.spawn()).toBe(0n);
 		expect(entities.spawn()).toBe(1n);
@@ -176,7 +178,7 @@ if (import.meta.vitest) {
 	});
 
 	it('reset grows by at least as many entities have been spawned', async () => {
-		const reallocSpy = vi.spyOn(Memory.prototype, 'realloc');
+		const reallocSpy = vi.spyOn(memory, 'realloc');
 		const world = await createWorld();
 		const entities = world.entities;
 

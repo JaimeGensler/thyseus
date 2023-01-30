@@ -1,3 +1,4 @@
+import { memory } from '../utils/memory';
 import { Entity } from './Entity';
 import type { World } from '../world';
 import type { Struct } from '../struct';
@@ -13,11 +14,11 @@ export class Table {
 		const sizedComponents = components.filter(
 			component => component.size! > 0,
 		);
-		const pointer = world.memory.alloc(4 * (2 + sizedComponents.length));
-		world.memory.views.u32[(pointer >> 2) + 1] = capacity;
+		const pointer = memory.alloc(4 * (2 + sizedComponents.length));
+		memory.views.u32[(pointer >> 2) + 1] = capacity;
 		let i = 2;
 		for (const component of sizedComponents) {
-			world.memory.views.u32[(pointer >> 2) + i] = world.memory.alloc(
+			memory.views.u32[(pointer >> 2) + i] = memory.alloc(
 				component.size! * capacity,
 			);
 			i++;
@@ -52,20 +53,20 @@ export class Table {
 		return this.#id;
 	}
 	get capacity(): number {
-		return this.#world.memory.views.u32[(this.#pointer >> 2) + 1];
+		return memory.views.u32[(this.#pointer >> 2) + 1];
 	}
 	set #capacity(val: number) {
-		this.#world.memory.views.u32[(this.#pointer >> 2) + 1] = val;
+		memory.views.u32[(this.#pointer >> 2) + 1] = val;
 	}
 	get size(): number {
-		return this.#world.memory.views.u32[this.#pointer >> 2];
+		return memory.views.u32[this.#pointer >> 2];
 	}
 	set size(value: number) {
-		this.#world.memory.views.u32[this.#pointer >> 2] = value;
+		memory.views.u32[this.#pointer >> 2] = value;
 	}
 
 	getColumn(componentType: Struct): number {
-		return this.#world.memory.views.u32[
+		return memory.views.u32[
 			(this.#pointer >> 2) + 2 + this.#components.indexOf(componentType)
 		];
 	}
@@ -77,8 +78,8 @@ export class Table {
 		this.size--;
 		let i = 2; // Start of pointers
 		for (const component of this.#components) {
-			const ptr = this.#world.memory.views.u32[(this.#pointer >> 2) + i];
-			this.#world.memory.copy(
+			const ptr = memory.views.u32[(this.#pointer >> 2) + i];
+			memory.copy(
 				ptr + this.size * component.size!, // From the last element
 				component.size!, // Copy one component
 				ptr + index * component.size!, // To this element
@@ -92,10 +93,10 @@ export class Table {
 			targetTable.grow();
 		}
 		const ptr = this.getColumn(Entity);
-		const lastEntity = this.#world.memory.views.u64[(ptr >> 3) + this.size];
+		const lastEntity = memory.views.u64[(ptr >> 3) + this.size];
 		for (const component of this.#components) {
 			if (targetTable.hasColumn(component)) {
-				this.#world.memory.copy(
+				memory.copy(
 					this.getColumn(component) + index * component.size!,
 					component.size!,
 					targetTable.getColumn(component) +
@@ -112,19 +113,16 @@ export class Table {
 		this.#capacity = this.#world.config.getNewTableSize(this.capacity);
 		let i = 2;
 		for (const component of this.#components) {
-			this.#world.memory.views.u32[(this.#pointer >> 2) + i] =
-				this.#world.memory.realloc(
-					this.#world.memory.views.u32[(this.#pointer >> 2) + i],
-					component.size! * this.capacity,
-				);
+			memory.views.u32[(this.#pointer >> 2) + i] = memory.realloc(
+				memory.views.u32[(this.#pointer >> 2) + i],
+				component.size! * this.capacity,
+			);
 			i++;
 		}
 	}
 
 	incrementGeneration(row: number) {
-		this.#world.memory.views.u32[
-			(this.getColumn(Entity) >> 2) + (row << 1) + 1
-		]++;
+		memory.views.u32[(this.getColumn(Entity) >> 2) + (row << 1) + 1]++;
 	}
 }
 
@@ -132,16 +130,18 @@ export class Table {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect } = import.meta.vitest;
+	const { it, expect, beforeEach } = import.meta.vitest;
 	const { World } = await import('../world');
 	const { struct } = await import('../struct');
 	const { ThreadGroup } = await import('../threads');
 	ThreadGroup.isMainThread = true;
 
+	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
+
 	@struct
 	class Vec3 {
 		declare static size: number;
-		declare __$$s: World['memory']['views'];
+		declare __$$s: typeof memory['views'];
 		declare __$$b: number;
 		@struct.f64 declare x: number;
 		@struct.f64 declare y: number;
@@ -161,7 +161,7 @@ if (import.meta.vitest) {
 		const uncreated = world.archetypes[0];
 		uncreated.move(0, table);
 		const entity = new Entity();
-		(entity as any).__$$s = world.memory.views;
+		(entity as any).__$$s = memory.views;
 		(entity as any).__$$b = table.getColumn(Entity);
 		expect(entity.id).toBe(0n);
 		expect(table.size).toBe(1);
@@ -183,7 +183,7 @@ if (import.meta.vitest) {
 		uncreated.move(4, toTable);
 
 		const ent = new Entity();
-		(ent as any).__$$s = world.memory.views;
+		(ent as any).__$$s = memory.views;
 
 		expect(fromTable.size).toBe(2);
 		expect(toTable.size).toBe(1);
@@ -191,7 +191,7 @@ if (import.meta.vitest) {
 		expect(ent.id).toBe(3n);
 
 		const from = new Vec3();
-		from.__$$s = world.memory.views;
+		from.__$$s = memory.views;
 		from.__$$b = fromTable.getColumn(Vec3);
 		from.x = 1;
 		from.y = 2;
@@ -202,7 +202,7 @@ if (import.meta.vitest) {
 		from.z = 9;
 
 		const to = new Vec3();
-		to.__$$s = world.memory.views;
+		to.__$$s = memory.views;
 		to.__$$b = toTable.getColumn(Vec3)!;
 		expect(to.x).toBe(0);
 		expect(to.y).toBe(0);
@@ -231,10 +231,10 @@ if (import.meta.vitest) {
 		const entPtr = table.getColumn(Entity);
 		const vecPtr = table.getColumn(Vec3);
 		const vec = new Vec3();
-		vec.__$$s = world.memory.views;
+		vec.__$$s = memory.views;
 		vec.__$$b = vecPtr;
 		const ent = new Entity({} as any);
-		(ent as any).__$$s = world.memory.views;
+		(ent as any).__$$s = memory.views;
 		(ent as any).__$$b = entPtr;
 
 		const uncreated = world.archetypes[0];
@@ -290,7 +290,7 @@ if (import.meta.vitest) {
 		const uncreated = world.archetypes[0];
 
 		const ent = new Entity();
-		(ent as any).__$$s = world.memory.views;
+		(ent as any).__$$s = memory.views;
 		(ent as any).__$$b = table.getColumn(Entity);
 
 		uncreated.move(1, table);
@@ -311,7 +311,7 @@ if (import.meta.vitest) {
 		const toTable = createTable(world, Entity);
 		const uncreated = world.archetypes[0];
 		const ent = new Entity();
-		(ent as any).__$$s = world.memory.views;
+		(ent as any).__$$s = memory.views;
 
 		uncreated.move(3, fromTable);
 		uncreated.move(1, fromTable);
@@ -323,7 +323,7 @@ if (import.meta.vitest) {
 		expect(ent.id).toBe(3n);
 
 		const from = new Vec3();
-		from.__$$s = world.memory.views;
+		from.__$$s = memory.views;
 		from.__$$b = fromTable.getColumn(Vec3)!;
 		from.x = 1;
 		from.y = 2;
@@ -357,10 +357,10 @@ if (import.meta.vitest) {
 		uncreated.move(233, table);
 
 		const vec = new Vec3();
-		vec.__$$s = world.memory.views;
+		vec.__$$s = memory.views;
 		vec.__$$b = table.getColumn(Vec3);
 		const ent = new Entity();
-		(ent as any).__$$s = world.memory.views;
+		(ent as any).__$$s = memory.views;
 		(ent as any).__$$b = table.getColumn(Entity)!;
 		vec.x = 100;
 		vec.y = 200;
@@ -406,7 +406,7 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const table = createTable(world, Entity);
 		const ent = new Entity();
-		(ent as any).__$$s = world.memory.views;
+		(ent as any).__$$s = memory.views;
 		(ent as any).__$$b = table.getColumn(Entity)!;
 		expect(ent.generation).toBe(0);
 

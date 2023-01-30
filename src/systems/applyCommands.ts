@@ -1,3 +1,4 @@
+import { memory } from '../utils/memory';
 import { CLEAR_COMMAND_QUEUE, GET_COMMAND_QUEUE } from '../world/channels';
 import { defineSystem } from './defineSystem';
 import { alignTo8 } from '../utils/alignTo8';
@@ -56,7 +57,7 @@ export const applyCommands = defineSystem(
 
 			const column = world.archetypes[tableId].getColumn(component)!;
 			const row = world.entities.getRow(entityId);
-			world.memory.views.u8.set(data, column + row * component.size!);
+			memory.views.u8.set(data, column + row * component.size!);
 		}
 
 		const clear = world.threads.send(CLEAR_COMMAND_QUEUE());
@@ -69,11 +70,13 @@ export const applyCommands = defineSystem(
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi } = import.meta.vitest;
+	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { initStruct } = await import('../storage');
 	const { World } = await import('../world/World');
 	const { ThreadGroup } = await import('../threads');
 	ThreadGroup.isMainThread = true;
+
+	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
 
 	class ZST {
 		static size = 0;
@@ -142,7 +145,7 @@ if (import.meta.vitest) {
 		const archetypeD = myWorld.archetypes[2];
 		const testComp = new CompD();
 
-		testComp.__$$s = myWorld.memory.views;
+		testComp.__$$s = memory.views;
 		testComp.__$$b = archetypeD.getColumn(CompD)!;
 		expect(archetypeD.size).toBe(1);
 		expect(testComp.x).toBe(1);

@@ -1,8 +1,8 @@
 import { alignTo8 } from '../utils/alignTo8';
+import { memory, type MemoryViews } from '../utils/memory';
 import { Entity, type Entities } from '../storage';
 import type { Struct } from '../struct';
 import type { World } from './World';
-import type { MemoryViews } from '../utils/memory';
 
 type NotFunction<T> = T extends Function ? never : T;
 
@@ -13,14 +13,14 @@ export class Commands {
 				(acc, val) => acc + val.size!,
 				0,
 			);
-			const ptr = world.memory.alloc(size);
+			const ptr = memory.alloc(size);
 			let offset = 0;
 			for (const component of world.components) {
 				if (component.size === 0) {
 					continue;
 				}
 				const instance = new component() as { __$$s: MemoryViews };
-				world.memory.views.u8.set(instance.__$$s.u8, ptr + offset);
+				memory.views.u8.set(instance.__$$s.u8, ptr + offset);
 				offset += component.size!;
 			}
 			return ptr;
@@ -55,10 +55,10 @@ export class Commands {
 		this.#initialValuePointer = initialValuePointer;
 		this.#initialValuesOffset = offsets;
 
-		this.#views = world.memory.views;
+		this.#views = memory.views;
 		this.#entities = world.entities;
 		this.#components = world.components;
-		this.#queuePointer = world.memory.alloc(64);
+		this.#queuePointer = memory.alloc(64);
 		this.#queueCapacity = 64;
 	}
 
@@ -107,7 +107,7 @@ export class Commands {
 	}
 	reset() {
 		this.#queue.clear();
-		this.#world.memory.set(this.#queuePointer, this.#queueLength, 0);
+		memory.set(this.#queuePointer, this.#queueLength, 0);
 		this.#queueLength = 0;
 	}
 
@@ -129,7 +129,7 @@ export class Commands {
 		const offset =
 			this.#initialValuesOffset[this.#components.indexOf(componentType)];
 
-		this.#world.memory.copy(
+		memory.copy(
 			this.#initialValuePointer + offset,
 			componentType.size!,
 			this.#queuePointer + this.#queueLength,
@@ -182,10 +182,7 @@ export class Commands {
 			doubledLength > this.#queueLength + minimumAdditional
 				? doubledLength
 				: alignTo8(doubledLength + minimumAdditional);
-		this.#queuePointer = this.#world.memory.realloc(
-			this.#queuePointer,
-			newLength,
-		);
+		this.#queuePointer = memory.realloc(this.#queuePointer, newLength);
 	}
 }
 
@@ -193,11 +190,13 @@ export class Commands {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect } = import.meta.vitest;
+	const { it, expect, beforeEach } = import.meta.vitest;
 	const { initStruct } = await import('../storage');
 	const { World } = await import('../world');
 	const { ThreadGroup } = await import('../threads/ThreadGroup');
 	ThreadGroup.isMainThread = true;
+
+	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
 
 	class ZST {
 		static size = 0;

@@ -1,6 +1,6 @@
 import { Entity, type Table } from '../storage';
 import type { Struct } from '../struct';
-import type { MemoryViews } from '../utils/memory';
+import { memory, MemoryViews } from '../utils/memory';
 import type { World } from '../world';
 import type { Commands } from '../world/Commands';
 import type { Mut, Optional, Filter } from './modifiers';
@@ -45,7 +45,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		this.#without = withoutFilters;
 		this.#components = components;
 		this.#commands = world.commands;
-		this.#views = world.memory.views;
+		this.#views = memory.views;
 		this.#elements = this.#components.map(Component => {
 			const result =
 				Component === Entity
@@ -131,7 +131,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 }
 
 if (import.meta.vitest) {
-	const { it, expect, describe } = import.meta.vitest;
+	const { it, expect, describe, beforeEach } = import.meta.vitest;
 	const { initStruct, Entity, Table } = await import('../storage');
 	const { World } = await import('../world');
 	const { ThreadGroup } = await import('../threads/ThreadGroup');
@@ -141,6 +141,8 @@ if (import.meta.vitest) {
 		components
 			.reduce((acc, comp) => acc.registerComponent(comp), World.new())
 			.build();
+
+	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
 
 	it('testAdd adds tables only if a filter passes', async () => {
 		const world = await createWorld();
