@@ -4,16 +4,15 @@ import { defineSystem } from './defineSystem';
 import { alignTo8 } from '../utils/alignTo8';
 import type { World } from '../world';
 
-type CommandQueue = [Map<bigint, bigint>, Uint8Array, DataView];
+type CommandQueue = [Map<bigint, bigint>, number, number];
 function* iterateCommands(commandsData: CommandQueue[], world: World) {
-	for (const [, queueData, queueView] of commandsData) {
-		for (let offset = 0; offset < queueData.byteLength; ) {
-			const entityId = queueView.getBigUint64(offset);
-			const componentId = queueView.getUint32(offset + 8, true);
+	for (const [, start, length] of commandsData) {
+		for (let offset = start; offset < start + length; ) {
+			const entityId = memory.views.u64[offset >> 3];
+			const componentId = memory.views.u32[(offset + 8) >> 2];
 			const component = world.components[componentId];
 			offset += 16;
-			const data = queueData.subarray(offset, offset + component.size!);
-			yield [entityId, component, data] as const;
+			yield [entityId, component, offset] as const;
 			offset += alignTo8(component.size!);
 		}
 	}
@@ -36,7 +35,7 @@ export const applyCommands = defineSystem(
 	async function applyCommands(world) {
 		world.entities.resetCursor();
 
-		const [mainQueue, mainQueueData, mainQueueView] =
+		const [mainQueue, mainQueueStart, mainQueueLength] =
 			world.commands.getData();
 		const queues = await world.threads.send(GET_COMMAND_QUEUE());
 		const queue = queues.reduce(mergeQueues, mainQueue);
@@ -45,8 +44,8 @@ export const applyCommands = defineSystem(
 			world.moveEntity(entityId, tableId);
 		}
 
-		queues.push([mainQueue, mainQueueData, mainQueueView]);
-		for (const [entityId, component, data] of iterateCommands(
+		queues.push([mainQueue, mainQueueStart, mainQueueLength]);
+		for (const [entityId, component, offset] of iterateCommands(
 			queues,
 			world,
 		)) {
@@ -57,7 +56,11 @@ export const applyCommands = defineSystem(
 
 			const column = world.archetypes[tableId].getColumn(component)!;
 			const row = world.entities.getRow(entityId);
-			memory.views.u8.set(data, column + row * component.size!);
+			memory.copy(
+				offset,
+				component.size!,
+				column + row * component.size!,
+			);
 		}
 
 		const clear = world.threads.send(CLEAR_COMMAND_QUEUE());

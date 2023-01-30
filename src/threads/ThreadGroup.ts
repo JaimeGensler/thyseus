@@ -20,7 +20,6 @@ type WorkerOrGlobal = {
 	): void;
 };
 
-const EMPTY: [] = [];
 export class ThreadGroup {
 	static isMainThread = !!globalThis.document;
 	isMainThread = ThreadGroup.isMainThread;
@@ -90,7 +89,7 @@ export class ThreadGroup {
 	 */
 	send<T>(message: ThreadMessage<any, T>): Promise<T[]> {
 		if (this.#threads.length === 0) {
-			return Promise.resolve(EMPTY);
+			return Promise.resolve([]);
 		}
 		return new Promise(r => {
 			for (const thread of this.#threads) {

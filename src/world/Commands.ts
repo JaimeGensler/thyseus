@@ -91,19 +91,8 @@ export class Commands {
 		return new Entity(this, id);
 	}
 
-	getData(): [Map<bigint, bigint>, Uint8Array, DataView] {
-		return [
-			this.#queue,
-			this.#views.u8.subarray(
-				this.#queuePointer,
-				this.#queuePointer + this.#queueLength,
-			),
-			new DataView(
-				this.#views.buffer,
-				this.#queuePointer,
-				this.#queueLength,
-			),
-		];
+	getData(): [Map<bigint, bigint>, number, number] {
+		return [this.#queue, this.#queuePointer, this.#queueLength];
 	}
 	reset() {
 		this.#queue.clear();
@@ -286,16 +275,12 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().addType(CompD);
-		const [map, , dataview] = commands.getData();
-		const u32 = new Uint32Array(
-			dataview.buffer,
-			dataview.byteOffset,
-			dataview.byteLength / 4,
-		);
+		const [map, start, length] = commands.getData();
+		const u32 = new Uint32Array(memory.views.buffer, start, length / 4);
 
 		expect(map.get(ent.id)).toBe(0b0010_0001n);
-		expect(dataview.getBigUint64(0)).toBe(ent.id);
-		expect(dataview.getUint32(8, true)).toBe(5); // CompD -> 5
+		expect(memory.views.u64[start >> 3]).toBe(ent.id);
+		expect(memory.views.u32[(start >> 2) + 2]).toBe(5); // CompD -> 5
 		expect(u32[16 >> 2]).toBe(23);
 		expect(u32[20 >> 2]).toBe(42);
 	});
@@ -304,15 +289,11 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().add(new CompD(15, 16));
-		const [map, , dataview] = commands.getData();
-		const u32 = new Uint32Array(
-			dataview.buffer,
-			dataview.byteOffset,
-			dataview.byteLength / 4,
-		);
+		const [map, start, length] = commands.getData();
+		const u32 = new Uint32Array(memory.views.buffer, start, length / 4);
 		expect(map.get(ent.id)).toBe(0b0010_0001n);
-		expect(dataview.getBigUint64(0)).toBe(ent.id);
-		expect(dataview.getUint32(8, true)).toBe(5); // CompD -> 5
+		expect(memory.views.u64[start >> 3]).toBe(ent.id);
+		expect(memory.views.u32[(start >> 2) + 2]).toBe(5); // CompD -> 5
 		expect(u32[16 >> 2]).toBe(15);
 		expect(u32[20 >> 2]).toBe(16);
 	});
