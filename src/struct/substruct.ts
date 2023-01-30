@@ -6,12 +6,7 @@ export function substruct(struct: Struct) {
 		prototype: object,
 		propertyKey: string | symbol,
 	) {
-		const offset = addField(
-			propertyKey,
-			struct.alignment!,
-			struct.size!,
-			struct.schema!,
-		);
+		const offset = addField(propertyKey, struct.alignment!, struct.size!);
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {

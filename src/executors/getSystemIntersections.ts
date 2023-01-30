@@ -34,7 +34,6 @@ if (import.meta.vitest) {
 
 	class AnyComponent {
 		static size = 1;
-		static schema = 0;
 	}
 	class A extends AnyComponent {}
 	class B extends AnyComponent {}

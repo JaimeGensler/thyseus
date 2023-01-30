@@ -192,12 +192,10 @@ if (import.meta.vitest) {
 	class ZST {
 		static size = 0;
 		static alignment = 1;
-		static schema = 0;
 	}
 	class Struct {
 		static size = 1;
 		static alignment = 1;
-		static schema = 0;
 		constructor() {
 			initStruct(this);
 		}
@@ -206,7 +204,6 @@ if (import.meta.vitest) {
 	class CompB extends Struct {}
 	class CompC extends Struct {}
 	class CompD {
-		static schema = 0b1111_1111_1111;
 		static size = 8;
 		static alignment = 4;
 

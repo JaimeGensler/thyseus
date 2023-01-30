@@ -1,7 +1,8 @@
-import { TYPE_IDS, TYPE_TO_CONSTRUCTOR } from '../storage';
-import { addField } from './addField';
+import { addField, TYPE_TO_CONSTRUCTOR } from './addField';
 
-function createPrimativeFieldDecorator(typeName: keyof typeof TYPE_IDS) {
+function createPrimativeFieldDecorator(
+	typeName: keyof typeof TYPE_TO_CONSTRUCTOR,
+) {
 	return function () {
 		return function fieldDecorator(
 			prototype: object,
@@ -12,7 +13,6 @@ function createPrimativeFieldDecorator(typeName: keyof typeof TYPE_IDS) {
 				propertyKey,
 				type.BYTES_PER_ELEMENT,
 				type.BYTES_PER_ELEMENT,
-				TYPE_IDS[typeName],
 			);
 			const shift = 31 - Math.clz32(type.BYTES_PER_ELEMENT);
 
@@ -52,7 +52,6 @@ export const bool = function () {
 			propertyKey,
 			Uint8Array.BYTES_PER_ELEMENT,
 			Uint8Array.BYTES_PER_ELEMENT,
-			TYPE_IDS.u8,
 		);
 
 		Object.defineProperty(prototype, propertyKey, {

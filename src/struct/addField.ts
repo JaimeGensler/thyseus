@@ -1,4 +1,16 @@
-let currentSchema: number = 0;
+export const TYPE_TO_CONSTRUCTOR = {
+	u8: Uint8Array,
+	u16: Uint16Array,
+	u32: Uint32Array,
+	u64: BigUint64Array,
+	i8: Int8Array,
+	i16: Int16Array,
+	i32: Int32Array,
+	i64: BigInt64Array,
+	f32: Float32Array,
+	f64: Float64Array,
+} as const;
+
 let currentAlignment = 1;
 let currentSize = 0;
 
@@ -38,10 +50,8 @@ export function addField(
 	fieldName: string | symbol,
 	alignment: number,
 	byteLength: number,
-	schemaFields: number = 0,
 ): Record<string | symbol, number> {
 	currentAlignment = Math.max(currentAlignment, alignment);
-	currentSchema |= schemaFields;
 
 	updateOffsets(fieldName, alignment, byteLength);
 	currentSize += byteLength;
@@ -50,11 +60,9 @@ export function addField(
 }
 export function resetFields() {
 	const result = {
-		schema: currentSchema,
 		size: Math.ceil(currentSize / currentAlignment) * currentAlignment,
 		alignment: currentAlignment,
 	};
-	currentSchema = 0;
 	currentSize = 0;
 	currentAlignment = 1;
 

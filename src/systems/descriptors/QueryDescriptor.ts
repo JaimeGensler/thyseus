@@ -120,7 +120,6 @@ if (import.meta.vitest) {
 
 	class Comp {
 		declare static size: number;
-		declare static schema: number;
 	}
 	@struct()
 	class A extends Comp {

@@ -15,7 +15,7 @@ import {
 import { string } from './string';
 import { array } from './array';
 import { substruct } from './substruct';
-import { initStruct, TYPE_IDS } from '../storage';
+import { initStruct } from '../storage';
 
 export type Class = {
 	new (...args: any[]): object;
@@ -37,11 +37,6 @@ export type Struct = {
 	// NOTE: Types have been loosened to be optional here, as decorators do not provide type info.
 
 	/**
-	 * The schema bitfield used to create stores for this struct.
-	 */
-	schema?: number;
-
-	/**
 	 * The alignment of this type - equal to the number of bytes of the largest primitive type this struct contains (1, 2, 4, or 8).
 	 */
 	alignment?: number;
@@ -56,9 +51,8 @@ export type Struct = {
 
 export function struct() {
 	return function structDecorator(targetClass: Class): any {
-		const { schema, size, alignment } = resetFields();
+		const { size, alignment } = resetFields();
 		return class extends targetClass {
-			static schema = schema | ((targetClass as any).schema ?? 0);
 			static size = size;
 			static alignment = alignment;
 
@@ -96,7 +90,6 @@ if (import.meta.vitest) {
 
 	@struct()
 	class Vec3 {
-		declare static schema: number;
 		declare static size: number;
 		declare __$$b: number;
 		declare __$$s: StructStore;
@@ -106,7 +99,7 @@ if (import.meta.vitest) {
 		constructor() {}
 	}
 
-	it('adds a schema, size, and alignment to decorated classes', () => {
+	it('adds size, alignment to decorated classes', () => {
 		@struct()
 		class CompA {}
 
@@ -122,25 +115,17 @@ if (import.meta.vitest) {
 			@struct.f64() declare myField3: number;
 		}
 
-		expect(CompA).toHaveProperty('schema', 0);
 		expect(CompA).toHaveProperty('size', 0);
 		expect(CompA).toHaveProperty('alignment', 1);
 
-		expect(CompB).toHaveProperty('schema', TYPE_IDS.i32);
 		expect(CompB).toHaveProperty('size', 4);
 		expect(CompB).toHaveProperty('alignment', 4);
 
-		expect(CompC).toHaveProperty(
-			'schema',
-			TYPE_IDS.u8 | TYPE_IDS.u16 | TYPE_IDS.f64,
-		);
 		expect(CompC).toHaveProperty('size', 16);
 		expect(CompC).toHaveProperty('alignment', 8);
 	});
 
 	it('creates a getter/setter around fields', () => {
-		expect(Vec3).toHaveProperty('schema', TYPE_IDS.f64);
-
 		const buffer = new ArrayBuffer(2 * 8 * 3);
 		const store = {
 			buffer,
@@ -200,13 +185,10 @@ if (import.meta.vitest) {
 			class Comp {
 				declare __$$s: StructStore;
 				declare __$$b: number;
-				declare static schema: number;
 				declare static size: number;
 				@decorator() declare field: any;
 				constructor() {}
 			}
-
-			expect(Comp.schema).toBe(TYPE_IDS[schemaField]);
 
 			const buffer = new ArrayBuffer(
 				FieldConstructor.BYTES_PER_ELEMENT * 2,
@@ -230,19 +212,12 @@ if (import.meta.vitest) {
 	it('works for string fields', () => {
 		@struct()
 		class Comp {
-			declare static schema: number;
 			@struct.string({ characterCount: 5 }) declare value: string;
 			@struct.string({ byteLength: 1 }) declare value2: string;
-			constructor(store: StructStore, index: number) {}
+			constructor() {}
 		}
 
-		const buffer = new ArrayBuffer(17);
-		const store = {
-			buffer,
-			u8: new Uint8Array(buffer),
-		};
-
-		const comp = new Comp(store, 0);
+		const comp = new Comp();
 		expect(comp.value).toBe('');
 
 		comp.value = 'hello';
@@ -265,7 +240,6 @@ if (import.meta.vitest) {
 		@struct()
 		class Comp {
 			declare static size: number;
-			declare static schema: number;
 			declare __$$b: number;
 			declare __$$s: StructStore;
 			@struct.array({ type: 'u8', length: 8 }) declare value: Uint8Array;
@@ -297,7 +271,6 @@ if (import.meta.vitest) {
 		@struct()
 		class Comp {
 			declare static size: number;
-			declare static schema: number;
 			declare __$$s: StructStore;
 			declare __$$b: number;
 			@struct.u8() declare a: number;
@@ -336,7 +309,7 @@ if (import.meta.vitest) {
 		@struct()
 		class Transform {
 			declare static size: number;
-			declare static schema: number;
+
 			declare __$$s: StructStore;
 			declare __$$b: number;
 			@struct.substruct(Vec3) declare position: Vec3;

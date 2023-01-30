@@ -1,13 +1,12 @@
 import { initStruct } from './initStruct';
-import { TYPE_IDS } from './typeIds';
 import type { Struct, StructStore } from '../struct';
 import type { Commands } from '../world/Commands';
 
 type NotFunction<T> = T extends Function ? never : T;
 
 export class Entity {
-	static schema = TYPE_IDS.u64 | TYPE_IDS.u32;
 	static size = 8;
+	static alignment = 8;
 
 	private declare __$$s: StructStore;
 	private declare __$$b: number;

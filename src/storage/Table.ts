@@ -140,7 +140,6 @@ if (import.meta.vitest) {
 
 	@struct()
 	class Vec3 {
-		declare static schema: number;
 		declare static size: number;
 		declare __$$s: StructStore;
 		declare __$$b: number;
@@ -397,7 +396,6 @@ if (import.meta.vitest) {
 		class ZST {
 			static size = 0;
 			static alignment = 1;
-			static schema = 0;
 		}
 		const world = await createWorld();
 		const table = createTable(world, Entity, Vec3, ZST);

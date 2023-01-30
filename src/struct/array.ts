@@ -1,5 +1,4 @@
-import { TYPE_IDS, TYPE_TO_CONSTRUCTOR } from '../storage';
-import { addField } from './addField';
+import { addField, TYPE_TO_CONSTRUCTOR } from './addField';
 
 type TypedArray =
 	| Uint8Array
@@ -12,7 +11,7 @@ type TypedArray =
 	| BigInt64Array
 	| Float32Array
 	| Float64Array;
-type PrimitiveName = keyof typeof TYPE_IDS;
+type PrimitiveName = keyof typeof TYPE_TO_CONSTRUCTOR;
 
 type ArrayOptions = {
 	type: PrimitiveName;
@@ -28,7 +27,6 @@ export function array({ type, length }: ArrayOptions) {
 			propertyKey,
 			typeConstructor.BYTES_PER_ELEMENT,
 			typeConstructor.BYTES_PER_ELEMENT * length,
-			TYPE_IDS[type],
 		);
 		const shift = 31 - Math.clz32(typeConstructor.BYTES_PER_ELEMENT);
 		Object.defineProperty(prototype, propertyKey, {

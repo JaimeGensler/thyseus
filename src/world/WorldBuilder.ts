@@ -216,7 +216,6 @@ if (import.meta.vitest) {
 
 	const initializeTimeSpy = vi.fn();
 	class Time {
-		static schema = { delta: Float64Array };
 		static size = 8;
 		initialize = initializeTimeSpy;
 	}
