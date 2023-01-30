@@ -25,8 +25,6 @@ export class World {
 		return new WorldBuilder(validateAndCompleteConfig(config, url), url);
 	}
 
-	buffer: ArrayBufferConstructor | SharedArrayBufferConstructor;
-
 	archetypeLookup = new Map<bigint, number>();
 	archetypes = [] as Table[];
 
@@ -55,7 +53,6 @@ export class World {
 		channels: ThreadMessageChannel[],
 	) {
 		this.memory = new Memory(config.memory, config.threads > 1);
-		this.buffer = config.threads > 1 ? SharedArrayBuffer : ArrayBuffer;
 
 		this.config = config;
 		this.threads = threads;
@@ -96,14 +93,6 @@ export class World {
 				system.parameters.map(p => p.intoArgument(this)),
 			);
 		}
-	}
-
-	/**
-	 * Creates a buffer of the specified byte length.
-	 * Returns a SharedArrayBuffer if multithreading, and a normal ArrayBuffer if not.
-	 */
-	createBuffer(byteLength: number): ArrayBufferLike {
-		return new this.buffer(byteLength);
 	}
 
 	async update() {

@@ -8,7 +8,7 @@ function* iterateCommands(commandsData: CommandQueue[], world: World) {
 	for (const [, queueData, queueView] of commandsData) {
 		for (let offset = 0; offset < queueData.byteLength; ) {
 			const entityId = queueView.getBigUint64(offset);
-			const componentId = queueView.getUint32(offset + 8);
+			const componentId = queueView.getUint32(offset + 8, true);
 			const component = world.components[componentId];
 			offset += 16;
 			const data = queueData.subarray(offset, offset + component.size!);
@@ -135,7 +135,7 @@ if (import.meta.vitest) {
 		expect(moveEntitySpy).toHaveBeenCalledWith(1n, 0b101011n);
 	});
 
-	it.only('initializes data', async () => {
+	it('initializes data', async () => {
 		const myWorld = await createWorld();
 		myWorld.commands.spawn().addType(CompA).add(new CompD(1, 2));
 		await applyCommands.fn(myWorld);

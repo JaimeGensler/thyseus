@@ -199,6 +199,6 @@ if (import.meta.vitest) {
 		}
 		entities.resetCursor();
 		expect(reallocSpy).toHaveBeenCalledOnce();
-		expect(reallocSpy).toHaveBeenCalledWith(152, 8192);
+		expect(reallocSpy).toHaveBeenCalledWith(2320, 8192);
 	});
 }
