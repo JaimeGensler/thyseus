@@ -55,7 +55,7 @@ descriptors, and the system function itself. Let's look at a couple examples.
 ```ts
 import { struct, defineSystem } from 'thyseus';
 
-@struct()
+@struct
 class Vec2 {
 	@struct.f64() declare x: number;
 	@struct.f64() declare y: number;

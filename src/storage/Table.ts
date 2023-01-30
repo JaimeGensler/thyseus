@@ -138,7 +138,7 @@ if (import.meta.vitest) {
 	const { ThreadGroup } = await import('../threads');
 	ThreadGroup.isMainThread = true;
 
-	@struct()
+	@struct
 	class Vec3 {
 		declare static size: number;
 		declare __$$s: World['memory']['views'];

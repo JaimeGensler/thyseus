@@ -20,7 +20,7 @@ In Thyseus, components are decorated classes:
 ```ts
 import { struct } from 'thyseus';
 
-@struct()
+@struct
 class Health {
 	@struct.u16() declare max: number;
 	@struct.u16() declare current: number;
@@ -45,7 +45,7 @@ health.current = 3;
 console.log(health.current); // 3
 ```
 
-We can use the `@struct()` decorator to denote that the `Health` class is what
+We can use the `@struct` decorator to denote that the `Health` class is what
 Thyseus refers to a "struct." **Any class decorated with `struct` can be used as
 a component!** Any properties on that struct **_must_** be decorated as well
 with the type of that property. Like any other class, your components may or may
@@ -86,7 +86,7 @@ the `initStruct` function first (similar to calling `super()` in subclasses):
 ```ts
 import { struct, initStruct } from 'thyseus';
 
-@struct()
+@struct
 class Health {
 	@struct.u16() declare max: number;
 	@struct.u16() declare current: number;
@@ -121,7 +121,7 @@ contains. Currently, there are three decorators for complex types.
 ### `@struct.string()`
 
 ```ts
-@struct()
+@struct
 class MyStruct {
 	@struct.string({ characterCount: 4 }) declare str: string;
 
@@ -141,7 +141,7 @@ string.
 ### `@struct.array()`
 
 ```ts
-@struct()
+@struct
 class MyStruct {
 	@struct.array({ type: 'u8', length: 4 }) declare arr: Uint8Array;
 
@@ -157,14 +157,14 @@ number of elements the array contains.
 ### `@struct.substruct()`
 
 ```ts
-@struct()
+@struct
 class RGB {
 	@struct.u8() declare r: number;
 	@struct.u8() declare g: number;
 	@struct.u8() declare b: number;
 }
 
-@struct()
+@struct
 class RGBA {
 	@struct.substruct(RGB) declare rgb: RGB;
 	@struct.u8() declare a: number;
@@ -185,13 +185,13 @@ extend a component with new fields, you'll need to instead use the
 Bad (will not work as expected):
 
 ```ts
-@struct()
+@struct
 class Vec2 {
 	@struct.f64() declare x: number;
 	@struct.f64() declare y: number;
 }
 
-@struct()
+@struct
 class Vec3 extends Vec2 {
 	// We cannot extend structs with new fields!
 	@struct.f64() declare z: number;
@@ -201,7 +201,7 @@ class Vec3 extends Vec2 {
 Good:
 
 ```ts
-@struct()
+@struct
 class Vec2 {
 	@struct.f64() declare x: number;
 	@struct.f64() declare y: number;
@@ -231,7 +231,7 @@ Also good:
 ```ts
 import { struct } from 'thyseus';
 
-@struct()
+@struct
 class Vec3 {
 	@struct.f64() declare x: number;
 	@struct.f64() declare y: number;
@@ -251,7 +251,7 @@ component. In these cases, you can use a **zero-sized type**. As the name likely
 implies, these are structs that take up no storage space.
 
 ```ts
-@struct()
+@struct
 class IsPlayer {}
 ```
 

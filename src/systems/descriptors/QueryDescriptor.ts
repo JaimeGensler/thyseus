@@ -121,20 +121,20 @@ if (import.meta.vitest) {
 	class Comp {
 		declare static size: number;
 	}
-	@struct()
+	@struct
 	class A extends Comp {
 		@struct.f32() declare value: number;
 	}
-	@struct()
+	@struct
 	class B extends Comp {
 		@struct.i64() declare value: bigint;
 	}
 
-	@struct()
+	@struct
 	class C extends Comp {
 		@struct.u8() declare value: number;
 	}
-	@struct()
+	@struct
 	class D extends Comp {
 		@struct.u8() declare value: number;
 	}

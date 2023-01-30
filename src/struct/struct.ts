@@ -36,21 +36,19 @@ export type Struct = {
 	new (): object;
 };
 
-export function struct() {
-	return function structDecorator(targetClass: Class): any {
-		const { size, alignment } = resetFields();
-		return class extends targetClass {
-			static size = size;
-			static alignment = alignment;
+export function struct(targetClass: Class): any {
+	const { size, alignment } = resetFields();
+	return class extends targetClass {
+		static size = size;
+		static alignment = alignment;
 
-			declare __$$s: any;
-			declare __$$b: number;
+		declare __$$s: any;
+		declare __$$b: number;
 
-			constructor(...args: any[]) {
-				super(...args);
-				initStruct(this);
-			}
-		};
+		constructor(...args: any[]) {
+			super(...args);
+			initStruct(this);
+		}
 	};
 }
 struct.bool = bool;
@@ -75,7 +73,7 @@ struct.substruct = substruct;
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
 
-	@struct()
+	@struct
 	class Vec3 {
 		declare static size: number;
 		declare __$$b: number;
@@ -87,15 +85,15 @@ if (import.meta.vitest) {
 	}
 
 	it('adds size, alignment to decorated classes', () => {
-		@struct()
+		@struct
 		class CompA {}
 
-		@struct()
+		@struct
 		class CompB {
 			@struct.i32() declare myField: number;
 		}
 
-		@struct()
+		@struct
 		class CompC {
 			@struct.u8() declare myField: number;
 			@struct.u16() declare myField2: number;
@@ -168,7 +166,7 @@ if (import.meta.vitest) {
 			init,
 			val,
 		] of fields) {
-			@struct()
+			@struct
 			class Comp {
 				declare __$$s: any;
 				declare __$$b: number;
@@ -197,7 +195,7 @@ if (import.meta.vitest) {
 	});
 
 	it('works for string fields', () => {
-		@struct()
+		@struct
 		class Comp {
 			@struct.string({ characterCount: 5 }) declare value: string;
 			@struct.string({ byteLength: 1 }) declare value2: string;
@@ -224,7 +222,7 @@ if (import.meta.vitest) {
 	});
 
 	it('works for arrays', () => {
-		@struct()
+		@struct
 		class Comp {
 			declare static size: number;
 			declare __$$b: number;
@@ -255,7 +253,7 @@ if (import.meta.vitest) {
 	});
 
 	it('reorders fields as necessary', () => {
-		@struct()
+		@struct
 		class Comp {
 			declare static size: number;
 			declare __$$s: any;
@@ -293,7 +291,7 @@ if (import.meta.vitest) {
 	});
 
 	it('works for substructs', () => {
-		@struct()
+		@struct
 		class Transform {
 			declare static size: number;
 

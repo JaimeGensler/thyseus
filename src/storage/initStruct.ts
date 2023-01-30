@@ -33,7 +33,7 @@ if (import.meta.vitest) {
 
 	describe('initStruct', () => {
 		it('returns an object with TypedArray keys for specified fields', () => {
-			@struct()
+			@struct
 			class MyComponent {
 				declare static size: number;
 				@struct.u8() declare a: number;

@@ -15,7 +15,7 @@ over:
 ```ts
 import { struct, defineSystem } from 'thyseus';
 
-@struct()
+@struct
 class MyComponent {
 	@struct.f64() declare myValue: number;
 }
@@ -46,11 +46,11 @@ problem, just use a tuple:
 ```ts
 import { struct, defineSystem } from 'thyseus';
 
-@struct()
+@struct
 class CompA {
 	@struct.f64() declare valueA: number;
 }
-@struct()
+@struct
 class CompB {
 	@struct.f64() declare valueB: number;
 }
@@ -86,7 +86,7 @@ Mutable component data is as easy as wrapping your components in `Mut`:
 ```ts
 import { struct, defineSystem } from 'thyseus';
 
-@struct()
+@struct
 class Vec3 {
 	@struct.f64() declare x: number;
 	@struct.f64() declare y: number;
