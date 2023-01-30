@@ -23,18 +23,28 @@ export class ParallelExecutor {
 			? systems.map(() => true)
 			: systems.map(s => !s.parameters.some(p => p.isLocalToThread()));
 
-		const buffer = world.threads.queue(() =>
-			world.createBuffer(8 + systems.length * 3),
+		const { buffer } = world.memory.views;
+		const pointer = world.threads.queue(() =>
+			world.memory.alloc(8 + systems.length * 3),
 		);
 		const lockName = world.threads.queue(
 			() => `thyseus::ParallelExecutor${nextId++}`,
 		);
+
 		return new this(
 			world,
-			new Uint32Array(buffer, 0, 2),
-			new Uint8Array(buffer, 8, systems.length),
-			new Uint8Array(buffer, 8 + systems.length, systems.length),
-			new Uint8Array(buffer, 8 + systems.length * 2, systems.length),
+			new Uint32Array(buffer, pointer, 2),
+			new Uint8Array(buffer, pointer + 8, systems.length),
+			new Uint8Array(
+				buffer,
+				pointer + 8 + systems.length,
+				systems.length,
+			),
+			new Uint8Array(
+				buffer,
+				pointer + 8 + systems.length * 2,
+				systems.length,
+			),
 			intersections,
 			dependencies,
 			locallyAvailable,
