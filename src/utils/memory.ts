@@ -232,6 +232,18 @@ function set(from: Pointer, length: number, value: number) {
 }
 
 /**
+ * Copies the data at the provided pointer to a newly allocated pointer.
+ * @param pointer The pointer to copy.
+ * @returns The newly allocated pointer, with data copied.
+ */
+function copyPointer(pointer: Pointer): Pointer {
+	const size = u32[(pointer - BLOCK_HEADER_SIZE) >> 2] & ~1;
+	const newPointer = alloc(size - BLOCK_METADATA_SIZE);
+	copy(pointer, size, newPointer);
+	return newPointer;
+}
+
+/**
  * **UNSAFE**
  *
  * Clears all allocated memory, resetting the entire buffer as if it were just initialized.
@@ -253,6 +265,7 @@ export const memory = {
 	realloc,
 
 	copy,
+	copyPointer,
 	set,
 
 	views,
@@ -348,6 +361,21 @@ if (import.meta.vitest) {
 			memory.free(ptr2);
 			const ptr1Grow = memory.realloc(ptr1, 12);
 			expect(ptr1Grow).toBe(ptr1);
+		});
+	});
+
+	describe('copyPointer', () => {
+		it('allocates a new pointer and copies data from the source', () => {
+			memory.init(256);
+			const ptr1 = memory.alloc(16);
+			memory.views.u32[ptr1 >> 2] = ~0 >>> 0;
+			memory.views.u32[(ptr1 >> 2) + 4] = ~0 >>> 0;
+			const copiedPtr = memory.copyPointer(ptr1);
+			expect(memory.views.u32[(copiedPtr - BLOCK_HEADER_SIZE) >> 2]).toBe(
+				(16 + BLOCK_METADATA_SIZE) | 1,
+			);
+			expect(memory.views.u32[ptr1 >> 2]).toBe(~0 >>> 0);
+			expect(memory.views.u32[(ptr1 >> 2) + 4]).toBe(~0 >>> 0);
 		});
 	});
 }
