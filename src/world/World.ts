@@ -82,10 +82,8 @@ export class World {
 			const resource = new Resource();
 			this.resources.set(Resource, new Resource());
 			if (isStruct(Resource) && Resource.size! > 0) {
-				//@ts-ignore: __$$s exists.
-				resource.__$$s = this.memory.views;
-				//@ts-ignore: __$$b exists
-				resource.__$$b = this.threads.queue(() =>
+				(resource as any).__$$s = memory.views;
+				(resource as any).__$$b = this.threads.queue(() =>
 					memory.alloc(Resource.size!),
 				);
 			}
