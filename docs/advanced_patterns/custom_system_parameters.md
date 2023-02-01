@@ -126,14 +126,13 @@ function isStruct(val: unknown): val is Struct {
 	return (
 		typeof val === 'function' &&
 		typeof val.size === 'number' &&
-		typeof val.alignment === 'number' &&
-		typeof val.schema === 'number'
+		typeof val.alignment === 'number'
 	);
 }
 ```
 
-Structs are classes (functions) with static (numeric) `size`, `alignment`, and
-`schema` properties.
+Structs are classes (functions) with static (numeric) `size` and `alignment`
+properties.
 
 Okay! Now to use this in our descriptor class:
 
