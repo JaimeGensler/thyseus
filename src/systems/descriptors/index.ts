@@ -3,6 +3,7 @@ import { QueryDescriptor } from './QueryDescriptor';
 import { ResourceDescriptor } from './ResourceDescriptor';
 import { WorldDescriptor } from './WorldDescriptor';
 import { Mut, Optional, With, Without, Or, OrContent } from '../../queries';
+import { SystemResourceDescriptor } from './SystemResourceDescriptor';
 export type { Descriptor } from './Descriptor';
 
 function wrap<P extends any[], I extends object>(Descriptor: {
@@ -16,6 +17,7 @@ export const descriptors = {
 	Query: wrap(QueryDescriptor),
 	Res: wrap(ResourceDescriptor),
 	World: wrap(WorldDescriptor),
+	SystemRes: wrap(SystemResourceDescriptor),
 
 	Mut: wrap(Mut),
 	Optional: wrap(Optional),
