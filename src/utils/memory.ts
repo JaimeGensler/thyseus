@@ -19,6 +19,7 @@ export type MemoryViews = {
 let buffer: ArrayBuffer;
 let u8: Uint8Array;
 let u32: Uint32Array;
+const NULL_POINTER: Pointer = 8;
 
 const views = {} as MemoryViews;
 
@@ -26,6 +27,13 @@ const BLOCK_HEADER_SIZE = 8;
 const BLOCK_FOOTER_POSITION = 4;
 const BLOCK_METADATA_SIZE = 16;
 const MINIMUM_BLOCK_SIZE = 24; // 16 + 8
+
+function spinlock() {
+	while (Atomics.compareExchange(u32, NULL_POINTER >> 2, 0, 1) === 1);
+}
+function releaseLock() {
+	Atomics.store(u32, NULL_POINTER >> 2, 0);
+}
 
 /**
  * Initializes memory if it has not been initialized yet.
@@ -46,9 +54,8 @@ function init(
 		return;
 	}
 	if (typeof sizeOrBuffer === 'number') {
-		const size = alignTo8(sizeOrBuffer);
 		const bufferType = isShared ? SharedArrayBuffer : ArrayBuffer;
-		buffer = new bufferType(size);
+		buffer = new bufferType(alignTo8(sizeOrBuffer));
 	} else {
 		buffer = sizeOrBuffer;
 	}
@@ -69,6 +76,7 @@ function init(
 	views.f32 = new Float32Array(buffer);
 	views.f64 = new Float64Array(buffer);
 	views.dataview = new DataView(buffer);
+	alloc(8); // NULL_POINTER
 }
 
 /**
@@ -114,7 +122,8 @@ function alloc(size: number): Pointer {
 		return pointer + BLOCK_HEADER_SIZE;
 	}
 
-	// TODO: Just return a null pointer?
+	// TODO: Just return NULL_POINTER?
+	releaseLock();
 	throw new Error(`Out of memory (needed ${size})!`);
 }
 
@@ -123,6 +132,9 @@ function alloc(size: number): Pointer {
  * @param pointer The pointer to free.
  */
 function free(pointer: Pointer): void {
+	if (pointer === NULL_POINTER) {
+		return;
+	}
 	let header = pointer - BLOCK_HEADER_SIZE;
 	spinlock();
 	let size = u32[header >> 2] & ~1;
@@ -254,6 +266,7 @@ function UNSAFE_CLEAR_ALL() {
 		set(0, buffer.byteLength, 0);
 		u32[0] = buffer.byteLength;
 		u32[u32.length - 1] = buffer.byteLength;
+		alloc(8); // Restore NULL_POINTER
 	}
 }
 
@@ -274,9 +287,6 @@ export const memory = {
 };
 export type Memory = typeof memory;
 
-function spinlock() {}
-function releaseLock() {}
-
 /*---------*\
 |   TESTS   |
 \*---------*/
@@ -289,48 +299,46 @@ if (import.meta.vitest) {
 		it('returns a pointer', () => {
 			memory.init(256);
 			const ptr1 = memory.alloc(8);
-			expect(ptr1).toBe(8);
+			expect(ptr1).toBe(32);
 
 			const ptr2 = memory.alloc(16);
-			expect(ptr2).toBe(32);
+			expect(ptr2).toBe(56);
 		});
-
-		it('yields a full block if splitting is too small', () => {});
 	});
 
 	describe('free', () => {
 		it('clears a block and allows it to be allocated again', () => {
 			memory.init(256);
 			const ptr1 = memory.alloc(8);
-			expect(ptr1).toBe(8);
+			expect(ptr1).toBe(32);
 
 			memory.free(ptr1);
 			const ptr2 = memory.alloc(8);
-			expect(ptr2).toBe(8);
+			expect(ptr2).toBe(32);
 		});
 
 		it('collects the next block if free', () => {
 			memory.init(256);
 			const ptr1 = memory.alloc(8);
-			expect(ptr1).toBe(8);
+			expect(ptr1).toBe(32);
 
 			memory.free(ptr1);
 			const ptr2 = memory.alloc(16);
-			expect(ptr2).toBe(8);
+			expect(ptr2).toBe(32);
 		});
 
 		it('collects the previous block if free', () => {
 			memory.init(256);
 			const ptr1 = memory.alloc(8);
-			expect(ptr1).toBe(8);
+			expect(ptr1).toBe(32);
 			const ptr2 = memory.alloc(8);
-			expect(ptr2).toBe(32);
+			expect(ptr2).toBe(56);
 
 			memory.free(ptr1);
 			memory.free(ptr2);
 
 			const ptr3 = memory.alloc(16);
-			expect(ptr3).toBe(8);
+			expect(ptr3).toBe(32);
 		});
 	});
 
@@ -376,6 +384,17 @@ if (import.meta.vitest) {
 			);
 			expect(memory.views.u32[ptr1 >> 2]).toBe(~0 >>> 0);
 			expect(memory.views.u32[(ptr1 >> 2) + 4]).toBe(~0 >>> 0);
+		});
+	});
+
+	describe('spinlock', () => {
+		it('sets NULL_POINTER to 1 when locked, 0 when unlocked', () => {
+			memory.init(256);
+			expect(u32[NULL_POINTER >> 2]).toBe(0);
+			spinlock();
+			expect(u32[NULL_POINTER >> 2]).toBe(1);
+			releaseLock();
+			expect(u32[NULL_POINTER >> 2]).toBe(0);
 		});
 	});
 }
