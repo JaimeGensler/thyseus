@@ -175,6 +175,9 @@ function free(pointer: Pointer): void {
 function realloc(pointer: Pointer, newSize: number): Pointer {
 	// TODO: Allow realloc to shrink, if we're way under.
 	newSize = alignTo8(newSize);
+	if (pointer === NULL_POINTER) {
+		return alloc(newSize);
+	}
 	spinlock();
 	const header = pointer - BLOCK_HEADER_SIZE;
 	const size = u32[header >> 2] & ~1;
