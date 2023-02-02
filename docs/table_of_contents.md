@@ -6,7 +6,7 @@
 -   (TODO) Entities
 -   [Components](./components.md)
 -   [Queries](./queries.md)
--   (TODO) Resources
+-   [Resources](./resources.md)
 -   [Systems](./systems.md)
 -   [Multithreading](./multithreading/index.md)
     -   [Rules](./multithreading/rules.md)
