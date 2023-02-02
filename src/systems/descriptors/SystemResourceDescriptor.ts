@@ -28,6 +28,9 @@ export class SystemResourceDescriptor<T extends object> implements Descriptor {
 				memory.alloc(resource.size!),
 			);
 		}
+		if (world.threads.isMainThread) {
+			(instance as any).initialize?.();
+		}
 		return instance as T;
 	}
 }
@@ -80,6 +83,7 @@ if (import.meta.vitest) {
 		const world: World = {
 			threads: {
 				queue: (create: any) => create(),
+				isMainThread: true,
 			},
 		} as any;
 
@@ -99,6 +103,17 @@ if (import.meta.vitest) {
 			).toBeInstanceOf(C);
 			expect(allocSpy).toHaveBeenCalledOnce();
 			expect(allocSpy).toHaveBeenCalledWith(1);
+		});
+
+		it('initializes resources', () => {
+			const initializeSpy = vi.fn();
+			class MyResource {
+				initialize = initializeSpy;
+			}
+			expect(
+				new SystemResourceDescriptor(MyResource).intoArgument(world),
+			).toBeInstanceOf(MyResource);
+			expect(initializeSpy).toHaveBeenCalled();
 		});
 	});
 }
