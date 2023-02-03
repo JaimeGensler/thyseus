@@ -28,10 +28,13 @@ breaking changes.**
 ## Installation
 
 ```sh
+# pnpm
 pnpm add thyseus
-# or
+
+# yarn
 yarn add thyseus
-# or
+
+# npm
 npm i thyseus
 ```
 
@@ -59,10 +62,10 @@ To get started, define a component:
 ```ts
 import { struct, initStruct } from 'thyseus';
 
-@struct()
+@struct
 class Vec2 {
-	@struct.f64() declare x: number;
-	@struct.f64() declare y: number;
+	@struct.f64 declare x: number;
+	@struct.f64 declare y: number;
 
 	constructor(x = 0, y = 0) {
 		initStruct(this);
@@ -89,11 +92,11 @@ Let's add a resource to track the time:
 ```ts
 import { struct } from 'thyseus';
 
-@struct()
+@struct
 class Time {
-	@struct.f64() declare current: number;
-	@struct.f64() declare previous: number;
-	@struct.f64() declare delta: number;
+	@struct.f64 declare current: number;
+	@struct.f64 declare previous: number;
+	@struct.f64 declare delta: number;
 }
 ```
 
