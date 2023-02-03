@@ -17,6 +17,7 @@ let currentSize = 0;
 let keys: (string | symbol)[] = [];
 let alignments: number[] = [];
 let currentOffset: Record<string | symbol, number> = {};
+let currentPointers: Record<string | symbol, number[]> = {};
 
 const updateOffsets = (
 	newKey: string | symbol,
@@ -50,8 +51,12 @@ export function addField(
 	fieldName: string | symbol,
 	alignment: number,
 	byteLength: number,
+	pointers?: number[],
 ): Record<string | symbol, number> {
 	currentAlignment = Math.max(currentAlignment, alignment);
+	if (pointers) {
+		currentPointers[fieldName] = pointers;
+	}
 
 	updateOffsets(fieldName, alignment, byteLength);
 	currentSize += byteLength;
@@ -59,9 +64,17 @@ export function addField(
 	return currentOffset;
 }
 export function resetFields() {
+	const pointers: number[] = [];
+	for (const key in currentPointers) {
+		for (const pointer of currentPointers[key]) {
+			pointers.push(pointer + currentOffset[key]);
+		}
+	}
+
 	const result = {
 		size: Math.ceil(currentSize / currentAlignment) * currentAlignment,
 		alignment: currentAlignment,
+		pointers,
 	};
 	currentSize = 0;
 	currentAlignment = 1;

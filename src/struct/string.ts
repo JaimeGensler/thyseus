@@ -1,48 +1,58 @@
 import { addField } from './addField';
+import { memory } from '../utils/memory';
+
+// Adapted from https://stackoverflow.com/questions/5515869/string-length-in-bytes-in-javascript
+function getByteLength(val: string) {
+	let byteLength = val.length;
+	for (let i = val.length - 1; i >= 0; i--) {
+		const code = val.charCodeAt(i);
+		if (code > 0x7f && code <= 0x7ff) {
+			byteLength++;
+		} else if (code > 0x7ff && code <= 0xffff) {
+			byteLength += 2;
+		}
+		if (code >= 0xdc00 && code <= 0xdfff) {
+			i--;
+		}
+	}
+	return byteLength;
+}
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-type DiscriminatedUnion<L, R> =
-	| (L & { [Key in keyof R]?: never })
-	| (R & { [Key in keyof L]?: never });
-export function string({
-	characterCount,
-	byteLength,
-}: DiscriminatedUnion<{ byteLength: number }, { characterCount: number }>) {
-	return function fieldDecorator(
-		prototype: object,
-		propertyKey: string | symbol,
-	) {
-		byteLength ??= characterCount! * 3;
-		const offset = addField(
-			propertyKey,
-			Uint8Array.BYTES_PER_ELEMENT,
-			byteLength,
-		);
+export function string(prototype: object, propertyKey: string | symbol) {
+	const offset = addField(
+		propertyKey,
+		Uint32Array.BYTES_PER_ELEMENT,
+		Uint32Array.BYTES_PER_ELEMENT * 3,
+		[Uint32Array.BYTES_PER_ELEMENT * 2],
+	);
 
-		Object.defineProperty(prototype, propertyKey, {
-			enumerable: true,
-			get() {
-				return decoder
-					.decode(
-						this.__$$s.u8.subarray(
-							this.__$$b + offset[propertyKey],
-							this.__$$b + offset[propertyKey] + byteLength!,
-						),
-					)
-					.split('\u0000')[0];
-			},
-			set(value: string) {
-				encoder.encodeInto(
-					value,
-					this.__$$s.u8
-						.subarray(
-							this.__$$b + offset[propertyKey],
-							this.__$$b + offset[propertyKey] + byteLength!,
-						)
-						.fill(0),
-				);
-			},
-		});
-	};
+	Object.defineProperty(prototype, propertyKey, {
+		enumerable: true,
+		get() {
+			const start = this.__$$b + offset[propertyKey];
+			const length = this.__$$s.u32[start >> 2];
+			const ptr = this.__$$s.u32[(start + 8) >> 2];
+			return decoder.decode(memory.views.u8.subarray(ptr, ptr + length));
+		},
+
+		set(value: string) {
+			const byteLength = getByteLength(value);
+			const start = this.__$$b + offset[propertyKey];
+			const capacity = this.__$$s.u32[(start + 4) >> 2];
+			let pointer = this.__$$s.u32[(start + 8) >> 2];
+			if (capacity < byteLength) {
+				const newPointer = memory.realloc(pointer, byteLength);
+				pointer = newPointer;
+				this.__$$s.u32[(start + 8) >> 2] = newPointer;
+			}
+
+			this.__$$s.u32[start >> 2] = byteLength;
+			encoder.encodeInto(
+				value,
+				memory.views.u8.subarray(pointer, pointer + byteLength!),
+			);
+		},
+	});
 }
