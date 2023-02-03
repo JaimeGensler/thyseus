@@ -33,14 +33,17 @@ export type Struct = {
 	 */
 	size?: number;
 
+	pointers?: number[];
+
 	new (): object;
 };
 
 export function struct(targetClass: Class): any {
-	const { size, alignment } = resetFields();
+	const { size, alignment, pointers } = resetFields();
 	return class extends targetClass {
 		static size = size;
 		static alignment = alignment;
+		static pointers = pointers;
 
 		declare __$$s: any;
 		declare __$$b: number;
@@ -71,7 +74,10 @@ struct.substruct = substruct;
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect } = import.meta.vitest;
+	const { it, expect, afterEach } = import.meta.vitest;
+	const { memory } = await import('../utils/memory');
+
+	afterEach(() => memory.UNSAFE_CLEAR_ALL());
 
 	@struct
 	class Vec3 {
@@ -195,13 +201,15 @@ if (import.meta.vitest) {
 	});
 
 	it('works for string fields', () => {
+		memory.init(256);
 		@struct
 		class Comp {
-			@struct.string({ characterCount: 5 }) declare value: string;
-			@struct.string({ byteLength: 1 }) declare value2: string;
-			constructor() {}
-		}
+			@struct.string declare value: string;
 
+			constructor() {
+				initStruct(this);
+			}
+		}
 		const comp = new Comp();
 		expect(comp.value).toBe('');
 
@@ -213,12 +221,6 @@ if (import.meta.vitest) {
 
 		comp.value += '!!!';
 		expect(comp.value).toBe('bye!!!');
-
-		expect(comp.value2).toBe('');
-		comp.value2 = 'A';
-		expect(comp.value2).toBe('A');
-		comp.value2 = 'AA';
-		expect(comp.value2).toBe('A');
 	});
 
 	it('works for arrays', () => {
