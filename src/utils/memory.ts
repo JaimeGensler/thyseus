@@ -132,7 +132,7 @@ function alloc(size: number): Pointer {
  * @param pointer The pointer to free.
  */
 function free(pointer: Pointer): void {
-	if (pointer === NULL_POINTER) {
+	if (pointer === NULL_POINTER || pointer === 0) {
 		return;
 	}
 	let header = pointer - BLOCK_HEADER_SIZE;
@@ -173,11 +173,11 @@ function free(pointer: Pointer): void {
  * @returns The new pointer.
  */
 function realloc(pointer: Pointer, newSize: number): Pointer {
-	// TODO: Allow realloc to shrink, if we're way under.
-	newSize = alignTo8(newSize);
-	if (pointer === NULL_POINTER) {
+	if (pointer === NULL_POINTER || pointer === 0) {
 		return alloc(newSize);
 	}
+	// TODO: Allow realloc to shrink, if we're way under.
+	newSize = alignTo8(newSize);
 	spinlock();
 	const header = pointer - BLOCK_HEADER_SIZE;
 	const size = u32[header >> 2] & ~1;
