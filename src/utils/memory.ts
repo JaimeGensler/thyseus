@@ -249,9 +249,12 @@ function set(from: Pointer, length: number, value: number) {
 /**
  * Copies the data at the provided pointer to a newly allocated pointer.
  * @param pointer The pointer to copy.
- * @returns The newly allocated pointer, with data copied.
+ * @returns The newly allocated pointer with data copied from the passed pointer.
  */
 function copyPointer(pointer: Pointer): Pointer {
+	if (pointer === NULL_POINTER || pointer === 0) {
+		return NULL_POINTER;
+	}
 	const size = u32[(pointer - BLOCK_HEADER_SIZE) >> 2] & ~1;
 	const newPointer = alloc(size - BLOCK_METADATA_SIZE);
 	copy(pointer, size, newPointer);
