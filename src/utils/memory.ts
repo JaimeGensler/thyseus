@@ -255,8 +255,9 @@ function copyPointer(pointer: Pointer): Pointer {
 	if (pointer === NULL_POINTER || pointer === 0) {
 		return NULL_POINTER;
 	}
-	const size = u32[(pointer - BLOCK_HEADER_SIZE) >> 2] & ~1;
-	const newPointer = alloc(size - BLOCK_METADATA_SIZE);
+	const size =
+		(u32[(pointer - BLOCK_HEADER_SIZE) >> 2] & ~1) - BLOCK_METADATA_SIZE;
+	const newPointer = alloc(size);
 	copy(pointer, size, newPointer);
 	return newPointer;
 }
@@ -383,13 +384,16 @@ if (import.meta.vitest) {
 			memory.init(256);
 			const ptr1 = memory.alloc(16);
 			memory.views.u32[ptr1 >> 2] = ~0 >>> 0;
-			memory.views.u32[(ptr1 >> 2) + 4] = ~0 >>> 0;
+			memory.views.u32[(ptr1 + 4) >> 2] = ~0 >>> 0;
 			const copiedPtr = memory.copyPointer(ptr1);
 			expect(memory.views.u32[(copiedPtr - BLOCK_HEADER_SIZE) >> 2]).toBe(
 				(16 + BLOCK_METADATA_SIZE) | 1,
 			);
-			expect(memory.views.u32[ptr1 >> 2]).toBe(~0 >>> 0);
-			expect(memory.views.u32[(ptr1 >> 2) + 4]).toBe(~0 >>> 0);
+			expect(memory.views.u32[(copiedPtr + 20) >> 2]).toBe(
+				(16 + BLOCK_METADATA_SIZE) | 1,
+			);
+			expect(memory.views.u32[copiedPtr >> 2]).toBe(~0 >>> 0);
+			expect(memory.views.u32[(copiedPtr + 4) >> 2]).toBe(~0 >>> 0);
 		});
 	});
 
