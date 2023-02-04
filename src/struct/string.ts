@@ -25,7 +25,7 @@ export function string(prototype: object, propertyKey: string | symbol) {
 		propertyKey,
 		Uint32Array.BYTES_PER_ELEMENT,
 		Uint32Array.BYTES_PER_ELEMENT * 3,
-		[Uint32Array.BYTES_PER_ELEMENT * 2],
+		[8],
 	);
 
 	Object.defineProperty(prototype, propertyKey, {
@@ -45,6 +45,7 @@ export function string(prototype: object, propertyKey: string | symbol) {
 			if (capacity < byteLength) {
 				const newPointer = memory.realloc(pointer, byteLength);
 				pointer = newPointer;
+				this.__$$s.u32[(start + 4) >> 2] = byteLength;
 				this.__$$s.u32[(start + 8) >> 2] = newPointer;
 			}
 

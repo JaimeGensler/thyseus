@@ -1,8 +1,6 @@
-import { addField, TYPE_TO_CONSTRUCTOR } from './addField';
+import { addField, TYPE_TO_CONSTRUCTOR, type PrimitiveName } from './addField';
 
-function createPrimativeFieldDecorator(
-	typeName: keyof typeof TYPE_TO_CONSTRUCTOR,
-) {
+function createPrimativeFieldDecorator(typeName: PrimitiveName) {
 	return function fieldDecorator(
 		prototype: object,
 		propertyKey: string | symbol,

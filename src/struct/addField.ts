@@ -10,6 +10,7 @@ export const TYPE_TO_CONSTRUCTOR = {
 	f32: Float32Array,
 	f64: Float64Array,
 } as const;
+export type PrimitiveName = keyof typeof TYPE_TO_CONSTRUCTOR;
 
 let currentAlignment = 1;
 let currentSize = 0;
