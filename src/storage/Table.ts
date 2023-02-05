@@ -55,9 +55,7 @@ export class Table {
 	get capacity(): number {
 		return memory.views.u32[(this.#pointer >> 2) + 1];
 	}
-	set #capacity(val: number) {
-		memory.views.u32[(this.#pointer >> 2) + 1] = val;
-	}
+
 	get size(): number {
 		return memory.views.u32[this.#pointer >> 2];
 	}
@@ -95,13 +93,23 @@ export class Table {
 		const ptr = this.getColumn(Entity);
 		const lastEntity = memory.views.u64[(ptr >> 3) + this.size];
 		for (const component of this.#components) {
+			const componentPointer =
+				this.getColumn(component) + index * component.size!;
 			if (targetTable.hasColumn(component)) {
 				memory.copy(
-					this.getColumn(component) + index * component.size!,
+					componentPointer,
 					component.size!,
 					targetTable.getColumn(component) +
 						targetTable.size * component.size!,
 				);
+			} else {
+				for (const pointerOffset of component.pointers ?? []) {
+					memory.free(
+						memory.views.u32[
+							(componentPointer + pointerOffset) >> 2
+						],
+					);
+				}
 			}
 		}
 		targetTable.size++;
@@ -110,7 +118,8 @@ export class Table {
 	}
 
 	grow() {
-		this.#capacity = this.#world.config.getNewTableSize(this.capacity);
+		memory.views.u32[(this.#pointer >> 2) + 1] =
+			this.#world.config.getNewTableSize(this.capacity);
 		let i = 2;
 		for (const component of this.#components) {
 			memory.views.u32[(this.#pointer >> 2) + i] = memory.realloc(
@@ -130,7 +139,7 @@ export class Table {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, beforeEach } = import.meta.vitest;
+	const { it, expect, beforeEach, vi } = import.meta.vitest;
 	const { World } = await import('../world');
 	const { struct } = await import('../struct');
 	const { ThreadGroup } = await import('../threads');
@@ -149,7 +158,20 @@ if (import.meta.vitest) {
 		constructor() {}
 	}
 
-	const createWorld = () => World.new().build();
+	@struct
+	class StringComponent {
+		declare static size: number;
+		declare __$$s: typeof memory['views'];
+		declare __$$b: number;
+		@struct.string declare val: number;
+		constructor() {}
+	}
+
+	const createWorld = () =>
+		World.new()
+			.registerComponent(Vec3)
+			.registerComponent(StringComponent)
+			.build();
 	const createTable = (world: World, ...components: Struct[]) =>
 		Table.create(world, components, 0n, 0);
 
@@ -347,7 +369,7 @@ if (import.meta.vitest) {
 	});
 
 	// v0.6 changelog bugfix
-	// v0.10.0 applyCommands is responsible for overwriting stale data - test.
+	// v0.10.0 applyCommands is responsible for overwriting stale data.
 	it.skip('does not contain stale data when adding element', async () => {
 		const world = await createWorld();
 		const table = createTable(world, Entity, Vec3);
@@ -427,5 +449,24 @@ if (import.meta.vitest) {
 		(ent as any).__$$b += Entity.size;
 		expect(ent.generation).toBe(0);
 		expect(ent.id).toBe(0x00000000_00000000n);
+	});
+
+	it('move frees pointers if the target table does not have the pointer column', async () => {
+		const freeSpy = vi.spyOn(memory, 'free');
+		const world = await createWorld();
+		const initialTable = createTable(world, Entity, StringComponent);
+		const targetTable = createTable(world, Entity);
+		const uncreatedTable = world.archetypes[0];
+
+		uncreatedTable.move(0, initialTable);
+
+		const pointer = memory.alloc(8);
+		memory.views.u32[(initialTable.getColumn(StringComponent) + 8) >> 2] =
+			pointer;
+
+		expect(freeSpy).not.toHaveBeenCalled();
+		initialTable.move(0, targetTable);
+		expect(freeSpy).toHaveBeenCalledOnce();
+		expect(freeSpy).toHaveBeenCalledWith(pointer);
 	});
 }
