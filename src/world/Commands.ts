@@ -41,8 +41,6 @@ export class Commands {
 	#queueLength = 0;
 	#queueCapacity: number;
 
-	#views: MemoryViews;
-
 	#entities: Entities;
 	#components: Struct[];
 
@@ -55,7 +53,6 @@ export class Commands {
 		this.#initialValuePointer = initialValuePointer;
 		this.#initialValuesOffset = offsets;
 
-		this.#views = memory.views;
 		this.#entities = world.entities;
 		this.#components = world.components;
 		this.#queuePointer = memory.alloc(64);
@@ -103,11 +100,21 @@ export class Commands {
 	insertInto<T extends object>(entityId: bigint, component: NotFunction<T>) {
 		const componentType: Struct = component.constructor as any;
 		this.#insert(entityId, componentType);
-		this.#views.u8.set(
-			//@ts-ignore
-			component.__$$s.u8.subarray(component.__$$b, componentType.size),
+		memory.views.u8.set(
+			(component as any).__$$s.u8.subarray(
+				(component as any).__$$b,
+				componentType.size,
+			),
 			this.#queuePointer + this.#queueLength,
 		);
+
+		const queueEnd = this.#queuePointer + this.#queueLength;
+		for (const pointer of componentType.pointers! ?? []) {
+			const pointerIndex = ((component as any).__$$b + pointer) >> 2;
+			memory.views.u32[(queueEnd + pointer) >> 2] = memory.copyPointer(
+				(component as any).__$$s.u32[pointerIndex],
+			);
+		}
 		this.#queueLength += alignTo8(componentType.size!);
 	}
 	insertTypeInto(entityId: bigint, componentType: Struct) {
@@ -116,13 +123,17 @@ export class Commands {
 			return;
 		}
 		const offset =
+			this.#initialValuePointer +
 			this.#initialValuesOffset[this.#components.indexOf(componentType)];
 
-		memory.copy(
-			this.#initialValuePointer + offset,
-			componentType.size!,
-			this.#queuePointer + this.#queueLength,
-		);
+		const queueEnd = this.#queuePointer + this.#queueLength;
+		memory.copy(offset, componentType.size!, queueEnd);
+
+		for (const pointer of componentType.pointers! ?? []) {
+			memory.views.u32[(queueEnd + pointer) >> 2] = memory.copyPointer(
+				memory.views.u32[(queueEnd + pointer) >> 2],
+			);
+		}
 		this.#queueLength += alignTo8(componentType.size!);
 	}
 	#insert(entityId: bigint, componentType: Struct) {
@@ -140,9 +151,9 @@ export class Commands {
 			return;
 		}
 
-		this.#views.u64[(this.#queuePointer + this.#queueLength) >> 3] =
+		memory.views.u64[(this.#queuePointer + this.#queueLength) >> 3] =
 			entityId;
-		this.#views.u32[(this.#queuePointer + this.#queueLength + 8) >> 2] =
+		memory.views.u32[(this.#queuePointer + this.#queueLength + 8) >> 2] =
 			this.#components.indexOf(componentType);
 		this.#queueLength += 16;
 	}
@@ -183,6 +194,7 @@ if (import.meta.vitest) {
 	const { initStruct } = await import('../storage');
 	const { World } = await import('../world');
 	const { ThreadGroup } = await import('../threads/ThreadGroup');
+	const { struct } = await import('../struct');
 	ThreadGroup.isMainThread = true;
 
 	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
@@ -219,6 +231,17 @@ if (import.meta.vitest) {
 			this.y = y;
 		}
 	}
+	@struct
+	class StringComponent {
+		declare static size: number;
+		declare static alignment: number;
+		@struct.string declare value: string;
+		declare __$$s: any;
+		constructor(str = 'hi') {
+			initStruct(this);
+			this.value = str;
+		}
+	}
 
 	const createWorld = () =>
 		World.new()
@@ -227,6 +250,7 @@ if (import.meta.vitest) {
 			.registerComponent(CompB)
 			.registerComponent(CompC)
 			.registerComponent(CompD)
+			.registerComponent(StringComponent)
 			.build();
 
 	it('returns unique entity handles', async () => {
@@ -285,7 +309,7 @@ if (import.meta.vitest) {
 		expect(u32[20 >> 2]).toBe(42);
 	});
 
-	it('inserts sized types with specialized data', async () => {
+	it('inserts sized types with specified data', async () => {
 		const world = await createWorld();
 		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().add(new CompD(15, 16));
@@ -296,5 +320,52 @@ if (import.meta.vitest) {
 		expect(memory.views.u32[(start >> 2) + 2]).toBe(5); // CompD -> 5
 		expect(u32[16 >> 2]).toBe(15);
 		expect(u32[20 >> 2]).toBe(16);
+	});
+
+	it('copies pointers for default values', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
+		const ent1 = commands.spawn().addType(StringComponent);
+		const ent2 = commands.spawn().addType(StringComponent);
+		const [, start] = commands.getData();
+		let offset = 0;
+		expect(memory.views.u64[(start + offset) >> 3]).toBe(ent1.id);
+		offset += 8;
+		expect(memory.views.u32[(start + offset) >> 2]).toBe(6); // StringComp -> 5
+		offset += 8;
+		expect(memory.views.u32[(start + offset) >> 2]).toBe(2); // length
+		offset += 4;
+		expect(memory.views.u32[(start + offset) >> 2]).toBe(2); // capacity
+		offset += 4;
+		expect(memory.views.u32[(start + offset) >> 2]).toBe(2544); // pointer
+		offset += 8;
+		expect(memory.views.u64[(start + offset) >> 3]).toBe(ent2.id);
+		offset += 8;
+		expect(memory.views.u32[(start + offset) >> 2]).toBe(6); // StringComp -> 5
+		offset += 8;
+		expect(memory.views.u32[(start + offset) >> 2]).toBe(2); // length
+		offset += 4;
+		expect(memory.views.u32[(start + offset) >> 2]).toBe(2); // capacity
+		offset += 4;
+		expect(memory.views.u32[(start + offset) >> 2]).toBe(2568); // pointer
+	});
+
+	it('copies pointers for passed values', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
+		const component = new StringComponent('test');
+		const ent = commands.spawn().add(component);
+		const [, start] = commands.getData();
+		let offset = 0;
+		expect(memory.views.u64[(start + offset) >> 3]).toBe(ent.id);
+		offset += 8;
+		expect(memory.views.u32[(start + offset) >> 2]).toBe(6); // StringComp -> 5
+		offset += 8;
+		expect(memory.views.u32[(start + offset) >> 2]).toBe(4); // length
+		offset += 4;
+		expect(memory.views.u32[(start + offset) >> 2]).toBe(4); // capacity
+		expect(component.__$$s.u32[2]).not.toBe(
+			memory.views.u32[(start + offset) >> 2],
+		);
 	});
 }
