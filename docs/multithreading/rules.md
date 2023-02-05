@@ -12,16 +12,14 @@ of the first) _regardless of whether you intend to use multithreading_, so that
 you may opt-in to multithreading with ease and for the simplicity and
 maintainability of your own code.
 
-## Rules of Multithreading
-
-### Module-Type Workers and SharedArrayBuffers are required.
+## Module-Type Workers and SharedArrayBuffers are required.
 
 Thyseus' multithreading model is centered around these two technologies - if
 either of these is not available in your target environment for some reason,
 then you unfortunately will not be able to leverage Thyseus' multithreading
 capabilities.
 
-### The order that systems and plugins are added in must be stable
+## The order that systems and plugins are added in must be stable
 
 Thyseus uses the registration order of systems, components, and resources in
 order to identify them between threads. As a result, passing anything other than
@@ -58,7 +56,7 @@ const myWorldBuilder = await World.new({ threads: 2 }, import.meta.url)
 It is permissible to conditionally register systems or plugins **_only if_** the
 conditions are consistent between threads.
 
-### The module the world is built in should not (unconditionally) run `world.update`
+## The module the world is built in should not (unconditionally) run `world.update`
 
 `world.update()` is designed to be called on the main thread, and internally it
 communicates with other threads to run systems in parallel. Calling this method
@@ -107,7 +105,7 @@ async function update() {
 update();
 ```
 
-### The module the world is built in, _or any module it imports_, should not have top-level references to context-specific APIs.
+## The module the world is built in, _or any module it imports_, should not have top-level references to context-specific APIs.
 
 Workers run in a different context than the main thread, so some APIs available
 on the main thread are not available in workers. As a result, there should be no
@@ -120,7 +118,7 @@ constructor/methods.
 Technically, if you know a system is thread-local, you may also include
 window-only objects in system bodies, but this is generally not recommended.
 
-### Systems must not rely on closures over mutable local variables
+## Systems must not rely on closures over mutable local variables
 
 This requirement is the most likely to require changes to your code. Any system
 that is not bound to the main thread can run on _any thread, any frame_. As a
