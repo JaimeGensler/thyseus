@@ -5,9 +5,10 @@
 -   (TODO) Getting Started
 -   (TODO) Entities
 -   [Components](./components.md)
+-   [Systems](./systems.md)
 -   [Queries](./queries.md)
 -   [Resources](./resources.md)
--   [Systems](./systems.md)
+-   (TODO) Events
 -   [Multithreading](./multithreading/index.md)
     -   [Rules](./multithreading/rules.md)
     -   [Using Multiple Threads](./multithreading/using_multiple_threads.md)
@@ -18,5 +19,5 @@
     -   (TODO) Handwritten Structs
     -   (TODO) Custom Component Fields
     -   [Custom Executors](./advanced_patterns/custom_executors.md)
-    -   (TODO) Thread Listeners
+    -   (TODO) Thread Channels
 -   (TODO) Walkthrough Example
