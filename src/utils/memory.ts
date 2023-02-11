@@ -28,10 +28,10 @@ const BLOCK_FOOTER_POSITION = 4;
 const BLOCK_METADATA_SIZE = 16;
 const MINIMUM_BLOCK_SIZE = 24; // 16 + 8
 
-function spinlock() {
+function spinlock(): void {
 	while (Atomics.compareExchange(u32, NULL_POINTER >> 2, 0, 1) === 1);
 }
-function releaseLock() {
+function releaseLock(): void {
 	Atomics.store(u32, NULL_POINTER >> 2, 0);
 }
 
@@ -232,7 +232,7 @@ function realloc(pointer: Pointer, newSize: number): Pointer {
  * @param length The length (in bytes) to copy.
  * @param to The destination to copy to.
  */
-function copy(from: Pointer, length: number, to: Pointer) {
+function copy(from: Pointer, length: number, to: Pointer): void {
 	u8.copyWithin(to, from, from + length);
 }
 
@@ -242,7 +242,7 @@ function copy(from: Pointer, length: number, to: Pointer) {
  * @param length The number of bytes to set.
  * @param value The value to set them to.
  */
-function set(from: Pointer, length: number, value: number) {
+function set(from: Pointer, length: number, value: number): void {
 	u8.fill(value, from, from + length);
 }
 
@@ -268,7 +268,7 @@ function copyPointer(pointer: Pointer): Pointer {
  * Clears all allocated memory, resetting the entire buffer as if it were just initialized.
  * Previous pointers will no longer be safe to use and could result in memory corruption.
  */
-function UNSAFE_CLEAR_ALL() {
+function UNSAFE_CLEAR_ALL(): void {
 	if (buffer) {
 		set(0, buffer.byteLength, 0);
 		u32[0] = buffer.byteLength;

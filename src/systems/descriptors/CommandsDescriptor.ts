@@ -3,16 +3,16 @@ import type { Commands } from '../../world/Commands';
 import type { Descriptor } from './Descriptor';
 
 export class CommandsDescriptor implements Descriptor {
-	isLocalToThread() {
+	isLocalToThread(): boolean {
 		return false;
 	}
-	intersectsWith(other: unknown) {
+	intersectsWith(other: unknown): boolean {
 		return false;
 	}
 	intoArgument(world: World): Commands {
 		return world.commands;
 	}
-	onAddSystem(builder: WorldBuilder) {}
+	onAddSystem(builder: WorldBuilder): void {}
 }
 
 /*---------*\

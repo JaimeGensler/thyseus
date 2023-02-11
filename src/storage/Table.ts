@@ -142,7 +142,7 @@ export class Table {
 		return lastEntity;
 	}
 
-	grow() {
+	grow(): void {
 		memory.views.u32[(this.#pointer >> 2) + 1] =
 			this.#world.config.getNewTableSize(this.capacity);
 		let i = 2;

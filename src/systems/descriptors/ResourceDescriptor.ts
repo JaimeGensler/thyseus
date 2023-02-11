@@ -15,18 +15,18 @@ export class ResourceDescriptor<T extends Class | Mut<Class>>
 		this.canWrite = isMut;
 	}
 
-	isLocalToThread() {
+	isLocalToThread(): boolean {
 		return !isStruct(this.resource);
 	}
 
-	intersectsWith(other: unknown) {
+	intersectsWith(other: unknown): boolean {
 		return other instanceof ResourceDescriptor
 			? this.resource === other.resource &&
 					(this.canWrite || other.canWrite)
 			: false;
 	}
 
-	onAddSystem(builder: WorldBuilder) {
+	onAddSystem(builder: WorldBuilder): void {
 		builder.registerResource(this.resource);
 	}
 

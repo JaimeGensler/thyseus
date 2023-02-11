@@ -74,10 +74,10 @@ export class ThreadGroup {
 	setListener<I extends SendableType[], O extends SendableType>(
 		channelName: string,
 		listener: (...args: I) => O,
-	) {
+	): void {
 		this.#listeners[channelName] = listener as any;
 	}
-	deleteListener(channelName: string) {
+	deleteListener(channelName: string): void {
 		delete this.#listeners[channelName];
 	}
 

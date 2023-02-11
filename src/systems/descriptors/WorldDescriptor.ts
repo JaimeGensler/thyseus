@@ -2,16 +2,16 @@ import type { World, WorldBuilder } from '../../world';
 import type { Descriptor } from './Descriptor';
 
 export class WorldDescriptor implements Descriptor {
-	isLocalToThread() {
+	isLocalToThread(): boolean {
 		return true;
 	}
-	intersectsWith(other: unknown) {
+	intersectsWith(other: unknown): boolean {
 		return true;
 	}
 	intoArgument(world: World): World {
 		return world;
 	}
-	onAddSystem(builder: WorldBuilder) {}
+	onAddSystem(builder: WorldBuilder): void {}
 }
 
 /*---------*\

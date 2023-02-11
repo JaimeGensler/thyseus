@@ -10,14 +10,14 @@ export class SystemResourceDescriptor<T extends object> implements Descriptor {
 		this.resource = resource;
 	}
 
-	isLocalToThread() {
+	isLocalToThread(): boolean {
 		return !isStruct(this.resource);
 	}
-	intersectsWith(other: unknown) {
+	intersectsWith(other: unknown): boolean {
 		return false;
 	}
 
-	onAddSystem(builder: WorldBuilder) {}
+	onAddSystem(builder: WorldBuilder): void {}
 
 	intoArgument(world: World): T {
 		const { resource } = this;

@@ -56,7 +56,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		});
 	}
 
-	get size() {
+	get size(): number {
 		return this.#tables.reduce((acc, val) => acc + val.size, 0);
 	}
 
@@ -111,7 +111,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		}
 	}
 
-	testAdd(tableId: bigint, table: Table) {
+	testAdd(tableId: bigint, table: Table): void {
 		if (this.#test(tableId)) {
 			this.#tables.push(table);
 		}

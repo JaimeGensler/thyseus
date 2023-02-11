@@ -69,11 +69,11 @@ export class QueryDescriptor<
 		this.filters = filters;
 	}
 
-	isLocalToThread() {
+	isLocalToThread(): boolean {
 		return false;
 	}
 
-	intersectsWith(other: unknown) {
+	intersectsWith(other: unknown): boolean {
 		return other instanceof QueryDescriptor
 			? this.components.some((compA, iA) =>
 					other.components.some(
@@ -85,12 +85,19 @@ export class QueryDescriptor<
 			: false;
 	}
 
-	onAddSystem(builder: WorldBuilder) {
+	onAddSystem(builder: WorldBuilder): void {
 		this.components.forEach(comp => builder.registerComponent(comp));
 		registerFilters(builder, this.filters);
 	}
 
-	intoArgument(world: World) {
+	intoArgument(world: World): Query<
+		A extends any[]
+			? {
+					[Index in keyof A]: UnwrapElement<A[Index]>;
+			  }
+			: UnwrapElement<A>,
+		F
+	> {
 		const { withs, withouts } = createFilterBitfields(
 			world.components,
 			this.components,
@@ -98,16 +105,15 @@ export class QueryDescriptor<
 			this.filters,
 		);
 
-		const query = new Query<
-			A extends any[]
-				? {
-						[Index in keyof A]: UnwrapElement<A[Index]>;
-				  }
-				: UnwrapElement<A>,
-			F
-		>(withs, withouts, this.isIndividual, this.components, world);
+		const query = new Query(
+			withs,
+			withouts,
+			this.isIndividual,
+			this.components,
+			world,
+		);
 		world.queries.push(query);
-		return query;
+		return query as any;
 	}
 }
 

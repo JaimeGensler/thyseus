@@ -55,7 +55,7 @@ export class Entities {
 	 * @param entityId The entity id to check
 	 * @returns `true` if alive, `false` if not.
 	 */
-	isAlive(entityId: bigint) {
+	isAlive(entityId: bigint): boolean {
 		const { u32, u64 } = memory.views;
 		const tableIndex = this.getTableIndex(entityId);
 		const row = this.getRow(entityId);
@@ -68,7 +68,7 @@ export class Entities {
 		);
 	}
 
-	resetCursor() {
+	resetCursor(): void {
 		const { u32 } = memory.views;
 		u32[this.#pointer + 1] = 0;
 		if (u32[this.#pointer] >= u32[this.#pointer + 3]) {
@@ -83,17 +83,17 @@ export class Entities {
 		}
 	}
 
-	getTableIndex(entityId: bigint) {
+	getTableIndex(entityId: bigint): number {
 		return memory.views.u32[this.#getOffset(entityId)] ?? 0;
 	}
-	setTableIndex(entityId: bigint, tableIndex: number) {
+	setTableIndex(entityId: bigint, tableIndex: number): void {
 		memory.views.u32[this.#getOffset(entityId)] = tableIndex;
 	}
 
-	getRow(entityId: bigint) {
+	getRow(entityId: bigint): number {
 		return memory.views.u32[this.#getOffset(entityId) + 1] ?? 0;
 	}
-	setRow(entityId: bigint, row: number) {
+	setRow(entityId: bigint, row: number): void {
 		memory.views.u32[this.#getOffset(entityId) + 1] = row;
 	}
 
