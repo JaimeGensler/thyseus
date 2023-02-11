@@ -6,30 +6,26 @@ import type { World } from '../world';
 const lo32 = 0x00_00_00_00_ff_ff_ff_ffn;
 const getIndex = (entityId: bigint) => Number(entityId & lo32);
 const ENTITY_BATCH_SIZE = 256;
+const ONE_GENERATION = 1n << 32n;
 
 export class Entities {
 	static fromWorld(world: World): Entities {
 		return new this(
 			world,
 			world.threads.queue(() => {
+				const { u32 } = memory.views;
 				const ptr = memory.alloc(4 * 4);
-				memory.views.u32[(ptr >> 2) + 2] = memory.alloc(
-					8 * ENTITY_BATCH_SIZE,
-				);
-				memory.views.u32[(ptr >> 2) + 3] = ENTITY_BATCH_SIZE;
+				u32[(ptr >> 2) + 2] = memory.alloc(8 * ENTITY_BATCH_SIZE);
+				u32[(ptr >> 2) + 3] = ENTITY_BATCH_SIZE;
 				return ptr;
 			}),
 		);
 	}
 
-	#data: Uint32Array; // [nextId, cursor, pointer, length]
-	#data64: BigUint64Array;
 	#world: World;
 	#pointer: number;
 	#recycled: Table;
 	constructor(world: World, pointer: number) {
-		this.#data = memory.views.u32;
-		this.#data64 = memory.views.u64;
 		this.#pointer = pointer >> 2;
 		this.#world = world;
 		this.#recycled = world.archetypes[1];
@@ -39,6 +35,7 @@ export class Entities {
 	 * A lockfree method to obtain a new Entity ID
 	 */
 	spawn(): bigint {
+		const { u32, u64 } = memory.views;
 		const recycledSize = this.#recycled.size;
 		const recycledPtr = this.#recycled.getColumn(Entity);
 		for (
@@ -47,10 +44,10 @@ export class Entities {
 			currentCursor = this.#getCursor()
 		) {
 			if (this.#tryCursorMove(currentCursor)) {
-				return this.#data64[(recycledPtr >> 3) + currentCursor];
+				return u64[(recycledPtr >> 3) + currentCursor] + ONE_GENERATION;
 			}
 		}
-		return BigInt(Atomics.add(this.#data, this.#pointer, 1));
+		return BigInt(Atomics.add(u32, this.#pointer, 1));
 	}
 
 	/**
@@ -59,48 +56,56 @@ export class Entities {
 	 * @returns `true` if alive, `false` if not.
 	 */
 	isAlive(entityId: bigint) {
+		const { u32, u64 } = memory.views;
 		const tableIndex = this.getTableIndex(entityId);
 		const row = this.getRow(entityId);
 		const ptr = this.#world.archetypes[tableIndex].getColumn(Entity);
 		return (
-			getIndex(entityId) < Atomics.load(this.#data, this.#pointer) &&
-			(tableIndex === 0 || this.#data64[(ptr >> 3) + row] === entityId)
+			getIndex(entityId) < Atomics.load(u32, this.#pointer) &&
+			(tableIndex === 0 ||
+				tableIndex === 1 ||
+				u64[(ptr >> 3) + row] === entityId)
 		);
 	}
 
 	resetCursor() {
-		this.#data[this.#pointer + 1] = 0;
-		if (this.#data[this.#pointer] >= this.#data[this.#pointer + 3]) {
+		const { u32 } = memory.views;
+		u32[this.#pointer + 1] = 0;
+		if (u32[this.#pointer] >= u32[this.#pointer + 3]) {
 			const newElementCount =
-				Math.ceil((this.#data[this.#pointer] + 1) / ENTITY_BATCH_SIZE) *
+				Math.ceil((u32[this.#pointer] + 1) / ENTITY_BATCH_SIZE) *
 				ENTITY_BATCH_SIZE;
 			this.#locationsPointer = memory.realloc(
 				this.#locationsPointer,
 				newElementCount * 8,
 			);
-			this.#data[this.#pointer + 3] = newElementCount;
+			u32[this.#pointer + 3] = newElementCount;
 		}
 	}
 
 	getTableIndex(entityId: bigint) {
-		return this.#data[this.#getOffset(entityId)] ?? 0;
+		return memory.views.u32[this.#getOffset(entityId)] ?? 0;
 	}
 	setTableIndex(entityId: bigint, tableIndex: number) {
-		this.#data[this.#getOffset(entityId)] = tableIndex;
+		memory.views.u32[this.#getOffset(entityId)] = tableIndex;
 	}
 
 	getRow(entityId: bigint) {
-		return this.#data[this.#getOffset(entityId) + 1] ?? 0;
+		return memory.views.u32[this.#getOffset(entityId) + 1] ?? 0;
 	}
 	setRow(entityId: bigint, row: number) {
-		this.#data[this.#getOffset(entityId) + 1] = row;
+		memory.views.u32[this.#getOffset(entityId) + 1] = row;
+	}
+
+	getBitset(entityId: bigint): bigint {
+		return this.#world.archetypes[this.getTableIndex(entityId)].bitfield;
 	}
 
 	get #locationsPointer() {
-		return this.#data[this.#pointer + 2];
+		return memory.views.u32[this.#pointer + 2];
 	}
 	set #locationsPointer(val: number) {
-		this.#data[this.#pointer + 2] = val;
+		memory.views.u32[this.#pointer + 2] = val;
 	}
 	#getOffset(entityId: bigint) {
 		return (this.#locationsPointer >> 2) + (getIndex(entityId) << 1);
@@ -111,7 +116,7 @@ export class Entities {
 	 * @returns The current cursor value.
 	 */
 	#getCursor() {
-		return Atomics.load(this.#data, this.#pointer + 1);
+		return Atomics.load(memory.views.u32, this.#pointer + 1);
 	}
 
 	/**
@@ -123,7 +128,7 @@ export class Entities {
 		return (
 			expected ===
 			Atomics.compareExchange(
-				this.#data,
+				memory.views.u32,
 				this.#pointer + 1,
 				expected,
 				expected + 1,
@@ -154,7 +159,7 @@ if (import.meta.vitest) {
 		}
 	});
 
-	it('returns entities from the Recycled table', async () => {
+	it('returns entities from the Recycled table with incremented generation', async () => {
 		const world = await createWorld();
 		const entities = world.entities;
 		const recycledTable = world.archetypes[1];
@@ -171,9 +176,9 @@ if (import.meta.vitest) {
 		memory.views.u64[(ptr >> 3) + 1] = 1n;
 		memory.views.u64[(ptr >> 3) + 2] = 2n;
 
-		expect(entities.spawn()).toBe(0n);
-		expect(entities.spawn()).toBe(1n);
-		expect(entities.spawn()).toBe(2n);
+		expect(entities.spawn()).toBe(0n + ONE_GENERATION);
+		expect(entities.spawn()).toBe(1n + ONE_GENERATION);
+		expect(entities.spawn()).toBe(2n + ONE_GENERATION);
 		expect(entities.spawn()).toBe(3n);
 	});
 
@@ -192,7 +197,7 @@ if (import.meta.vitest) {
 		entities.spawn();
 		entities.resetCursor();
 		expect(reallocSpy).toHaveBeenCalledOnce();
-		expect(reallocSpy).toHaveBeenCalledWith(176, 4096);
+		expect(reallocSpy).toHaveBeenCalledWith(192, 4096);
 
 		reallocSpy.mockReset();
 
@@ -201,6 +206,6 @@ if (import.meta.vitest) {
 		}
 		entities.resetCursor();
 		expect(reallocSpy).toHaveBeenCalledOnce();
-		expect(reallocSpy).toHaveBeenCalledWith(2344, 8192);
+		expect(reallocSpy).toHaveBeenCalledWith(2312, 8192);
 	});
 }

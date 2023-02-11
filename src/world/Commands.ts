@@ -1,62 +1,80 @@
+import { DEV } from 'esm-env';
+import { assert } from '../utils/assert';
 import { alignTo8 } from '../utils/alignTo8';
-import { memory, type MemoryViews } from '../utils/memory';
+import { memory } from '../utils/memory';
 import { Entity, type Entities } from '../storage';
 import type { Struct } from '../struct';
 import type { World } from './World';
 
 type NotFunction<T> = T extends Function ? never : T;
+type Command = { entityId: bigint; componentId: number; dataStart: number };
 
 export class Commands {
 	static fromWorld(world: World) {
-		const initialValuePtr = world.threads.queue(() => {
+		const initialValuePointers = world.threads.queue(() => {
 			const size = world.components.reduce(
 				(acc, val) => acc + val.size!,
 				0,
 			);
-			const ptr = memory.alloc(size);
-			let offset = 0;
+			const componentPointers = [];
+			let pointer = memory.alloc(size);
 			for (const component of world.components) {
+				componentPointers.push(pointer);
 				if (component.size === 0) {
 					continue;
 				}
-				const instance = new component() as { __$$s: MemoryViews };
-				memory.views.u8.set(instance.__$$s.u8, ptr + offset);
-				offset += component.size!;
+				memory.views.u8.set((new component() as any).__$$s.u8, pointer);
+				pointer += component.size!;
 			}
-			return ptr;
+			return componentPointers;
 		});
-		const initialValueOffsets = world.threads.queue(() => {
-			let offset = 0;
-			return world.components.map(comp => {
-				const val = offset;
-				offset += comp.size!;
-				return val;
-			});
-		});
-		return new this(world, initialValuePtr, initialValueOffsets);
+		const queuePointer = world.threads.queue(() =>
+			memory.alloc((1 + 3 * world.config.threads) * 4),
+		);
+		return new this(world, initialValuePointers, queuePointer);
 	}
 
-	#queue = new Map<bigint, bigint>(); // Map<eid, tableid>
-	#queuePointer: number;
-	#queueLength = 0;
-	#queueCapacity: number;
+	#command: Command = { entityId: 0n, componentId: 0, dataStart: 0 };
+	#destinations: Map<bigint, bigint> = new Map();
 
 	#entities: Entities;
 	#components: Struct[];
 
-	#world: World;
-	#initialValuePointer: number;
-	#initialValuesOffset: number[];
-
-	constructor(world: World, initialValuePointer: number, offsets: number[]) {
-		this.#world = world;
-		this.#initialValuePointer = initialValuePointer;
-		this.#initialValuesOffset = offsets;
-
+	#initialValuePointers: number[];
+	#pointer: number; // [nextId, ...[length, capacity, pointer]]
+	#ownPointer: number;
+	constructor(world: World, initialValuePointers: number[], pointer: number) {
 		this.#entities = world.entities;
 		this.#components = world.components;
-		this.#queuePointer = memory.alloc(64);
-		this.#queueCapacity = 64;
+
+		this.#initialValuePointers = initialValuePointers;
+		this.#pointer = pointer >> 2;
+		this.#ownPointer =
+			3 * Atomics.add(memory.views.u32, this.#pointer, 1) +
+			this.#pointer +
+			1;
+	}
+
+	get #length() {
+		return memory.views.u32[this.#ownPointer];
+	}
+	set #length(val: number) {
+		memory.views.u32[this.#ownPointer] = val;
+	}
+	get #capacity() {
+		return memory.views.u32[this.#ownPointer + 1];
+	}
+	set #capacity(val: number) {
+		memory.views.u32[this.#ownPointer + 1] = val;
+	}
+	get #queuePointer() {
+		return memory.views.u32[this.#ownPointer + 2];
+	}
+	set #queuePointer(val: number) {
+		memory.views.u32[this.#ownPointer + 2] = val;
+	}
+	get #queueEnd() {
+		return this.#queuePointer + this.#length;
 	}
 
 	/**
@@ -64,9 +82,11 @@ export class Commands {
 	 * @returns An `Entity` instance, to add/remove components from an entity.
 	 */
 	spawn(): Entity {
-		const entity = new Entity(this, this.#entities.spawn());
-		this.insertTypeInto(entity.id, Entity);
-		return entity;
+		const entityId = this.#entities.spawn();
+		this.#pushCommand('add', entityId, Entity);
+		memory.views.u64[this.#queueEnd >> 3] = entityId;
+		this.#length += 8;
+		return new Entity(this, entityId);
 	}
 
 	/**
@@ -74,9 +94,8 @@ export class Commands {
 	 * @param id The id of the entity to despawn.
 	 * @returns `this`, for chaining.
 	 */
-	despawn(id: bigint): this {
-		this.#queue.set(id, 0n);
-		return this;
+	despawn(id: bigint): void {
+		this.#pushCommand('remove', id, Entity);
 	}
 
 	/**
@@ -88,101 +107,169 @@ export class Commands {
 		return new Entity(this, id);
 	}
 
-	getData(): [Map<bigint, bigint>, number, number] {
-		return [this.#queue, this.#queuePointer, this.#queueLength];
-	}
-	reset() {
-		this.#queue.clear();
-		memory.set(this.#queuePointer, this.#queueLength, 0);
-		this.#queueLength = 0;
-	}
-
-	insertInto<T extends object>(entityId: bigint, component: NotFunction<T>) {
+	insertInto<T extends object>(
+		entityId: bigint,
+		component: NotFunction<T>,
+	): void {
 		const componentType: Struct = component.constructor as any;
-		this.#insert(entityId, componentType);
+		if (DEV) {
+			assert(
+				componentType !== Entity,
+				'Tried to add Entity component, which is forbidden.',
+			);
+		}
+		this.#pushCommand('add', entityId, componentType);
+		if (componentType.size === 0) {
+			return;
+		}
 		memory.views.u8.set(
 			(component as any).__$$s.u8.subarray(
 				(component as any).__$$b,
 				componentType.size,
 			),
-			this.#queuePointer + this.#queueLength,
+			this.#queueEnd,
 		);
+		this.#copyPointers(componentType);
+		this.#length += alignTo8(componentType.size!);
+	}
 
-		const queueEnd = this.#queuePointer + this.#queueLength;
-		for (const pointer of componentType.pointers! ?? []) {
-			const pointerIndex = ((component as any).__$$b + pointer) >> 2;
-			memory.views.u32[(queueEnd + pointer) >> 2] = memory.copyPointer(
-				(component as any).__$$s.u32[pointerIndex],
+	insertTypeInto(entityId: bigint, componentType: Struct): void {
+		if (DEV) {
+			assert(
+				componentType !== Entity,
+				'Tried to add Entity component, which is forbidden.',
 			);
 		}
-		this.#queueLength += alignTo8(componentType.size!);
-	}
-	insertTypeInto(entityId: bigint, componentType: Struct) {
-		this.#insert(entityId, componentType);
-		if (componentType.size === 0 || componentType === Entity) {
+		this.#pushCommand('add', entityId, componentType);
+		if (componentType.size === 0) {
 			return;
 		}
-		const offset =
-			this.#initialValuePointer +
-			this.#initialValuesOffset[this.#components.indexOf(componentType)];
+		memory.copy(
+			this.#initialValuePointers[this.#components.indexOf(componentType)],
+			componentType.size!,
+			this.#queueEnd,
+		);
+		this.#copyPointers(componentType);
+		this.#length += alignTo8(componentType.size!);
+	}
 
-		const queueEnd = this.#queuePointer + this.#queueLength;
-		memory.copy(offset, componentType.size!, queueEnd);
+	removeFrom(entityId: bigint, componentType: Struct): void {
+		if (DEV) {
+			assert(
+				componentType !== Entity,
+				'Tried to remove Entity component, which is forbidden.',
+			);
+		}
+		this.#pushCommand('remove', entityId, componentType);
+	}
 
+	getDestinations(): Map<bigint, bigint> {
+		this.#destinations.clear();
+		const { u8, u16, u64 } = memory.views;
+		for (const current of this.#iterateCommands()) {
+			const entityId = u64[(current + 8) >> 3];
+			let val = this.#destinations.get(entityId);
+			if (val === 0n) {
+				continue;
+			}
+			const componentId = u16[(current + 4) >> 1];
+			const isAdd = u8[current + 6] === 0;
+			val ??= this.#entities.getBitset(entityId);
+			this.#destinations.set(
+				entityId,
+				isAdd
+					? val | (1n << BigInt(componentId))
+					: componentId === 0
+					? 0n
+					: val ^ (1n << BigInt(componentId)),
+			);
+		}
+		return this.#destinations;
+	}
+
+	*[Symbol.iterator]() {
+		const { u16, u32, u64 } = memory.views;
+		for (const current of this.#iterateCommands()) {
+			if (u32[current >> 2] === 16) {
+				continue;
+			}
+			this.#command.componentId = u16[(current + 4) >> 1];
+			this.#command.entityId = u64[(current + 8) >> 3];
+			this.#command.dataStart = current + 16;
+			yield this.#command;
+		}
+	}
+
+	reset(): void {
+		const { u32 } = memory.views;
+		const queueDataLength = 1 + u32[this.#pointer] * 3;
+		for (
+			let queueOffset = 1;
+			queueOffset < queueDataLength;
+			queueOffset += 3
+		) {
+			u32[this.#pointer + queueOffset] = 0;
+		}
+	}
+
+	*#iterateCommands() {
+		const { u32 } = memory.views;
+		const queueDataLength = 1 + u32[this.#pointer] * 3;
+		for (
+			let queueOffset = 1;
+			queueOffset < queueDataLength;
+			queueOffset += 3
+		) {
+			const start = u32[this.#pointer + queueOffset + 2];
+			const end = start + u32[this.#pointer + queueOffset];
+			for (
+				let current = start;
+				current < end;
+				current += u32[current >> 2]
+			) {
+				yield current;
+			}
+		}
+	}
+
+	#pushCommand(
+		commandType: 'add' | 'remove',
+		entityId: bigint,
+		componentType: Struct,
+	) {
+		if (DEV) {
+			assert(
+				this.#components.includes(componentType),
+				`Tried to ${commandType} unregistered component (${componentType.name}) on an Entity.`,
+			);
+		}
+		const additionalLength = alignTo8(
+			16 + (commandType === 'add' ? componentType.size! : 0),
+		);
+		if (this.#capacity < this.#length + additionalLength) {
+			const doubledLength = this.#capacity * 2;
+			const newLength =
+				doubledLength > this.#length + additionalLength
+					? doubledLength
+					: doubledLength + additionalLength;
+			this.#capacity = newLength;
+			this.#queuePointer = memory.realloc(this.#queuePointer, newLength);
+		}
+		const queueEnd = this.#queueEnd;
+		memory.views.u32[queueEnd >> 2] = additionalLength;
+		memory.views.u16[(queueEnd + 4) >> 1] =
+			this.#components.indexOf(componentType);
+		memory.views.u8[queueEnd + 6] = commandType === 'add' ? 0 : 1;
+		memory.views.u64[(queueEnd + 8) >> 3] = entityId;
+		this.#length += 16;
+	}
+	#copyPointers(componentType: Struct) {
+		const queueEnd = this.#queueEnd;
 		for (const pointer of componentType.pointers! ?? []) {
 			memory.views.u32[(queueEnd + pointer) >> 2] = memory.copyPointer(
 				memory.views.u32[(queueEnd + pointer) >> 2],
 			);
 		}
-		this.#queueLength += alignTo8(componentType.size!);
-	}
-	#insert(entityId: bigint, componentType: Struct) {
-		if (
-			this.#queueLength + componentType.size! + 16 >
-			this.#queueCapacity
-		) {
-			this.#growQueueData(componentType.size!);
-		}
-		this.#queue.set(
-			entityId,
-			this.#getBitset(entityId) | this.#getComponentId(componentType),
-		);
-		if (componentType.size === 0 || componentType === Entity) {
-			return;
-		}
-
-		memory.views.u64[(this.#queuePointer + this.#queueLength) >> 3] =
-			entityId;
-		memory.views.u32[(this.#queuePointer + this.#queueLength + 8) >> 2] =
-			this.#components.indexOf(componentType);
-		this.#queueLength += 16;
-	}
-
-	removeFrom(entityId: bigint, componentType: Struct) {
-		this.#queue.set(
-			entityId,
-			this.#getBitset(entityId) ^ this.#getComponentId(componentType),
-		);
-	}
-
-	#getBitset(entityId: bigint) {
-		return (
-			this.#queue.get(entityId) ??
-			this.#world.archetypes[this.#entities.getTableIndex(entityId)]
-				.bitfield
-		);
-	}
-	#getComponentId(component: Struct) {
-		return 1n << BigInt(this.#components.indexOf(component));
-	}
-	#growQueueData(minimumAdditional: number) {
-		minimumAdditional += 16;
-		const doubledLength = this.#queueCapacity * 2;
-		const newLength =
-			doubledLength > this.#queueLength + minimumAdditional
-				? doubledLength
-				: alignTo8(doubledLength + minimumAdditional);
-		this.#queuePointer = memory.realloc(this.#queuePointer, newLength);
 	}
 }
 
@@ -265,7 +352,7 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn();
-		const [map] = commands.getData();
+		const map = commands.getDestinations();
 		expect(map.has(ent.id)).toBe(true);
 		expect(map.get(ent.id)).toBe(0b1n); // Just Entity
 	});
@@ -274,7 +361,7 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().addType(ZST);
-		const [map] = commands.getData();
+		const map = commands.getDestinations();
 		expect(map.get(ent.id)).toBe(0b11n); // Entity, ZST
 	});
 
@@ -282,7 +369,7 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().addType(ZST).remove(ZST);
-		const [map] = commands.getData();
+		const map = commands.getDestinations();
 		expect(map.get(ent.id)).toBe(0b01n); // Entity
 	});
 
@@ -291,7 +378,7 @@ if (import.meta.vitest) {
 		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().addType(ZST);
 		ent.despawn();
-		const [map] = commands.getData();
+		const map = commands.getDestinations();
 		expect(map.get(ent.id)).toBe(0n);
 	});
 
@@ -299,27 +386,40 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().addType(CompD);
-		const [map, start, length] = commands.getData();
-		const u32 = new Uint32Array(memory.views.buffer, start, length / 4);
-
-		expect(map.get(ent.id)).toBe(0b0010_0001n);
-		expect(memory.views.u64[start >> 3]).toBe(ent.id);
-		expect(memory.views.u32[(start >> 2) + 2]).toBe(5); // CompD -> 5
-		expect(u32[16 >> 2]).toBe(23);
-		expect(u32[20 >> 2]).toBe(42);
+		let i = 0;
+		for (const { componentId, entityId, dataStart } of commands) {
+			if (i !== 0) {
+				expect(entityId).toBe(ent.id);
+				const u32 = memory.views.u32.subarray(
+					dataStart >> 2,
+					(dataStart + CompD.size) >> 2,
+				);
+				expect(componentId).toBe(5);
+				expect(u32[0]).toBe(23);
+				expect(u32[1]).toBe(42);
+			}
+			i++;
+		}
 	});
 
 	it('inserts sized types with specified data', async () => {
 		const world = await createWorld();
 		const commands = Commands.fromWorld(world);
 		const ent = commands.spawn().add(new CompD(15, 16));
-		const [map, start, length] = commands.getData();
-		const u32 = new Uint32Array(memory.views.buffer, start, length / 4);
-		expect(map.get(ent.id)).toBe(0b0010_0001n);
-		expect(memory.views.u64[start >> 3]).toBe(ent.id);
-		expect(memory.views.u32[(start >> 2) + 2]).toBe(5); // CompD -> 5
-		expect(u32[16 >> 2]).toBe(15);
-		expect(u32[20 >> 2]).toBe(16);
+		let i = 0;
+		for (const { componentId, entityId, dataStart } of commands) {
+			if (i !== 0) {
+				expect(entityId).toBe(ent.id);
+				const u32 = memory.views.u32.subarray(
+					dataStart >> 2,
+					(dataStart + CompD.size) >> 2,
+				);
+				expect(componentId).toBe(5);
+				expect(u32[0]).toBe(15);
+				expect(u32[1]).toBe(16);
+			}
+			i++;
+		}
 	});
 
 	it('copies pointers for default values', async () => {
@@ -327,27 +427,14 @@ if (import.meta.vitest) {
 		const commands = Commands.fromWorld(world);
 		const ent1 = commands.spawn().addType(StringComponent);
 		const ent2 = commands.spawn().addType(StringComponent);
-		const [, start] = commands.getData();
-		let offset = 0;
-		expect(memory.views.u64[(start + offset) >> 3]).toBe(ent1.id);
-		offset += 8;
-		expect(memory.views.u32[(start + offset) >> 2]).toBe(6); // StringComp -> 5
-		offset += 8;
-		expect(memory.views.u32[(start + offset) >> 2]).toBe(2); // length
-		offset += 4;
-		expect(memory.views.u32[(start + offset) >> 2]).toBe(2); // capacity
-		offset += 4;
-		expect(memory.views.u32[(start + offset) >> 2]).toBe(2544); // pointer
-		offset += 8;
-		expect(memory.views.u64[(start + offset) >> 3]).toBe(ent2.id);
-		offset += 8;
-		expect(memory.views.u32[(start + offset) >> 2]).toBe(6); // StringComp -> 5
-		offset += 8;
-		expect(memory.views.u32[(start + offset) >> 2]).toBe(2); // length
-		offset += 4;
-		expect(memory.views.u32[(start + offset) >> 2]).toBe(2); // capacity
-		offset += 4;
-		expect(memory.views.u32[(start + offset) >> 2]).toBe(2568); // pointer
+		const { u32 } = memory.views;
+		let previousPointer = 0;
+		for (const { componentId, dataStart } of commands) {
+			if (componentId === 6) {
+				expect(u32[(dataStart + 8) >> 2]).not.toBe(previousPointer);
+				previousPointer = u32[(dataStart + 8) >> 2];
+			}
+		}
 	});
 
 	it('copies pointers for passed values', async () => {
@@ -355,17 +442,48 @@ if (import.meta.vitest) {
 		const commands = Commands.fromWorld(world);
 		const component = new StringComponent('test');
 		const ent = commands.spawn().add(component);
-		const [, start] = commands.getData();
-		let offset = 0;
-		expect(memory.views.u64[(start + offset) >> 3]).toBe(ent.id);
-		offset += 8;
-		expect(memory.views.u32[(start + offset) >> 2]).toBe(6); // StringComp -> 5
-		offset += 8;
-		expect(memory.views.u32[(start + offset) >> 2]).toBe(4); // length
-		offset += 4;
-		expect(memory.views.u32[(start + offset) >> 2]).toBe(4); // capacity
-		expect(component.__$$s.u32[2]).not.toBe(
-			memory.views.u32[(start + offset) >> 2],
-		);
+		const { u32 } = memory.views;
+
+		for (const { componentId, dataStart } of commands) {
+			if (componentId === 6) {
+				expect(component.__$$s.u32[2]).not.toBe(
+					u32[(dataStart + 8) >> 2],
+				);
+			}
+		}
+	});
+
+	it('throws if trying to add/remove Entity', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
+		expect(() => commands.insertTypeInto(0n, Entity)).toThrow();
+		expect(() =>
+			commands.insertInto(0n, new Entity(commands, 1n)),
+		).toThrow();
+		expect(() => commands.removeFrom(0n, Entity)).toThrow();
+	});
+
+	it('reset clears all queues', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
+		const ent = commands.spawn().addType(CompA);
+		commands.reset();
+		let iterations = 0;
+		for (const command of commands) {
+			iterations++;
+		}
+		expect(iterations).toBe(0);
+	});
+
+	it('iterate skips ZSTs', async () => {
+		const world = await createWorld();
+		const commands = Commands.fromWorld(world);
+		const ent = commands.spawn().addType(ZST);
+		let iterations = 0;
+		for (const { componentId } of commands) {
+			expect(componentId).toBe(0);
+			iterations++;
+		}
+		expect(iterations).toBe(1);
 	});
 }

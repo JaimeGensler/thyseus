@@ -1,71 +1,27 @@
-import { memory } from '../utils/memory';
-import { CLEAR_COMMAND_QUEUE, GET_COMMAND_QUEUE } from '../world/channels';
 import { defineSystem } from './defineSystem';
-import { alignTo8 } from '../utils/alignTo8';
-import type { World } from '../world';
 
-type CommandQueue = [Map<bigint, bigint>, number, number];
-function* iterateCommands(commandsData: CommandQueue[], world: World) {
-	for (const [, start, length] of commandsData) {
-		for (let offset = start; offset < start + length; ) {
-			const entityId = memory.views.u64[offset >> 3];
-			const componentId = memory.views.u32[(offset + 8) >> 2];
-			const component = world.components[componentId];
-			offset += 16;
-			yield [entityId, component, offset] as const;
-			offset += alignTo8(component.size!);
-		}
-	}
-}
-function mergeQueues(acc: Map<bigint, bigint>, [b]: CommandQueue) {
-	for (const [key, bVal] of b) {
-		const aVal = acc.get(key);
-		if (aVal === undefined) {
-			acc.set(key, bVal);
-		} else if (bVal === 0n) {
-			acc.set(key, 0n);
-		} else if (aVal !== 0n) {
-			acc.set(key, aVal | bVal);
-		}
-	}
-	return acc;
-}
 export const applyCommands = defineSystem(
 	({ World }) => [World()],
-	async function applyCommands(world) {
+	function applyCommands(world) {
 		world.entities.resetCursor();
 
-		const [mainQueue, mainQueueStart, mainQueueLength] =
-			world.commands.getData();
-		const queues = await world.threads.send(GET_COMMAND_QUEUE());
-		const queue = queues.reduce(mergeQueues, mainQueue);
-
-		for (const [entityId, tableId] of queue) {
+		for (const [entityId, tableId] of world.commands.getDestinations()) {
 			world.moveEntity(entityId, tableId);
 		}
 
-		queues.push([mainQueue, mainQueueStart, mainQueueLength]);
-		for (const [entityId, component, offset] of iterateCommands(
-			queues,
-			world,
-		)) {
+		for (const { entityId, componentId, dataStart } of world.commands) {
 			const tableId = world.entities.getTableIndex(entityId);
 			if (tableId === 0 || tableId === 1) {
 				continue;
 			}
-
-			const column = world.archetypes[tableId].getColumn(component)!;
-			const row = world.entities.getRow(entityId);
-			memory.copy(
-				offset,
-				component.size!,
-				column + row * component.size!,
+			world.archetypes[tableId].copyComponentIntoRow(
+				world.entities.getRow(entityId),
+				world.components[componentId],
+				dataStart,
 			);
 		}
 
-		const clear = world.threads.send(CLEAR_COMMAND_QUEUE());
 		world.commands.reset();
-		return clear;
 	},
 );
 
@@ -76,6 +32,7 @@ if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { initStruct } = await import('../storage');
 	const { World } = await import('../world/World');
+	const { memory } = await import('../utils/memory');
 	const { ThreadGroup } = await import('../threads');
 	ThreadGroup.isMainThread = true;
 

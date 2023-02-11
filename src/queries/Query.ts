@@ -1,8 +1,7 @@
+import { memory, MemoryViews } from '../utils/memory';
 import { Entity, type Table } from '../storage';
 import type { Struct } from '../struct';
-import { memory, MemoryViews } from '../utils/memory';
-import type { World } from '../world';
-import type { Commands } from '../world/Commands';
+import type { World, Commands } from '../world';
 import type { Mut, Optional, Filter } from './modifiers';
 
 type Accessors = object | object[];
@@ -144,6 +143,16 @@ if (import.meta.vitest) {
 
 	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
 
+	const spawnIntoTable = (eid: number, targetTable: Table) => {
+		if (targetTable.capacity === targetTable.size) {
+			targetTable.grow();
+		}
+		memory.views.u64[
+			(targetTable.getColumn(Entity) + targetTable.size * 8) >> 3
+		] = BigInt(eid);
+		targetTable.size++;
+	};
+
 	it('testAdd adds tables only if a filter passes', async () => {
 		const world = await createWorld();
 		const query1 = new Query([0b0001n], [0b0000n], false, [], world);
@@ -195,7 +204,6 @@ if (import.meta.vitest) {
 
 		it('yields normal elements for all table members', async () => {
 			const world = await createWorld(Vec3);
-			const uncreated = world.archetypes[0];
 			const query = new Query<[Vec3, Entity2]>(
 				[0n],
 				[0n],
@@ -209,7 +217,7 @@ if (import.meta.vitest) {
 			query.testAdd(0n, table2);
 			expect(query.size).toBe(0);
 			for (let i = 0; i < 10; i++) {
-				uncreated.move(i, i < 5 ? table1 : table2);
+				spawnIntoTable(i, i < 5 ? table1 : table2);
 				expect(query.size).toBe(i + 1);
 			}
 			let j = 0;
@@ -224,7 +232,6 @@ if (import.meta.vitest) {
 
 		it('yields null for optional members', async () => {
 			const world = await createWorld(Vec3);
-			const uncreated = world.archetypes[0];
 			const query = new Query<[Vec3, Entity2]>(
 				[0n],
 				[0n],
@@ -239,7 +246,7 @@ if (import.meta.vitest) {
 			query.testAdd(0n, vecTable);
 			expect(query.size).toBe(0);
 			for (let i = 0; i < 10; i++) {
-				uncreated.move(i, i < 5 ? noVecTable : vecTable);
+				spawnIntoTable(i, i < 5 ? noVecTable : vecTable);
 				expect(query.size).toBe(i + 1);
 			}
 			let j = 0;
@@ -258,14 +265,13 @@ if (import.meta.vitest) {
 
 		it('yields individual elements for non-tuple iterators', async () => {
 			const world = await createWorld(Vec3);
-			const uncreated = world.archetypes[0];
 			const query = new Query<Vec3>([0n], [0n], true, [Vec3], world);
 			const table = createTable(world, Entity, Vec3);
 
 			query.testAdd(0n, table);
 			expect(query.size).toBe(0);
 			for (let i = 0; i < 10; i++) {
-				uncreated.move(i, table);
+				spawnIntoTable(i, table);
 				expect(query.size).toBe(i + 1);
 			}
 			let j = 0;
@@ -278,7 +284,6 @@ if (import.meta.vitest) {
 
 		it('yields unique elements for nested iteration', async () => {
 			const world = await createWorld();
-			const uncreated = world.archetypes[0];
 			const query = new Query<[Vec3, Entity2]>(
 				[0n],
 				[0n],
@@ -291,7 +296,7 @@ if (import.meta.vitest) {
 			query.testAdd(0n, table);
 			expect(query.size).toBe(0);
 			for (let i = 0; i < 8; i++) {
-				uncreated.move(i, table);
+				spawnIntoTable(i, table);
 				expect(query.size).toBe(i + 1);
 			}
 

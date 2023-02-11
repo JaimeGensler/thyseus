@@ -4,12 +4,36 @@ import type { World } from '../world';
 import type { Struct } from '../struct';
 
 export class Table {
+	static createEmptyTable(world: World): Table {
+		const pointer = world.threads.queue(() => {
+			const capacity = 2 ** 32 - 1;
+			const ptr = memory.alloc(8); // [length, capacity]
+			memory.views.u32[ptr >> 2] = capacity;
+			memory.views.u32[(ptr >> 2) + 1] = capacity;
+			return ptr;
+		});
+		return new this(world, [], pointer, 0n, 0);
+	}
+	static createRecycledTable(world: World): Table {
+		const pointer = world.threads.queue(() => {
+			const capacity = world.config.getNewTableSize(0);
+			const ptr = memory.alloc(8); // [length, capacity, Entity]
+			memory.views.u32[ptr >> 2] = 0;
+			memory.views.u32[(ptr >> 2) + 1] = capacity;
+			memory.views.u32[(ptr >> 2) + 2] = memory.alloc(
+				capacity * Entity.size,
+			);
+			return ptr;
+		});
+		return new this(world, [Entity], pointer, 0n, 1);
+	}
+
 	static create(
 		world: World,
 		components: Struct[],
 		bitfield: bigint,
 		id: number,
-	) {
+	): Table {
 		const capacity = world.config.getNewTableSize(0);
 		const sizedComponents = components.filter(
 			component => component.size! > 0,
@@ -90,8 +114,13 @@ export class Table {
 		if (targetTable.capacity === targetTable.size) {
 			targetTable.grow();
 		}
+		const { u32, u64 } = memory.views;
+		if (this.#components[0] !== Entity) {
+			targetTable.size++;
+			return BigInt(index);
+		}
 		const ptr = this.getColumn(Entity);
-		const lastEntity = memory.views.u64[(ptr >> 3) + this.size];
+		const lastEntity = u64[(ptr >> 3) + this.size];
 		for (const component of this.#components) {
 			const componentPointer =
 				this.getColumn(component) + index * component.size!;
@@ -104,11 +133,7 @@ export class Table {
 				);
 			} else {
 				for (const pointerOffset of component.pointers ?? []) {
-					memory.free(
-						memory.views.u32[
-							(componentPointer + pointerOffset) >> 2
-						],
-					);
+					memory.free(u32[(componentPointer + pointerOffset) >> 2]);
 				}
 			}
 		}
@@ -130,8 +155,18 @@ export class Table {
 		}
 	}
 
-	incrementGeneration(row: number) {
-		memory.views.u32[(this.getColumn(Entity) >> 2) + (row << 1) + 1]++;
+	copyComponentIntoRow(
+		row: number,
+		componentType: Struct,
+		copyFrom: number,
+	): void {
+		if (this.hasColumn(componentType)) {
+			memory.copy(
+				copyFrom,
+				componentType.size!,
+				this.getColumn(componentType) + row * componentType.size!,
+			);
+		}
 	}
 }
 
@@ -174,20 +209,28 @@ if (import.meta.vitest) {
 			.build();
 	const createTable = (world: World, ...components: Struct[]) =>
 		Table.create(world, components, 0n, 0);
+	const spawnIntoTable = (eid: number, targetTable: Table) => {
+		if (targetTable.capacity === targetTable.size) {
+			targetTable.grow();
+		}
+		memory.views.u64[
+			(targetTable.getColumn(Entity) + targetTable.size * 8) >> 3
+		] = BigInt(eid);
+		targetTable.size++;
+	};
 
 	it('adds an element', async () => {
 		const world = await createWorld();
 		const table = createTable(world, Entity);
 		expect(table.size).toBe(0);
 		expect(table.capacity).toBe(8);
-		const uncreated = world.archetypes[0];
-		uncreated.move(0, table);
+		spawnIntoTable(0, table);
 		const entity = new Entity();
 		(entity as any).__$$s = memory.views;
 		(entity as any).__$$b = table.getColumn(Entity);
 		expect(entity.id).toBe(0n);
 		expect(table.size).toBe(1);
-		uncreated.move(3, table);
+		spawnIntoTable(3, table);
 		expect(entity.id).toBe(0n);
 		(entity as any).__$$b += 8;
 		expect(entity.id).toBe(3n);
@@ -198,11 +241,10 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const fromTable = createTable(world, Entity, Vec3);
 		const toTable = createTable(world, Entity, Vec3);
-		const uncreated = world.archetypes[0];
 
-		uncreated.move(3, fromTable);
-		uncreated.move(1, fromTable);
-		uncreated.move(4, toTable);
+		spawnIntoTable(3, fromTable);
+		spawnIntoTable(1, fromTable);
+		spawnIntoTable(4, toTable);
 
 		const ent = new Entity();
 		(ent as any).__$$s = memory.views;
@@ -259,12 +301,10 @@ if (import.meta.vitest) {
 		(ent as any).__$$s = memory.views;
 		(ent as any).__$$b = entPtr;
 
-		const uncreated = world.archetypes[0];
-
-		uncreated.move(1, table);
-		uncreated.move(2, table);
-		uncreated.move(3, table);
-		uncreated.move(4, table);
+		spawnIntoTable(1, table);
+		spawnIntoTable(2, table);
+		spawnIntoTable(3, table);
+		spawnIntoTable(4, table);
 		expect(table.size).toBe(4);
 
 		vec.x = 1;
@@ -309,13 +349,12 @@ if (import.meta.vitest) {
 	it('grows correctly', async () => {
 		const world = await createWorld();
 		const table = createTable(world, Entity);
-		const uncreated = world.archetypes[0];
 
 		const ent = new Entity();
 		(ent as any).__$$s = memory.views;
 		(ent as any).__$$b = table.getColumn(Entity);
 
-		uncreated.move(1, table);
+		spawnIntoTable(1, table);
 
 		expect(table.capacity).toBe(8);
 		expect(table.size).toBe(1);
@@ -331,13 +370,12 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const fromTable = createTable(world, Entity, Vec3);
 		const toTable = createTable(world, Entity);
-		const uncreated = world.archetypes[0];
 		const ent = new Entity();
 		(ent as any).__$$s = memory.views;
 
-		uncreated.move(3, fromTable);
-		uncreated.move(1, fromTable);
-		uncreated.move(4, toTable);
+		spawnIntoTable(3, fromTable);
+		spawnIntoTable(1, fromTable);
+		spawnIntoTable(4, toTable);
 
 		expect(fromTable.size).toBe(2);
 		expect(toTable.size).toBe(1);
@@ -373,10 +411,9 @@ if (import.meta.vitest) {
 	it.skip('does not contain stale data when adding element', async () => {
 		const world = await createWorld();
 		const table = createTable(world, Entity, Vec3);
-		const uncreated = world.archetypes[0];
 
-		uncreated.move(25, table);
-		uncreated.move(233, table);
+		spawnIntoTable(25, table);
+		spawnIntoTable(233, table);
 
 		const vec = new Vec3();
 		vec.__$$s = memory.views;
@@ -396,7 +433,7 @@ if (import.meta.vitest) {
 		vec.z = Math.PI;
 
 		table.delete(1);
-		uncreated.move(26, table);
+		spawnIntoTable(26, table);
 
 		vec.__$$b = table.getColumn(Vec3);
 		(ent as any).__$$b = table.getColumn(Entity);
@@ -424,41 +461,13 @@ if (import.meta.vitest) {
 		expect(table.hasColumn(ZST)).toBe(false);
 	});
 
-	it('increments generations', async () => {
-		const world = await createWorld();
-		const table = createTable(world, Entity);
-		const ent = new Entity();
-		(ent as any).__$$s = memory.views;
-		(ent as any).__$$b = table.getColumn(Entity)!;
-		expect(ent.generation).toBe(0);
-
-		table.incrementGeneration(0);
-		expect(ent.generation).toBe(1);
-
-		table.incrementGeneration(0);
-		expect(ent.generation).toBe(2);
-
-		table.incrementGeneration(1);
-		expect(ent.generation).toBe(2);
-		expect(ent.id).toBe(0x00000002_00000000n);
-
-		(ent as any).__$$b += Entity.size;
-		expect(ent.generation).toBe(1);
-		expect(ent.id).toBe(0x00000001_00000000n);
-
-		(ent as any).__$$b += Entity.size;
-		expect(ent.generation).toBe(0);
-		expect(ent.id).toBe(0x00000000_00000000n);
-	});
-
 	it('move frees pointers if the target table does not have the pointer column', async () => {
 		const freeSpy = vi.spyOn(memory, 'free');
 		const world = await createWorld();
 		const initialTable = createTable(world, Entity, StringComponent);
 		const targetTable = createTable(world, Entity);
-		const uncreatedTable = world.archetypes[0];
 
-		uncreatedTable.move(0, initialTable);
+		spawnIntoTable(0, initialTable);
 
 		const pointer = memory.alloc(8);
 		memory.views.u32[(initialTable.getColumn(StringComponent) + 8) >> 2] =

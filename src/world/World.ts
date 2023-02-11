@@ -2,7 +2,7 @@ import { WorldBuilder } from './WorldBuilder';
 import { Commands } from './Commands';
 import { bits } from '../utils/bits';
 import { memory } from '../utils/memory';
-import { Entities, Entity, Table, UncreatedEntitiesTable } from '../storage';
+import { Entities, Table } from '../storage';
 import { SEND_TABLE } from './channels';
 import { isStruct, type Class, type Struct } from '../struct';
 import {
@@ -61,10 +61,10 @@ export class World {
 			}),
 		);
 
+		const emptyEntitiesTable = Table.createEmptyTable(this);
+		const recycledTable = Table.createRecycledTable(this);
+		this.archetypes.push(emptyEntitiesTable, recycledTable);
 		this.archetypeLookup.set(0n, 1);
-
-		const recycledTable = Table.create(this, [Entity], 0n, 1);
-		this.archetypes.push(new UncreatedEntitiesTable(this), recycledTable);
 
 		for (const channel of channels) {
 			this.threads.setListener(
@@ -97,11 +97,11 @@ export class World {
 		}
 	}
 
-	async update() {
+	async update(): Promise<void> {
 		return this.executor.start();
 	}
 
-	moveEntity(entityId: bigint, targetTableId: bigint) {
+	moveEntity(entityId: bigint, targetTableId: bigint): void {
 		if (!this.entities.isAlive(entityId)) {
 			return;
 		}
@@ -111,9 +111,6 @@ export class World {
 
 		const row = this.entities.getRow(entityId);
 		const backfilledEntity = currentTable.move(row, targetTable);
-		if (targetTableId === 0n) {
-			targetTable.incrementGeneration(row);
-		}
 
 		this.entities.setRow(backfilledEntity, row);
 		this.entities.setTableIndex(entityId, targetTable.id);
@@ -127,7 +124,7 @@ export class World {
 		const id = this.archetypes.length;
 		const table = Table.create(
 			this,
-			[...bits(tableId)].map(cid => this.components[cid]),
+			Array.from(bits(tableId), cid => this.components[cid]),
 			tableId,
 			id,
 		);

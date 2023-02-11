@@ -3,16 +3,6 @@ import { bits } from '../utils/bits';
 import { createThreadChannel } from '../threads';
 import type { Struct } from '../struct';
 
-export const GET_COMMAND_QUEUE = createThreadChannel(
-	'thyseus::getCommandQueue',
-	world => () => world.commands.getData(),
-);
-export const CLEAR_COMMAND_QUEUE = createThreadChannel(
-	'thyseus::clearCommandQueue',
-	world => () => {
-		world.commands.reset();
-	},
-);
 export const SEND_TABLE = createThreadChannel(
 	'thyseus::sendTable',
 	world => (pointer: number, id: number, bitfield: bigint) => {
