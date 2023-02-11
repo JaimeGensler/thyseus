@@ -1,5 +1,87 @@
 # Changelog
 
+## v0.10.0 (February 11, 2023)
+
+Introducing a new strategy for handling memory, which allows dynamically sized
+types! So far, this is only used for internal storage (like `Entities` and
+`Table`s) and the new version of `@struct.string`, but it has many future
+applications as well!
+
+### 💥 Breaking Changes
+
+-   `@struct` and primitive struct decorators are now plain decorators rather
+    than decorator factories.
+    -   They should now be called as `@struct` rather than `@struct()`,
+        `@struct.u32` rather than `@struct.u32()`, etc.
+-   `@struct.string` is now a plain decorator and no longer accepts arguments
+    -   See features for more details.
+-   Remove `buffer`, `createBuffer()`, and `tableLengths` from `world`.
+-   Changes to `Entities`, `Table` properties/methods.
+    -   This does not impact you unless you access Entities/Tables directly.
+-   Struct static `schema` removed - stores always contain all elements.
+    -   This does not impact you unless you depend on the schema property being
+        present.
+-   The new memory allocation strategy currently throws when out of memory.
+    -   This is unlikely to impact you, and can be remedied by adjusting the
+        amount of memory allocated with config - see below for more details.
+-   `commands.despawn()` returns void rather than `this`.
+
+### ✨ Features
+
+-   Implemented a new memory allocation strategy that allows dynamic sizing.
+    -   Many features of this update are only possible because of this new
+        strategy!
+    -   While we eventually intend to expose this API, working directly with the
+        memory allocator is very tricky and can lead to memory corruption. Until
+        the API has stabilized more and better memory safety strategies are
+        developed, it will remain a private API.
+    -   The implementation of this allocator is a first draft - please file an
+        issue if you run into any errors, odd behavior, or poor performance.
+-   `@struct.string` now creates dynamically sized strings and behaves more or
+    less equivalently to normal Javascript strings!
+    -   This requires caution when constructing/setting strings in structs you
+        manage, and can lead to memory leaks if not careful.
+        -   Better strategies to prevent leaks are being worked on, and should
+            show up in a future update.
+        -   For the time being, we've exported a
+            `dropStruct(instance: object): void` function, which you should call
+            with structs that (1) you constructed, (2) use strings, and (3) go
+            out of scope and are suitable for garbage-collection.
+-   Added `SystemResource` system parameter.
+    -   These work like resources, but are unique per system, rather than per
+        world. As a result, the same type can be reused across multiple systems
+        and will create unique instances per system!
+    -   `initialize` methods will be called on the main thread only, but **may
+        not be async**.
+        -   This will likely be adjusted in the future to allow async
+            initialization.
+-   Added an optional `memory` property to world config, which specifies the
+    total amount of memory (in bytes) that should be reserved for all worlds.
+    -   By default, reserves 512 MBs (1/2 GB). Max allowed by Thyseues is 4GB,
+        but your particular environment may not allow this allocation!
+    -   **Currently, all worlds share the _same memory_, and so this should be
+        the amount of memory you need for _all worlds!_**
+    -   This memory is allocated when the first world is built.
+    -   This is _not_ the total amount of memory used by your program, but
+        rather storage used by entities, components, resources, and Thyseus
+        internals.
+
+### 🐛 Bug Fixes
+
+-   Fixed entities not being recycled correctly.
+-   Fixed resources not being constructed correctly in workers.
+-   Fixed some data not being transfered between threads correctly, resulting in
+    command queues not clearing.
+-   Fixed issue caused by thread group recycling `send` results for single
+    threaded worlds, resulting in commands being processed multiple times.
+-   Fixed command queues growing unnecessarily.
+
+### 🔧 Maintenance
+
+-   Added explicit return types for functions/methods, which should help prevent
+    accidental breaking API changes.
+-   Improved error messaging when adding/removing unregistered components.
+
 ## v0.9.0 (January 25, 2023)
 
 This update adds some much-needed features for structs and components! While
