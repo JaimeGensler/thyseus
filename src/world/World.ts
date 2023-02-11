@@ -61,9 +61,9 @@ export class World {
 			}),
 		);
 
-		const emptyEntitiesTable = Table.createEmptyTable(this);
+		const emptyTable = Table.createEmptyTable(this);
 		const recycledTable = Table.createRecycledTable(this);
-		this.archetypes.push(emptyEntitiesTable, recycledTable);
+		this.archetypes.push(emptyTable, recycledTable);
 		this.archetypeLookup.set(0n, 1);
 
 		for (const channel of channels) {
