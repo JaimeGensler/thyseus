@@ -87,7 +87,7 @@ if (import.meta.vitest) {
 		}
 	});
 
-	it('drop struct drops pointers', () => {
+	it('dropStruct drops pointers', () => {
 		const freeSpy = vi.spyOn(memory, 'free');
 		memory.init(256);
 		@struct
