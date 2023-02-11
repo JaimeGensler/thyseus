@@ -2,6 +2,8 @@
 	"name": "thyseus",
 	"version": "0.9.0",
 	"description": "An archetypal Entity Component System for the modern web.",
+	"author": "Jaime Gensler",
+	"license": "MIT",
 	"type": "module",
 	"files": [
 		"dist"
@@ -42,8 +44,9 @@
 		"archetypal",
 		"table"
 	],
-	"author": "Jaime Gensler",
-	"license": "MIT",
+	"dependencies": {
+		"esm-env": "^1.0.0"
+	},
 	"devDependencies": {
 		"@vitest/coverage-c8": "^0.27.1",
 		"@vitest/web-worker": "^0.27.1",
@@ -51,8 +54,5 @@
 		"typescript": "^4.9.4",
 		"vite": "^4.0.4",
 		"vitest": "^0.27.1"
-	},
-	"dependencies": {
-		"esm-env": "^1.0.0"
 	}
 }
