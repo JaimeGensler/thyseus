@@ -81,6 +81,8 @@ applications as well!
 -   Added explicit return types for functions/methods, which should help prevent
     accidental breaking API changes.
 -   Improved error messaging when adding/removing unregistered components.
+-   Add some additional types to exports (`Plugin`, `WorldBuilder`,
+    `WorldConfig`) - more to come in future updates.
 
 ## v0.9.0 (January 25, 2023)
 
