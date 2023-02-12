@@ -79,6 +79,9 @@ export class World {
 		this.executor = executor.fromWorld(this, systems, dependencies);
 
 		for (const Resource of resourceTypes) {
+			if (!isStruct(Resource) && !threads.isMainThread) {
+				continue;
+			}
 			const resource = new Resource();
 			this.resources.set(Resource, new Resource());
 			if (isStruct(Resource) && Resource.size! > 0) {
