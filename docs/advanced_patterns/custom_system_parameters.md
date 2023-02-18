@@ -53,13 +53,14 @@ nothing at all!
 
 The final method needed for a complete parameter descriptor. The world building
 the system is passed in and whatever is returned from this method will be passed
-to your system. This method may return **anything**!
+to your system. This method may return **anything** - but note that promises
+will be `awaited` and unwrapped!
 
 The return type of `intoArgument` determines the parameter type for your system,
 so your parameters can have strong type support!
 
-> System creation is the last step of World construction, so all World
-> properties are set, but world.systems will be incomplete.
+> System creation is the last step of World construction. All World properties
+> are set, but world.systems and world.arguments will be incomplete.
 
 ## Recreating the Resource Parameter Descriptor
 

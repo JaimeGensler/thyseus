@@ -138,10 +138,9 @@ called if it exists** - you cannot use this method name for something else!
 
 System Resources are a variation of resources that are unique _per system_,
 rather than per world. This means that multiple system resources of the same
-type can exist in the world.
+type can exist in the world. System resources are always considered mutable, as
+they are owned by a single system.
 
-Apart from their reuseability, system resources function more or less identical
-to normal resources. In fact, the same class could be used both as a system
-resource and as a world resource! The one caveat is that **system resources may
-not have async initialization** - it must be sync. As expected, system resources
-are always considered mutable, as they are owned by a single system.
+Apart from their scope, system resources function identically to normal
+resources. In fact, the same class could be used both as a system resource and
+as a world resource!

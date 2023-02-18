@@ -19,7 +19,7 @@ export class SystemResourceDescriptor<T extends object> implements Descriptor {
 
 	onAddSystem(builder: WorldBuilder): void {}
 
-	intoArgument(world: World): T {
+	async intoArgument(world: World): Promise<T> {
 		const { resource } = this;
 		const instance = new resource();
 		if (isStruct(resource)) {
@@ -29,7 +29,7 @@ export class SystemResourceDescriptor<T extends object> implements Descriptor {
 			);
 		}
 		if (world.threads.isMainThread) {
-			(instance as any).initialize?.();
+			await (instance as any).initialize?.();
 		}
 		return instance as T;
 	}
