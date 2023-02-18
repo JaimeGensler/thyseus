@@ -204,7 +204,7 @@ if (import.meta.vitest) {
 		entities.spawn();
 		entities.resetCursor();
 		expect(reallocSpy).toHaveBeenCalledOnce();
-		expect(reallocSpy).toHaveBeenCalledWith(192, 4096);
+		expect(reallocSpy).toHaveBeenCalledWith(152, 4096);
 
 		reallocSpy.mockReset();
 
@@ -213,6 +213,6 @@ if (import.meta.vitest) {
 		}
 		entities.resetCursor();
 		expect(reallocSpy).toHaveBeenCalledOnce();
-		expect(reallocSpy).toHaveBeenCalledWith(2312, 8192);
+		expect(reallocSpy).toHaveBeenCalledWith(2248, 8192);
 	});
 }

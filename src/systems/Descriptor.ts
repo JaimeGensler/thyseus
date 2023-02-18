@@ -1,4 +1,4 @@
-import type { World, WorldBuilder } from '../../world';
+import type { World, WorldBuilder } from '../world';
 
 export type Descriptor = {
 	isLocalToThread(): boolean;

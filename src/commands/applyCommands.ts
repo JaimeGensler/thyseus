@@ -1,4 +1,4 @@
-import { defineSystem } from './defineSystem';
+import { defineSystem } from '../systems/defineSystem';
 
 export const applyCommands = defineSystem(
 	({ World }) => [World()],

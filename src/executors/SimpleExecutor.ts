@@ -50,19 +50,17 @@ export class SimpleExecutor {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { SystemDefinition } = await import('../systems/SystemDefinition');
+	const { defineSystem } = await import('../systems');
 
 	const createOrderTracking = (length: number) => {
 		const order: number[] = [];
-		const systems = Array.from(
-			{ length },
-			(_, i) =>
-				new SystemDefinition(
-					() => [{ intersectsWith: () => true } as any],
-					() => {
-						order.push(i);
-					},
-				),
+		const systems = Array.from({ length }, (_, i) =>
+			defineSystem(
+				() => [{ intersectsWith: () => true } as any],
+				() => {
+					order.push(i);
+				},
+			),
 		);
 		return {
 			order,

@@ -1,19 +1,11 @@
 import { DEV } from 'esm-env';
-import {
-	Query,
-	Mut,
-	Optional,
-	Filter,
-	With,
-	Without,
-	Or,
-	registerFilters,
-	createFilterBitfields,
-} from '../../queries';
-import { assert } from '../../utils/assert';
-import type { World, WorldBuilder } from '../../world';
-import type { Descriptor } from './Descriptor';
-import type { Class, Struct } from '../../struct';
+import { assert } from '../utils/assert';
+import { Query } from './Query';
+import { Mut, Optional, Filter, With, Without, Or } from './modifiers';
+import { registerFilters, createFilterBitfields } from './createRegisterFilter';
+import type { World, WorldBuilder } from '../world';
+import type { Descriptor } from '../systems';
+import type { Class, Struct } from '../struct';
 
 export type AccessDescriptor =
 	| Struct
@@ -122,7 +114,7 @@ export class QueryDescriptor<
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, vi } = import.meta.vitest;
-	const { struct } = await import('../../struct');
+	const { struct } = await import('../struct');
 
 	class Comp {
 		declare static size: number;

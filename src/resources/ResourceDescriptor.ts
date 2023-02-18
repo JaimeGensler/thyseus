@@ -1,7 +1,7 @@
-import { Mut } from '../../queries';
-import { isStruct, type Class } from '../../struct';
-import type { Descriptor } from './Descriptor';
-import type { World, WorldBuilder } from '../../world';
+import { Mut } from '../queries';
+import { isStruct, type Class } from '../struct';
+import type { Descriptor } from '../systems';
+import type { World, WorldBuilder } from '../world';
 
 export class ResourceDescriptor<T extends Class | Mut<Class>>
 	implements Descriptor

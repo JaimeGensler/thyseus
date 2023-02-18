@@ -1,4 +1,4 @@
-import { applyCommands } from '../systems';
+import { applyCommands } from '../commands';
 import { Entity } from '../storage';
 import { SEND_TABLE } from './channels';
 import type { WorldBuilder } from './WorldBuilder';

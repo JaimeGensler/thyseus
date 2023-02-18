@@ -1,9 +1,10 @@
-import { CommandsDescriptor } from './CommandsDescriptor';
-import { QueryDescriptor } from './QueryDescriptor';
-import { ResourceDescriptor } from './ResourceDescriptor';
-import { WorldDescriptor } from './WorldDescriptor';
-import { Mut, Optional, With, Without, Or, OrContent } from '../../queries';
-import { SystemResourceDescriptor } from './SystemResourceDescriptor';
+import { CommandsDescriptor } from '../commands';
+import { QueryDescriptor } from '../queries';
+import { ResourceDescriptor } from '../resources';
+import { SystemResourceDescriptor } from '../resources';
+// NOTE: Direct import because '../world' import can create circular deps
+import { WorldDescriptor } from '../world/WorldDescriptor';
+import { Mut, Optional, With, Without, Or, OrContent } from '../queries';
 export type { Descriptor } from './Descriptor';
 
 function wrap<P extends any[], I extends object>(Descriptor: {

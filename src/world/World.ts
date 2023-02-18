@@ -1,5 +1,5 @@
 import { WorldBuilder } from './WorldBuilder';
-import { Commands } from './Commands';
+import { Commands } from '../commands';
 import { bits } from '../utils/bits';
 import { memory } from '../utils/memory';
 import { Entities, Table } from '../storage';

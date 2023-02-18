@@ -1,6 +1,6 @@
 import { DEV } from 'esm-env';
-import { Or, With, Without, type Filter } from './modifiers';
 import { assert } from '../utils/assert';
+import { Or, With, Without, type Filter } from './modifiers';
 import type { Struct } from '../struct';
 import type { WorldBuilder } from '../world';
 

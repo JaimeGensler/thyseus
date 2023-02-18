@@ -68,16 +68,14 @@ export function getSystemDependencies(
 \*---------*/
 if (import.meta.vitest) {
 	const { describe, it, expect } = import.meta.vitest;
-	const { SystemDefinition } = await import('../systems/SystemDefinition');
+	const { defineSystem } = await import('../systems');
 
 	const createMockSystems = (length: number): SystemDefinition[] =>
-		Array.from(
-			{ length },
-			() =>
-				new SystemDefinition(
-					() => [],
-					() => {},
-				),
+		Array.from({ length }, () =>
+			defineSystem(
+				() => [],
+				() => {},
+			),
 		);
 
 	const getDeps = (

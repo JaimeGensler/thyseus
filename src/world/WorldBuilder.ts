@@ -6,11 +6,8 @@ import {
 	SimpleExecutor,
 	type ExecutorType,
 } from '../executors';
-import {
-	applyCommands,
-	SystemDependencies,
-	type SystemDefinition,
-} from '../systems';
+import { applyCommands } from '../commands';
+import { SystemDependencies, type SystemDefinition } from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
@@ -166,7 +163,6 @@ if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { defineSystem } = await import('../systems');
 	const { Entity } = await import('../storage');
-	const { applyCommands } = await import('../systems');
 	const { memory } = await import('../utils/memory');
 
 	beforeEach(() => memory.UNSAFE_CLEAR_ALL());

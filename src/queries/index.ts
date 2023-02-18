@@ -1,4 +1,5 @@
 export { Query } from './Query';
+export { QueryDescriptor } from './QueryDescriptor';
 export {
 	Optional,
 	Mut,

@@ -1,7 +1,7 @@
-import { memory } from '../../utils/memory';
-import { isStruct, type Class } from '../../struct';
-import type { Descriptor } from './Descriptor';
-import type { World, WorldBuilder } from '../../world';
+import { memory } from '../utils/memory';
+import { isStruct, type Class } from '../struct';
+import type { Descriptor } from '../systems';
+import type { World, WorldBuilder } from '../world';
 
 export class SystemResourceDescriptor<T extends object> implements Descriptor {
 	resource: Class;
@@ -87,31 +87,33 @@ if (import.meta.vitest) {
 			},
 		} as any;
 
-		it("returns the instance of the descriptor's ResourceType", () => {
+		it("returns the instance of the descriptor's ResourceType", async () => {
 			const allocSpy = vi.spyOn(memory, 'alloc');
 			expect(
-				new SystemResourceDescriptor(A).intoArgument(world),
+				await new SystemResourceDescriptor(A).intoArgument(world),
 			).toBeInstanceOf(A);
 			expect(allocSpy).not.toHaveBeenCalled();
 		});
 
-		it('allocates a pointer if struct', () => {
+		it('allocates a pointer if struct', async () => {
 			memory.init(256);
 			const allocSpy = vi.spyOn(memory, 'alloc');
 			expect(
-				new SystemResourceDescriptor(C).intoArgument(world),
+				await new SystemResourceDescriptor(C).intoArgument(world),
 			).toBeInstanceOf(C);
 			expect(allocSpy).toHaveBeenCalledOnce();
 			expect(allocSpy).toHaveBeenCalledWith(1);
 		});
 
-		it('initializes resources', () => {
+		it('initializes resources', async () => {
 			const initializeSpy = vi.fn();
 			class MyResource {
 				initialize = initializeSpy;
 			}
 			expect(
-				new SystemResourceDescriptor(MyResource).intoArgument(world),
+				await new SystemResourceDescriptor(MyResource).intoArgument(
+					world,
+				),
 			).toBeInstanceOf(MyResource);
 			expect(initializeSpy).toHaveBeenCalled();
 		});

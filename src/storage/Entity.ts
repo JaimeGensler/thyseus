@@ -1,6 +1,6 @@
 import { initStruct } from './initStruct';
 import type { Struct } from '../struct';
-import type { Commands } from '../world/Commands';
+import type { Commands } from '../commands';
 import type { MemoryViews } from '../utils/memory';
 
 type NotFunction<T> = T extends Function ? never : T;

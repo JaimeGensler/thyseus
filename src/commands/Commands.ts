@@ -4,7 +4,7 @@ import { alignTo8 } from '../utils/alignTo8';
 import { memory } from '../utils/memory';
 import { Entity, type Entities } from '../storage';
 import type { Struct } from '../struct';
-import type { World } from './World';
+import type { World } from '../world';
 
 type NotFunction<T> = T extends Function ? never : T;
 type Command = { entityId: bigint; componentId: number; dataStart: number };
