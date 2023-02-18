@@ -39,9 +39,8 @@ function visitQueryFilters<T>(
 export function registerFilters(builder: WorldBuilder, filters: Filter) {
 	visitQueryFilters(filters, function visitor(_: void, f: Filter) {
 		if (f instanceof With || f instanceof Without) {
-			(Array.isArray(f.value) ? f.value : [f.value]).forEach(comp =>
-				builder.registerComponent(comp),
-			);
+			const comps = f.value instanceof Array ? f.value : [f.value];
+			comps.forEach(comp => builder.registerComponent(comp));
 		} else if (f instanceof Or) {
 			visitQueryFilters(f.l, visitor);
 			visitQueryFilters(f.r, visitor);
