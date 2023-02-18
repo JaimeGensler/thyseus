@@ -40,8 +40,8 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		world: World,
 	) {
 		this.#with = withFilters;
-		this.#isIndividual = isIndividual;
 		this.#without = withoutFilters;
+		this.#isIndividual = isIndividual;
 		this.#components = components;
 		this.#commands = world.commands;
 		this.#views = memory.views;
@@ -129,6 +129,9 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	}
 }
 
+/*---------*\
+|   TESTS   |
+\*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, beforeEach } = import.meta.vitest;
 	const { initStruct, Entity, Table } = await import('../storage');
