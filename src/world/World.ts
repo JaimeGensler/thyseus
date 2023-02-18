@@ -25,7 +25,7 @@ export class World {
 		return new WorldBuilder(validateAndCompleteConfig(config, url), url);
 	}
 
-	archetypeLookup = new Map<bigint, number>();
+	#archetypeLookup = new Map<bigint, Table>();
 	archetypes = [] as Table[];
 
 	queries = [] as Query<any, any>[];
@@ -37,7 +37,7 @@ export class World {
 	commands: Commands;
 	entities: Entities;
 
-	config: WorldConfig;
+	config: Readonly<WorldConfig>;
 	threads: ThreadGroup;
 	executor: ExecutorInstance;
 	components: Struct[];
@@ -55,16 +55,15 @@ export class World {
 		this.threads = threads;
 
 		memory.init(
-			this.threads.queue(() => {
-				memory.init(config.memory, config.threads > 1);
-				return memory.views.buffer;
-			}),
+			this.threads.queue(() =>
+				memory.init(config.memory, config.threads > 1),
+			),
 		);
 
 		const emptyTable = Table.createEmptyTable(this);
 		const recycledTable = Table.createRecycledTable(this);
 		this.archetypes.push(emptyTable, recycledTable);
-		this.archetypeLookup.set(0n, 1);
+		this.#archetypeLookup.set(0n, recycledTable);
 
 		for (const channel of channels) {
 			this.threads.setListener(
@@ -91,13 +90,6 @@ export class World {
 				);
 			}
 		}
-
-		for (const system of systems) {
-			this.systems.push(system.fn);
-			this.arguments.push(
-				system.parameters.map(p => p.intoArgument(this)),
-			);
-		}
 	}
 
 	async update(): Promise<void> {
@@ -121,17 +113,18 @@ export class World {
 	}
 
 	#getTable(tableId: bigint): Table {
-		if (this.archetypeLookup.has(tableId)) {
-			return this.archetypes[this.archetypeLookup.get(tableId)!];
+		let table = this.#archetypeLookup.get(tableId);
+		if (table) {
+			return table;
 		}
 		const id = this.archetypes.length;
-		const table = Table.create(
+		table = Table.create(
 			this,
 			Array.from(bits(tableId), cid => this.components[cid]),
 			tableId,
 			id,
 		);
-		this.archetypeLookup.set(tableId, id);
+		this.#archetypeLookup.set(tableId, table);
 		this.archetypes.push(table);
 
 		this.threads.send(SEND_TABLE(table.pointer, id, tableId));

@@ -25,8 +25,8 @@ export class WorldBuilder {
 	threadChannels = [] as ThreadMessageChannel[];
 	executor: ExecutorType;
 
-	config: WorldConfig;
-	url: string | URL | undefined;
+	config: Readonly<WorldConfig>;
+	url: Readonly<string | URL | undefined>;
 	constructor(config: WorldConfig, url: string | URL | undefined) {
 		this.config = config;
 		this.url = url;
@@ -130,6 +130,14 @@ export class WorldBuilder {
 					this.threadChannels,
 				),
 		);
+		for (const system of this.systems) {
+			world.systems.push(system.fn);
+			world.arguments.push(
+				await Promise.all(
+					system.parameters.map(p => p.intoArgument(world)),
+				),
+			);
+		}
 
 		if (threads.isMainThread) {
 			await Promise.all(
