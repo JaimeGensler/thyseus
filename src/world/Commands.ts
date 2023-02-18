@@ -103,7 +103,7 @@ export class Commands {
 	 * @param id The id of the entity to get.
 	 * @returns An `Entity` instance, to add/remove components from an entity.
 	 */
-	get(id: bigint): Entity {
+	getEntityById(id: bigint): Entity {
 		return new Entity(this, id);
 	}
 
@@ -247,11 +247,7 @@ export class Commands {
 			16 + (commandType === 'add' ? componentType.size! : 0),
 		);
 		if (this.#capacity < this.#length + additionalLength) {
-			const doubledLength = this.#capacity * 2;
-			const newLength =
-				doubledLength > this.#length + additionalLength
-					? doubledLength
-					: doubledLength + additionalLength;
+			const newLength = (this.#length + additionalLength) * 2;
 			this.#capacity = newLength;
 			this.#queuePointer = memory.realloc(this.#queuePointer, newLength);
 		}
@@ -343,8 +339,8 @@ if (import.meta.vitest) {
 	it('returns unique entity handles', async () => {
 		const world = await createWorld();
 		const commands = Commands.fromWorld(world);
-		const e1 = commands.get(0n);
-		const e2 = commands.get(1n);
+		const e1 = commands.getEntityById(0n);
+		const e2 = commands.getEntityById(1n);
 		expect(e1).not.toBe(e2);
 	});
 
