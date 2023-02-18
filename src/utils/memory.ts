@@ -25,10 +25,10 @@ const NULL_POINTER: Pointer = 8;
 
 const views = {} as MemoryViews;
 
-const BLOCK_HEADER_SIZE = 8;
-const BLOCK_FOOTER_POSITION = 4;
-const BLOCK_METADATA_SIZE = 16;
-const MINIMUM_BLOCK_SIZE = 24; // 16 + 8
+const BLOCK_HEADER_SIZE = 4;
+const BLOCK_FOOTER_SIZE = 4;
+const BLOCK_METADATA_SIZE = 8;
+const MINIMUM_BLOCK_SIZE = 16; // 8 + 8
 
 function spinlock(): void {
 	while (Atomics.compareExchange(u32, NULL_POINTER >> 2, 0, 1) === 1);
@@ -42,18 +42,18 @@ function releaseLock(): void {
  * @param size The size (in bytes) to initialize.
  * @param isShared Whether this memory should use a `SharedArrayBuffer` (defaults to false).
  */
-function init(size: number, isShared?: boolean): void;
+function init(size: number, isShared?: boolean): ArrayBufferLike;
 /**
  * Initializes memory if it has not been initialized yet.
  * @param size The ArrayBuffer to initialize memory with.
  */
-function init(buffer: ArrayBufferLike): void;
+function init(buffer: ArrayBufferLike): ArrayBufferLike;
 function init(
 	sizeOrBuffer: number | ArrayBufferLike,
 	isShared: boolean = false,
-): void {
+): ArrayBufferLike {
 	if (buffer) {
-		return;
+		return buffer;
 	}
 	if (typeof sizeOrBuffer === 'number') {
 		const bufferType = isShared ? SharedArrayBuffer : ArrayBuffer;
@@ -77,10 +77,11 @@ function init(
 	views.f64 = new Float64Array(buffer);
 	views.dataview = new DataView(buffer);
 	if (typeof sizeOrBuffer === 'number') {
-		u32[0] = buffer.byteLength;
-		u32[u32.length - 1] = buffer.byteLength;
+		u32[1] = buffer.byteLength;
+		u32[u32.length - 2] = buffer.byteLength;
 		alloc(8); // NULL_POINTER
 	}
+	return buffer;
 }
 
 /**
@@ -92,15 +93,16 @@ function init(
  * @returns A pointer.
  */
 function alloc(size: number): Pointer {
-	size = alignTo8(size);
-	let pointer = 0;
+	const alignedSize = alignTo8(0);
+	const requiredSize = BLOCK_METADATA_SIZE + alignedSize;
+	let pointer = NULL_POINTER - BLOCK_HEADER_SIZE;
 
 	spinlock();
+	// TODO: Pointer will likely never exceed this.
 	while (pointer < buffer.byteLength) {
 		const header = u32[pointer >> 2];
 		const blockSize = header & ~1;
 		const isBlockAllocated = header !== blockSize;
-		const requiredSize = BLOCK_METADATA_SIZE + size;
 
 		if (isBlockAllocated || blockSize < requiredSize) {
 			pointer += blockSize;
@@ -111,14 +113,14 @@ function alloc(size: number): Pointer {
 		const newBlockSize = shouldSplit ? requiredSize : blockSize;
 
 		u32[pointer >> 2] = newBlockSize | 1;
-		u32[(pointer + newBlockSize - BLOCK_FOOTER_POSITION) >> 2] =
+		u32[(pointer + newBlockSize - BLOCK_FOOTER_SIZE) >> 2] =
 			newBlockSize | 1;
 
 		if (shouldSplit) {
 			const splitPointer = pointer + requiredSize;
 			const splitBlockSize = blockSize - requiredSize;
 			u32[splitPointer >> 2] = splitBlockSize;
-			u32[(splitPointer + splitBlockSize - BLOCK_FOOTER_POSITION) >> 2] =
+			u32[(splitPointer + splitBlockSize - BLOCK_FOOTER_SIZE) >> 2] =
 				splitBlockSize;
 		}
 
@@ -148,11 +150,11 @@ function free(pointer: Pointer): void {
 	let header = pointer - BLOCK_HEADER_SIZE;
 	spinlock();
 	let size = u32[header >> 2] & ~1;
-	let footer = header + size - BLOCK_FOOTER_POSITION;
+	let footer = header + size - BLOCK_FOOTER_SIZE;
 	u32[header >> 2] &= ~1;
 	u32[footer >> 2] &= ~1;
 
-	if (footer !== buffer.byteLength - BLOCK_FOOTER_POSITION) {
+	if (footer !== buffer.byteLength - BLOCK_FOOTER_SIZE) {
 		const next = u32[(header + size) >> 2];
 		if ((next & 1) === 0) {
 			footer += next;
@@ -161,7 +163,7 @@ function free(pointer: Pointer): void {
 	}
 
 	if (header !== 0) {
-		const prev = u32[(header - BLOCK_FOOTER_POSITION) >> 2];
+		const prev = u32[(header - BLOCK_FOOTER_SIZE) >> 2];
 		if ((prev & 1) === 0) {
 			header -= prev;
 			size += prev;
@@ -192,13 +194,13 @@ function realloc(pointer: Pointer, newSize: number): Pointer {
 	if (pointer === NULL_POINTER || pointer === 0) {
 		return alloc(newSize);
 	}
-	// TODO: Allow realloc to shrink, if we're way under.
-	newSize = alignTo8(newSize);
+	// TODO: Allow realloc to shrink if newSize is small enough to make this reasonable.
+	const alignedSize = alignTo8(newSize);
 	spinlock();
 	const header = pointer - BLOCK_HEADER_SIZE;
 	const size = u32[header >> 2] & ~1;
 	const payloadSize = size - BLOCK_METADATA_SIZE;
-	if (payloadSize >= newSize) {
+	if (payloadSize >= alignedSize) {
 		releaseLock();
 		return pointer;
 	}
@@ -209,34 +211,33 @@ function realloc(pointer: Pointer, newSize: number): Pointer {
 
 	if (
 		(nextSize & 1) === 0 &&
-		nextSize - BLOCK_METADATA_SIZE >= newSize - size
+		nextSize - BLOCK_METADATA_SIZE >= alignedSize - size
 	) {
-		const remainderSize = newSize - payloadSize;
+		const remainderSize = alignedSize - payloadSize;
 		const shouldSplit = nextSize - remainderSize >= MINIMUM_BLOCK_SIZE;
 		const newBlockSize = shouldSplit
-			? newSize + BLOCK_METADATA_SIZE
+			? alignedSize + BLOCK_METADATA_SIZE
 			: size + nextSize;
 
 		u32[next >> 2] = 0;
-		u32[(next - BLOCK_FOOTER_POSITION) >> 2] = 0;
+		u32[(next - BLOCK_FOOTER_SIZE) >> 2] = 0;
 
 		u32[header >> 2] = newBlockSize | 1;
-		u32[(header + newBlockSize - BLOCK_FOOTER_POSITION) >> 2] =
+		u32[(header + newBlockSize - BLOCK_FOOTER_SIZE) >> 2] =
 			newBlockSize | 1;
 
 		if (shouldSplit) {
 			const splitSize = size + nextSize - newBlockSize;
 			u32[(header + newBlockSize) >> 2] = splitSize;
-			u32[
-				(header + newBlockSize + splitSize - BLOCK_FOOTER_POSITION) >> 2
-			] = splitSize;
+			u32[(header + newBlockSize + splitSize - BLOCK_FOOTER_SIZE) >> 2] =
+				splitSize;
 		}
 		releaseLock();
 		return pointer;
 	}
 
 	releaseLock();
-	const newPointer = alloc(newSize);
+	const newPointer = alloc(alignedSize);
 	copy(pointer, payloadSize, newPointer);
 	free(pointer);
 	return newPointer;
@@ -287,8 +288,8 @@ function copyPointer(pointer: Pointer): Pointer {
 function UNSAFE_CLEAR_ALL(): void {
 	if (buffer) {
 		set(0, buffer.byteLength, 0);
-		u32[0] = buffer.byteLength;
-		u32[u32.length - 1] = buffer.byteLength;
+		u32[1] = buffer.byteLength;
+		u32[u32.length - 2] = buffer.byteLength;
 		alloc(8); // Restore NULL_POINTER
 	}
 }
@@ -322,46 +323,48 @@ if (import.meta.vitest) {
 		it('returns a pointer', () => {
 			memory.init(256);
 			const ptr1 = memory.alloc(8);
-			expect(ptr1).toBe(32);
+			expect(ptr1).toBe(24);
 
 			const ptr2 = memory.alloc(16);
-			expect(ptr2).toBe(56);
+			expect(ptr2).toBe(40);
 		});
+
+		it.todo('throws when out of memory', () => {});
 	});
 
 	describe('free', () => {
 		it('clears a block and allows it to be allocated again', () => {
 			memory.init(256);
 			const ptr1 = memory.alloc(8);
-			expect(ptr1).toBe(32);
+			expect(ptr1).toBe(24);
 
 			memory.free(ptr1);
 			const ptr2 = memory.alloc(8);
-			expect(ptr2).toBe(32);
+			expect(ptr2).toBe(24);
 		});
 
 		it('collects the next block if free', () => {
 			memory.init(256);
 			const ptr1 = memory.alloc(8);
-			expect(ptr1).toBe(32);
+			expect(ptr1).toBe(24);
 
 			memory.free(ptr1);
 			const ptr2 = memory.alloc(16);
-			expect(ptr2).toBe(32);
+			expect(ptr2).toBe(24);
 		});
 
 		it('collects the previous block if free', () => {
 			memory.init(256);
 			const ptr1 = memory.alloc(8);
-			expect(ptr1).toBe(32);
+			expect(ptr1).toBe(24);
 			const ptr2 = memory.alloc(8);
-			expect(ptr2).toBe(56);
+			expect(ptr2).toBe(40);
 
 			memory.free(ptr1);
 			memory.free(ptr2);
 
 			const ptr3 = memory.alloc(16);
-			expect(ptr3).toBe(32);
+			expect(ptr3).toBe(24);
 		});
 	});
 
@@ -398,15 +401,17 @@ if (import.meta.vitest) {
 	describe('copyPointer', () => {
 		it('allocates a new pointer and copies data from the source', () => {
 			memory.init(256);
-			const ptr1 = memory.alloc(16);
+			const ALLOCATION_SIZE = 16;
+			const ptr1 = memory.alloc(ALLOCATION_SIZE);
 			memory.views.u32[ptr1 >> 2] = ~0 >>> 0;
 			memory.views.u32[(ptr1 + 4) >> 2] = ~0 >>> 0;
 			const copiedPtr = memory.copyPointer(ptr1);
+
 			expect(memory.views.u32[(copiedPtr - BLOCK_HEADER_SIZE) >> 2]).toBe(
-				(16 + BLOCK_METADATA_SIZE) | 1,
+				(ALLOCATION_SIZE + BLOCK_METADATA_SIZE) | 1,
 			);
-			expect(memory.views.u32[(copiedPtr + 20) >> 2]).toBe(
-				(16 + BLOCK_METADATA_SIZE) | 1,
+			expect(memory.views.u32[(copiedPtr + ALLOCATION_SIZE) >> 2]).toBe(
+				(ALLOCATION_SIZE + BLOCK_METADATA_SIZE) | 1,
 			);
 			expect(memory.views.u32[copiedPtr >> 2]).toBe(~0 >>> 0);
 			expect(memory.views.u32[(copiedPtr + 4) >> 2]).toBe(~0 >>> 0);
