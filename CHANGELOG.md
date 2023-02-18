@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.10.0 (February 11, 2023)
+## v0.10.0
 
 Introducing a new strategy for handling memory, which allows dynamically sized
 types! So far, this is only used for internal storage (like `Entities` and
@@ -15,16 +15,22 @@ applications as well!
         `@struct.u32` rather than `@struct.u32()`, etc.
 -   `@struct.string` is now a plain decorator and no longer accepts arguments
     -   See features for more details.
--   Remove `buffer`, `createBuffer()`, and `tableLengths` from `world`.
+-   Remove `buffer`, `createBuffer()`, and `tableLengths` from `World`
+    instances; `archetypeLookup` is now private.
 -   Changes to `Entities`, `Table` properties/methods.
     -   This does not impact you unless you access Entities/Tables directly.
--   Struct static `schema` removed - stores always contain all elements.
+-   Changes to some properties/methods on `Commands`.
+    -   This is unlikely to impact you - the common-use API remains the same.
+    -   Certain methods that were previously technically available but meant for
+        internal use like `getData()` have been removed/replaced.
+-   Static `schema` on structs removed - stores always contain all elements.
     -   This does not impact you unless you depend on the schema property being
         present.
 -   The new memory allocation strategy currently throws when out of memory.
     -   This is unlikely to impact you, and can be remedied by adjusting the
         amount of memory allocated with config - see below for more details.
--   `commands.despawn()` returns void rather than `this`.
+-   `commands.despawn()` now returns void rather than `this`.
+-   `commands.get()` has been renamed to `commands.getEntityById()`.
 
 ### ✨ Features
 
@@ -51,10 +57,8 @@ applications as well!
     -   These work like resources, but are unique per system, rather than per
         world. As a result, the same type can be reused across multiple systems
         and will create unique instances per system!
-    -   `initialize` methods will be called on the main thread only, but **may
-        not be async**.
-        -   This will likely be adjusted in the future to allow async
-            initialization.
+    -   `initialize` methods will be called on the main thread only and may be
+        async, just like their world resource counterparts.
 -   Added an optional `memory` property to world config, which specifies the
     total amount of memory (in bytes) that should be reserved for all worlds.
     -   By default, reserves 512 MBs (1/2 GB). Max allowed by Thyseues is 4GB,
@@ -65,6 +69,8 @@ applications as well!
     -   This is _not_ the total amount of memory used by your program, but
         rather storage used by entities, components, resources, and Thyseus
         internals.
+-   `intoArgument` method of system parameters may return a promise, which will
+    be awaited during world building.
 
 ### 🐛 Bug Fixes
 
@@ -83,6 +89,7 @@ applications as well!
 -   Improved error messaging when adding/removing unregistered components.
 -   Add some additional types to exports (`Plugin`, `WorldBuilder`,
     `WorldConfig`) - more to come in future updates.
+-   Specified `config` in `WorldBuilder` and `World` as read-only.
 
 ## v0.9.0 (January 25, 2023)
 
