@@ -1,3 +1,5 @@
+import { DEV } from 'esm-env';
+import { assert } from './assert';
 import { alignTo8 } from './alignTo8';
 
 type Pointer = number;
@@ -60,10 +62,8 @@ function init(
 		buffer = sizeOrBuffer;
 	}
 
-	u32 = new Uint32Array(buffer);
-	u32[0] = buffer.byteLength;
-	u32[u32.length - 1] = buffer.byteLength;
 	u8 = new Uint8Array(buffer);
+	u32 = new Uint32Array(buffer);
 	views.buffer = buffer;
 	views.u8 = u8;
 	views.u16 = new Uint16Array(buffer);
@@ -76,7 +76,11 @@ function init(
 	views.f32 = new Float32Array(buffer);
 	views.f64 = new Float64Array(buffer);
 	views.dataview = new DataView(buffer);
-	alloc(8); // NULL_POINTER
+	if (typeof sizeOrBuffer === 'number') {
+		u32[0] = buffer.byteLength;
+		u32[u32.length - 1] = buffer.byteLength;
+		alloc(8); // NULL_POINTER
+	}
 }
 
 /**
@@ -122,9 +126,9 @@ function alloc(size: number): Pointer {
 		return pointer + BLOCK_HEADER_SIZE;
 	}
 
-	// TODO: Just return NULL_POINTER?
+	// NOTE: Just return NULL_POINTER?
 	releaseLock();
-	throw new Error(`Out of memory (needed ${size})!`);
+	throw new Error(`Out of memory (requesting ${size} bytes).`);
 }
 
 /**
@@ -132,6 +136,12 @@ function alloc(size: number): Pointer {
  * @param pointer The pointer to free.
  */
 function free(pointer: Pointer): void {
+	if (DEV) {
+		assert(
+			pointer % 8 === 0,
+			'Invalid pointer in realloc - pointer was not correctly aligned.',
+		);
+	}
 	if (pointer === NULL_POINTER || pointer === 0) {
 		return;
 	}
@@ -173,6 +183,12 @@ function free(pointer: Pointer): void {
  * @returns The new pointer.
  */
 function realloc(pointer: Pointer, newSize: number): Pointer {
+	if (DEV) {
+		assert(
+			pointer % 8 === 0,
+			'Invalid pointer in realloc - pointer was not correctly aligned.',
+		);
+	}
 	if (pointer === NULL_POINTER || pointer === 0) {
 		return alloc(newSize);
 	}
