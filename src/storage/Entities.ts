@@ -14,19 +14,19 @@ export class Entities {
 			world,
 			world.threads.queue(() => {
 				const { u32 } = memory.views;
-				const ptr = memory.alloc(4 * 4);
-				u32[(ptr >> 2) + 2] = memory.alloc(8 * ENTITY_BATCH_SIZE);
-				u32[(ptr >> 2) + 3] = ENTITY_BATCH_SIZE;
-				return ptr;
+				const pointer = memory.alloc(4 * 4) >> 2;
+				u32[pointer + 2] = memory.alloc(8 * ENTITY_BATCH_SIZE);
+				u32[pointer + 3] = ENTITY_BATCH_SIZE;
+				return pointer;
 			}),
 		);
 	}
 
 	#world: World;
-	#pointer: number;
+	#pointer: number; // [nextId, cursor, locationsPointer, capacity]
 	#recycled: Table;
 	constructor(world: World, pointer: number) {
-		this.#pointer = pointer >> 2;
+		this.#pointer = pointer;
 		this.#world = world;
 		this.#recycled = world.archetypes[1];
 	}
@@ -63,7 +63,7 @@ export class Entities {
 		return (
 			getIndex(entityId) < Atomics.load(u32, this.#pointer) &&
 			(tableIndex === 0 ||
-				tableIndex === 1 ||
+				tableIndex !== 1 ||
 				u64[(ptr >> 3) + row] === entityId)
 		);
 	}
@@ -71,7 +71,7 @@ export class Entities {
 	resetCursor(): void {
 		const { u32 } = memory.views;
 		u32[this.#pointer + 1] = 0;
-		if (u32[this.#pointer] >= u32[this.#pointer + 3]) {
+		if (u32[this.#pointer] >= this.#capacity) {
 			const newElementCount =
 				Math.ceil((u32[this.#pointer] + 1) / ENTITY_BATCH_SIZE) *
 				ENTITY_BATCH_SIZE;
@@ -107,6 +107,13 @@ export class Entities {
 	set #locationsPointer(val: number) {
 		memory.views.u32[this.#pointer + 2] = val;
 	}
+	get #capacity() {
+		return memory.views.u32[this.#pointer + 3];
+	}
+	set #capacity(val: number) {
+		memory.views.u32[this.#pointer + 3] = val;
+	}
+
 	#getOffset(entityId: bigint) {
 		return (this.#locationsPointer >> 2) + (getIndex(entityId) << 1);
 	}
