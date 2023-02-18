@@ -17,18 +17,18 @@ export type MemoryViews = {
 	f64: Float64Array;
 	dataview: DataView;
 };
+const views = {} as MemoryViews;
 
 let buffer: ArrayBuffer;
 let u8: Uint8Array;
 let u32: Uint32Array;
+
+let BUFFER_END: number = 0;
 const NULL_POINTER: Pointer = 8;
-
-const views = {} as MemoryViews;
-
 const BLOCK_HEADER_SIZE = 4;
 const BLOCK_FOOTER_SIZE = 4;
 const BLOCK_METADATA_SIZE = 8;
-const MINIMUM_BLOCK_SIZE = 16; // 8 + 8
+const MINIMUM_BLOCK_SIZE = 16; // Metadata + 8 bytes
 
 function spinlock(): void {
 	while (Atomics.compareExchange(u32, NULL_POINTER >> 2, 0, 1) === 1);
@@ -76,9 +76,10 @@ function init(
 	views.f32 = new Float32Array(buffer);
 	views.f64 = new Float64Array(buffer);
 	views.dataview = new DataView(buffer);
+	BUFFER_END = buffer.byteLength - 4;
 	if (typeof sizeOrBuffer === 'number') {
-		u32[1] = buffer.byteLength;
-		u32[u32.length - 2] = buffer.byteLength;
+		u32[1] = buffer.byteLength - 8;
+		u32[u32.length - 2] = buffer.byteLength - 8;
 		alloc(8); // NULL_POINTER
 	}
 	return buffer;
@@ -93,13 +94,12 @@ function init(
  * @returns A pointer.
  */
 function alloc(size: number): Pointer {
-	const alignedSize = alignTo8(0);
+	const alignedSize = alignTo8(size);
 	const requiredSize = BLOCK_METADATA_SIZE + alignedSize;
 	let pointer = NULL_POINTER - BLOCK_HEADER_SIZE;
 
 	spinlock();
-	// TODO: Pointer will likely never exceed this.
-	while (pointer < buffer.byteLength) {
+	while (pointer < BUFFER_END) {
 		const header = u32[pointer >> 2];
 		const blockSize = header & ~1;
 		const isBlockAllocated = header !== blockSize;
@@ -288,8 +288,8 @@ function copyPointer(pointer: Pointer): Pointer {
 function UNSAFE_CLEAR_ALL(): void {
 	if (buffer) {
 		set(0, buffer.byteLength, 0);
-		u32[1] = buffer.byteLength;
-		u32[u32.length - 2] = buffer.byteLength;
+		u32[1] = buffer.byteLength - 8;
+		u32[u32.length - 2] = buffer.byteLength - 8;
 		alloc(8); // Restore NULL_POINTER
 	}
 }
@@ -329,7 +329,13 @@ if (import.meta.vitest) {
 			expect(ptr2).toBe(40);
 		});
 
-		it.todo('throws when out of memory', () => {});
+		it('throws when out of memory', () => {
+			memory.init(256);
+			const ptr1 = memory.alloc(212);
+			expect(ptr1).toBe(24);
+
+			expect(() => memory.alloc(8)).toThrow(/Out of memory/);
+		});
 	});
 
 	describe('free', () => {
