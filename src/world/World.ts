@@ -4,6 +4,7 @@ import { bits } from '../utils/bits';
 import { memory } from '../utils/memory';
 import { Entities, Table } from '../storage';
 import { SEND_TABLE } from './channels';
+import { EventReader, EventWriter } from '../events';
 import { isStruct, type Class, type Struct } from '../struct';
 import {
 	validateAndCompleteConfig,
@@ -25,18 +26,18 @@ export class World {
 		return new WorldBuilder(validateAndCompleteConfig(config, url), url);
 	}
 
+	archetypes: Table[] = [];
 	#archetypeLookup = new Map<bigint, Table>();
-	archetypes = [] as Table[];
+	queries: Query<any, any>[] = [];
+	resources: Map<Class, object> = new Map();
+	eventReaders: EventReader<any>[] = [];
+	eventWriters: EventWriter<any>[] = [];
 
-	queries = [] as Query<any, any>[];
-	resources = new Map<Class, object>();
-
-	systems = [] as ((...args: any[]) => any)[];
-	arguments = [] as any[][];
+	systems: ((...args: any[]) => any)[] = [];
+	arguments: any[][] = [];
 
 	commands: Commands;
 	entities: Entities;
-
 	config: Readonly<WorldConfig>;
 	threads: ThreadGroup;
 	executor: ExecutorInstance;
@@ -47,6 +48,7 @@ export class World {
 		executor: ExecutorType,
 		components: Struct[],
 		resourceTypes: Class[],
+		eventTypes: Struct[],
 		systems: SystemDefinition[],
 		dependencies: SystemDependencies[],
 		channels: ThreadMessageChannel[],
@@ -76,6 +78,14 @@ export class World {
 		this.entities = Entities.fromWorld(this);
 		this.commands = Commands.fromWorld(this);
 		this.executor = executor.fromWorld(this, systems, dependencies);
+
+		for (const eventType of eventTypes) {
+			const pointer = this.threads.queue(() =>
+				memory.alloc(12 + eventType.size!),
+			);
+			this.eventReaders.push(new EventReader(eventType, pointer));
+			this.eventWriters.push(new EventWriter(eventType, pointer));
+		}
 
 		for (const Resource of resourceTypes) {
 			if (!isStruct(Resource) && !threads.isMainThread) {

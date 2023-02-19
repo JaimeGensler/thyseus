@@ -19,6 +19,7 @@ export class WorldBuilder {
 
 	components = new Set<Struct>();
 	resources = new Set<Class>();
+	events = new Set<Struct>();
 	threadChannels = [] as ThreadMessageChannel[];
 	executor: ExecutorType;
 
@@ -67,21 +68,31 @@ export class WorldBuilder {
 
 	/**
 	 * Registers a Component in the world. Called automatically for all queried components when a system is added.
-	 * @param struct The struct to register.
+	 * @param componentType The componentType (`Struct`) to register.
 	 * @returns `this`, for chaining.
 	 */
-	registerComponent(struct: Struct): this {
-		this.components.add(struct);
+	registerComponent(componentType: Struct): this {
+		this.components.add(componentType);
 		return this;
 	}
 
 	/**
 	 * Registers a Resource in the world. Called automatically for all accessed resources when a system is added.
-	 * @param ResourceType The ResourceType to register.
+	 * @param resourceType The Resource type (`Class`) to register.
 	 * @returns `this`, for chaining.
 	 */
-	registerResource(ResourceType: Class): this {
-		this.resources.add(ResourceType);
+	registerResource(resourceType: Class): this {
+		this.resources.add(resourceType);
+		return this;
+	}
+
+	/**
+	 * Registers an event type in the world. Called automatically for all event readers/writers when a system is added.
+	 * @param resourceType The Event type (`Struct`) to register.
+	 * @returns `this`, for chaining.
+	 */
+	registerEvent(eventType: Struct): this {
+		this.events.add(eventType);
 		return this;
 	}
 
@@ -122,6 +133,7 @@ export class WorldBuilder {
 					this.executor,
 					[...this.components],
 					[...this.resources],
+					[...this.events],
 					this.systems,
 					this.#systemDependencies,
 					this.threadChannels,
