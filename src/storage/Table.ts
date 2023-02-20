@@ -407,50 +407,6 @@ if (import.meta.vitest) {
 	});
 
 	// v0.6 changelog bugfix
-	// v0.10.0 applyCommands is responsible for overwriting stale data.
-	it.skip('does not contain stale data when adding element', async () => {
-		const world = await createWorld();
-		const table = createTable(world, Entity, Vec3);
-
-		spawnIntoTable(25, table);
-		spawnIntoTable(233, table);
-
-		const vec = new Vec3();
-		vec.__$$s = memory.views;
-		vec.__$$b = table.getColumn(Vec3);
-		const ent = new Entity();
-		(ent as any).__$$s = memory.views;
-		(ent as any).__$$b = table.getColumn(Entity)!;
-		vec.x = 100;
-		vec.y = 200;
-		vec.z = 300;
-		expect(vec.x).toBe(100);
-		expect(vec.y).toBe(200);
-		expect(vec.z).toBe(300);
-		vec.__$$b += Vec3.size;
-		vec.x = Math.PI;
-		vec.y = Math.PI;
-		vec.z = Math.PI;
-
-		table.delete(1);
-		spawnIntoTable(26, table);
-
-		vec.__$$b = table.getColumn(Vec3);
-		(ent as any).__$$b = table.getColumn(Entity);
-		expect(vec.x).toBe(100);
-		expect(vec.y).toBe(200);
-		expect(vec.z).toBe(300);
-		expect(ent.id).toBe(25n);
-
-		vec.__$$b += Vec3.size;
-		(ent as any).__$$b += Entity.size;
-		expect(vec.x).toBe(0);
-		expect(vec.y).toBe(0);
-		expect(vec.z).toBe(0);
-		expect(ent.id).toBe(26n);
-	});
-
-	// v0.6 changelog bugfix
 	it('does not create columns for ZSTs', async () => {
 		class ZST {
 			static size = 0;
