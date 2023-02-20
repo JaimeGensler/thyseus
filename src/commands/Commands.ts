@@ -9,6 +9,9 @@ import type { World } from '../world';
 type NotFunction<T> = T extends Function ? never : T;
 type Command = { entityId: bigint; componentId: number; dataStart: number };
 
+const ADD_COMPONENT_COMMAND = 0;
+const REMOVE_COMPONENT_COMMAND = 1;
+
 export class Commands {
 	static fromWorld(world: World) {
 		const initialValuePointers = world.threads.queue(() => {
@@ -83,7 +86,7 @@ export class Commands {
 	 */
 	spawn(): Entity {
 		const entityId = this.#entities.spawn();
-		this.#pushCommand('add', entityId, Entity);
+		this.#pushCommand(ADD_COMPONENT_COMMAND, entityId, Entity);
 		memory.views.u64[this.#queueEnd >> 3] = entityId;
 		this.#length += 8;
 		return new Entity(this, entityId);
@@ -95,7 +98,7 @@ export class Commands {
 	 * @returns `this`, for chaining.
 	 */
 	despawn(id: bigint): void {
-		this.#pushCommand('remove', id, Entity);
+		this.#pushCommand(REMOVE_COMPONENT_COMMAND, id, Entity);
 	}
 
 	/**
@@ -118,7 +121,7 @@ export class Commands {
 				'Tried to add Entity component, which is forbidden.',
 			);
 		}
-		this.#pushCommand('add', entityId, componentType);
+		this.#pushCommand(ADD_COMPONENT_COMMAND, entityId, componentType);
 		if (componentType.size === 0) {
 			return;
 		}
@@ -140,7 +143,7 @@ export class Commands {
 				'Tried to add Entity component, which is forbidden.',
 			);
 		}
-		this.#pushCommand('add', entityId, componentType);
+		this.#pushCommand(ADD_COMPONENT_COMMAND, entityId, componentType);
 		if (componentType.size === 0) {
 			return;
 		}
@@ -160,7 +163,7 @@ export class Commands {
 				'Tried to remove Entity component, which is forbidden.',
 			);
 		}
-		this.#pushCommand('remove', entityId, componentType);
+		this.#pushCommand(REMOVE_COMPONENT_COMMAND, entityId, componentType);
 	}
 
 	getDestinations(): Map<bigint, bigint> {
@@ -173,7 +176,7 @@ export class Commands {
 				continue;
 			}
 			const componentId = u16[(current + 4) >> 1];
-			const isAdd = u8[current + 6] === 0;
+			const isAdd = u8[current + 6] === ADD_COMPONENT_COMMAND;
 			val ??= this.#entities.getBitset(entityId);
 			this.#destinations.set(
 				entityId,
@@ -233,7 +236,9 @@ export class Commands {
 	}
 
 	#pushCommand(
-		commandType: 'add' | 'remove',
+		commandType:
+			| typeof ADD_COMPONENT_COMMAND
+			| typeof REMOVE_COMPONENT_COMMAND,
 		entityId: bigint,
 		componentType: Struct,
 	) {
@@ -244,7 +249,10 @@ export class Commands {
 			);
 		}
 		const additionalLength = alignTo8(
-			16 + (commandType === 'add' ? componentType.size! : 0),
+			16 +
+				(commandType === ADD_COMPONENT_COMMAND
+					? componentType.size!
+					: 0),
 		);
 		if (this.#capacity < this.#length + additionalLength) {
 			const newLength = (this.#length + additionalLength) * 2;
@@ -255,7 +263,7 @@ export class Commands {
 		memory.views.u32[queueEnd >> 2] = additionalLength;
 		memory.views.u16[(queueEnd + 4) >> 1] =
 			this.#components.indexOf(componentType);
-		memory.views.u8[queueEnd + 6] = commandType === 'add' ? 0 : 1;
+		memory.views.u8[queueEnd + 6] = commandType;
 		memory.views.u64[(queueEnd + 8) >> 3] = entityId;
 		this.#length += 16;
 	}
