@@ -135,6 +135,7 @@ function alloc(size: number): Pointer {
 
 /**
  * Frees a pointer, allowing the memory at that location to be used again.
+ * If a null or 0 pointer is provided, simply returns.
  * @param pointer The pointer to free.
  */
 function free(pointer: Pointer): void {
@@ -177,8 +178,9 @@ function free(pointer: Pointer): void {
 
 /**
  * Reallocates the memory at a pointer with a new size, copying data to the new location if necessary.
+ * If a null or 0 pointer is provided, will simply `alloc`.
  *
- *  Throws if there is not enough memory to allocate the specified size.
+ * Throws if there is not enough memory to allocate the specified size.
  *
  * @param pointer The pointer to reallocate
  * @param newSize The new _total_ size (in bytes) to allocate.
@@ -265,6 +267,7 @@ function set(from: Pointer, length: number, value: number): void {
 
 /**
  * Copies the data at the provided pointer to a newly allocated pointer.
+ * If a null or 0 pointer is provided, returns a null pointer.
  * @param pointer The pointer to copy.
  * @returns The newly allocated pointer with data copied from the passed pointer.
  */
