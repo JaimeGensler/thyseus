@@ -29,7 +29,7 @@ export class World {
 	archetypes: Table[] = [];
 	#archetypeLookup = new Map<bigint, Table>();
 	queries: Query<any, any>[] = [];
-	resources: Map<Class, object> = new Map();
+	resources: object[] = [];
 	eventReaders: EventReader<any>[] = [];
 	eventWriters: EventWriter<any>[] = [];
 
@@ -92,7 +92,7 @@ export class World {
 				continue;
 			}
 			const resource = new Resource();
-			this.resources.set(Resource, new Resource());
+			this.resources.push(resource);
 			if (isStruct(Resource) && Resource.size! > 0) {
 				(resource as any).__$$s = memory.views;
 				(resource as any).__$$b = this.threads.queue(() =>

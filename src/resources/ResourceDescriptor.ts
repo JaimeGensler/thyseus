@@ -35,7 +35,7 @@ export class ResourceDescriptor<T extends Class | Mut<Class>>
 	): T extends Mut<infer X>
 		? X
 		: Readonly<InstanceType<T extends Class ? T : never>> {
-		return world.resources.get(this.resource) as any;
+		return world.resources.find(res => res instanceof this.resource) as any;
 	}
 }
 
@@ -113,8 +113,8 @@ if (import.meta.vitest) {
 	});
 
 	describe('intoArgument', () => {
-		it("returns the instance of the descriptor's ResourceType", () => {
-			const resources = new Map().set(A, new A()).set(C, new C());
+		it('returns the instance of the Resource type', () => {
+			const resources = [new A(), new C()];
 			expect(
 				new ResourceDescriptor(A).intoArgument({ resources } as any),
 			).toBeInstanceOf(A);

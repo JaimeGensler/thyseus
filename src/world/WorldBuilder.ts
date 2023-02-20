@@ -150,10 +150,8 @@ export class WorldBuilder {
 
 		if (threads.isMainThread) {
 			await Promise.all(
-				Array.from(world.resources.values(), resource =>
-					//@ts-ignore
-					resource.initialize?.(world),
-				),
+				//@ts-ignore
+				world.resources.map(resource => resource.initialize?.(world)),
 			);
 
 			for (const system of this.#startupSystems) {
