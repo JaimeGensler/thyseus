@@ -35,7 +35,9 @@ export class ResourceDescriptor<T extends Class | Mut<Class>>
 	): T extends Mut<infer X>
 		? X
 		: Readonly<InstanceType<T extends Class ? T : never>> {
-		return world.resources.find(res => res instanceof this.resource) as any;
+		return world.resources.find(
+			res => res.constructor === this.resource,
+		) as any;
 	}
 }
 
