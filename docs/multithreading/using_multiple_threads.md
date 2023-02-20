@@ -36,17 +36,17 @@ performance. If you'd prefer to target a specific number of threads without
 exceeding `navigator.hardwareConcurrency`, you should clamp the value (e.g.,
 `Math.min(navigator.hardwareConcurrency ?? 1, yourTargetThreadCount)`).
 
-> If you'd like to enable multithreading on newer versions of Safari, you will
-> need to use some form of
+> If you're targeting newer versions of Safari and would like to enable
+> multithreading, you will need to use some form of
 > [user agent sniffing](https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent)
 > or a [polyfill](https://github.com/oftn-oswg/core-estimator) for
 > navigator.hardwareConcurrency.
 
 ## Wait... that's it?
 
-That's pretty much it, yeah! Using the parameter descriptors of a system,
-Thyseus is able to determine what systems can run in workers (as opposed to the
-main thread only) as well as what systems can run in parallel. **In other words,
+Yep, that's pretty much it! Using the parameter descriptors of a system, Thyseus
+is able to determine what systems can run in workers (as opposed to the main
+thread only) as well as what systems can run in parallel. **In other words,
 because Thyseus requires you to declare what data you are using and how, it
 knows how to parallelize your systems for maximum performance without you
 needing to do anything more.**
@@ -75,8 +75,6 @@ more likely it is that that system will not be able to run in parallel with
 other systems. If there are more systems that can run in parallel (even if there
 are more systems overall), threads will spend less time waiting for data to
 become free and more time running your code!
-
---
 
 In general, the more granular your data and data access, the better!
 

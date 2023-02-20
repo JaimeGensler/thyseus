@@ -139,8 +139,34 @@ called if it exists** - you cannot use this method name for something else!
 System Resources are a variation of resources that are unique _per system_,
 rather than per world. This means that multiple system resources of the same
 type can exist in the world. System resources are always considered mutable, as
-they are owned by a single system.
+they are owned by a single system. A single system may also have multiple of the
+same type of system resource, each containing different values. For example:
+
+```ts
+import { defineSystem, struct } from 'thyseus';
+
+@struct
+class A {
+	@struct.u32 declare value: number;
+}
+
+const mySystem = defineSystem(
+	({ SystemRes }) => [SystemRes(A), SystemRes(A)],
+	function mySystem(a1, a2) {
+		console.log(a1 !== a2); // -> true
+	},
+);
+```
+
+In the above example, _two_ system resources are created for our system, each
+with their own values.
+
+If using multithreading, system resources - like normal resources - will be
+considered callable from any thread if decorated by `@struct`, and will be bound
+to the main thread otherwise. For structs, their values will be consistent
+across threads, making them a good replacement for mutable local closures, if
+necessary.
 
 Apart from their scope, system resources function identically to normal
-resources. In fact, the same class could be used both as a system resource and
-as a world resource!
+resources, `initialize` and all. In fact, the same class could be used both as a
+system resource and as a world resource!

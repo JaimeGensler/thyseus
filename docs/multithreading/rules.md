@@ -167,3 +167,6 @@ function aSystem() {
 	console.log(myCollectionOfConstants);
 }
 ```
+
+If you need data that's "local" to a system and can safely be mutated, you may
+want [system resources](../resources.md#system-resources).
