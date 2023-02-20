@@ -1,15 +1,16 @@
-import { memory } from '../utils/memory';
+import { memory, type MemoryViews } from '../utils/memory';
 import type { Struct } from '../struct';
 
 export class EventReader<T> {
 	#struct: Struct;
-	#instance: T & { __$$b: number };
+	#instance: T & { __$$b: number; __$$s: MemoryViews };
 	#pointer: number; // [length, capacity, pointerStart, ...defaultData]
 
 	constructor(struct: Struct & { new (): T }, pointer: number) {
 		this.#instance = new struct() as any;
 		this.#struct = struct;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access
+		this.#instance.__$$s = memory.views;
 	}
 
 	/**
@@ -45,13 +46,14 @@ export class EventReader<T> {
 
 export class EventWriter<T> {
 	#struct: Struct;
-	#instance: T & { __$$b: number };
+	#instance: T & { __$$b: number; __$$s: MemoryViews };
 	#pointer: number; // [length, capacity, pointerStart, ...defaultData]
 
 	constructor(struct: Struct & { new (): T }, pointer: number) {
 		this.#struct = struct;
 		this.#instance = new struct() as any;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access.
+		this.#instance.__$$s = memory.views;
 	}
 
 	/**
@@ -70,18 +72,19 @@ export class EventWriter<T> {
 
 	/**
 	 * Creates a new event and returns a mutable instance of that event.
-	 *
-	 * Returned objects will be reused.
+	 * Returned instance will be reused.
 	 *
 	 * @returns A mutable instance of the event.
 	 */
 	create(): T {
-		this.#instance.__$$b = this.#addEvent();
+		const byteOffset = this.#addEvent();
+		this.#instance.__$$b = byteOffset;
+		memory.copy((this.#pointer + 3) << 2, this.#struct.size!, byteOffset);
 		return this.#instance;
 	}
 
 	/**
-	 * Creates an event from a passed instance of a struct.
+	 * Creates an event on the queue from a passed instance of a struct.
 	 * @param instance The event to add to the event queue.
 	 */
 	createFrom(instance: T): void {
@@ -100,7 +103,7 @@ export class EventWriter<T> {
 	 */
 	createDefault(): void {
 		memory.copy(
-			memory.views.u32[this.#pointer + 3],
+			(this.#pointer + 3) << 2,
 			this.#struct.size!,
 			this.#addEvent(),
 		);
@@ -138,5 +141,109 @@ export class EventWriter<T> {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, describe, vi } = import.meta.vitest;
+	const { it, expect, beforeEach } = import.meta.vitest;
+	const { struct } = await import('../struct');
+	const { initStruct } = await import('../storage');
+
+	const setupQueue = <T extends Struct>(queueType: T) => {
+		const pointer = memory.alloc(12 + queueType.size!);
+		memory.views.u8.set((new queueType() as any).__$$s.u8, pointer + 12);
+		return [
+			new EventReader<InstanceType<T>>(queueType as any, pointer),
+			new EventWriter<InstanceType<T>>(queueType as any, pointer),
+		] as const;
+	};
+	@struct
+	class A {
+		@struct.u32 declare value: number;
+		constructor(val = 3) {
+			initStruct(this);
+			this.value = val;
+		}
+	}
+
+	beforeEach(() => {
+		memory.init(1024);
+		return () => memory.UNSAFE_CLEAR_ALL();
+	});
+
+	it('EventReader.type and EventWriter.type point to the struct', () => {
+		const [reader, writer] = setupQueue(A);
+		expect(reader.type).toBe(A);
+		expect(writer.type).toBe(A);
+	});
+
+	it('EventWriter.createDefault adds (default) events', () => {
+		const [reader, writer] = setupQueue(A);
+		expect(reader.length).toBe(0);
+		expect(writer.length).toBe(0);
+
+		for (let i = 1; i <= 3; i++) {
+			writer.createDefault();
+			expect(reader.length).toBe(i);
+			expect(writer.length).toBe(i);
+		}
+
+		let iterations = 0;
+		for (const a of reader) {
+			expect(a).toBeInstanceOf(A);
+			expect(a.value).toBe(3);
+			iterations++;
+		}
+		expect(iterations).toBe(3);
+	});
+
+	it('EventWriter.clearAll() clears events immediately', () => {
+		const [reader, writer] = setupQueue(A);
+		expect(reader.length).toBe(0);
+		expect(writer.length).toBe(0);
+
+		writer.createDefault();
+		writer.createDefault();
+		expect(reader.length).toBe(2);
+		expect(writer.length).toBe(2);
+
+		writer.clearAll();
+		expect(reader.length).toBe(0);
+		expect(writer.length).toBe(0);
+	});
+
+	it('EventWriter.create() creates an event and returns a handle', () => {
+		const [reader, writer] = setupQueue(A);
+		expect(reader.length).toBe(0);
+		expect(writer.length).toBe(0);
+
+		const writeInstance = writer.create();
+		expect(reader.length).toBe(1);
+		expect(writer.length).toBe(1);
+		expect(writeInstance).toBeInstanceOf(A);
+		expect(writeInstance.value).toBe(3);
+		writeInstance.value = 10;
+
+		let iterations = 0;
+		for (const readInstance of reader) {
+			expect(readInstance).toBeInstanceOf(A);
+			expect(readInstance.value).toBe(10);
+			iterations++;
+		}
+		expect(iterations).toBe(1);
+	});
+
+	it('EventWriter.createFrom() creates an event from the passed instance', () => {
+		const [reader, writer] = setupQueue(A);
+		expect(reader.length).toBe(0);
+		expect(writer.length).toBe(0);
+
+		writer.createFrom(new A(16));
+		expect(reader.length).toBe(1);
+		expect(writer.length).toBe(1);
+
+		let iterations = 0;
+		for (const readInstance of reader) {
+			expect(readInstance).toBeInstanceOf(A);
+			expect(readInstance.value).toBe(16);
+			iterations++;
+		}
+		expect(iterations).toBe(1);
+	});
 }
