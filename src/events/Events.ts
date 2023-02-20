@@ -114,14 +114,29 @@ export class EventWriter<T> {
 	}
 
 	/**
-	 * Ensures enough space exists to add an event, increments length, returns a pointer to the new event (in queue).
+	 * Increments length, returns a pointer to the new event (in queue).
+	 * Will grow queue, if necessary.
 	 */
 	#addEvent(): number {
-		// TODO: Grow if necessary
 		const length = this.length;
+		if (length === memory.views.u32[this.#pointer + 1]) {
+			// Add space for 8 more events
+			memory.views.u32[this.#pointer + 2] = memory.realloc(
+				memory.views.u32[this.#pointer + 2],
+				length * this.#struct.size! + 8 * this.#struct.size!,
+			);
+			memory.views.u32[this.#pointer + 1] += 8;
+		}
 		memory.views.u32[this.#pointer]++;
 		return (
 			length * this.#struct.size! + memory.views.u32[this.#pointer + 2]
 		);
 	}
+}
+
+/*---------*\
+|   TESTS   |
+\*---------*/
+if (import.meta.vitest) {
+	const { it, expect, describe, vi } = import.meta.vitest;
 }
