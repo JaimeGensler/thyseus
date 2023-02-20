@@ -80,9 +80,14 @@ export class World {
 		this.executor = executor.fromWorld(this, systems, dependencies);
 
 		for (const eventType of eventTypes) {
-			const pointer = this.threads.queue(() =>
-				memory.alloc(12 + eventType.size!),
-			);
+			const pointer = this.threads.queue(() => {
+				const ptr = memory.alloc(12 + eventType.size!);
+				memory.views.u8.set(
+					(new eventType() as any).__$$s.u8,
+					ptr + 12,
+				);
+				return ptr;
+			});
 			this.eventReaders.push(new EventReader(eventType, pointer));
 			this.eventWriters.push(new EventWriter(eventType, pointer));
 		}
