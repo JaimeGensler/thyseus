@@ -13,14 +13,14 @@ import type { WorldConfig } from './config';
 import type { Plugin } from './definePlugin';
 
 export class WorldBuilder {
-	systems = [] as SystemDefinition[];
-	#systemDependencies = [] as SystemDependencies[];
-	#startupSystems = [] as SystemDefinition[];
+	systems: SystemDefinition[] = [];
+	#systemDependencies: SystemDependencies[] = [];
+	#startupSystems: SystemDefinition[] = [];
 
-	components = new Set<Struct>();
-	resources = new Set<Class>();
-	events = new Set<Struct>();
-	threadChannels = [] as ThreadMessageChannel[];
+	components: Set<Struct> = new Set();
+	resources: Set<Class> = new Set();
+	events: Set<Struct> = new Set();
+	threadChannels: ThreadMessageChannel[] = [];
 	executor: ExecutorType;
 
 	config: Readonly<WorldConfig>;
@@ -159,7 +159,7 @@ export class WorldBuilder {
 					...system.parameters.map(p => p.intoArgument(world)),
 				);
 			}
-			await applyCommands.fn(world);
+			await applyCommands.fn(world, new Map());
 		}
 
 		return world;
@@ -172,7 +172,7 @@ export class WorldBuilder {
 if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { defineSystem } = await import('../systems');
-	const { Entity } = await import('../storage');
+	const { Entity, initStruct } = await import('../storage');
 	const { memory } = await import('../utils/memory');
 
 	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
@@ -276,5 +276,18 @@ if (import.meta.vitest) {
 			dependencies: [],
 			implicitPosition: 0,
 		});
+	});
+
+	it('constructs struct resources correctly', async () => {
+		class StructClass {
+			static size = 1;
+			static alignment = 1;
+			constructor() {
+				initStruct(this);
+			}
+		}
+		const world = await World.new().registerResource(StructClass).build();
+		expect(world.resources[0]).toBeInstanceOf(StructClass);
+		expect((world.resources[0] as any).__$$b).not.toBe(0);
 	});
 }
