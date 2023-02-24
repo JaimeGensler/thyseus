@@ -6,8 +6,12 @@ export class EventReader<T> {
 	#instance: T & { __$$b: number; __$$s: MemoryViews };
 	#pointer: number; // [length, capacity, pointerStart, ...defaultData]
 
-	constructor(struct: Struct & { new (): T }, pointer: number) {
-		this.#instance = new struct() as any;
+	constructor(
+		struct: Struct & { new (): T },
+		pointer: number,
+		instance = new struct(),
+	) {
+		this.#instance = instance as any;
 		this.#struct = struct;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access
 		this.#instance.__$$s = memory.views;
@@ -27,7 +31,9 @@ export class EventReader<T> {
 		return memory.views.u32[this.#pointer];
 	}
 
-	*[Symbol.iterator](): Generator<T> {
+	*[Symbol.iterator](): this extends EventWriter<any>
+		? Iterator<T>
+		: Iterator<Readonly<T>> {
 		const size = this.#struct.size!;
 		this.#instance.__$$b = memory.views.u32[this.#pointer + 2];
 		for (let i = 0; i < this.length; i++) {
@@ -44,30 +50,18 @@ export class EventReader<T> {
 	}
 }
 
-export class EventWriter<T> {
+export class EventWriter<T> extends EventReader<T> {
 	#struct: Struct;
 	#instance: T & { __$$b: number; __$$s: MemoryViews };
 	#pointer: number; // [length, capacity, pointerStart, ...defaultData]
 
 	constructor(struct: Struct & { new (): T }, pointer: number) {
+		const instance = new struct() as any;
+		super(struct, pointer, instance);
 		this.#struct = struct;
-		this.#instance = new struct() as any;
+		this.#instance = instance;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access.
 		this.#instance.__$$s = memory.views;
-	}
-
-	/**
-	 * The event type (struct) for this queue.
-	 */
-	get type(): Struct {
-		return this.#struct;
-	}
-
-	/**
-	 * The number of events of this type currently in the queue.
-	 */
-	get length(): number {
-		return memory.views.u32[this.#pointer];
 	}
 
 	/**
@@ -112,7 +106,7 @@ export class EventWriter<T> {
 	/**
 	 * **Immediately** clears all events in this queue.
 	 */
-	clearAll(): void {
+	clearImmediate(): void {
 		memory.views.u32[this.#pointer] = 0;
 	}
 
@@ -191,6 +185,14 @@ if (import.meta.vitest) {
 			iterations++;
 		}
 		expect(iterations).toBe(3);
+
+		iterations = 0;
+		for (const a of writer) {
+			expect(a).toBeInstanceOf(A);
+			expect(a.value).toBe(3);
+			iterations++;
+		}
+		expect(iterations).toBe(3);
 	});
 
 	it('EventWriter.clearAll() clears events immediately', () => {
@@ -203,7 +205,7 @@ if (import.meta.vitest) {
 		expect(reader.length).toBe(2);
 		expect(writer.length).toBe(2);
 
-		writer.clearAll();
+		writer.clearImmediate();
 		expect(reader.length).toBe(0);
 		expect(writer.length).toBe(0);
 	});
