@@ -1,17 +1,15 @@
-import { memory, MemoryViews } from '../utils/memory';
+import { memory, type MemoryViews } from '../utils/memory';
 import { Entity, type Table } from '../storage';
 import type { Struct } from '../struct';
 import type { World, Commands } from '../world';
 import type { Mut, Optional, Filter } from './modifiers';
 
 type Accessors = object | object[];
-type QueryIterator<A extends Accessors> = Iterator<
-	A extends any[]
-		? {
-				[Index in keyof A]: IteratorItem<A[Index]>;
-		  }
-		: IteratorItem<A>
->;
+type QueryIteration<A extends Accessors> = A extends any[]
+	? {
+			[Index in keyof A]: IteratorItem<A[Index]>;
+	  }
+	: IteratorItem<A>;
 type IteratorItem<I> = I extends Optional<infer X>
 	? X extends Mut<infer Y>
 		? Y | null
@@ -31,7 +29,6 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	#components: Struct[];
 	#isIndividual: boolean;
 	#commands: Commands;
-	#views: MemoryViews;
 	constructor(
 		withFilters: bigint[],
 		withoutFilters: bigint[],
@@ -44,23 +41,25 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		this.#isIndividual = isIndividual;
 		this.#components = components;
 		this.#commands = world.commands;
-		this.#views = memory.views;
 		this.#elements = this.#components.map(Component => {
 			const result =
 				Component === Entity
 					? //@ts-ignore
 					  (new Component(this.#commands) as Element)
 					: (new Component() as Element);
-			result.__$$s = this.#views;
+			result.__$$s = memory.views;
 			return result;
 		});
 	}
 
-	get size(): number {
+	/**
+	 * The number of entities that match this query.
+	 */
+	get length(): number {
 		return this.#tables.reduce((acc, val) => acc + val.size, 0);
 	}
 
-	*[Symbol.iterator](): QueryIterator<A> {
+	*[Symbol.iterator](): Iterator<QueryIteration<A>> {
 		if (this.#elementOffset >= this.#elements.length) {
 			this.#elements.push(
 				...this.#components.map(Component => {
@@ -69,7 +68,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 							? //@ts-ignore
 							  (new Component(this.#commands) as Element)
 							: (new Component() as Element);
-					result.__$$s = this.#views;
+					result.__$$s = memory.views;
 					return result;
 				}),
 			);
@@ -109,6 +108,18 @@ export class Query<A extends Accessors, F extends Filter = []> {
 				}
 			}
 		}
+	}
+
+	/**
+	 * If this query matches **exactly** one element, returns the queried component(s).
+	 * Otherwise, throws an error.
+	 */
+	single(): QueryIteration<A> {
+		if (this.length !== 1) {
+			throw new Error('Tried ');
+		}
+		// TODO
+		return [] as any;
 	}
 
 	testAdd(tableId: bigint, table: Table): void {
@@ -160,18 +171,18 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const query1 = new Query([0b0001n], [0b0000n], false, [], world);
 		const table: Table = { size: 1 } as any;
-		expect(query1.size).toBe(0);
+		expect(query1.length).toBe(0);
 		query1.testAdd(0b0001n, table);
-		expect(query1.size).toBe(1);
+		expect(query1.length).toBe(1);
 		query1.testAdd(0b0010n, table);
-		expect(query1.size).toBe(1);
+		expect(query1.length).toBe(1);
 
 		const query2 = new Query([0b0100n], [0b1011n], false, [], world);
-		expect(query2.size).toBe(0);
+		expect(query2.length).toBe(0);
 		query2.testAdd(0b0110n, table);
-		expect(query2.size).toBe(0);
+		expect(query2.length).toBe(0);
 		query2.testAdd(0b0100n, table);
-		expect(query2.size).toBe(1);
+		expect(query2.length).toBe(1);
 
 		const query3 = new Query(
 			[0b0001n, 0b0010n, 0b0100n],
@@ -180,17 +191,17 @@ if (import.meta.vitest) {
 			[],
 			world,
 		);
-		expect(query3.size).toBe(0);
+		expect(query3.length).toBe(0);
 		query3.testAdd(0b0001n, table); // Passes 1
-		expect(query3.size).toBe(1);
+		expect(query3.length).toBe(1);
 		query3.testAdd(0b0010n, table); // Passes 2
-		expect(query3.size).toBe(2);
+		expect(query3.length).toBe(2);
 		query3.testAdd(0b0100n, table); // Passes 3
-		expect(query3.size).toBe(3);
+		expect(query3.length).toBe(3);
 		query3.testAdd(0b0110n, table); // Fails 1 With, 2/3 without
-		expect(query3.size).toBe(3);
+		expect(query3.length).toBe(3);
 		query3.testAdd(0b1001n, table); // Fails 1 Without, 2/3 With
-		expect(query3.size).toBe(3);
+		expect(query3.length).toBe(3);
 	});
 
 	describe('iteration', () => {
@@ -218,10 +229,10 @@ if (import.meta.vitest) {
 			const table2 = createTable(world, Entity, Vec3);
 			query.testAdd(0n, table1);
 			query.testAdd(0n, table2);
-			expect(query.size).toBe(0);
+			expect(query.length).toBe(0);
 			for (let i = 0; i < 10; i++) {
 				spawnIntoTable(i, i < 5 ? table1 : table2);
-				expect(query.size).toBe(i + 1);
+				expect(query.length).toBe(i + 1);
 			}
 			let j = 0;
 			for (const [vec, ent] of query) {
@@ -247,10 +258,10 @@ if (import.meta.vitest) {
 
 			query.testAdd(0n, noVecTable);
 			query.testAdd(0n, vecTable);
-			expect(query.size).toBe(0);
+			expect(query.length).toBe(0);
 			for (let i = 0; i < 10; i++) {
 				spawnIntoTable(i, i < 5 ? noVecTable : vecTable);
-				expect(query.size).toBe(i + 1);
+				expect(query.length).toBe(i + 1);
 			}
 			let j = 0;
 			for (const [vec, ent] of query) {
@@ -272,10 +283,10 @@ if (import.meta.vitest) {
 			const table = createTable(world, Entity, Vec3);
 
 			query.testAdd(0n, table);
-			expect(query.size).toBe(0);
+			expect(query.length).toBe(0);
 			for (let i = 0; i < 10; i++) {
 				spawnIntoTable(i, table);
-				expect(query.size).toBe(i + 1);
+				expect(query.length).toBe(i + 1);
 			}
 			let j = 0;
 			for (const vec of query) {
@@ -297,10 +308,10 @@ if (import.meta.vitest) {
 			const table = createTable(world, Entity, Vec3);
 
 			query.testAdd(0n, table);
-			expect(query.size).toBe(0);
+			expect(query.length).toBe(0);
 			for (let i = 0; i < 8; i++) {
 				spawnIntoTable(i, table);
-				expect(query.size).toBe(i + 1);
+				expect(query.length).toBe(i + 1);
 			}
 
 			let i = 0;
