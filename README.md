@@ -19,8 +19,8 @@ out of the box, including:
     a little bit of ✨ magic ✨ to do what it needs to, and **_will never use
     unsafe code_**.
 -   Archetypal storage for lean memory use and cache-friendly iteration.
--   Dynamically sized types with `string`s!
--   Complex queries with `Optional`, `With`, `Without`, `And`, and `Or` filters!
+-   Dynamically sized types with `string`s.
+-   Complex queries with `Optional`, `With`, `Without`, `And`, and `Or` filters.
 
 **Please note: Thyseus is in early development and is not yet feature-complete
 or nearly as performant as it could be. Pre-1.0.0 releases may have frequent
