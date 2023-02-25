@@ -115,9 +115,16 @@ if (import.meta.vitest) {
 
 	describe('intoArgument', () => {
 		it('returns an event reader/writer', () => {
+			const commands = {} as any;
 			const world = {
-				eventReaders: [new EventReader(A, 0), new EventReader(B, 0)],
-				eventWriters: [new EventWriter(A, 0), new EventWriter(B, 0)],
+				eventReaders: [
+					new EventReader(commands, A, 0),
+					new EventReader(commands, B, 0),
+				],
+				eventWriters: [
+					new EventWriter(commands, A, 0),
+					new EventWriter(commands, B, 0),
+				],
 			} as any;
 			const rdResult = new EventReaderDescriptor(A).intoArgument(world);
 			const wrResult = new EventWriterDescriptor(B).intoArgument(world);
