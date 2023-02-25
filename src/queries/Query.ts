@@ -1,7 +1,8 @@
 import { memory, type MemoryViews } from '../utils/memory';
 import { Entity, type Table } from '../storage';
 import type { Struct } from '../struct';
-import type { World, Commands } from '../world';
+import type { World } from '../world';
+import type { Commands } from '../commands';
 import type { Mut, Optional, Filter } from './modifiers';
 
 type Accessors = object | object[];
@@ -116,7 +117,9 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	 */
 	single(): QueryIteration<A> {
 		if (this.length !== 1) {
-			throw new Error('Tried ');
+			throw new Error(
+				'Tried Query.single() on a query that had multiple matches',
+			);
 		}
 		// TODO
 		return [] as any;

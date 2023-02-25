@@ -88,8 +88,12 @@ export class World {
 				);
 				return ptr;
 			});
-			this.eventReaders.push(new EventReader(eventType, pointer));
-			this.eventWriters.push(new EventWriter(eventType, pointer));
+			this.eventReaders.push(
+				new EventReader(this.commands, eventType, pointer),
+			);
+			this.eventWriters.push(
+				new EventWriter(this.commands, eventType, pointer),
+			);
 		}
 
 		for (const Resource of resourceTypes) {
