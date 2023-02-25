@@ -1,27 +1,67 @@
+import { memory } from '../utils/memory';
 import { defineSystem } from '../systems/defineSystem';
+import {
+	ADD_COMPONENT_COMMAND,
+	CLEAR_QUEUE_COMMAND,
+	REMOVE_COMPONENT_COMMAND,
+} from './Commands';
 
 export const applyCommands = defineSystem(
-	({ World }) => [World()],
-	function applyCommands(world) {
-		world.entities.resetCursor();
+	({ World, SystemRes }) => [World(), SystemRes<Map<bigint, bigint>>(Map)],
+	function applyCommands(world, entityDestinations) {
+		const { commands, entities, archetypes, components } = world;
+		entities.resetCursor();
+		entityDestinations.clear();
 
-		for (const [entityId, tableId] of world.commands.getDestinations()) {
+		for (const { type, dataStart } of commands) {
+			if (type === CLEAR_QUEUE_COMMAND) {
+				const queueLengthPointer = memory.views.u32[dataStart >> 2];
+				memory.views.u32[queueLengthPointer >> 2] = 0;
+			}
+			if (
+				type !== ADD_COMPONENT_COMMAND &&
+				type !== REMOVE_COMPONENT_COMMAND
+			) {
+				continue;
+			}
+			const entityId = memory.views.u64[dataStart >> 3];
+			let val = entityDestinations.get(entityId);
+			if (val === 0n) {
+				continue;
+			}
+			const componentId = memory.views.u16[(dataStart + 8) >> 1];
+			val ??= entities.getBitset(entityId);
+			entityDestinations.set(
+				entityId,
+				type === ADD_COMPONENT_COMMAND
+					? val | (1n << BigInt(componentId))
+					: componentId === 0
+					? 0n
+					: val ^ (1n << BigInt(componentId)),
+			);
+		}
+		for (const [entityId, tableId] of entityDestinations) {
 			world.moveEntity(entityId, tableId);
 		}
 
-		for (const { entityId, componentId, dataStart } of world.commands) {
-			const tableId = world.entities.getTableIndex(entityId);
+		for (const { type, dataStart } of commands) {
+			if (type !== ADD_COMPONENT_COMMAND) {
+				continue;
+			}
+			const entityId = memory.views.u64[dataStart >> 3];
+			const tableId = entities.getTableIndex(entityId);
 			if (tableId === 0 || tableId === 1) {
 				continue;
 			}
-			world.archetypes[tableId].copyComponentIntoRow(
-				world.entities.getRow(entityId),
-				world.components[componentId],
-				dataStart,
+			const componentId = memory.views.u32[(dataStart + 8) >> 2];
+			archetypes[tableId].copyComponentIntoRow(
+				entities.getRow(entityId),
+				components[componentId],
+				dataStart + 16,
 			);
 		}
 
-		world.commands.reset();
+		commands.reset();
 	},
 );
 
@@ -92,7 +132,7 @@ if (import.meta.vitest) {
 		const moveEntitySpy = vi.spyOn(myWorld, 'moveEntity');
 		myWorld.commands.spawn().addType(CompA).add(new CompD());
 		myWorld.commands.spawn().addType(CompB).addType(ZST).add(new CompD());
-		await applyCommands.fn(myWorld);
+		await applyCommands.fn(myWorld, new Map());
 		expect(moveEntitySpy).toHaveBeenCalledTimes(2);
 		expect(moveEntitySpy).toHaveBeenCalledWith(0n, 0b100101n);
 		expect(moveEntitySpy).toHaveBeenCalledWith(1n, 0b101011n);
@@ -101,7 +141,7 @@ if (import.meta.vitest) {
 	it('initializes data', async () => {
 		const myWorld = await createWorld();
 		myWorld.commands.spawn().addType(CompA).add(new CompD(1, 2));
-		await applyCommands.fn(myWorld);
+		await applyCommands.fn(myWorld, new Map());
 		const archetypeD = myWorld.archetypes[2];
 		const testComp = new CompD();
 
@@ -110,5 +150,18 @@ if (import.meta.vitest) {
 		expect(archetypeD.size).toBe(1);
 		expect(testComp.x).toBe(1);
 		expect(testComp.y).toBe(2);
+	});
+
+	it('clears queues', async () => {
+		const myWorld = await World.new().registerEvent(CompA).build();
+
+		const writer = myWorld.eventWriters[0];
+		expect(writer.length).toBe(0);
+		writer.createDefault();
+		expect(writer.length).toBe(1);
+		writer.clear();
+		expect(writer.length).toBe(1);
+		await applyCommands.fn(myWorld, new Map());
+		expect(writer.length).toBe(0);
 	});
 }
