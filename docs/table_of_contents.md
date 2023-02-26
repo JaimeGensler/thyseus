@@ -1,19 +1,19 @@
 # Table of Contents
 
 -   [Overview](./overview.md)
--   (TODO) Installation
--   (TODO) Getting Started
--   (TODO) Entities
+-   [Installation & Setup](./installation_and_setup.md)
+-   [Getting Started](./getting_started.md)
 -   [Components](./components.md)
 -   [Systems](./systems.md)
+-   (TODO) Entities
 -   [Queries](./queries.md)
 -   [Resources](./resources.md)
--   (TODO) Events
+-   [Events](./events.md)
 -   [Multithreading](./multithreading/index.md)
     -   [Rules](./multithreading/rules.md)
     -   [Using Multiple Threads](./multithreading/using_multiple_threads.md)
 -   [Glossary](./glossary.md)
--   (TODO) Complete API
+-   [Complete API Docs](./complete_api_docs.md)
 -   [Advanced Patterns](./advanced_patterns/index.md)
     -   [Custom System Parameters](./advanced_patterns/custom_system_parameters.md)
     -   (TODO) Handwritten Structs
