@@ -19,7 +19,7 @@ export function substruct(struct: Struct) {
 			get() {
 				return createManagedStruct(
 					struct,
-					this.__$$b + offset[propertyKey] * struct.alignment!,
+					this.__$$b + offset[propertyKey],
 				);
 			},
 			set(value: any) {

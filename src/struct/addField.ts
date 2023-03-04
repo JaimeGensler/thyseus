@@ -15,8 +15,8 @@ export type PrimitiveName = keyof typeof TYPE_TO_CONSTRUCTOR;
 let currentAlignment = 1;
 let currentSize = 0;
 
-let keys: (string | symbol)[] = [];
-let alignments: number[] = [];
+const keys: (string | symbol)[] = [];
+const alignments: number[] = [];
 let currentOffset: Record<string | symbol, number> = {};
 let currentPointers: Record<string | symbol, number[]> = {};
 
@@ -79,10 +79,6 @@ export function resetFields() {
 	};
 	currentSize = 0;
 	currentAlignment = 1;
-
-	for (let i = 0; i < keys.length; i++) {
-		currentOffset[keys[i]] /= alignments[i];
-	}
 
 	currentOffset = {};
 	keys.length = 0;

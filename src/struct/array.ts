@@ -21,14 +21,14 @@ export function array({ type, length }: ArrayOptions) {
 			enumerable: true,
 			get() {
 				return memory.views[type].subarray(
-					(this.__$$b >> shift) + offset[propertyKey],
-					(this.__$$b >> shift) + offset[propertyKey] + length,
+					(this.__$$b + offset[propertyKey]) >> shift,
+					((this.__$$b + offset[propertyKey]) >> shift) + length,
 				);
 			},
 			set(value: Uint8Array) {
 				(memory.views[type] as Uint8Array).set(
 					value.subarray(0, length),
-					(this.__$$b >> shift) + offset[propertyKey],
+					(this.__$$b + offset[propertyKey]) >> shift,
 				);
 			},
 		});

@@ -18,12 +18,12 @@ function createPrimativeFieldDecorator(typeName: PrimitiveName) {
 			enumerable: true,
 			get() {
 				return memory.views[typeName][
-					(this.__$$b >> shift) + offset[propertyKey]
+					(this.__$$b + offset[propertyKey]) >> shift
 				];
 			},
 			set(value: number) {
 				memory.views[typeName][
-					(this.__$$b >> shift) + offset[propertyKey]
+					(this.__$$b + offset[propertyKey]) >> shift
 				] = value;
 			},
 		});
