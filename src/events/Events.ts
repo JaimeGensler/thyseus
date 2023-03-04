@@ -33,7 +33,7 @@ export class EventReader<T extends object> {
 	}
 
 	/**
-	 * The number of events of this type currently in the queue.
+	 * The number of events currently in this queue.
 	 */
 	get length(): number {
 		return memory.views.u32[this.#pointer];
