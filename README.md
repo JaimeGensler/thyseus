@@ -22,6 +22,8 @@ out of the box, including:
 -   Dynamically sized types with `string`s.
 -   Complex queries with `Optional`, `With`, `Without`, `And`, and `Or` filters.
 
+[Check out the documentation here!](https://github.com/JaimeGensler/thyseus-docs)
+
 **Please note: Thyseus is in early development and is not yet feature-complete
 or nearly as performant as it could be. Pre-1.0.0 releases may have frequent
 breaking changes.**
@@ -38,17 +40,6 @@ yarn add thyseus
 # npm
 npm i thyseus
 ```
-
-## Documentation
-
-Documentation is currently a work on progress, and is being written in no
-particular order. Checkout the [docs](./docs/) section to see if your questions
-are answered there, or feel free to
-[open an issue](https://github.com/JaimeGensler/thyseus/issues/new) if you'd
-like to see something in particular sooner!
-
-As always, if you'd like to read about new features, the
-[changelog](./CHANGELOG.md) is kept up-to-date.
 
 ## Contributing
 
