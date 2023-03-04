@@ -470,9 +470,8 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const { commands } = world;
 		expect(() => commands.insertTypeInto(0n, Entity)).toThrow();
-		expect(() =>
-			commands.insertInto(0n, new Entity(commands, 1n)),
-		).toThrow();
+
+		expect(() => commands.insertInto(0n, new Entity(commands))).toThrow();
 		expect(() => commands.removeFrom(0n, Entity)).toThrow();
 	});
 
