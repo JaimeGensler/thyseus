@@ -49,7 +49,9 @@
 
 -   Switch to `tsup` for type bundling.
 -   Query `for...of` iteration has been cleaned up a bit and should not create
-    objects.
+    objects
+-   Reduced default memory size to 64 MB - the original default (512MB) was way
+    too aggressive. May be reduced further or slightly bumped in the future.
 
 ## v0.10.0
 

@@ -13,7 +13,7 @@ const MB = 1_048_576;
 
 const getCompleteConfig = (config: Partial<WorldConfig> | undefined = {}) => ({
 	threads: 1,
-	memory: 512 * MB,
+	memory: 64 * MB,
 	getNewTableSize: (prev: number) => (prev === 0 ? 8 : prev * 2),
 	...config,
 });
