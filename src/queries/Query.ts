@@ -95,21 +95,6 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		this.#elements.push(elements as Element[]);
 	}
 
-	/**
-	 * If this query matches **exactly** one element, returns the queried component(s).
-	 * Otherwise, throws an error.
-	 */
-	single(): QueryIteration<A> {
-		if (this.length !== 1) {
-			throw new Error(
-				'Tried Query.single() on a query that had multiple matches',
-			);
-		}
-
-		// TODO
-		return [] as any;
-	}
-
 	forEach(
 		callback: (
 			...components: A extends any[]
