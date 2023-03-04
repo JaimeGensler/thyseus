@@ -1,5 +1,56 @@
 # Changelog
 
+## v0.11.0
+
+### 💥 Breaking Changes
+
+-   The `size` property on `Query` instances has been renamed to `length`.
+-   Removed `__$$s` property from struct instances - structs now use
+    `memory.views` and allocate when they are constructed.
+    -   **_All_** structs that are not managed by Thyseus (i.e., that you
+        construct yourself with `new YourStruct()`) will need to call
+        `dropStruct()` when they go out of scope.
+    -   Structs cannot be created before memory has been initialized.
+    -   If you're having trouble migrating old code after this schange, please
+        feel free to
+        [open an issue](https://github.com/JaimeGensler/thyseus/issues/new/choose).
+-   `commands.spawn()` and `commands.getEntityById()` return an instance of
+    `EntityCommands` instead of an `Entity` component.
+    -   `EntityCommands` does _not_ have getters for generation and index -
+        otherwise, this change has no impact.
+-   `world.resources` has changed from a map of classes to instances
+    (`Map<Class, object>`) to an array of instances (`object[]`).
+    -   This does not impact you unless you access `world.resources` directly.
+
+### ✨ Features
+
+-   Added Events!
+    -   Events are useful for cross-system communication. They can be used with
+        two new system parameters - `EventReader<T>` and `EventWriter<T>`, which
+        are generic over structs.
+    -   `EventWriter` can push events to the event queue, and `EventReader` can
+        read events from the queue.
+    -   Check the docs page for full documentation.
+-   Added `query.forEach()`.
+    -   For those that prefer a functional approach to iteration - provide a
+        callback, which will be called once for each queried entity.
+    -   The callback receives as many arguments as components were queried for,
+        so there is no difference between queries for single components vs.
+        queries for multiple components.
+
+### 🐛 Bug Fixes
+
+-   Fixed struct resources not being constructed correctly and added a test for
+    it this time :)
+-   Fixed `SystemRes` constructing on worker threads even if resources were
+    main-thread-only.
+
+### 🔧 Maintenance
+
+-   Switch to `tsup` for type bundling.
+-   Query `for...of` iteration has been cleaned up a bit and should not create
+    objects.
+
 ## v0.10.0
 
 Introducing a new strategy for handling memory, which allows dynamically sized

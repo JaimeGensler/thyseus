@@ -1,6 +1,6 @@
 {
 	"name": "thyseus",
-	"version": "0.10.0",
+	"version": "0.11.0",
 	"description": "An archetypal Entity Component System for the modern web.",
 	"author": "Jaime Gensler",
 	"license": "MIT",
@@ -8,13 +8,13 @@
 	"files": [
 		"dist"
 	],
-	"main": "./dist/thyseus.umd.cjs",
-	"module": "./dist/thyseus.js",
-	"types": "./dist/thyseus.d.ts",
+	"main": "./dist/index.umd.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./dist/thyseus.js",
-			"require": "./dist/thyseus.umd.cjs"
+			"import": "./dist/index.js",
+			"require": "./dist/index.umd.cjs"
 		},
 		"./package.json": "./package.json",
 		"./src/*": "./src/*"
@@ -25,7 +25,7 @@
 	},
 	"scripts": {
 		"start": "vite",
-		"build": "vite build && dts-bundle-generator ./src/index.ts -o ./dist/thyseus.d.ts --no-check --export-referenced-types=false",
+		"build": "vite build && tsup src/index.ts --dts-only",
 		"test": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"typecheck": "tsc --noEmit"
@@ -50,7 +50,7 @@
 	"devDependencies": {
 		"@vitest/coverage-c8": "^0.28.5",
 		"@vitest/web-worker": "^0.28.5",
-		"dts-bundle-generator": "^7.2.0",
+		"tsup": "^6.6.3",
 		"typescript": "^4.9.5",
 		"vite": "^4.1.2",
 		"vitest": "^0.28.5"
