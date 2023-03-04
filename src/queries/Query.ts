@@ -19,12 +19,11 @@ type IteratorItem<I> = I extends Optional<infer X>
 	: I extends Mut<infer X>
 	? X
 	: Readonly<I>;
-type Element = { __$$b: number };
+type Element = { __$$b: number; constructor: Struct };
 
 export class Query<A extends Accessors, F extends Filter = []> {
 	#tables: Table[] = [];
-	#elementOffset: number = 0;
-	#elements: Element[] = [];
+	#elements: Element[][] = [];
 
 	#with: bigint[];
 	#without: bigint[];
@@ -53,56 +52,47 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	}
 
 	*[Symbol.iterator](): Iterator<QueryIteration<A>> {
-		if (this.#elementOffset >= this.#elements.length) {
-			this.#elements.push(
-				...this.#components.map(
-					// TODO: 0 is not safe, must set to a real initial value
-					comp => {
-						const instance =
-							comp === Entity
-								? new (comp as any)(this.#commands)
-								: (new comp() as any);
-						dropStruct(instance);
-						return instance;
-					},
-				),
-			);
-		}
-
-		const elements: Array<Element | null> = this.#elements.slice(
-			this.#elementOffset,
-			this.#elementOffset + this.#components.length,
-		);
-		const offset = this.#elementOffset;
-		this.#elementOffset += this.#components.length;
+		let holds: (Element | null)[];
+		const elements = this.#getIteration();
 
 		for (const table of this.#tables) {
-			elements.forEach((_, i) => {
-				const element = this.#elements[i + offset];
-				if (!table.hasColumn(element.constructor as any)) {
+			if (table.size === 0) {
+				continue;
+			}
+			for (let i = 0; i < elements.length; i++) {
+				const element = elements[i] ?? holds![i]!;
+				const hasColumn = table.hasColumn(element.constructor);
+				if (!hasColumn && elements[i] !== null) {
+					holds ??= [];
+					holds[i] = elements[i];
 					elements[i] = null;
-				} else {
-					elements[i] = element;
-					elements[i]!.__$$b = table.getColumn(
-						element.constructor as any,
-					);
+				} else if (hasColumn) {
+					if (elements[i] === null) {
+						elements[i] = holds![i];
+						holds![i] = null;
+					}
+					element.__$$b = table.getColumn(element.constructor);
 				}
-			});
+			}
 
 			for (let i = 0; i < table.size; i++) {
-				if (this.#isIndividual) {
-					yield elements[0] as any;
-				} else {
-					yield elements as any;
-				}
+				yield (this.#isIndividual ? elements[0] : elements) as any;
 
 				for (const element of elements) {
 					if (element) {
-						element.__$$b += (element.constructor as Struct).size!;
+						element.__$$b += element.constructor.size!;
 					}
 				}
 			}
 		}
+		if (holds!) {
+			for (let i = 0; i < holds.length; i++) {
+				if (holds[i]) {
+					elements[i] = holds[i];
+				}
+			}
+		}
+		this.#elements.push(elements as Element[]);
 	}
 
 	/**
@@ -115,8 +105,41 @@ export class Query<A extends Accessors, F extends Filter = []> {
 				'Tried Query.single() on a query that had multiple matches',
 			);
 		}
+
 		// TODO
 		return [] as any;
+	}
+
+	forEach(
+		callback: (
+			...components: A extends any[]
+				? QueryIteration<A>
+				: [QueryIteration<A>]
+		) => void,
+	): void {
+		if (this.#isIndividual) {
+			for (const element of this) {
+				(callback as any)(element);
+			}
+		} else {
+			for (const elements of this) {
+				callback(...(elements as any));
+			}
+		}
+	}
+
+	#getIteration(): (Element | null)[] {
+		return (
+			this.#elements.pop() ??
+			(this.#components.map(comp => {
+				const instance =
+					comp === Entity
+						? new (comp as any)(this.#commands)
+						: (new comp() as any);
+				dropStruct(instance);
+				return instance;
+			}) as any)
+		);
 	}
 
 	testAdd(tableId: bigint, table: Table): void {
@@ -323,6 +346,51 @@ if (import.meta.vitest) {
 				}
 				i++;
 			}
+		});
+
+		it('forEach works for tuples and individual elements', async () => {
+			class Position extends Vec3 {}
+			class Velocity extends Vec3 {}
+			const world = await createWorld();
+			const queryTuple = new Query<[Position, Velocity]>(
+				[0n],
+				[0n],
+				false,
+				[Position, Velocity],
+				world,
+			);
+			const querySolo = new Query<Position>(
+				[0n],
+				[0n],
+				true,
+				[Position],
+				world,
+			);
+			const table = createTable(world, Entity, Position, Velocity);
+
+			queryTuple.testAdd(0n, table);
+			querySolo.testAdd(0n, table);
+			expect(queryTuple.length).toBe(0);
+			expect(querySolo.length).toBe(0);
+			for (let i = 0; i < 8; i++) {
+				spawnIntoTable(i, table);
+				expect(queryTuple.length).toBe(i + 1);
+				expect(querySolo.length).toBe(i + 1);
+			}
+
+			let tupleIter = 0;
+			queryTuple.forEach((pos, vel) => {
+				expect(pos).toBeInstanceOf(Position);
+				expect(vel).toBeInstanceOf(Velocity);
+				tupleIter++;
+			});
+			let soloIter = 0;
+			querySolo.forEach(pos => {
+				expect(pos).toBeInstanceOf(Position);
+				soloIter++;
+			});
+			expect(tupleIter).toBe(queryTuple.length);
+			expect(soloIter).toBe(querySolo.length);
 		});
 	});
 }
