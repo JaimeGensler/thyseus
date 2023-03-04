@@ -1,5 +1,4 @@
-import { DEV } from 'esm-env';
-import { assert } from '../utils/assert';
+import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 import { Or, With, Without, type Filter } from './modifiers';
 import type { Struct } from '../struct';
 import type { WorldBuilder } from '../world';
@@ -100,12 +99,12 @@ export function createFilterBitfields(
 	);
 	result.withs = result.withs.filter((_, i) => toKeep.has(i));
 	result.withouts = result.withouts.filter((_, i) => toKeep.has(i));
-	if (DEV) {
-		assert(
-			result.withs.length > 0,
-			'Tried to construct a query that cannot match any entities.',
-		);
-	}
+
+	DEV_ASSERT(
+		result.withs.length > 0,
+		'Tried to construct a query that cannot match any entities.',
+	);
+
 	return result;
 }
 

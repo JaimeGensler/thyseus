@@ -1,5 +1,4 @@
-import { DEV } from 'esm-env';
-import { assert } from '../utils/assert';
+import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 import { Query } from './Query';
 import { Mut, Optional, Filter, With, Without, Or } from './modifiers';
 import { registerFilters, createFilterBitfields } from './createRegisterFilter';
@@ -50,12 +49,12 @@ export class QueryDescriptor<
 						? accessor.value.value
 						: accessor.value
 					: accessor;
-			if (DEV) {
-				assert(
-					component.size! > 0,
-					'You may not request direct access to ZSTs - use a With filter instead.',
-				);
-			}
+
+			DEV_ASSERT(
+				component.size! > 0,
+				'You may not request direct access to ZSTs - use a With filter instead.',
+			);
+
 			this.components.push(component);
 		}
 		this.filters = filters;

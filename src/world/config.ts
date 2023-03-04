@@ -1,5 +1,4 @@
-import { DEV } from 'esm-env';
-import { assert } from '../utils/assert';
+import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 
 export type WorldConfig = {
 	threads: number;
@@ -24,26 +23,26 @@ const validateConfig = (
 	url: string | URL | undefined,
 ) => {
 	if (threads > 1) {
-		assert(
+		DEV_ASSERT(
 			isSecureContext,
 			'Invalid config - Multithreading (threads > 1) requires a secure context.',
 		);
-		assert(
+		DEV_ASSERT(
 			typeof SharedArrayBuffer !== 'undefined',
 			'Invalid config - Multithreading (threads > 1) requires SharedArrayBuffer.',
 		);
-		assert(
+		DEV_ASSERT(
 			url,
 			'Invalid config - Multithreading (threads > 1) requires a module URL parameter.',
 			TypeError,
 		);
 	}
-	assert(
+	DEV_ASSERT(
 		Number.isInteger(threads) && 0 < threads && threads < 64,
 		"Invalid config - 'threads' must be an integer such that 0 < threads < 64",
 		RangeError,
 	);
-	assert(
+	DEV_ASSERT(
 		Number.isInteger(memory) && memory < 2 ** 32,
 		"Invalid config - 'memory' must be at most 4 GB ((2**32) - 1 bytes)",
 	);
@@ -53,9 +52,7 @@ export function validateAndCompleteConfig(
 	url: string | URL | undefined,
 ) {
 	const completeConfig = getCompleteConfig(inConfig);
-	if (DEV) {
-		validateConfig(completeConfig, url);
-	}
+	validateConfig(completeConfig, url);
 	return completeConfig;
 }
 

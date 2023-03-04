@@ -1,17 +1,15 @@
-import { DEV } from 'esm-env';
-import { assert } from '../utils/assert';
+import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 import { memory } from '../utils/memory';
 import type { Struct } from '../struct';
 
 let byteOffset = 0;
 
 export function initStruct(instance: object): void {
-	if (DEV) {
-		assert(
-			memory.isInitialized, // Structs require memory to be initialized.
-			'Tried to create a struct before memory was initialized.',
-		);
-	}
+	DEV_ASSERT(
+		memory.isInitialized, // Structs require memory to be initialized.
+		'Tried to create a struct before memory was initialized.',
+	);
+
 	if ((instance as any).__$$b) {
 		return; // We already initialized this struct, likely in the super() call.
 	}

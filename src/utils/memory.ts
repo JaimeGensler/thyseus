@@ -1,5 +1,4 @@
-import { DEV } from 'esm-env';
-import { assert } from './assert';
+import { DEV_ASSERT } from './DEV_ASSERT';
 import { alignTo8 } from './alignTo8';
 
 type Pointer = number;
@@ -139,12 +138,11 @@ function alloc(size: number): Pointer {
  * @param pointer The pointer to free.
  */
 function free(pointer: Pointer): void {
-	if (DEV) {
-		assert(
-			pointer % 8 === 0,
-			'Invalid pointer in free - pointer was not correctly aligned.',
-		);
-	}
+	DEV_ASSERT(
+		pointer % 8 === 0,
+		'Invalid pointer in free - pointer was not correctly aligned.',
+	);
+
 	if (pointer === NULL_POINTER || pointer === 0) {
 		return;
 	}
@@ -187,12 +185,11 @@ function free(pointer: Pointer): void {
  * @returns The new pointer.
  */
 function realloc(pointer: Pointer, newSize: number): Pointer {
-	if (DEV) {
-		assert(
-			pointer % 8 === 0,
-			'Invalid pointer in realloc - pointer was not correctly aligned.',
-		);
-	}
+	DEV_ASSERT(
+		pointer % 8 === 0,
+		'Invalid pointer in realloc - pointer was not correctly aligned.',
+	);
+
 	if (pointer === NULL_POINTER || pointer === 0) {
 		return alloc(newSize);
 	}
