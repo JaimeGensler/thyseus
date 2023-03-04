@@ -22,11 +22,7 @@ out of the box, including:
 -   Dynamically sized types with `string`s.
 -   Complex queries with `Optional`, `With`, `Without`, `And`, and `Or` filters.
 
-<p>
-	<a href="https://github.com/JaimeGensler/thyseus-docs" target="_blank">
-		Check out the documentation here!
-	</a>
-</p>
+[Check out the documentation here!](https://github.com/JaimeGensler/thyseus-docs)
 
 **Please note: Thyseus is in early development and is not yet feature-complete
 or nearly as performant as it could be. Pre-1.0.0 releases may have frequent
