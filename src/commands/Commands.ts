@@ -1,7 +1,7 @@
-import { DEV } from 'esm-env';
-import { assert } from '../utils/assert';
+import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 import { alignTo8 } from '../utils/alignTo8';
 import { memory } from '../utils/memory';
+import { EntityCommands } from './EntityCommands';
 import { Entity, type Entities } from '../storage';
 import type { Struct } from '../struct';
 import type { World } from '../world';
@@ -81,9 +81,9 @@ export class Commands {
 
 	/**
 	 * Queues an entity to be spawned.
-	 * @returns An `Entity` instance, to add/remove components from an entity.
+	 * @returns `EntityCommands`, which can add/remove components from an entity.
 	 */
-	spawn(): Entity {
+	spawn(): EntityCommands {
 		const entityId = this.#entities.spawn();
 		const dataStart = this.#pushComponentCommand(
 			ADD_COMPONENT_COMMAND,
@@ -91,7 +91,7 @@ export class Commands {
 			Entity,
 		);
 		memory.views.u64[dataStart >> 3] = entityId;
-		return new Entity(this, entityId);
+		return new EntityCommands(this, entityId);
 	}
 
 	/**
@@ -104,13 +104,12 @@ export class Commands {
 	}
 
 	/**
-	 * Gets an entity to modify.
+	 * Gets `EntityCommands` for an Entity.
 	 * @param id The id of the entity to get.
-	 * @returns An `Entity` instance, to add/remove components from an entity.
+	 * @returns `EntityCommands`, which can add/remove components from an entity.
 	 */
-	getEntityById(id: bigint): Entity {
-		// TODO: These need to be dropped!
-		return new Entity(this, id);
+	getEntityById(id: bigint): EntityCommands {
+		return new EntityCommands(this, id);
 	}
 
 	insertInto<T extends object>(
@@ -118,12 +117,12 @@ export class Commands {
 		component: NotFunction<T>,
 	): void {
 		const componentType: Struct = component.constructor as any;
-		if (DEV) {
-			assert(
-				componentType !== Entity,
-				'Tried to add Entity component, which is forbidden.',
-			);
-		}
+
+		DEV_ASSERT(
+			componentType !== Entity,
+			'Tried to add Entity component, which is forbidden.',
+		);
+
 		const dataStart = this.#pushComponentCommand(
 			ADD_COMPONENT_COMMAND,
 			entityId,
@@ -137,12 +136,11 @@ export class Commands {
 	}
 
 	insertTypeInto(entityId: bigint, componentType: Struct): void {
-		if (DEV) {
-			assert(
-				componentType !== Entity,
-				'Tried to add Entity component, which is forbidden.',
-			);
-		}
+		DEV_ASSERT(
+			componentType !== Entity,
+			'Tried to add Entity component, which is forbidden.',
+		);
+
 		const dataStart = this.#pushComponentCommand(
 			ADD_COMPONENT_COMMAND,
 			entityId,
@@ -161,12 +159,11 @@ export class Commands {
 	}
 
 	removeFrom(entityId: bigint, componentType: Struct): void {
-		if (DEV) {
-			assert(
-				componentType !== Entity,
-				'Tried to remove Entity component, which is forbidden.',
-			);
-		}
+		DEV_ASSERT(
+			componentType !== Entity,
+			'Tried to remove Entity component, which is forbidden.',
+		);
+
 		this.#pushComponentCommand(
 			REMOVE_COMPONENT_COMMAND,
 			entityId,
@@ -229,12 +226,11 @@ export class Commands {
 		entityId: bigint,
 		componentType: Struct,
 	): number {
-		if (DEV) {
-			assert(
-				this.#components.includes(componentType),
-				`Tried to add/remove unregistered component (${componentType.name}) on an Entity.`,
-			);
-		}
+		DEV_ASSERT(
+			this.#components.includes(componentType),
+			`Tried to add/remove unregistered component (${componentType.name}) on an Entity.`,
+		);
+
 		const pointer = this.pushCommand(
 			16 + alignTo8(commandType * componentType.size!),
 			commandType,
