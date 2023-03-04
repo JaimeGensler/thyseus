@@ -1,5 +1,4 @@
-import { DEV } from 'esm-env';
-import { assert } from '../utils/assert';
+import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 import { bits } from '../utils/bits';
 import type { SystemDefinition, SystemDependencies } from '../systems';
 
@@ -23,13 +22,11 @@ export function getSystemDependencies(
 		}
 	});
 
-	if (DEV) {
-		deepDependencies.forEach((mask, i) => {
-			assert(
-				(mask & (1n << BigInt(i))) === 0n,
-				`Circular Dependency Detected - Sytem #${i} (${systems[i].fn.name}) depends on itself!`,
-			);
-		});
+	for (let i = 0; i < deepDependencies.length; i++) {
+		DEV_ASSERT(
+			(deepDependencies[i] & (1n << BigInt(i))) === 0n,
+			`Circular Dependency Detected - Sytem #${i} (${systems[i].fn.name}) depends on itself!`,
+		);
 	}
 
 	for (let i = 0; i < systems.length; i++) {
