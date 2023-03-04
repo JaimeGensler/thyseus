@@ -51,11 +51,26 @@ export class EventWriterDescriptor<T extends Struct> implements Descriptor {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, describe, vi } = import.meta.vitest;
+	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
+	const { memory } = await import('../utils/memory');
+	const { initStruct } = await import('../storage');
 	const { EventReader, EventWriter } = await import('./Events');
 
-	class A {}
-	class B {}
+	beforeEach(() => {
+		memory.init(10_000);
+		return () => memory.UNSAFE_CLEAR_ALL();
+	});
+
+	class A {
+		constructor() {
+			initStruct(this);
+		}
+	}
+	class B {
+		constructor() {
+			initStruct(this);
+		}
+	}
 	describe('intersectsWith', () => {
 		it('returns true for EventWriters with the same intersection', () => {
 			expect(
@@ -116,14 +131,16 @@ if (import.meta.vitest) {
 	describe('intoArgument', () => {
 		it('returns an event reader/writer', () => {
 			const commands = {} as any;
+			const p1 = memory.alloc(8);
+			const p2 = memory.alloc(8);
 			const world = {
 				eventReaders: [
-					new EventReader(commands, A, 0),
-					new EventReader(commands, B, 0),
+					new EventReader(commands, A, p1),
+					new EventReader(commands, B, p1),
 				],
 				eventWriters: [
-					new EventWriter(commands, A, 0),
-					new EventWriter(commands, B, 0),
+					new EventWriter(commands, A, p2),
+					new EventWriter(commands, B, p2),
 				],
 			} as any;
 			const rdResult = new EventReaderDescriptor(A).intoArgument(world);

@@ -96,19 +96,18 @@ if (import.meta.vitest) {
 		static size = 8;
 		static alignment = 4;
 
-		declare __$$s: any;
 		declare __$$b: number;
 		get x() {
-			return this.__$$s.u32[this.__$$b >> 2];
+			return memory.views.u32[this.__$$b >> 2];
 		}
 		get y() {
-			return this.__$$s.u32[(this.__$$b >> 2) + 1];
+			return memory.views.u32[(this.__$$b >> 2) + 1];
 		}
 		set x(val: number) {
-			this.__$$s.u32[0] = val;
+			memory.views.u32[this.__$$b >> 2] = val;
 		}
 		set y(val: number) {
-			this.__$$s.u32[1] = val;
+			memory.views.u32[(this.__$$b >> 2) + 1] = val;
 		}
 
 		constructor(x = 23, y = 42) {
@@ -145,7 +144,6 @@ if (import.meta.vitest) {
 		const archetypeD = myWorld.archetypes[2];
 		const testComp = new CompD();
 
-		testComp.__$$s = memory.views;
 		testComp.__$$b = archetypeD.getColumn(CompD)!;
 		expect(archetypeD.size).toBe(1);
 		expect(testComp.x).toBe(1);

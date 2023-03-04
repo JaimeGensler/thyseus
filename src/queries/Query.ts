@@ -1,5 +1,6 @@
-import { memory, type MemoryViews } from '../utils/memory';
-import { Entity, type Table } from '../storage';
+import { memory } from '../utils/memory';
+import { dropStruct } from '../storage/initStruct';
+import { Entity, Table } from '../storage';
 import type { Struct } from '../struct';
 import type { World } from '../world';
 import type { Commands } from '../commands';
@@ -18,12 +19,12 @@ type IteratorItem<I> = I extends Optional<infer X>
 	: I extends Mut<infer X>
 	? X
 	: Readonly<I>;
-type Element = { __$$s: MemoryViews; __$$b: number };
+type Element = { __$$b: number };
 
 export class Query<A extends Accessors, F extends Filter = []> {
-	#tables = [] as Table[];
-	#elementOffset = 0;
-	#elements: Element[];
+	#tables: Table[] = [];
+	#elementOffset: number = 0;
+	#elements: Element[] = [];
 
 	#with: bigint[];
 	#without: bigint[];
@@ -42,15 +43,6 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		this.#isIndividual = isIndividual;
 		this.#components = components;
 		this.#commands = world.commands;
-		this.#elements = this.#components.map(Component => {
-			const result =
-				Component === Entity
-					? //@ts-ignore
-					  (new Component(this.#commands) as Element)
-					: (new Component() as Element);
-			result.__$$s = memory.views;
-			return result;
-		});
 	}
 
 	/**
@@ -63,15 +55,17 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	*[Symbol.iterator](): Iterator<QueryIteration<A>> {
 		if (this.#elementOffset >= this.#elements.length) {
 			this.#elements.push(
-				...this.#components.map(Component => {
-					const result =
-						Component === Entity
-							? //@ts-ignore
-							  (new Component(this.#commands) as Element)
-							: (new Component() as Element);
-					result.__$$s = memory.views;
-					return result;
-				}),
+				...this.#components.map(
+					// TODO: 0 is not safe, must set to a real initial value
+					comp => {
+						const instance =
+							comp === Entity
+								? new (comp as any)(this.#commands)
+								: (new comp() as any);
+						dropStruct(instance);
+						return instance;
+					},
+				),
 			);
 		}
 

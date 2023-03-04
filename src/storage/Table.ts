@@ -185,7 +185,6 @@ if (import.meta.vitest) {
 	@struct
 	class Vec3 {
 		declare static size: number;
-		declare __$$s: typeof memory['views'];
 		declare __$$b: number;
 		@struct.f64 declare x: number;
 		@struct.f64 declare y: number;
@@ -196,7 +195,6 @@ if (import.meta.vitest) {
 	@struct
 	class StringComponent {
 		declare static size: number;
-		declare __$$s: typeof memory['views'];
 		declare __$$b: number;
 		@struct.string declare val: number;
 		constructor() {}
@@ -226,7 +224,6 @@ if (import.meta.vitest) {
 		expect(table.capacity).toBe(8);
 		spawnIntoTable(0, table);
 		const entity = new Entity();
-		(entity as any).__$$s = memory.views;
 		(entity as any).__$$b = table.getColumn(Entity);
 		expect(entity.id).toBe(0n);
 		expect(table.size).toBe(1);
@@ -247,7 +244,6 @@ if (import.meta.vitest) {
 		spawnIntoTable(4, toTable);
 
 		const ent = new Entity();
-		(ent as any).__$$s = memory.views;
 
 		expect(fromTable.size).toBe(2);
 		expect(toTable.size).toBe(1);
@@ -255,7 +251,6 @@ if (import.meta.vitest) {
 		expect(ent.id).toBe(3n);
 
 		const from = new Vec3();
-		from.__$$s = memory.views;
 		from.__$$b = fromTable.getColumn(Vec3);
 		from.x = 1;
 		from.y = 2;
@@ -266,7 +261,6 @@ if (import.meta.vitest) {
 		from.z = 9;
 
 		const to = new Vec3();
-		to.__$$s = memory.views;
 		to.__$$b = toTable.getColumn(Vec3)!;
 		expect(to.x).toBe(0);
 		expect(to.y).toBe(0);
@@ -295,10 +289,8 @@ if (import.meta.vitest) {
 		const entPtr = table.getColumn(Entity);
 		const vecPtr = table.getColumn(Vec3);
 		const vec = new Vec3();
-		vec.__$$s = memory.views;
 		vec.__$$b = vecPtr;
 		const ent = new Entity({} as any);
-		(ent as any).__$$s = memory.views;
 		(ent as any).__$$b = entPtr;
 
 		spawnIntoTable(1, table);
@@ -351,7 +343,6 @@ if (import.meta.vitest) {
 		const table = createTable(world, Entity);
 
 		const ent = new Entity();
-		(ent as any).__$$s = memory.views;
 		(ent as any).__$$b = table.getColumn(Entity);
 
 		spawnIntoTable(1, table);
@@ -371,7 +362,6 @@ if (import.meta.vitest) {
 		const fromTable = createTable(world, Entity, Vec3);
 		const toTable = createTable(world, Entity);
 		const ent = new Entity();
-		(ent as any).__$$s = memory.views;
 
 		spawnIntoTable(3, fromTable);
 		spawnIntoTable(1, fromTable);
@@ -383,7 +373,6 @@ if (import.meta.vitest) {
 		expect(ent.id).toBe(3n);
 
 		const from = new Vec3();
-		from.__$$s = memory.views;
 		from.__$$b = fromTable.getColumn(Vec3)!;
 		from.x = 1;
 		from.y = 2;
@@ -418,8 +407,8 @@ if (import.meta.vitest) {
 	});
 
 	it('move frees pointers if the target table does not have the pointer column', async () => {
-		const freeSpy = vi.spyOn(memory, 'free');
 		const world = await createWorld();
+		const freeSpy = vi.spyOn(memory, 'free');
 		const initialTable = createTable(world, Entity, StringComponent);
 		const targetTable = createTable(world, Entity);
 

@@ -1,24 +1,28 @@
-import { memory, type MemoryViews } from '../utils/memory';
+import { memory } from '../utils/memory';
+import { dropStruct } from '../storage/initStruct';
 import { CLEAR_QUEUE_COMMAND, type Commands } from '../commands/Commands';
 import type { Struct } from '../struct';
 
-export class EventReader<T> {
+export class EventReader<T extends object> {
 	#commands: Commands;
 	#struct: Struct;
-	#instance: T & { __$$b: number; __$$s: MemoryViews };
+	#instance: T & { __$$b: number };
 	#pointer: number; // [length, capacity, pointerStart, ...defaultData]
 
 	constructor(
 		commands: Commands,
 		struct: Struct & { new (): T },
 		pointer: number,
-		instance = new struct(),
+		instance?: T,
 	) {
+		if (instance === undefined) {
+			instance = new struct() as T;
+			dropStruct(instance);
+		}
 		this.#commands = commands;
 		this.#instance = instance as any;
 		this.#struct = struct;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access
-		this.#instance.__$$s = memory.views;
 	}
 
 	/**
@@ -55,9 +59,8 @@ export class EventReader<T> {
 	}
 }
 
-export class EventWriter<T> extends EventReader<T> {
-	#struct: Struct;
-	#instance: T & { __$$b: number; __$$s: MemoryViews };
+export class EventWriter<T extends object> extends EventReader<T> {
+	#instance: T & { __$$b: number };
 	#pointer: number; // [length, capacity, pointerStart, ...defaultData]
 
 	constructor(
@@ -65,12 +68,11 @@ export class EventWriter<T> extends EventReader<T> {
 		struct: Struct & { new (): T },
 		pointer: number,
 	) {
-		const instance = new struct() as any;
+		const instance = new struct() as T & { __$$b: number };
+		dropStruct(instance);
 		super(commands, struct, pointer, instance);
-		this.#struct = struct;
 		this.#instance = instance;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access.
-		this.#instance.__$$s = memory.views;
 	}
 
 	/**
@@ -82,7 +84,7 @@ export class EventWriter<T> extends EventReader<T> {
 	create(): T {
 		const byteOffset = this.#addEvent();
 		this.#instance.__$$b = byteOffset;
-		memory.copy((this.#pointer + 3) << 2, this.#struct.size!, byteOffset);
+		memory.copy((this.#pointer + 3) << 2, this.type.size!, byteOffset);
 		return this.#instance;
 	}
 
@@ -91,14 +93,7 @@ export class EventWriter<T> extends EventReader<T> {
 	 * @param instance The event to add to the event queue.
 	 */
 	createFrom(instance: T): void {
-		const byteOffset = (instance as any).__$$b;
-		memory.views.u8.set(
-			(instance as any).__$$s.u8.subarray(
-				byteOffset,
-				byteOffset + this.#struct.size!,
-			),
-			this.#addEvent(),
-		);
+		memory.copy((instance as any).__$$b, this.type.size!, this.#addEvent());
 	}
 
 	/**
@@ -107,7 +102,7 @@ export class EventWriter<T> extends EventReader<T> {
 	createDefault(): void {
 		memory.copy(
 			(this.#pointer + 3) << 2,
-			this.#struct.size!,
+			this.type.size!,
 			this.#addEvent(),
 		);
 	}
@@ -127,19 +122,17 @@ export class EventWriter<T> extends EventReader<T> {
 		const { length } = this;
 		if (
 			length === memory.views.u32[this.#pointer + 1] &&
-			this.#struct.size !== 0
+			this.type.size !== 0
 		) {
 			// Add space for 8 more events
 			memory.views.u32[this.#pointer + 2] = memory.realloc(
 				memory.views.u32[this.#pointer + 2],
-				length * this.#struct.size! + 8 * this.#struct.size!,
+				length * this.type.size! + 8 * this.type.size!,
 			);
 			memory.views.u32[this.#pointer + 1] += 8;
 		}
 		memory.views.u32[this.#pointer]++;
-		return (
-			length * this.#struct.size! + memory.views.u32[this.#pointer + 2]
-		);
+		return length * this.type.size! + memory.views.u32[this.#pointer + 2];
 	}
 }
 
@@ -159,7 +152,9 @@ if (import.meta.vitest) {
 	) {
 		const world = await World.new().build();
 		const pointer = memory.alloc(12 + queueType.size!);
-		memory.views.u8.set((new queueType() as any).__$$s.u8, pointer + 12);
+		const instance = new queueType() as { __$$b: number };
+		memory.copy(instance.__$$b, queueType.size!, pointer + 12);
+		memory.free(instance.__$$b);
 		return [
 			new EventReader<I>(world.commands, queueType as any, pointer),
 			new EventWriter<I>(world.commands, queueType as any, pointer),

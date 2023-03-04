@@ -15,6 +15,7 @@ import type { ExecutorInstance, ExecutorType } from '../executors';
 import type { ThreadGroup, ThreadMessageChannel } from '../threads';
 import type { SystemDefinition, SystemDependencies } from '../systems';
 import type { Query } from '../queries';
+import { createManagedStruct } from '../storage/initStruct';
 
 export class World {
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
@@ -82,10 +83,11 @@ export class World {
 		for (const eventType of eventTypes) {
 			const pointer = this.threads.queue(() => {
 				const ptr = memory.alloc(12 + eventType.size!);
-				memory.views.u8.set(
-					(new eventType() as any).__$$s.u8,
-					ptr + 12,
-				);
+				if (eventType.size !== 0) {
+					const instance = new eventType() as { __$$b: number };
+					memory.copy(instance.__$$b, eventType.size!, ptr + 12);
+					memory.free(instance.__$$b);
+				}
 				return ptr;
 			});
 			this.eventReaders.push(
@@ -96,17 +98,16 @@ export class World {
 			);
 		}
 
-		for (const Resource of resourceTypes) {
-			if (!isStruct(Resource) && !threads.isMainThread) {
-				continue;
-			}
-			const resource = new Resource();
-			this.resources.push(resource);
-			if (isStruct(Resource) && Resource.size! > 0) {
-				(resource as any).__$$s = memory.views;
-				(resource as any).__$$b = this.threads.queue(() =>
-					memory.alloc(Resource.size!),
+		for (const resourceType of resourceTypes) {
+			if (isStruct(resourceType)) {
+				const pointer = this.threads.queue(() =>
+					resourceType.size! !== 0
+						? memory.alloc(resourceType.size!)
+						: 0,
 				);
+				this.resources.push(createManagedStruct(resourceType, pointer));
+			} else if (threads.isMainThread) {
+				this.resources.push(new resourceType());
 			}
 		}
 	}

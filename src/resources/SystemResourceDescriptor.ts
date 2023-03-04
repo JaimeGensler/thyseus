@@ -1,17 +1,18 @@
 import { memory } from '../utils/memory';
+import { createManagedStruct } from '../storage/initStruct';
 import { isStruct, type Class } from '../struct';
 import type { Descriptor } from '../systems';
 import type { World, WorldBuilder } from '../world';
 
 export class SystemResourceDescriptor<T extends object> implements Descriptor {
-	resource: Class;
+	resourceType: Class;
 
 	constructor(resource: { new (): T }) {
-		this.resource = resource;
+		this.resourceType = resource;
 	}
 
 	isLocalToThread(): boolean {
-		return !isStruct(this.resource);
+		return !isStruct(this.resourceType);
 	}
 	intersectsWith(other: unknown): boolean {
 		return false;
@@ -19,16 +20,17 @@ export class SystemResourceDescriptor<T extends object> implements Descriptor {
 
 	onAddSystem(builder: WorldBuilder): void {}
 
-	async intoArgument(world: World): Promise<T> {
-		const { resource } = this;
-		const instance = new resource();
-		if (isStruct(resource)) {
-			(instance as any).__$$s = memory.views;
-			(instance as any).__$$b = world.threads.queue(() =>
-				memory.alloc(resource.size!),
-			);
-		}
-		if (world.threads.isMainThread) {
+	async intoArgument({ threads }: World): Promise<T> {
+		const { resourceType } = this;
+		const instance = isStruct(resourceType)
+			? createManagedStruct(
+					resourceType,
+					resourceType.size! !== 0
+						? threads.queue(() => memory.alloc(resourceType.size!))
+						: 0,
+			  )
+			: new resourceType();
+		if (threads.isMainThread) {
 			await (instance as any).initialize?.();
 		}
 		return instance as T;

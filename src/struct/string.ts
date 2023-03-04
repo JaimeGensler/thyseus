@@ -32,24 +32,24 @@ export function string(prototype: object, propertyKey: string | symbol) {
 		enumerable: true,
 		get() {
 			const start = this.__$$b + offset[propertyKey];
-			const length = this.__$$s.u32[start >> 2];
-			const ptr = this.__$$s.u32[(start + 8) >> 2];
+			const length = memory.views.u32[start >> 2];
+			const ptr = memory.views.u32[(start + 8) >> 2];
 			return decoder.decode(memory.views.u8.subarray(ptr, ptr + length));
 		},
 
 		set(value: string) {
 			const byteLength = getByteLength(value);
 			const start = this.__$$b + offset[propertyKey];
-			const capacity = this.__$$s.u32[(start + 4) >> 2];
-			let pointer = this.__$$s.u32[(start + 8) >> 2];
+			const capacity = memory.views.u32[(start + 4) >> 2];
+			let pointer = memory.views.u32[(start + 8) >> 2];
 			if (capacity < byteLength) {
 				const newPointer = memory.realloc(pointer, byteLength);
 				pointer = newPointer;
-				this.__$$s.u32[(start + 4) >> 2] = byteLength;
-				this.__$$s.u32[(start + 8) >> 2] = newPointer;
+				memory.views.u32[(start + 4) >> 2] = byteLength;
+				memory.views.u32[(start + 8) >> 2] = newPointer;
 			}
 
-			this.__$$s.u32[start >> 2] = byteLength;
+			memory.views.u32[start >> 2] = byteLength;
 			encoder.encodeInto(
 				value,
 				memory.views.u8.subarray(pointer, pointer + byteLength!),

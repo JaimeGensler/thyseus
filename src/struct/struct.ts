@@ -45,7 +45,6 @@ export function struct(targetClass: Class): any {
 		static alignment = alignment;
 		static pointers = pointers;
 
-		declare __$$s: any;
 		declare __$$b: number;
 
 		constructor(...args: any[]) {
@@ -74,16 +73,18 @@ struct.substruct = substruct;
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, afterEach } = import.meta.vitest;
+	const { it, expect, beforeEach } = import.meta.vitest;
 	const { memory } = await import('../utils/memory');
 
-	afterEach(() => memory.UNSAFE_CLEAR_ALL());
+	beforeEach(() => {
+		memory.init(10_000);
+		return () => memory.UNSAFE_CLEAR_ALL();
+	});
 
 	@struct
 	class Vec3 {
 		declare static size: number;
 		declare __$$b: number;
-		declare __$$s: any;
 		@struct.f64 declare x: number;
 		@struct.f64 declare y: number;
 		@struct.f64 declare z: number;
@@ -117,19 +118,14 @@ if (import.meta.vitest) {
 	});
 
 	it('creates a getter/setter around fields', () => {
-		const buffer = new ArrayBuffer(2 * 8 * 3);
-		const store = {
-			buffer,
-			u8: new Uint8Array(buffer),
-			f64: new Float64Array(buffer),
-		};
-		store.f64[0] = 1;
-		store.f64[1] = 2;
-		store.f64[2] = 3;
-
 		const vec = new Vec3();
-		vec.__$$s = store;
+		expect(vec.x).toBe(0);
+		expect(vec.y).toBe(0);
+		expect(vec.z).toBe(0);
 
+		vec.x = 1;
+		vec.y = 2;
+		vec.z = 3;
 		expect(vec.x).toBe(1);
 		expect(vec.y).toBe(2);
 		expect(vec.z).toBe(3);
@@ -137,14 +133,12 @@ if (import.meta.vitest) {
 		vec.x = Math.PI;
 		expect(vec.x).toBe(Math.PI);
 
-		vec.__$$b = Vec3.size;
-
+		vec.__$$b = memory.alloc(Vec3.size!);
 		expect(vec.x).toBe(0);
 		expect(vec.y).toBe(0);
 		expect(vec.z).toBe(0);
 
 		vec.y = 8;
-
 		expect(vec.x).toBe(0);
 		expect(vec.y).toBe(8);
 		expect(vec.z).toBe(0);
@@ -152,50 +146,33 @@ if (import.meta.vitest) {
 
 	it('works with every primitive decorators', () => {
 		const fields = [
-			[struct.bool, 'u8', Uint8Array, false, true],
-			[struct.u8, 'u8', Uint8Array, 0, 1],
-			[struct.u16, 'u16', Uint16Array, 0, 65_535],
-			[struct.u32, 'u32', Uint32Array, 0, 1_000_000],
-			[struct.u64, 'u64', BigUint64Array, 0n, 1_123_000_000n],
-			[struct.i8, 'i8', Int8Array, 0, -100],
-			[struct.i16, 'i16', Int16Array, 0, -16_000],
-			[struct.i32, 'i32', Int32Array, 0, 32],
-			[struct.i64, 'i64', BigInt64Array, 0n, -1_000_000_000n],
-			[struct.f32, 'f32', Float32Array, 0, 15],
-			[struct.f64, 'f64', Float64Array, 0, Math.PI],
+			[struct.bool, false, true],
+			[struct.u8, 0, 1],
+			[struct.u16, 0, 65_535],
+			[struct.u32, 0, 1_000_000],
+			[struct.u64, 0n, 1_123_000_000n],
+			[struct.i8, 0, -100],
+			[struct.i16, 0, -16_000],
+			[struct.i32, 0, 32],
+			[struct.i64, 0n, -1_000_000_000n],
+			[struct.f32, 0, 15],
+			[struct.f64, 0, Math.PI],
 		] as const;
 
-		for (const [
-			decorator,
-			schemaField,
-			FieldConstructor,
-			init,
-			val,
-		] of fields) {
+		for (const [decorator, init, val] of fields) {
 			@struct
 			class Comp {
-				declare __$$s: any;
 				declare __$$b: number;
 				declare static size: number;
 				@decorator declare field: any;
 				constructor() {}
 			}
 
-			const buffer = new ArrayBuffer(
-				FieldConstructor.BYTES_PER_ELEMENT * 2,
-			);
-			const store = {
-				buffer,
-				u8: new Uint8Array(buffer),
-				[schemaField]: new FieldConstructor(buffer),
-			};
-
 			const comp = new Comp();
-			comp.__$$s = store;
 			expect(comp.field).toBe(init);
 			comp.field = val;
 			expect(comp.field).toBe(val);
-			comp.__$$b = Comp.size;
+			comp.__$$b = memory.alloc(Comp.size!);
 			expect(comp.field).toBe(init);
 		}
 	});
@@ -228,19 +205,13 @@ if (import.meta.vitest) {
 		class Comp {
 			declare static size: number;
 			declare __$$b: number;
-			declare __$$s: any;
 			@struct.array({ type: 'u8', length: 8 }) declare value: Uint8Array;
 			@struct.array({ type: 'f64', length: 3 })
 			declare value2: Float64Array;
 			constructor() {}
 		}
-		const buffer = new ArrayBuffer(Comp.size * 2);
 		const comp = new Comp();
-		comp.__$$s = {
-			buffer,
-			u8: new Uint8Array(buffer),
-			f64: new Float64Array(buffer),
-		};
+
 		expect(comp.value).toBeInstanceOf(Uint8Array);
 		expect(comp.value2).toBeInstanceOf(Float64Array);
 
@@ -248,7 +219,7 @@ if (import.meta.vitest) {
 		comp.value2 = new Float64Array(3).fill(Math.PI);
 		expect(comp.value).toStrictEqual(new Uint8Array(8).fill(3));
 		expect(comp.value2).toStrictEqual(new Float64Array(3).fill(Math.PI));
-		comp.__$$b = Comp.size;
+		comp.__$$b = memory.alloc(Comp.size!);
 
 		expect(comp.value).toStrictEqual(new Uint8Array(8));
 		expect(comp.value2).toStrictEqual(new Float64Array(3));
@@ -258,7 +229,6 @@ if (import.meta.vitest) {
 		@struct
 		class Comp {
 			declare static size: number;
-			declare __$$s: any;
 			declare __$$b: number;
 			@struct.u8 declare a: number;
 			@struct.u64 declare b: bigint;
@@ -275,7 +245,6 @@ if (import.meta.vitest) {
 			f32: new Float32Array(buffer),
 		};
 		const comp = new Comp();
-		comp.__$$s = store;
 		expect(comp.a).toBe(0);
 		expect(comp.b).toBe(0n);
 		expect(comp.c).toBe(0);
@@ -297,7 +266,6 @@ if (import.meta.vitest) {
 		class Transform {
 			declare static size: number;
 
-			declare __$$s: any;
 			declare __$$b: number;
 			@struct.substruct(Vec3) declare position: Vec3;
 			@struct.f32 declare scale: number;
@@ -305,15 +273,7 @@ if (import.meta.vitest) {
 			constructor() {}
 		}
 
-		const buffer = new ArrayBuffer(Transform.size * 2);
-		const store = {
-			buffer,
-			u8: new Uint8Array(buffer),
-			f32: new Float32Array(buffer),
-			f64: new Float64Array(buffer),
-		};
 		const transform = new Transform();
-		transform.__$$s = store;
 		expect(transform.position.x).toBe(0);
 		expect(transform.position.y).toBe(0);
 		expect(transform.position.z).toBe(0);

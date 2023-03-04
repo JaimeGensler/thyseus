@@ -1,3 +1,4 @@
+import { memory } from '../utils/memory';
 import { addField, TYPE_TO_CONSTRUCTOR, type PrimitiveName } from './addField';
 
 type ArrayOptions = {
@@ -19,13 +20,13 @@ export function array({ type, length }: ArrayOptions) {
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				return this.__$$s[type].subarray(
+				return memory.views[type].subarray(
 					(this.__$$b >> shift) + offset[propertyKey],
 					(this.__$$b >> shift) + offset[propertyKey] + length,
 				);
 			},
 			set(value: Uint8Array) {
-				this.__$$s[type].set(
+				(memory.views[type] as Uint8Array).set(
 					value.subarray(0, length),
 					(this.__$$b >> shift) + offset[propertyKey],
 				);

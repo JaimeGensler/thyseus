@@ -1,5 +1,7 @@
 import { addField } from './addField';
+import { memory } from '../utils/memory';
 import type { Struct } from './struct';
+import { createManagedStruct } from '../storage/initStruct';
 
 export function substruct(struct: Struct) {
 	return function fieldDecorator(
@@ -15,17 +17,13 @@ export function substruct(struct: Struct) {
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				const val: any = new struct();
-				val.__$$s = this.__$$s;
-				val.__$$b =
-					this.__$$b + offset[propertyKey] * struct.alignment!;
-				return val;
-			},
-			set(value: any) {
-				this.__$$s.u8.set(
-					value.__$$s,
+				return createManagedStruct(
+					struct,
 					this.__$$b + offset[propertyKey] * struct.alignment!,
 				);
+			},
+			set(value: any) {
+				memory.copy(value.__$$b, struct.size!, this.__$$b);
 			},
 		});
 	};

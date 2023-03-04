@@ -1,3 +1,4 @@
+import { memory } from '../utils/memory';
 import { addField, TYPE_TO_CONSTRUCTOR, type PrimitiveName } from './addField';
 
 function createPrimativeFieldDecorator(typeName: PrimitiveName) {
@@ -16,12 +17,12 @@ function createPrimativeFieldDecorator(typeName: PrimitiveName) {
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				return this.__$$s[typeName][
+				return memory.views[typeName][
 					(this.__$$b >> shift) + offset[propertyKey]
 				];
 			},
 			set(value: number) {
-				this.__$$s[typeName][
+				memory.views[typeName][
 					(this.__$$b >> shift) + offset[propertyKey]
 				] = value;
 			},
@@ -52,10 +53,10 @@ export const bool = function fieldDecorator(
 	Object.defineProperty(prototype, propertyKey, {
 		enumerable: true,
 		get() {
-			return !!this.__$$s.u8[this.__$$b + offset[propertyKey]];
+			return !!memory.views.u8[this.__$$b + offset[propertyKey]];
 		},
 		set(value: boolean) {
-			this.__$$s.u8[this.__$$b + offset[propertyKey]] = Number(value);
+			memory.views.u8[this.__$$b + offset[propertyKey]] = Number(value);
 		},
 	});
 };

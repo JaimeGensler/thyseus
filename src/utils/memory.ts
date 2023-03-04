@@ -142,7 +142,7 @@ function free(pointer: Pointer): void {
 	if (DEV) {
 		assert(
 			pointer % 8 === 0,
-			'Invalid pointer in realloc - pointer was not correctly aligned.',
+			'Invalid pointer in free - pointer was not correctly aligned.',
 		);
 	}
 	if (pointer === NULL_POINTER || pointer === 0) {
@@ -299,6 +299,9 @@ function UNSAFE_CLEAR_ALL(): void {
 
 export const memory = {
 	init,
+	get isInitialized() {
+		return buffer !== undefined;
+	},
 
 	alloc,
 	free,

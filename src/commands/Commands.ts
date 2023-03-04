@@ -27,15 +27,17 @@ export class Commands {
 				if (component.size === 0) {
 					continue;
 				}
-				memory.views.u8.set((new component() as any).__$$s.u8, pointer);
+				const instance = new component() as { __$$b: number };
+				memory.copy(instance.__$$b, component.size!, pointer);
+				memory.free(instance.__$$b);
 				pointer += component.size!;
 			}
 			return componentPointers;
 		});
-		const queuePointer = world.threads.queue(() =>
+		const dataPointer = world.threads.queue(() =>
 			memory.alloc((1 + 3 * world.config.threads) * 4),
 		);
-		return new this(world, initialValuePointers, queuePointer);
+		return new this(world, initialValuePointers, dataPointer);
 	}
 
 	#command: Command = { type: 0, dataStart: 0, dataSize: 0 };
@@ -107,6 +109,7 @@ export class Commands {
 	 * @returns An `Entity` instance, to add/remove components from an entity.
 	 */
 	getEntityById(id: bigint): Entity {
+		// TODO: These need to be dropped!
 		return new Entity(this, id);
 	}
 
@@ -129,13 +132,7 @@ export class Commands {
 		if (componentType.size === 0) {
 			return;
 		}
-		memory.views.u8.set(
-			(component as any).__$$s.u8.subarray(
-				(component as any).__$$b,
-				componentType.size,
-			),
-			dataStart,
-		);
+		memory.copy((component as any).__$$b, componentType.size!, dataStart);
 		this.#copyPointers(componentType, dataStart);
 	}
 
@@ -290,12 +287,12 @@ if (import.meta.vitest) {
 		static size = 8;
 		static alignment = 4;
 
-		declare __$$s: any;
+		declare __$$b: number;
 		set x(val: number) {
-			this.__$$s.u32[0] = val;
+			memory.views.u32[this.__$$b >> 2] = val;
 		}
 		set y(val: number) {
-			this.__$$s.u32[1] = val;
+			memory.views.u32[(this.__$$b + 4) >> 2] = val;
 		}
 
 		constructor(x = 23, y = 42) {
@@ -309,7 +306,6 @@ if (import.meta.vitest) {
 		declare static size: number;
 		declare static alignment: number;
 		@struct.string declare value: string;
-		declare __$$s: any;
 		constructor(str = 'hi') {
 			initStruct(this);
 			this.value = str;
@@ -467,9 +463,9 @@ if (import.meta.vitest) {
 		for (const { dataStart } of commands) {
 			const componentId = u16[(dataStart + 8) >> 1];
 			if (componentId === 6) {
-				expect(component.__$$s.u32[2]).not.toBe(
-					u32[(dataStart + 24) >> 2],
-				);
+				expect(
+					memory.views.u32[((component as any).__$$b + 8) >> 2],
+				).not.toBe(u32[(dataStart + 24) >> 2]);
 			}
 		}
 	});

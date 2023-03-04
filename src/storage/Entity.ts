@@ -1,7 +1,7 @@
+import { memory } from '../utils/memory';
 import { initStruct } from './initStruct';
 import type { Struct } from '../struct';
 import type { Commands } from '../commands';
-import type { MemoryViews } from '../utils/memory';
 
 type NotFunction<T> = T extends Function ? never : T;
 
@@ -9,7 +9,6 @@ export class Entity {
 	static size = 8;
 	static alignment = 8;
 
-	private declare __$$s: MemoryViews;
 	private declare __$$b: number;
 
 	#commands: Commands;
@@ -17,7 +16,7 @@ export class Entity {
 		initStruct(this);
 		this.#commands = commands!;
 		if (id !== undefined) {
-			this.__$$s.u64![0] = id;
+			memory.views.u64![this.__$$b >> 3] = id;
 		}
 	}
 
@@ -26,21 +25,21 @@ export class Entity {
 	 * Composed of an entity's generation & index.
 	 */
 	get id(): bigint {
-		return this.__$$s.u64![this.__$$b >> 3];
+		return memory.views.u64![this.__$$b >> 3];
 	}
 
 	/**
 	 * The index of this entity (uint32).
 	 */
 	get index(): number {
-		return this.__$$s.u32![this.__$$b >> 2];
+		return memory.views.u32![this.__$$b >> 2];
 	}
 
 	/**
 	 * The generation of this entity (uint32).
 	 */
 	get generation(): number {
-		return this.__$$s.u32![(this.__$$b >> 2) + 1];
+		return memory.views.u32![(this.__$$b >> 2) + 1];
 	}
 
 	/**
