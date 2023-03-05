@@ -1673,7 +1673,7 @@ class we {
 }
 const ye = 1048576, ve = (n = {}) => ({
   threads: 1,
-  memory: 512 * ye,
+  memory: 64 * ye,
   getNewTableSize: (t) => t === 0 ? 8 : t * 2,
   ...n
 }), Ee = ({ threads: n, memory: t }, e) => {
