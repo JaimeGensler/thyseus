@@ -47,9 +47,9 @@ If you're interested in contributing, please have a look at the
 [code of conduct](./CODE_OF_CONDUCT.md) and the
 [contributing guide](./CONTRIBUTING.md) first.
 
-## Quick API Example:
+## API Examples
 
-To get started, define a component:
+### Components
 
 ```ts
 import { struct, initStruct } from 'thyseus';
@@ -69,92 +69,51 @@ class Vec2 {
 		this.x += other.x;
 		this.y += other.y;
 	}
-
-	addScaled(other: Vec2, scalar: number) {
-		this.x += other.x * scalar;
-		this.y += other.y * scalar;
-	}
 }
-class Position extends Vec2 {}
-class Velocity extends Vec2 {}
+export class Position extends Vec2 {}
+export class Velocity extends Vec2 {}
 ```
 
-Let's add a resource to track the time:
-
-```ts
-import { struct } from 'thyseus';
-
-@struct
-class Time {
-	@struct.f64 declare current: number;
-	@struct.f64 declare previous: number;
-	@struct.f64 declare delta: number;
-}
-```
-
-And then a couple systems:
+### Systems
 
 <!-- prettier-ignore -->
 ```ts
 import { defineSystem } from 'thyseus';
-import { Time, Position, Velocity } from './someModule';
+import { Position, Velocity } from './someModule';
 
-const updateTime = defineSystem(
-	({ Res, Mut }) => [Res(Mut(Time))],
-	function updateTimeSystem(time) {
-		time.previous = time.current;
-		time.current = Date.now();
-		time.delta = (time.current - time.previous) / 1000;
-	}
-);
-const mover = defineSystem(
-	({ Query, Mut, Res }) => [Query([Mut(Position), Velocity]), Res(Time)],
-	function moverSystem(query, time) {
+export const moveSystem = defineSystem(
+	({ Query, Mut, Res }) => [Query([Mut(Position), Velocity])],
+	function moveSystem(query) {
 		for (const [pos, vel] of query) {
-			pos.addScaled(vel, time.delta);
+			pos.add(vel);
 		}
 	},
 );
 ```
 
-Sweet! Now let's make a world with these systems and get it started.
+### Spawning Entities
+
+```ts
+import { defineSystem } from 'thyseus';
+import { Position, Velocity } from './someModule';
+
+export const spawnEntitiesSystem = defineSystem(
+	({ Commands }) => [Commands()],
+	function spawnEntitiesSystem(commands) {
+		commands.spawn().addType(Position).add(new Velocity(1, 2));
+	},
+);
+```
+
+### Worlds
 
 <!-- prettier-ignore -->
 ```ts
 import { World } from 'thyseus';
+import { moveSystem, spawnEntitiesSystem } from './somewhere';
 
-// Note that the .build() method returns a promise.
-// Top-level await is a convenient way to handle this,
-// but it's not a requirement.
 export const myWorld = await World.new()
-	.addSystem(updateTime)
+	.addStartupSystem(spawnEntitiesSystem)
 	.addSystem(mover)
 	.build();
 ```
-
-And then run it!
-
-```ts
-import { myWorld } from './someOtherModule';
-
-async function loop() {
-	await myWorld.update(); // This also returns a promise!
-	requestAnimationFrame(loop);
-}
-loop();
-```
-
-If you'd like to run your systems on multiple threads:
-
-```ts
-// Will spawn one worker thread (default threads count is 1 - no worker threads)
-export const myWorld = await World.new({ threads: 2 }, import.meta.url)
-	.addSystem(...)
-	...
-```
-
-A full explanation of the few caveats for multithreading will be provided when
-documentation is completed. Multithreading relies on
-[`SharedArrayBuffer`](https://caniuse.com/sharedarraybuffer) and
-[module workers](https://caniuse.com/mdn-api_worker_worker_ecmascript_modules)
-(not yet implemented in Firefox).
