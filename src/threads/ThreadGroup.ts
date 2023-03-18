@@ -21,17 +21,21 @@ type WorkerOrGlobal = {
 };
 
 export class ThreadGroup {
-	static isMainThread = !!globalThis.document;
-	isMainThread = ThreadGroup.isMainThread;
+	isMainThread: boolean;
 
-	static spawn(count: number, url: string | URL | undefined): ThreadGroup {
+	static spawn(
+		count: number,
+		url: string | URL | undefined,
+		isMainThread: boolean,
+	): ThreadGroup {
 		return new this(
-			ThreadGroup.isMainThread
+			isMainThread
 				? Array.from(
 						{ length: count },
 						() => new Worker(url!, { type: 'module' }),
 				  )
 				: [globalThis],
+			isMainThread,
 		);
 	}
 
@@ -41,8 +45,9 @@ export class ThreadGroup {
 	#queue = [] as SendableType[];
 
 	#threads: WorkerOrGlobal[];
-	constructor(threads: WorkerOrGlobal[]) {
+	constructor(threads: WorkerOrGlobal[], isMainThread: boolean) {
 		this.#threads = threads;
+		this.isMainThread = isMainThread;
 
 		const handleMessage = ({
 			currentTarget,
@@ -110,7 +115,7 @@ export class ThreadGroup {
 	 * @returns The value created by `create` function.
 	 */
 	queue<T extends SendableType>(create: () => T): T {
-		if (ThreadGroup.isMainThread) {
+		if (this.isMainThread) {
 			const val = create();
 			this.#queue.push(val);
 			return val;
@@ -164,12 +169,8 @@ if (import.meta.vitest) {
 		const mock2 = new MockWorker();
 		mock1.target = mock2;
 		mock2.target = mock1;
-		return [new ThreadGroup([mock1]), new ThreadGroup([mock2])];
+		return [new ThreadGroup([mock1], true), new ThreadGroup([mock2], true)];
 	};
-
-	beforeEach(() => {
-		ThreadGroup.isMainThread = true;
-	});
 
 	it('send returns a promise with an array of results from workers', async () => {
 		const [group1, group2] = getMockThreads();

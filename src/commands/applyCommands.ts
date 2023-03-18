@@ -73,8 +73,6 @@ if (import.meta.vitest) {
 	const { initStruct } = await import('../storage');
 	const { World } = await import('../world/World');
 	const { memory } = await import('../utils/memory');
-	const { ThreadGroup } = await import('../threads');
-	ThreadGroup.isMainThread = true;
 
 	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
 
@@ -118,7 +116,7 @@ if (import.meta.vitest) {
 	}
 
 	const createWorld = () =>
-		World.new()
+		World.new({ isMainThread: true })
 			.registerComponent(ZST)
 			.registerComponent(CompA)
 			.registerComponent(CompB)
@@ -151,7 +149,9 @@ if (import.meta.vitest) {
 	});
 
 	it('clears queues', async () => {
-		const myWorld = await World.new().registerEvent(CompA).build();
+		const myWorld = await World.new({ isMainThread: true })
+			.registerEvent(CompA)
+			.build();
 
 		const writer = myWorld.eventWriters[0];
 		expect(writer.length).toBe(0);

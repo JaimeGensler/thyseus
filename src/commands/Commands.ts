@@ -251,9 +251,7 @@ if (import.meta.vitest) {
 	const { it, expect, beforeEach } = import.meta.vitest;
 	const { initStruct } = await import('../storage');
 	const { World } = await import('../world');
-	const { ThreadGroup } = await import('../threads');
 	const { struct } = await import('../struct');
-	ThreadGroup.isMainThread = true;
 
 	beforeEach(() => {
 		memory.init(10_000);
@@ -304,7 +302,7 @@ if (import.meta.vitest) {
 	}
 
 	const createWorld = () =>
-		World.new()
+		World.new({ isMainThread: true })
 			.registerComponent(ZST)
 			.registerComponent(CompA)
 			.registerComponent(CompB)

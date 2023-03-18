@@ -186,8 +186,6 @@ if (import.meta.vitest) {
 	const { it, expect, beforeEach, vi } = import.meta.vitest;
 	const { World } = await import('../world');
 	const { struct } = await import('../struct');
-	const { ThreadGroup } = await import('../threads');
-	ThreadGroup.isMainThread = true;
 
 	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
 
@@ -210,7 +208,7 @@ if (import.meta.vitest) {
 	}
 
 	const createWorld = () =>
-		World.new()
+		World.new({ isMainThread: true })
 			.registerComponent(Vec3)
 			.registerComponent(StringComponent)
 			.build();

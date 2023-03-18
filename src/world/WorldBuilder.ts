@@ -122,7 +122,11 @@ export class WorldBuilder {
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
-		const threads = ThreadGroup.spawn(this.config.threads - 1, this.url);
+		const threads = ThreadGroup.spawn(
+			this.config.threads - 1,
+			this.url,
+			this.config.isMainThread,
+		);
 
 		const world = await threads.wrapInQueue(
 			() =>
@@ -201,7 +205,6 @@ if (import.meta.vitest) {
 			);
 		}
 	}
-	ThreadGroup.isMainThread = true;
 	vi.stubGlobal('BroadcastChannel', MockChannel);
 	vi.stubGlobal(
 		'Worker',
@@ -237,7 +240,9 @@ if (import.meta.vitest) {
 	}
 
 	it('initializes resources', async () => {
-		const builder = World.new().registerResource(Time);
+		const builder = World.new({ isMainThread: true }).registerResource(
+			Time,
+		);
 		expect(initializeTimeSpy).not.toHaveBeenCalled();
 		const world = await builder.build();
 		expect(initializeTimeSpy).toHaveBeenCalledWith(world);
@@ -246,7 +251,7 @@ if (import.meta.vitest) {
 	it('runs startup systems only once', async () => {
 		const systemSpy = vi.fn();
 
-		const builder = World.new().addStartupSystem(
+		const builder = World.new({ isMainThread: true }).addStartupSystem(
 			defineSystem(() => [], systemSpy),
 		);
 		expect(systemSpy).not.toHaveBeenCalled();
@@ -258,7 +263,7 @@ if (import.meta.vitest) {
 	});
 
 	it('adds defaultPlugin', async () => {
-		const world = await World.new().build();
+		const world = await World.new({ isMainThread: true }).build();
 		expect(world.components).toStrictEqual([Entity]);
 		expect(world.systems[0]).toBe(applyCommands.fn);
 	});
@@ -268,7 +273,7 @@ if (import.meta.vitest) {
 			() => [],
 			() => {},
 		);
-		const world = World.new();
+		const world = World.new({ isMainThread: true });
 		system.beforeAll();
 		world.addSystem(system);
 		expect(system.getAndClearDependencies()).toStrictEqual({
@@ -285,7 +290,9 @@ if (import.meta.vitest) {
 				initStruct(this);
 			}
 		}
-		const world = await World.new().registerResource(StructClass).build();
+		const world = await World.new({ isMainThread: true })
+			.registerResource(StructClass)
+			.build();
 		expect(world.resources[0]).toBeInstanceOf(StructClass);
 		expect((world.resources[0] as any).__$$b).not.toBe(0);
 	});

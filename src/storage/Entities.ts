@@ -147,10 +147,8 @@ export class Entities {
 if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { World } = await import('../world');
-	const { ThreadGroup } = await import('../threads');
-	ThreadGroup.isMainThread = true;
 
-	const createWorld = () => World.new().build();
+	const createWorld = () => World.new({ isMainThread: true }).build();
 
 	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
 

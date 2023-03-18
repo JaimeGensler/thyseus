@@ -144,13 +144,11 @@ if (import.meta.vitest) {
 	const { struct } = await import('../struct');
 	const { initStruct } = await import('../storage');
 	const { World } = await import('../world');
-	const { ThreadGroup } = await import('../threads');
-	ThreadGroup.isMainThread = true;
 
 	async function setupQueue<T extends Struct, I extends InstanceType<T>>(
 		queueType: T,
 	) {
-		const world = await World.new().build();
+		const world = await World.new({ isMainThread: true }).build();
 		const pointer = memory.alloc(12 + queueType.size!);
 		const instance = new queueType() as { __$$b: number };
 		memory.copy(instance.__$$b, queueType.size!, pointer + 12);
