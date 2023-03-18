@@ -145,7 +145,7 @@ if (import.meta.vitest) {
 		const testComp = new CompD();
 
 		testComp.__$$b = archetypeD.getColumn(CompD)!;
-		expect(archetypeD.size).toBe(1);
+		expect(archetypeD.length).toBe(1);
 		expect(testComp.x).toBe(1);
 		expect(testComp.y).toBe(2);
 	});
