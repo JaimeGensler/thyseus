@@ -2,8 +2,12 @@ import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 
 export type WorldConfig = {
 	threads: number;
+	isMainThread: boolean;
+
 	getNewTableSize(prev: number): number;
-	memory: number;
+
+	memorySize: number;
+	useSharedMemory: boolean;
 };
 export type SingleThreadedWorldConfig = WorldConfig & {
 	threads: 1;
@@ -11,40 +15,45 @@ export type SingleThreadedWorldConfig = WorldConfig & {
 
 const MB = 1_048_576;
 
-const getCompleteConfig = (config: Partial<WorldConfig> | undefined = {}) => ({
+const getCompleteConfig = (
+	config: Partial<WorldConfig> | undefined = {},
+): WorldConfig => ({
 	threads: 1,
-	memory: 64 * MB,
+	memorySize: 64 * MB,
+	useSharedMemory: false,
+	// TODO: Verify this is correct
+	isMainThread: typeof window !== 'undefined',
 	getNewTableSize: (prev: number) => (prev === 0 ? 8 : prev * 2),
 	...config,
 });
 
 const validateConfig = (
-	{ threads, memory }: WorldConfig,
+	{ threads, memorySize, useSharedMemory }: WorldConfig,
 	url: string | URL | undefined,
 ) => {
-	if (threads > 1) {
+	if (threads > 1 || useSharedMemory) {
 		DEV_ASSERT(
 			isSecureContext,
-			'Invalid config - Multithreading (threads > 1) requires a secure context.',
+			'Invalid config - shared memory requires a secure context.',
 		);
 		DEV_ASSERT(
 			typeof SharedArrayBuffer !== 'undefined',
-			'Invalid config - Multithreading (threads > 1) requires SharedArrayBuffer.',
+			'Invalid config - shared memory requires SharedArrayBuffer.',
 		);
 		DEV_ASSERT(
-			url,
-			'Invalid config - Multithreading (threads > 1) requires a module URL parameter.',
+			threads > 1 ? url : true,
+			'Invalid config - multithreading (threads > 1) requires a module URL parameter.',
 			TypeError,
 		);
 	}
 	DEV_ASSERT(
 		Number.isInteger(threads) && 0 < threads && threads < 64,
-		"Invalid config - 'threads' must be an integer such that 0 < threads < 64",
+		'Invalid config - threads must be an integer such that 0 < threads < 64',
 		RangeError,
 	);
 	DEV_ASSERT(
-		Number.isInteger(memory) && memory < 2 ** 32,
-		"Invalid config - 'memory' must be at most 4 GB ((2**32) - 1 bytes)",
+		Number.isInteger(memorySize) && memorySize < 2 ** 32,
+		'Invalid config - memorySize must be at most 4 GB ((2**32) - 1 bytes)',
 	);
 };
 export function validateAndCompleteConfig(
