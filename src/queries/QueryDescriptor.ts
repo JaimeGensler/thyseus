@@ -112,8 +112,14 @@ export class QueryDescriptor<
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, describe, vi } = import.meta.vitest;
+	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
 	const { struct } = await import('../struct');
+	const { memory } = await import('../utils/memory');
+
+	beforeEach(() => {
+		memory.init(1_000);
+		return () => memory.UNSAFE_CLEAR_ALL();
+	});
 
 	class Comp {
 		declare static size: number;
@@ -238,6 +244,9 @@ if (import.meta.vitest) {
 				components: [A, B],
 				queries: [],
 				memory: { views: {} },
+				threads: {
+					queue: (f: any) => f(),
+				},
 			};
 
 			const result = descriptor.intoArgument(world);
