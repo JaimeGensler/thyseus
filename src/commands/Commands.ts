@@ -72,12 +72,6 @@ export class Commands {
 	set #capacity(val: number) {
 		memory.views.u32[this.#ownPointer + 1] = val;
 	}
-	get #queuePointer() {
-		return memory.views.u32[this.#ownPointer + 2];
-	}
-	set #queuePointer(val: number) {
-		memory.views.u32[this.#ownPointer + 2] = val;
-	}
 
 	/**
 	 * Queues an entity to be spawned.
@@ -195,16 +189,17 @@ export class Commands {
 	}
 
 	pushCommand(size: number, type: number): number {
+		const { u32 } = memory.views;
 		const addedSize = 8 + alignTo8(size);
 		let newSize = this.#size + addedSize;
 		if (this.#capacity < newSize) {
 			newSize <<= 1; // Double new size
-			this.#queuePointer = memory.realloc(this.#queuePointer, newSize);
+			memory.reallocAt((this.#ownPointer + 2) << 2, newSize);
 			this.#capacity = newSize;
 		}
-		const queueEnd = this.#queuePointer + this.#size;
-		memory.views.u32[queueEnd >> 2] = addedSize;
-		memory.views.u32[(queueEnd + 4) >> 2] = type;
+		const queueEnd = u32[this.#ownPointer + 2] + this.#size;
+		u32[queueEnd >> 2] = addedSize;
+		u32[(queueEnd + 4) >> 2] = type;
 		this.#size += addedSize;
 		return queueEnd + 8;
 	}

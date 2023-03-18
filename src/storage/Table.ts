@@ -80,10 +80,10 @@ export class Table {
 		return memory.views.u32[(this.#pointer >> 2) + 1];
 	}
 
-	get size(): number {
+	get length(): number {
 		return memory.views.u32[this.#pointer >> 2];
 	}
-	set size(value: number) {
+	set length(value: number) {
 		memory.views.u32[this.#pointer >> 2] = value;
 	}
 
@@ -97,12 +97,12 @@ export class Table {
 	}
 
 	delete(index: number): void {
-		this.size--;
+		this.length--;
 		let i = 2; // Start of pointers
 		for (const component of this.#components) {
 			const ptr = memory.views.u32[(this.#pointer >> 2) + i];
 			memory.copy(
-				ptr + this.size * component.size!, // From the last element
+				ptr + this.length * component.size!, // From the last element
 				component.size!, // Copy one component
 				ptr + index * component.size!, // To this element
 			);
@@ -111,16 +111,16 @@ export class Table {
 	}
 
 	move(index: number, targetTable: Table): bigint {
-		if (targetTable.capacity === targetTable.size) {
+		if (targetTable.capacity === targetTable.length) {
 			targetTable.grow();
 		}
 		const { u32, u64 } = memory.views;
 		if (this.#components[0] !== Entity) {
-			targetTable.size++;
+			targetTable.length++;
 			return BigInt(index);
 		}
 		const ptr = this.getColumn(Entity);
-		const lastEntity = u64[(ptr >> 3) + this.size];
+		const lastEntity = u64[(ptr >> 3) + this.length];
 		for (const component of this.#components) {
 			const componentPointer =
 				this.getColumn(component) + index * component.size!;
@@ -129,7 +129,7 @@ export class Table {
 					componentPointer,
 					component.size!,
 					targetTable.getColumn(component) +
-						targetTable.size * component.size!,
+						targetTable.length * component.size!,
 				);
 			} else {
 				for (const pointerOffset of component.pointers ?? []) {
@@ -137,7 +137,7 @@ export class Table {
 				}
 			}
 		}
-		targetTable.size++;
+		targetTable.length++;
 		this.delete(index);
 		return lastEntity;
 	}
@@ -147,8 +147,8 @@ export class Table {
 			this.#world.config.getNewTableSize(this.capacity);
 		let i = 2;
 		for (const component of this.#components) {
-			memory.views.u32[(this.#pointer >> 2) + i] = memory.realloc(
-				memory.views.u32[(this.#pointer >> 2) + i],
+			memory.reallocAt(
+				this.#pointer + (i << 2),
 				component.size! * this.capacity,
 			);
 			i++;
@@ -167,6 +167,15 @@ export class Table {
 				this.getColumn(componentType) + row * componentType.size!,
 			);
 		}
+	}
+
+	getColumnPointer(componentType: Struct): number {
+		return (
+			this.#pointer + 8 + (this.#components.indexOf(componentType) << 2)
+		);
+	}
+	getTableSizePointer(): number {
+		return this.#pointer;
 	}
 }
 
@@ -208,30 +217,30 @@ if (import.meta.vitest) {
 	const createTable = (world: World, ...components: Struct[]) =>
 		Table.create(world, components, 0n, 0);
 	const spawnIntoTable = (eid: number, targetTable: Table) => {
-		if (targetTable.capacity === targetTable.size) {
+		if (targetTable.capacity === targetTable.length) {
 			targetTable.grow();
 		}
 		memory.views.u64[
-			(targetTable.getColumn(Entity) + targetTable.size * 8) >> 3
+			(targetTable.getColumn(Entity) + targetTable.length * 8) >> 3
 		] = BigInt(eid);
-		targetTable.size++;
+		targetTable.length++;
 	};
 
 	it('adds an element', async () => {
 		const world = await createWorld();
 		const table = createTable(world, Entity);
-		expect(table.size).toBe(0);
+		expect(table.length).toBe(0);
 		expect(table.capacity).toBe(8);
 		spawnIntoTable(0, table);
 		const entity = new Entity();
 		(entity as any).__$$b = table.getColumn(Entity);
 		expect(entity.id).toBe(0n);
-		expect(table.size).toBe(1);
+		expect(table.length).toBe(1);
 		spawnIntoTable(3, table);
 		expect(entity.id).toBe(0n);
 		(entity as any).__$$b += 8;
 		expect(entity.id).toBe(3n);
-		expect(table.size).toBe(2);
+		expect(table.length).toBe(2);
 	});
 
 	it('moves elements from one table to another', async () => {
@@ -245,8 +254,8 @@ if (import.meta.vitest) {
 
 		const ent = new Entity();
 
-		expect(fromTable.size).toBe(2);
-		expect(toTable.size).toBe(1);
+		expect(fromTable.length).toBe(2);
+		expect(toTable.length).toBe(1);
 		(ent as any).__$$b = fromTable.getColumn(Entity);
 		expect(ent.id).toBe(3n);
 
@@ -268,8 +277,8 @@ if (import.meta.vitest) {
 
 		fromTable.move(0, toTable);
 
-		expect(fromTable.size).toBe(1);
-		expect(toTable.size).toBe(2);
+		expect(fromTable.length).toBe(1);
+		expect(toTable.length).toBe(2);
 
 		to.__$$b += Vec3.size;
 		expect(to.x).toBe(1);
@@ -297,7 +306,7 @@ if (import.meta.vitest) {
 		spawnIntoTable(2, table);
 		spawnIntoTable(3, table);
 		spawnIntoTable(4, table);
-		expect(table.size).toBe(4);
+		expect(table.length).toBe(4);
 
 		vec.x = 1;
 		vec.y = 2;
@@ -316,7 +325,7 @@ if (import.meta.vitest) {
 		vec.z = 12;
 
 		table.delete(1);
-		expect(table.size).toBe(3);
+		expect(table.length).toBe(3);
 
 		vec.__$$b = vecPtr;
 		(ent as any).__$$b = entPtr;
@@ -348,7 +357,7 @@ if (import.meta.vitest) {
 		spawnIntoTable(1, table);
 
 		expect(table.capacity).toBe(8);
-		expect(table.size).toBe(1);
+		expect(table.length).toBe(1);
 		expect(ent.id).toBe(1n);
 		table.grow();
 		(ent as any).__$$b = table.getColumn(Entity);
@@ -367,8 +376,8 @@ if (import.meta.vitest) {
 		spawnIntoTable(1, fromTable);
 		spawnIntoTable(4, toTable);
 
-		expect(fromTable.size).toBe(2);
-		expect(toTable.size).toBe(1);
+		expect(fromTable.length).toBe(2);
+		expect(toTable.length).toBe(1);
 		(ent as any).__$$b = fromTable.getColumn(Entity);
 		expect(ent.id).toBe(3n);
 

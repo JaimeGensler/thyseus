@@ -280,10 +280,24 @@ function copyPointer(pointer: Pointer): Pointer {
 }
 
 /**
+ * Treats the value at the specified pointer as a pointer and reallocates it.
+ * @param location The location to treat as a pointer and reallocate at.
+ * @param size The size of the new allocation
+ */
+function reallocAt(location: Pointer, newSize: number): void {
+	DEV_ASSERT(
+		location % 4 === 0,
+		'Invalid pointer in reallocAt - pointer was not correctly aligned',
+	);
+	u32[location >> 2] = realloc(u32[location >> 2], newSize);
+}
+
+/**
  * **UNSAFE**
  *
  * Clears all allocated memory, resetting the entire buffer as if it were just initialized.
  * Previous pointers will no longer be safe to use and could result in memory corruption.
+ * Only use for testing.
  */
 function UNSAFE_CLEAR_ALL(): void {
 	if (buffer) {
@@ -302,7 +316,9 @@ export const memory = {
 
 	alloc,
 	free,
+
 	realloc,
+	reallocAt,
 
 	copy,
 	copyPointer,
@@ -435,6 +451,21 @@ if (import.meta.vitest) {
 			expect(u32[NULL_POINTER >> 2]).toBe(1);
 			releaseLock();
 			expect(u32[NULL_POINTER >> 2]).toBe(0);
+		});
+	});
+
+	describe('reallocAt', () => {
+		it('reallocates at a specific position', () => {
+			memory.init(256);
+			const pointerToPointer = memory.alloc(4);
+			expect(u32[pointerToPointer >> 2]).toBe(0);
+			const prevPointer = memory.alloc(8);
+			// Grab the next block so that we can't allocate in-place
+			const holdOnNextBlock = memory.alloc(8);
+			u32[pointerToPointer >> 2] = prevPointer;
+			expect(u32[pointerToPointer >> 2]).toBe(prevPointer);
+			memory.reallocAt(pointerToPointer, 16);
+			expect(u32[pointerToPointer >> 2]).not.toBe(prevPointer);
 		});
 	});
 }

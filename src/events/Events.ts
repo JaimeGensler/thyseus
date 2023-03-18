@@ -125,8 +125,8 @@ export class EventWriter<T extends object> extends EventReader<T> {
 			this.type.size !== 0
 		) {
 			// Add space for 8 more events
-			memory.views.u32[this.#pointer + 2] = memory.realloc(
-				memory.views.u32[this.#pointer + 2],
+			memory.reallocAt(
+				(this.#pointer + 2) << 2,
 				length * this.type.size! + 8 * this.type.size!,
 			);
 			memory.views.u32[this.#pointer + 1] += 8;
@@ -293,7 +293,7 @@ if (import.meta.vitest) {
 		}
 		const [, zstWriter] = await setupQueue(ZST);
 		const [, sizedWriter] = await setupQueue(A);
-		const reallocSpy = vi.spyOn(memory, 'realloc');
+		const reallocSpy = vi.spyOn(memory, 'reallocAt');
 		expect(reallocSpy).not.toHaveBeenCalled();
 
 		for (let i = 0; i < 10; i++) {

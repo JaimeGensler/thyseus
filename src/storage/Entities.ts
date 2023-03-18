@@ -36,7 +36,7 @@ export class Entities {
 	 */
 	spawn(): bigint {
 		const { u32, u64 } = memory.views;
-		const recycledSize = this.#recycled.size;
+		const recycledSize = this.#recycled.length;
 		const recycledPtr = this.#recycled.getColumn(Entity);
 		for (
 			let currentCursor = this.#getCursor();
@@ -75,10 +75,7 @@ export class Entities {
 			const newElementCount =
 				Math.ceil((u32[this.#pointer] + 1) / ENTITY_BATCH_SIZE) *
 				ENTITY_BATCH_SIZE;
-			this.#locationsPointer = memory.realloc(
-				this.#locationsPointer,
-				newElementCount * 8,
-			);
+			memory.reallocAt(this.#locationsPointer, newElementCount * 8);
 			u32[this.#pointer + 3] = newElementCount;
 		}
 	}
@@ -175,7 +172,7 @@ if (import.meta.vitest) {
 		expect(entities.spawn()).toBe(1n);
 		expect(entities.spawn()).toBe(2n);
 
-		recycledTable.size = 3;
+		recycledTable.length = 3;
 
 		const ptr = recycledTable.getColumn(Entity);
 
@@ -190,7 +187,7 @@ if (import.meta.vitest) {
 	});
 
 	it('reset grows by at least as many entities have been spawned', async () => {
-		const reallocSpy = vi.spyOn(memory, 'realloc');
+		const reallocSpy = vi.spyOn(memory, 'reallocAt');
 		const world = await createWorld();
 		const entities = world.entities;
 
@@ -213,6 +210,6 @@ if (import.meta.vitest) {
 		}
 		entities.resetCursor();
 		expect(reallocSpy).toHaveBeenCalledOnce();
-		expect(reallocSpy).toHaveBeenCalledWith(2248, 8192);
+		expect(reallocSpy).toHaveBeenCalledWith(152, 8192);
 	});
 }
