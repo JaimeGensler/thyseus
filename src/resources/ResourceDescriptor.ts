@@ -6,28 +6,28 @@ import type { World, WorldBuilder } from '../world';
 export class ResourceDescriptor<T extends Class | Mut<Class>>
 	implements Descriptor
 {
-	resource: Class;
+	resourceType: Class;
 	canWrite: boolean;
 
 	constructor(resource: T) {
 		const isMut = resource instanceof Mut;
-		this.resource = isMut ? resource.value : resource;
+		this.resourceType = isMut ? resource.value : resource;
 		this.canWrite = isMut;
 	}
 
 	isLocalToThread(): boolean {
-		return !isStruct(this.resource);
+		return !isStruct(this.resourceType);
 	}
 
 	intersectsWith(other: unknown): boolean {
 		return other instanceof ResourceDescriptor
-			? this.resource === other.resource &&
+			? this.resourceType === other.resourceType &&
 					(this.canWrite || other.canWrite)
 			: false;
 	}
 
 	onAddSystem(builder: WorldBuilder): void {
-		builder.registerResource(this.resource);
+		builder.registerResource(this.resourceType);
 	}
 
 	intoArgument(
@@ -35,9 +35,7 @@ export class ResourceDescriptor<T extends Class | Mut<Class>>
 	): T extends Mut<infer X>
 		? X
 		: Readonly<InstanceType<T extends Class ? T : never>> {
-		return world.resources.find(
-			res => res.constructor === this.resource,
-		) as any;
+		return world.getResource(this.resourceType) as any;
 	}
 }
 
@@ -116,14 +114,20 @@ if (import.meta.vitest) {
 
 	describe('intoArgument', () => {
 		it('returns the instance of the Resource type', () => {
-			const resources = [new A(), new C()];
+			const world = {
+				resources: [new A(), new C()],
+				getResource(type: any) {
+					return this.resources.find(
+						(t: any) => t.constructor === type,
+					);
+				},
+			} as any;
+
 			expect(
-				new ResourceDescriptor(A).intoArgument({ resources } as any),
+				new ResourceDescriptor(A).intoArgument(world),
 			).toBeInstanceOf(A);
 			expect(
-				new ResourceDescriptor(new Mut(C)).intoArgument({
-					resources,
-				} as any),
+				new ResourceDescriptor(new Mut(C)).intoArgument(world),
 			).toBeInstanceOf(C);
 		});
 	});

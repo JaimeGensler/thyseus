@@ -3,7 +3,6 @@ import { Commands } from '../commands';
 import { bits } from '../utils/bits';
 import { memory } from '../utils/memory';
 import { Entities, Table } from '../storage';
-import { SEND_TABLE } from './channels';
 import { EventReader, EventWriter } from '../events';
 import { isStruct, type Class, type Struct } from '../struct';
 import {
@@ -16,6 +15,7 @@ import type { ThreadGroup, ThreadMessageChannel } from '../threads';
 import type { SystemDefinition, SystemDependencies } from '../systems';
 import type { Query } from '../queries';
 import { createManagedStruct } from '../storage/initStruct';
+import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 
 export class World {
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
@@ -59,7 +59,10 @@ export class World {
 
 		memory.init(
 			this.threads.queue(() =>
-				memory.init(config.memory, config.threads > 1),
+				memory.init(
+					config.memorySize,
+					config.useSharedMemory || config.threads > 1,
+				),
 			),
 		);
 
@@ -116,6 +119,24 @@ export class World {
 		return this.executor.start();
 	}
 
+	/**
+	 * Gets the resource (instance) of the passed type.
+	 * Assumes that this resource exists in the world.
+	 * @param resourceType The type of the resource to get.
+	 * @returns The resource instance.
+	 */
+	getResource<T extends Class>(resourceType: T): InstanceType<T> {
+		DEV_ASSERT(
+			this.resources.some(
+				instance => instance.constructor === resourceType,
+			),
+			'Did not find resource in world. world.getResource() requires that the resource exist.',
+		);
+		return this.resources.find(
+			instance => instance.constructor === resourceType,
+		)! as any;
+	}
+
 	moveEntity(entityId: bigint, targetTableId: bigint): void {
 		if (!this.entities.isAlive(entityId)) {
 			return;
@@ -129,7 +150,7 @@ export class World {
 
 		this.entities.setRow(backfilledEntity, row);
 		this.entities.setTableIndex(entityId, targetTable.id);
-		this.entities.setRow(entityId, targetTable.size - 1);
+		this.entities.setRow(entityId, targetTable.length - 1);
 	}
 
 	#getTable(tableId: bigint): Table {
@@ -147,9 +168,8 @@ export class World {
 		this.#archetypeLookup.set(tableId, table);
 		this.archetypes.push(table);
 
-		this.threads.send(SEND_TABLE(table.pointer, id, tableId));
 		for (const query of this.queries) {
-			query.testAdd(tableId, table);
+			query.testAdd(table);
 		}
 		return table;
 	}
