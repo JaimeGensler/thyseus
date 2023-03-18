@@ -1,4 +1,4 @@
-export { World, definePlugin } from './world';
+export { World } from './world';
 export { applyCommands } from './commands';
 export { defineSystem } from './systems';
 export { Entity, initStruct, dropStruct } from './storage';

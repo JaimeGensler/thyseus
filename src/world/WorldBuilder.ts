@@ -1,16 +1,15 @@
 import { World } from './World';
-import { defaultPlugin } from './defaultPlugin';
+import { applyCommands } from '../commands';
+import { defaultPlugin, type Plugin } from './defaultPlugin';
 import { ThreadGroup, type ThreadMessageChannel } from '../threads';
 import {
 	ParallelExecutor,
 	SimpleExecutor,
 	type ExecutorType,
 } from '../executors';
-import { applyCommands } from '../commands';
 import { SystemDependencies, type SystemDefinition } from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
-import type { Plugin } from './definePlugin';
 
 export class WorldBuilder {
 	systems: SystemDefinition[] = [];
