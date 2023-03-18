@@ -1,10 +1,10 @@
-import type { EventReader, EventWriter } from './Events';
+import { EventReader, EventWriter } from './Events';
 import type { World, WorldBuilder } from '../world';
 import type { Descriptor } from '../systems';
 import type { Struct } from '../struct';
 
 export class EventReaderDescriptor<T extends Struct> implements Descriptor {
-	eventType: Struct;
+	eventType: T;
 	constructor(eventType: T) {
 		this.eventType = eventType;
 	}
@@ -12,10 +12,15 @@ export class EventReaderDescriptor<T extends Struct> implements Descriptor {
 		return false;
 	}
 	intersectsWith(other: unknown): boolean {
-		return (
-			other instanceof EventWriterDescriptor &&
-			other.eventType === this.eventType
-		);
+		if (other instanceof EventWriterDescriptor) {
+			return this.eventType === other.eventType;
+		} else if (other instanceof EventReaderDescriptor) {
+			return (
+				this instanceof EventWriterDescriptor &&
+				this.eventType === other.eventType
+			);
+		}
+		return false;
 	}
 	onAddSystem(builder: WorldBuilder): void {
 		builder.registerEvent(this.eventType);
@@ -24,24 +29,9 @@ export class EventReaderDescriptor<T extends Struct> implements Descriptor {
 		return world.eventReaders.find(rd => rd.type === this.eventType)!;
 	}
 }
-export class EventWriterDescriptor<T extends Struct> implements Descriptor {
-	eventType: Struct;
-	constructor(eventType: T) {
-		this.eventType = eventType;
-	}
-	isLocalToThread(): boolean {
-		return false;
-	}
-	intersectsWith(other: unknown): boolean {
-		return (
-			(other instanceof EventWriterDescriptor ||
-				other instanceof EventReaderDescriptor) &&
-			other.eventType === this.eventType
-		);
-	}
-	onAddSystem(builder: WorldBuilder): void {
-		builder.registerEvent(this.eventType);
-	}
+export class EventWriterDescriptor<
+	T extends Struct,
+> extends EventReaderDescriptor<T> {
 	intoArgument(world: World): EventWriter<InstanceType<T>> {
 		return world.eventWriters.find(wr => wr.type === this.eventType)!;
 	}
