@@ -79,37 +79,52 @@ if (import.meta.vitest) {
 		vi.restoreAllMocks();
 	});
 
-	describe('when threads > 1', () => {
+	describe('when using SAB', () => {
 		it('throws if isSecureContext is false', () => {
 			vi.stubGlobal('isSecureContext', false);
 			vi.stubGlobal('SharedArrayBuffer', ArrayBuffer);
 			expect(validate({ threads: 2 }, '/')).toThrow(/secure context/);
+			expect(validate({ useSharedMemory: true }, '/')).toThrow(
+				/secure context/,
+			);
 		});
 
 		it('throws if SharedArrayBuffer is undefined', () => {
 			vi.stubGlobal('isSecureContext', true);
 			vi.stubGlobal('SharedArrayBuffer', undefined);
 			expect(validate({ threads: 2 }, '/')).toThrow(/SharedArrayBuffer/);
+			expect(validate({ useSharedMemory: true }, '/')).toThrow(
+				/SharedArrayBuffer/,
+			);
 		});
 
-		it('throws if a falsy module URL is provided', () => {
+		it('if threads > 1, throws if a falsy module URL is provided', () => {
 			vi.stubGlobal('isSecureContext', true);
 			vi.stubGlobal('SharedArrayBuffer', ArrayBuffer);
 			const expectedError = /module URL/;
 			expect(validate({ threads: 2 }, '')).toThrow(expectedError);
 			expect(validate({ threads: 2 }, undefined)).toThrow(expectedError);
 		});
+
+		it('does NOT throw if falsy module URL is provided while useSharedMemory is true', () => {
+			vi.stubGlobal('isSecureContext', true);
+			vi.stubGlobal('SharedArrayBuffer', ArrayBuffer);
+			expect(validate({ useSharedMemory: true }, '')).not.toThrow();
+			expect(
+				validate({ useSharedMemory: true }, undefined),
+			).not.toThrow();
+		});
 	});
 
 	it('throws if threads < 1 or threads > 64, or not a safe, positive integer', () => {
 		expect(validate({ threads: 0 }, '/')).toThrow(
-			/'threads' must be an integer/,
+			/threads must be an integer/,
 		);
 		expect(validate({ threads: 1.2 }, '/')).toThrow(
-			/'threads' must be an integer/,
+			/threads must be an integer/,
 		);
 		expect(validate({ threads: 64 }, '/')).toThrow(
-			/'threads' must be an integer/,
+			/threads must be an integer/,
 		);
 	});
 
