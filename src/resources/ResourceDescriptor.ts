@@ -35,6 +35,9 @@ export class ResourceDescriptor<T extends Class | Mut<Class>>
 	): T extends Mut<infer X>
 		? X
 		: Readonly<InstanceType<T extends Class ? T : never>> {
+		if (!world.threads.isMainThread && !isStruct(this.resourceType)) {
+			return null as any;
+		}
 		return world.getResource(this.resourceType) as any;
 	}
 }
