@@ -170,9 +170,10 @@ export class Table {
 	}
 
 	getColumnPointer(componentType: Struct): number {
-		return (
-			this.#pointer + 8 + (this.#components.indexOf(componentType) << 2)
-		);
+		const componentIndex = this.#components.indexOf(componentType);
+		return componentIndex === -1
+			? 0
+			: this.#pointer + 8 + (componentIndex << 2);
 	}
 	getTableSizePointer(): number {
 		return this.#pointer;
@@ -230,7 +231,7 @@ if (import.meta.vitest) {
 		expect(table.length).toBe(0);
 		expect(table.capacity).toBe(8);
 		spawnIntoTable(0, table);
-		const entity = new Entity();
+		const entity = new Entity(world.commands, world.entities);
 		(entity as any).__$$b = table.getColumn(Entity);
 		expect(entity.id).toBe(0n);
 		expect(table.length).toBe(1);
@@ -250,7 +251,7 @@ if (import.meta.vitest) {
 		spawnIntoTable(1, fromTable);
 		spawnIntoTable(4, toTable);
 
-		const ent = new Entity();
+		const ent = new Entity(world.commands, world.entities);
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
@@ -297,7 +298,7 @@ if (import.meta.vitest) {
 		const vecPtr = table.getColumn(Vec3);
 		const vec = new Vec3();
 		vec.__$$b = vecPtr;
-		const ent = new Entity({} as any);
+		const ent = new Entity(world.commands, world.entities);
 		(ent as any).__$$b = entPtr;
 
 		spawnIntoTable(1, table);
@@ -349,7 +350,7 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const table = createTable(world, Entity);
 
-		const ent = new Entity();
+		const ent = new Entity(world.commands, world.entities);
 		(ent as any).__$$b = table.getColumn(Entity);
 
 		spawnIntoTable(1, table);
@@ -368,7 +369,7 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const fromTable = createTable(world, Entity, Vec3);
 		const toTable = createTable(world, Entity);
-		const ent = new Entity();
+		const ent = new Entity(world.commands, world.entities);
 
 		spawnIntoTable(3, fromTable);
 		spawnIntoTable(1, fromTable);

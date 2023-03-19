@@ -1,7 +1,9 @@
+import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 import { memory } from '../utils/memory';
 import { Entity } from './Entity';
 import type { Table } from './Table';
 import type { World } from '../world';
+import type { Struct } from '../struct';
 
 const lo32 = 0x00_00_00_00_ff_ff_ff_ffn;
 const getIndex = (entityId: bigint) => Number(entityId & lo32);
@@ -66,6 +68,24 @@ export class Entities {
 				tableIndex !== 1 ||
 				u64[(ptr >> 3) + row] === entityId)
 		);
+	}
+
+	/**
+	 * Verifies if an entity has a specific component type.
+	 * @param entityId The id of the entity
+	 * @param componentType The type (class) of the component to detect.
+	 * @returns `boolean`, true if the entity has the component and false if it does not.
+	 */
+	hasComponent(entityId: bigint, componentType: Struct): boolean {
+		const componentId = this.#world.components.indexOf(componentType);
+		DEV_ASSERT(
+			componentId !== -1,
+			'hasComponent method must receive a component that exists in the world.',
+		);
+		const archetype =
+			this.#world.archetypes[this.getTableIndex(entityId)].bitfield;
+		const componentBit = 1n << BigInt(componentId);
+		return (archetype & componentBit) === componentBit;
 	}
 
 	resetCursor(): void {
@@ -148,7 +168,13 @@ if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { World } = await import('../world');
 
-	const createWorld = () => World.new({ isMainThread: true }).build();
+	async function createWorld(...components: Struct[]) {
+		const builder = World.new({ isMainThread: true });
+		for (const comp of components) {
+			builder.registerComponent(comp);
+		}
+		return builder.build();
+	}
 
 	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
 
@@ -209,5 +235,41 @@ if (import.meta.vitest) {
 		entities.resetCursor();
 		expect(reallocSpy).toHaveBeenCalledOnce();
 		expect(reallocSpy).toHaveBeenCalledWith(152, 8192);
+	});
+
+	it('hasComponent returns true if the entity has the component and false otherwise', async () => {
+		class A {
+			static size = 0;
+		}
+		class B {
+			static size = 0;
+		}
+		const world = await createWorld(A, B);
+		const { entities } = world;
+
+		const none = entities.spawn();
+		const a = entities.spawn();
+		const b = entities.spawn();
+		const ab = entities.spawn();
+		world.moveEntity(none, 0b001n);
+		world.moveEntity(a, 0b011n);
+		world.moveEntity(b, 0b101n);
+		world.moveEntity(ab, 0b111n);
+
+		expect(entities.hasComponent(none, Entity)).toBe(true);
+		expect(entities.hasComponent(none, A)).toBe(false);
+		expect(entities.hasComponent(none, B)).toBe(false);
+
+		expect(entities.hasComponent(a, Entity)).toBe(true);
+		expect(entities.hasComponent(a, A)).toBe(true);
+		expect(entities.hasComponent(a, B)).toBe(false);
+
+		expect(entities.hasComponent(b, Entity)).toBe(true);
+		expect(entities.hasComponent(b, A)).toBe(false);
+		expect(entities.hasComponent(b, B)).toBe(true);
+
+		expect(entities.hasComponent(ab, Entity)).toBe(true);
+		expect(entities.hasComponent(ab, A)).toBe(true);
+		expect(entities.hasComponent(ab, B)).toBe(true);
 	});
 }

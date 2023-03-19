@@ -27,7 +27,10 @@ export class Commands {
 				if (component.size === 0) {
 					continue;
 				}
-				const instance = new component() as { __$$b: number };
+				const instance =
+					component === Entity
+						? new (component as any)(this, world.entities)
+						: (new component() as { __$$b: number });
 				memory.copy(instance.__$$b, component.size!, pointer);
 				memory.free(instance.__$$b);
 				pointer += component.size!;
@@ -461,10 +464,12 @@ if (import.meta.vitest) {
 
 	it('throws if trying to add/remove Entity', async () => {
 		const world = await createWorld();
-		const { commands } = world;
+		const { commands, entities } = world;
 		expect(() => commands.insertTypeInto(0n, Entity)).toThrow();
 
-		expect(() => commands.insertInto(0n, new Entity(commands))).toThrow();
+		expect(() =>
+			commands.insertInto(0n, new Entity(commands, entities)),
+		).toThrow();
 		expect(() => commands.removeFrom(0n, Entity)).toThrow();
 	});
 

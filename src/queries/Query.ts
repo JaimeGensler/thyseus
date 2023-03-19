@@ -1,6 +1,6 @@
 import { memory } from '../utils/memory';
 import { dropStruct } from '../storage/initStruct';
-import { Entity, Table } from '../storage';
+import { Entity, type Table, type Entities } from '../storage';
 import type { Struct } from '../struct';
 import type { World } from '../world';
 import type { Commands } from '../commands';
@@ -31,6 +31,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	#components: Struct[];
 	#isIndividual: boolean;
 	#commands: Commands;
+	#entities: Entities;
 	constructor(
 		withFilters: bigint[],
 		withoutFilters: bigint[],
@@ -44,6 +45,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		this.#isIndividual = isIndividual;
 		this.#components = components;
 		this.#commands = world.commands;
+		this.#entities = world.entities;
 	}
 
 	/**
@@ -130,7 +132,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 			(this.#components.map(comp => {
 				const instance =
 					comp === Entity
-						? new (comp as any)(this.#commands)
+						? new (comp as any)(this.#commands, this.#entities)
 						: (new comp() as any);
 				dropStruct(instance);
 				return instance;
