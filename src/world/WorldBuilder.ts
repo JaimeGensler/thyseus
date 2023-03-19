@@ -142,14 +142,16 @@ export class WorldBuilder {
 					this.threadChannels,
 				),
 		);
-		for (const system of this.systems) {
-			world.systems.push(system.fn);
-			world.arguments.push(
-				await Promise.all(
-					system.parameters.map(p => p.intoArgument(world)),
-				),
-			);
-		}
+		await threads.wrapInQueue(async () => {
+			for (const system of this.systems) {
+				world.systems.push(system.fn);
+				world.arguments.push(
+					await Promise.all(
+						system.parameters.map(p => p.intoArgument(world)),
+					),
+				);
+			}
+		});
 
 		if (threads.isMainThread) {
 			await Promise.all(
