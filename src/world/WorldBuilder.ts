@@ -66,7 +66,8 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Registers a Component in the world. Called automatically for all queried components when a system is added.
+	 * Registers a Component in the world.
+	 * Called automatically for all queried components when a system is added.
 	 * @param componentType The componentType (`Struct`) to register.
 	 * @returns `this`, for chaining.
 	 */
@@ -76,7 +77,8 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Registers a Resource in the world. Called automatically for all accessed resources when a system is added.
+	 * Registers a Resource in the world.
+	 * Called automatically for all accessed resources when a system is added.
 	 * @param resourceType The Resource type (`Class`) to register.
 	 * @returns `this`, for chaining.
 	 */
@@ -86,7 +88,8 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Registers an event type in the world. Called automatically for all event readers/writers when a system is added.
+	 * Registers an event type in the world.
+	 * Called automatically for all event readers/writers when a system is added.
 	 * @param resourceType The Event type (`Struct`) to register.
 	 * @returns `this`, for chaining.
 	 */
@@ -96,7 +99,8 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Registers a message channel for threads. When a thread receives a message, it will run the callback created by `listenerCreator`.
+	 * Registers a message channel for threads.
+	 * When a thread receives a message, it will run the callback created by `listenerCreator`.
 	 * @param channel The **_unique_** name of the channel. _NOTE: Calling this method again with the same channel will override the previous listener!_
 	 * @param listenerCreator A creator function that will be called with the world when built. Should return a function that receives whatever data that is sent across threads, and returns data to be sent back.
 	 * @returns `this`, for chaining.
