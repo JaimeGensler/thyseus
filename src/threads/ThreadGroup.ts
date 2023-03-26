@@ -20,14 +20,15 @@ type WorkerOrGlobal = {
 	): void;
 };
 
+type ThreadGroupConfig = {
+	count: number;
+	url: string | URL | undefined;
+	isMainThread: boolean;
+};
 export class ThreadGroup {
 	isMainThread: boolean;
 
-	static spawn(
-		count: number,
-		url: string | URL | undefined,
-		isMainThread: boolean,
-	): ThreadGroup {
+	static new({ count, url, isMainThread }: ThreadGroupConfig): ThreadGroup {
 		return new this(
 			isMainThread
 				? Array.from(
