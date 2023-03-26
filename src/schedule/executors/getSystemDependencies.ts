@@ -1,6 +1,6 @@
-import { DEV_ASSERT } from '../utils/DEV_ASSERT';
-import { bits } from '../utils/bits';
-import type { SystemDefinition, SystemDependencies } from '../systems';
+import { DEV_ASSERT } from '../../utils/DEV_ASSERT';
+import { bits } from '../../utils/bits';
+import type { SystemDefinition, SystemDependencies } from '../../systems';
 
 export function getSystemDependencies(
 	systems: SystemDefinition[],
@@ -65,7 +65,7 @@ export function getSystemDependencies(
 \*---------*/
 if (import.meta.vitest) {
 	const { describe, it, expect } = import.meta.vitest;
-	const { defineSystem } = await import('../systems');
+	const { defineSystem } = await import('../../systems');
 
 	const createMockSystems = (length: number): SystemDefinition[] =>
 		Array.from({ length }, () =>

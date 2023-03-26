@@ -10,12 +10,13 @@ import {
 	type WorldConfig,
 	type SingleThreadedWorldConfig,
 } from './config';
-import type { ExecutorInstance, ExecutorType } from '../executors';
+import type { ExecutorInstance, ExecutorType } from '../schedule/executors';
 import type { ThreadGroup, ThreadMessageChannel } from '../threads';
 import type { SystemDefinition, SystemDependencies } from '../systems';
 import type { Query } from '../queries';
 import { createManagedStruct } from '../storage/initStruct';
 import { DEV_ASSERT } from '../utils/DEV_ASSERT';
+import { CoreSchedule } from '../schedule';
 
 export class World {
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
@@ -37,22 +38,22 @@ export class World {
 	systems: ((...args: any[]) => any)[] = [];
 	arguments: any[][] = [];
 
+	schedules: Record<symbol, ExecutorInstance>;
+
 	commands: Commands;
 	entities: Entities;
 	config: Readonly<WorldConfig>;
 	threads: ThreadGroup;
-	executor: ExecutorInstance;
 	components: Struct[];
 	constructor(
 		config: WorldConfig,
 		threads: ThreadGroup,
-		executor: ExecutorType,
 		components: Struct[],
 		resourceTypes: Class[],
 		eventTypes: Struct[],
-		systems: SystemDefinition[],
-		dependencies: SystemDependencies[],
 		channels: ThreadMessageChannel[],
+		schedules: Record<symbol, SystemDefinition[]>,
+		executors: Record<symbol, ExecutorType>,
 	) {
 		this.config = config;
 		this.threads = threads;
@@ -81,7 +82,14 @@ export class World {
 		this.components = components;
 		this.entities = Entities.fromWorld(this);
 		this.commands = Commands.fromWorld(this);
-		this.executor = executor.fromWorld(this, systems, dependencies);
+
+		this.schedules = Object.getOwnPropertySymbols(executors).reduce(
+			(acc, key) => {
+				acc[key] = executors[key].fromWorld(this, schedules[key], []);
+				return acc;
+			},
+			{} as Record<symbol, ExecutorInstance>,
+		);
 
 		for (const eventType of eventTypes) {
 			const pointer = this.threads.queue(() => {
@@ -115,13 +123,30 @@ export class World {
 		}
 	}
 
-	async update(): Promise<void> {
-		return this.executor.start();
+	/**
+	 * Starts execution of the world.
+	 */
+	start(): void {
+		this.schedules[CoreSchedule.Outer].start();
+	}
+
+	/**
+	 * Runs the specified schedule.
+	 * Throws if that schedule cannot be found.
+	 * @param schedule The schedule to run.
+	 * @returns A promise that resolves when the schedule has completed
+	 */
+	async runSchedule(schedule: symbol) {
+		DEV_ASSERT(
+			schedule in this.schedules,
+			`Could not find schedule (${String(schedule)}) in the world!`,
+		);
+		return this.schedules[schedule].start();
 	}
 
 	/**
 	 * Gets the resource (instance) of the passed type.
-	 * Assumes that this resource exists in the world.
+	 * Throws if the resource is not in the world.
 	 * @param resourceType The type of the resource to get.
 	 * @returns The resource instance.
 	 */

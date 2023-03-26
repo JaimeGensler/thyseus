@@ -6,52 +6,57 @@ import {
 	ParallelExecutor,
 	SimpleExecutor,
 	type ExecutorType,
-} from '../executors';
+} from '../schedule/executors';
+import { CoreSchedule } from '../schedule';
 import { SystemDependencies, type SystemDefinition } from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 
 export class WorldBuilder {
-	systems: SystemDefinition[] = [];
-	#systemDependencies: SystemDependencies[] = [];
-	#startupSystems: SystemDefinition[] = [];
+	systems: Record<symbol, SystemDefinition[]> = {};
 
 	components: Set<Struct> = new Set();
 	resources: Set<Class> = new Set();
 	events: Set<Struct> = new Set();
 	threadChannels: ThreadMessageChannel[] = [];
-	executor: ExecutorType;
+
+	defaultExecutor: ExecutorType;
+	executors: Record<symbol, ExecutorType> = {};
 
 	config: Readonly<WorldConfig>;
 	url: Readonly<string | URL | undefined>;
 	constructor(config: WorldConfig, url: string | URL | undefined) {
 		this.config = config;
 		this.url = url;
-		this.executor = config.threads > 1 ? ParallelExecutor : SimpleExecutor;
+		this.defaultExecutor =
+			config.threads > 1 ? ParallelExecutor : SimpleExecutor;
 		defaultPlugin(this);
 	}
 
 	/**
-	 * Adds a system to the world and processes its parameter descriptors.
-	 * @param system The system to add.
-	 * @param dependencies The dependencies of this system.
+	 * Adds systems to the default schedule of the world.
+	 * @param systems The systems to add.
 	 * @returns `this`, for chaining.
 	 */
-	addSystem(system: SystemDefinition): this {
-		this.systems.push(system);
-		this.#systemDependencies.push(system.getAndClearDependencies());
-		system.parameters.forEach(descriptor => descriptor.onAddSystem(this));
+	addSystems(...systems: SystemDefinition[]): this {
+		this.addSystemsToSchedule(CoreSchedule.Main, ...systems);
 		return this;
 	}
 
 	/**
-	 * Adds a system to the world _**that will only be run once when built**_.
-	 * @param system The system to add.
+	 * Adds systems to the specified schedule.
+	 * @param schedule The schedule to add the systems to.
+	 * @param systems The systems to add.
 	 * @returns `this`, for chaining.
 	 */
-	addStartupSystem(system: SystemDefinition): this {
-		this.#startupSystems.push(system);
-		system.parameters.forEach(descriptor => descriptor.onAddSystem(this));
+	addSystemsToSchedule(
+		schedule: symbol,
+		...systems: SystemDefinition[]
+	): this {
+		if (!(schedule in systems)) {
+			this.systems[schedule] = [] as SystemDefinition[];
+		}
+		this.systems[schedule].push(...systems);
 		return this;
 	}
 
@@ -111,64 +116,62 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Sets the Executor that this world will use.
-	 * @param executor The Executor to use.
+	 * Sets the executor that schedules will use by default.
+	 * Individual schedules can specify their own executor; if they do not, this executor will be used.
+	 * @param executor The executor type to use by default.
 	 * @returns `this`, for chaining.
 	 */
-	setExecutor(executor: ExecutorType): this {
-		this.executor = executor;
+	setDefaultExecutor(executor: ExecutorType): this {
+		this.defaultExecutor = executor;
+		return this;
+	}
+
+	/**
+	 * Sets the executor to use for a specific schedule.
+	 * @param schedule The schedule.
+	 * @param executor The executor type for this schedule.
+	 * @returns `this`, for chaining.
+	 */
+	setExecutorForSchedule(schedule: symbol, executor: ExecutorType): this {
+		this.executors[schedule] = executor;
 		return this;
 	}
 
 	/**
 	 * Builds the world.
-	 * `World` instances cannot add new systems or register new types.
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
-		const threads = ThreadGroup.spawn(
-			this.config.threads - 1,
-			this.url,
-			this.config.isMainThread,
-		);
+		for (const key of Object.getOwnPropertySymbols(this.systems)) {
+			if (!(key in this.executors)) {
+				this.executors[key] = this.defaultExecutor;
+			}
+		}
+		const threads = ThreadGroup.new({
+			count: this.config.threads - 1,
+			url: this.url,
+			isMainThread: this.config.isMainThread,
+		});
 
 		const world = await threads.wrapInQueue(
 			() =>
 				new World(
 					this.config,
 					threads,
-					this.executor,
 					[...this.components],
 					[...this.resources],
 					[...this.events],
-					this.systems,
-					this.#systemDependencies,
 					this.threadChannels,
+					this.systems,
+					this.executors,
 				),
 		);
-		await threads.wrapInQueue(async () => {
-			for (const system of this.systems) {
-				world.systems.push(system.fn);
-				world.arguments.push(
-					await Promise.all(
-						system.parameters.map(p => p.intoArgument(world)),
-					),
-				);
-			}
-		});
 
 		if (threads.isMainThread) {
 			await Promise.all(
 				//@ts-ignore
 				world.resources.map(resource => resource.initialize?.(world)),
 			);
-
-			for (const system of this.#startupSystems) {
-				await system.fn(
-					...system.parameters.map(p => p.intoArgument(world)),
-				);
-			}
-			await applyCommands.fn(world, new Map());
 		}
 
 		return world;
@@ -254,20 +257,6 @@ if (import.meta.vitest) {
 		expect(initializeTimeSpy).toHaveBeenCalledWith(world);
 	});
 
-	it('runs startup systems only once', async () => {
-		const systemSpy = vi.fn();
-
-		const builder = World.new({ isMainThread: true }).addStartupSystem(
-			defineSystem(() => [], systemSpy),
-		);
-		expect(systemSpy).not.toHaveBeenCalled();
-		const world = await builder.build();
-		expect(systemSpy).toHaveBeenCalledWith();
-		expect(systemSpy).toHaveBeenCalledOnce();
-		await world.update();
-		expect(systemSpy).toHaveBeenCalledOnce();
-	});
-
 	it('adds defaultPlugin', async () => {
 		const world = await World.new({ isMainThread: true }).build();
 		expect(world.components).toStrictEqual([Entity]);
@@ -281,7 +270,7 @@ if (import.meta.vitest) {
 		);
 		const world = World.new({ isMainThread: true });
 		system.beforeAll();
-		world.addSystem(system);
+		world.addSystems(system);
 		expect(system.getAndClearDependencies()).toStrictEqual({
 			dependencies: [],
 			implicitPosition: 0,

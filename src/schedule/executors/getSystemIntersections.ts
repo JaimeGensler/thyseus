@@ -1,4 +1,4 @@
-import type { SystemDefinition } from '../systems';
+import type { SystemDefinition } from '../../systems';
 
 function getSystemRelationship(
 	left: SystemDefinition,
@@ -28,7 +28,7 @@ export function getSystemIntersections(systems: SystemDefinition[]): bigint[] {
 \*---------*/
 if (import.meta.vitest) {
 	const { describe, it, expect, vi } = import.meta.vitest;
-	const { defineSystem } = await import('../systems');
+	const { defineSystem } = await import('../../systems');
 
 	const sys = () => {};
 

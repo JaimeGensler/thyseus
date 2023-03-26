@@ -8,9 +8,6 @@ export type SystemDependencies = {
 };
 
 export class SystemDefinition<T extends any[] = any[]> {
-	#implicitPosition = 0 as -1 | 0 | 1;
-	#dependencies = [] as SystemDefinition<any>[];
-
 	#parameterCreator: ParameterCreator;
 	fn: SystemFunction<T>;
 	constructor(parameters: ParameterCreator, fn: SystemFunction<T>) {
@@ -21,39 +18,7 @@ export class SystemDefinition<T extends any[] = any[]> {
 		return this.#parameterCreator(descriptors);
 	}
 
-	before(...others: SystemDefinition<any>[]): this {
-		for (const other of others) {
-			other.after(this);
-		}
-		return this;
-	}
-	after(...others: SystemDefinition<any>[]): this {
-		for (const other of others) {
-			this.#dependencies.push(other);
-		}
-		return this;
-	}
-
-	beforeAll(): this {
-		this.#implicitPosition = -1;
-		return this;
-	}
-	afterAll(): this {
-		this.#implicitPosition = 1;
-		return this;
-	}
-
 	clone(): SystemDefinition<T> {
 		return new SystemDefinition(this.#parameterCreator, this.fn);
-	}
-
-	getAndClearDependencies(): SystemDependencies {
-		const result = {
-			dependencies: this.#dependencies,
-			implicitPosition: this.#implicitPosition,
-		};
-		this.#dependencies = [];
-		this.#implicitPosition = 0;
-		return result;
 	}
 }

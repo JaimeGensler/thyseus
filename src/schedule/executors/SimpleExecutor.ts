@@ -1,8 +1,8 @@
 import { getSystemDependencies } from './getSystemDependencies';
 import { getSystemIntersections } from './getSystemIntersections';
-import { bits } from '../utils/bits';
-import type { SystemDefinition, SystemDependencies } from '../systems';
-import type { World } from '../world';
+import { bits } from '../../utils/bits';
+import type { SystemDefinition, SystemDependencies } from '../../systems';
+import type { World } from '../../world';
 
 export class SimpleExecutor {
 	static fromWorld(
@@ -50,7 +50,7 @@ export class SimpleExecutor {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
-	const { defineSystem } = await import('../systems');
+	const { defineSystem } = await import('../../systems');
 
 	const createOrderTracking = (length: number) => {
 		const order: number[] = [];

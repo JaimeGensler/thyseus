@@ -1,9 +1,9 @@
-import { memory } from '../utils/memory';
+import { memory } from '../../utils/memory';
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
 import { overlaps } from './overlaps';
-import type { SystemDefinition, SystemDependencies } from '../systems';
-import type { World } from '../world';
+import type { SystemDefinition, SystemDependencies } from '../../systems';
+import type { World } from '../../world';
 
 let nextId = 0;
 const noop = (...args: any[]) => {};
