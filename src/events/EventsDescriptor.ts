@@ -1,9 +1,11 @@
 import { EventReader, EventWriter } from './Events';
 import type { World, WorldBuilder } from '../world';
-import type { Descriptor } from '../systems';
+import type { SystemParameter } from '../systems';
 import type { Struct } from '../struct';
 
-export class EventReaderDescriptor<T extends Struct> implements Descriptor {
+export class EventReaderDescriptor<T extends Struct>
+	implements SystemParameter
+{
 	eventType: T;
 	constructor(eventType: T) {
 		this.eventType = eventType;

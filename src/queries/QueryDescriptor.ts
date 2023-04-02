@@ -3,7 +3,7 @@ import { Query } from './Query';
 import { Mut, Optional, Filter, With, Without, Or } from './modifiers';
 import { registerFilters, createFilterBitfields } from './createRegisterFilter';
 import type { World, WorldBuilder } from '../world';
-import type { Descriptor } from '../systems';
+import type { SystemParameter } from '../systems';
 import type { Class, Struct } from '../struct';
 
 export type AccessDescriptor =
@@ -16,7 +16,7 @@ type UnwrapElement<E extends any> = E extends Class ? InstanceType<E> : E;
 export class QueryDescriptor<
 	A extends AccessDescriptor | AccessDescriptor[],
 	F extends Filter = [],
-> implements Descriptor
+> implements SystemParameter
 {
 	components: Struct[] = [];
 	writes: boolean[] = [];

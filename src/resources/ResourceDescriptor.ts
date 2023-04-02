@@ -1,10 +1,10 @@
 import { Mut } from '../queries';
 import { isStruct, type Class } from '../struct';
-import type { Descriptor } from '../systems';
+import type { SystemParameter } from '../systems';
 import type { World, WorldBuilder } from '../world';
 
 export class ResourceDescriptor<T extends Class | Mut<Class>>
-	implements Descriptor
+	implements SystemParameter
 {
 	resourceType: Class;
 	canWrite: boolean;

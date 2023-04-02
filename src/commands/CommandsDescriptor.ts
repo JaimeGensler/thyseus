@@ -1,8 +1,8 @@
 import type { World, WorldBuilder } from '../world';
 import type { Commands } from './Commands';
-import type { Descriptor } from '../systems';
+import type { SystemParameter } from '../systems';
 
-export class CommandsDescriptor implements Descriptor {
+export class CommandsDescriptor implements SystemParameter {
 	isLocalToThread(): boolean {
 		return false;
 	}

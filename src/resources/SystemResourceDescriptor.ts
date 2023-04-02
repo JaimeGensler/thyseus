@@ -1,10 +1,12 @@
 import { memory } from '../utils/memory';
 import { createManagedStruct } from '../storage/initStruct';
 import { isStruct, type Class } from '../struct';
-import type { Descriptor } from '../systems';
+import type { SystemParameter } from '../systems';
 import type { World, WorldBuilder } from '../world';
 
-export class SystemResourceDescriptor<T extends object> implements Descriptor {
+export class SystemResourceDescriptor<T extends object>
+	implements SystemParameter
+{
 	resourceType: Class;
 
 	constructor(resource: { new (): T }) {
