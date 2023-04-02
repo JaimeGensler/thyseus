@@ -1,9 +1,12 @@
+import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 import { WorldBuilder } from './WorldBuilder';
 import { Commands } from '../commands';
 import { bits } from '../utils/bits';
 import { memory } from '../utils/memory';
 import { Entities, Table } from '../storage';
 import { EventReader, EventWriter } from '../events';
+import { createManagedStruct } from '../storage/initStruct';
+import { CoreSchedule } from '../schedule';
 import { isStruct, type Class, type Struct } from '../struct';
 import {
 	validateAndCompleteConfig,
@@ -11,12 +14,9 @@ import {
 	type SingleThreadedWorldConfig,
 } from './config';
 import type { ExecutorInstance, ExecutorType } from '../schedule/executors';
-import type { ThreadGroup, ThreadMessageChannel } from '../threads';
-import type { SystemDefinition, SystemDependencies } from '../systems';
+import type { ThreadGroup } from '../threads';
+import type { System } from '../systems';
 import type { Query } from '../queries';
-import { createManagedStruct } from '../storage/initStruct';
-import { DEV_ASSERT } from '../utils/DEV_ASSERT';
-import { CoreSchedule } from '../schedule';
 
 export class World {
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
@@ -51,8 +51,7 @@ export class World {
 		components: Struct[],
 		resourceTypes: Class[],
 		eventTypes: Struct[],
-		channels: ThreadMessageChannel[],
-		schedules: Record<symbol, SystemDefinition[]>,
+		schedules: Record<symbol, System[]>,
 		executors: Record<symbol, ExecutorType>,
 	) {
 		this.config = config;
@@ -71,13 +70,6 @@ export class World {
 		const recycledTable = Table.createRecycledTable(this);
 		this.archetypes.push(emptyTable, recycledTable);
 		this.#archetypeLookup.set(0n, recycledTable);
-
-		for (const channel of channels) {
-			this.threads.setListener(
-				channel.channelName,
-				channel.onReceive(this),
-			);
-		}
 
 		this.components = components;
 		this.entities = Entities.fromWorld(this);

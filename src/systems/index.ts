@@ -1,4 +1,14 @@
-export * from './descriptors';
-export { defineSystem } from './defineSystem';
-export type { SystemDefinition, SystemDependencies } from './SystemDefinition';
-export type { Descriptor } from './Descriptor';
+import type { World, WorldBuilder } from '../world';
+
+export type SystemParameter = {
+	isLocalToThread(): boolean;
+	intersectsWith(other: unknown): boolean;
+	onAddSystem(worldBuilder: WorldBuilder): void;
+	intoArgument(world: World): any;
+};
+
+export type System = (...args: any[]) =>
+	| (void | Promise<void>)
+	| {
+			parameters?: SystemParameter[];
+	  };

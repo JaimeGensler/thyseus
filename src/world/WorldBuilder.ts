@@ -1,24 +1,23 @@
 import { World } from './World';
 import { applyCommands } from '../commands';
 import { defaultPlugin, type Plugin } from './defaultPlugin';
-import { ThreadGroup, type ThreadMessageChannel } from '../threads';
+import { ThreadGroup } from '../threads';
 import {
 	ParallelExecutor,
 	SimpleExecutor,
 	type ExecutorType,
 } from '../schedule/executors';
 import { CoreSchedule } from '../schedule';
-import { SystemDependencies, type SystemDefinition } from '../systems';
+import type { System } from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 
 export class WorldBuilder {
-	systems: Record<symbol, SystemDefinition[]> = {};
+	systems: Record<symbol, System[]> = {};
 
 	components: Set<Struct> = new Set();
 	resources: Set<Class> = new Set();
 	events: Set<Struct> = new Set();
-	threadChannels: ThreadMessageChannel[] = [];
 
 	defaultExecutor: ExecutorType;
 	executors: Record<symbol, ExecutorType> = {};
@@ -38,7 +37,7 @@ export class WorldBuilder {
 	 * @param systems The systems to add.
 	 * @returns `this`, for chaining.
 	 */
-	addSystems(...systems: SystemDefinition[]): this {
+	addSystems(...systems: System[]): this {
 		this.addSystemsToSchedule(CoreSchedule.Main, ...systems);
 		return this;
 	}
@@ -49,12 +48,9 @@ export class WorldBuilder {
 	 * @param systems The systems to add.
 	 * @returns `this`, for chaining.
 	 */
-	addSystemsToSchedule(
-		schedule: symbol,
-		...systems: SystemDefinition[]
-	): this {
+	addSystemsToSchedule(schedule: symbol, ...systems: System[]): this {
 		if (!(schedule in systems)) {
-			this.systems[schedule] = [] as SystemDefinition[];
+			this.systems[schedule] = [] as System[];
 		}
 		this.systems[schedule].push(...systems);
 		return this;
@@ -104,18 +100,6 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Registers a message channel for threads.
-	 * When a thread receives a message, it will run the callback created by `listenerCreator`.
-	 * @param channel The **_unique_** name of the channel. _NOTE: Calling this method again with the same channel will override the previous listener!_
-	 * @param listenerCreator A creator function that will be called with the world when built. Should return a function that receives whatever data that is sent across threads, and returns data to be sent back.
-	 * @returns `this`, for chaining.
-	 */
-	registerThreadChannel(channel: ThreadMessageChannel<any, any>): this {
-		this.threadChannels.push(channel);
-		return this;
-	}
-
-	/**
 	 * Sets the executor that schedules will use by default.
 	 * Individual schedules can specify their own executor; if they do not, this executor will be used.
 	 * @param executor The executor type to use by default.
@@ -161,7 +145,6 @@ export class WorldBuilder {
 					[...this.components],
 					[...this.resources],
 					[...this.events],
-					this.threadChannels,
 					this.systems,
 					this.executors,
 				),
@@ -183,7 +166,6 @@ export class WorldBuilder {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
-	const { defineSystem } = await import('../systems');
 	const { Entity, initStruct } = await import('../storage');
 	const { memory } = await import('../utils/memory');
 
@@ -260,21 +242,7 @@ if (import.meta.vitest) {
 	it('adds defaultPlugin', async () => {
 		const world = await World.new({ isMainThread: true }).build();
 		expect(world.components).toStrictEqual([Entity]);
-		expect(world.systems[0]).toBe(applyCommands.fn);
-	});
-
-	it('clears dependencies after adding systems', () => {
-		const system = defineSystem(
-			() => [],
-			() => {},
-		);
-		const world = World.new({ isMainThread: true });
-		system.beforeAll();
-		world.addSystems(system);
-		expect(system.getAndClearDependencies()).toStrictEqual({
-			dependencies: [],
-			implicitPosition: 0,
-		});
+		expect(world.systems[0]).toBe(applyCommands);
 	});
 
 	it('constructs struct resources correctly', async () => {

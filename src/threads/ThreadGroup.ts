@@ -1,11 +1,39 @@
-import {
-	createThreadChannel,
-	type ThreadMessage,
-	type SendableType,
-} from './createThreadChannel';
+type SendableType =
+	| void
+	| null
+	| undefined
+	| boolean
+	| number
+	| string
+	| bigint
+	| ArrayBuffer
+	| SharedArrayBuffer
+	| Uint8Array
+	| Uint16Array
+	| Uint32Array
+	| BigUint64Array
+	| Int8Array
+	| Int16Array
+	| Int32Array
+	| BigInt64Array
+	| Float32Array
+	| Float64Array
+	| Uint8ClampedArray
+	| DataView
+	| Date
+	| RegExp
+	| Blob
+	| File
+	| FileList
+	| ImageBitmap
+	| ImageData
+	| SendableType[]
+	| { [key: string]: SendableType }
+	| Map<SendableType, SendableType>
+	| Set<SendableType>;
 
-type Listener = (...data: SendableType[]) => SendableType;
-type ThreadMessageEvent = MessageEvent<ThreadMessage<SendableType[], any>> & {
+type Listener = (data: SendableType) => SendableType;
+type ThreadMessageEvent = MessageEvent<[string, number, SendableType]> & {
 	currentTarget: WorkerOrGlobal;
 };
 type WorkerOrGlobal = {
@@ -26,8 +54,6 @@ type ThreadGroupConfig = {
 	isMainThread: boolean;
 };
 export class ThreadGroup {
-	isMainThread: boolean;
-
 	static new({ count, url, isMainThread }: ThreadGroupConfig): ThreadGroup {
 		return new this(
 			isMainThread
@@ -40,10 +66,12 @@ export class ThreadGroup {
 		);
 	}
 
-	#resolvers = new Map<number, (value: any) => void>();
-	#resolvedData = new Map<number, SendableType[]>();
-	#listeners = {} as Record<string, Listener>;
-	#queue = [] as SendableType[];
+	isMainThread: boolean;
+	#resolvers: Map<number, (value: any) => void> = new Map();
+	#resolvedData: Map<number, SendableType[]> = new Map();
+	#listeners: Record<string, Listener> = {};
+	#queue: SendableType[] = [];
+	#nextId: number = 0;
 
 	#threads: WorkerOrGlobal[];
 	constructor(threads: WorkerOrGlobal[], isMainThread: boolean) {
@@ -66,7 +94,7 @@ export class ThreadGroup {
 				currentTarget.postMessage([
 					channel,
 					id,
-					this.#listeners[channel](...message),
+					this.#listeners[channel](message),
 				]);
 			} else {
 				currentTarget.postMessage([channel, id, null]);
@@ -93,16 +121,17 @@ export class ThreadGroup {
 	 * @param message The value to send.
 	 * @returns A promise, resolves to an array of results from all threads.
 	 */
-	send<T>(message: ThreadMessage<any, T>): Promise<T[]> {
+	send<T extends unknown>(channel: string, data: SendableType): Promise<T[]> {
 		if (this.#threads.length === 0) {
 			return Promise.resolve([]);
 		}
 		return new Promise(r => {
+			const id = this.#nextId++;
 			for (const thread of this.#threads) {
-				thread.postMessage(message);
+				thread.postMessage([channel, id, data]);
 			}
-			this.#resolvedData.set(message[1], []);
-			this.#resolvers.set(message[1], r);
+			this.#resolvedData.set(id, []);
+			this.#resolvers.set(id, r);
 		});
 	}
 
@@ -129,7 +158,7 @@ export class ThreadGroup {
 		let result: T;
 		if (this.isMainThread) {
 			result = await callback();
-			await this.send([channel, 0, [this.#queue]]);
+			await this.send(channel, this.#queue);
 		} else {
 			result = await new Promise(resolve =>
 				this.setListener(channel, (queue: any) => {
@@ -175,38 +204,26 @@ if (import.meta.vitest) {
 
 	it('send returns a promise with an array of results from workers', async () => {
 		const [group1, group2] = getMockThreads();
-		const add2 = createThreadChannel(
-			'add2',
-			() => (data: number) => data + 2,
-		);
-		const set3 = createThreadChannel(
-			'set3',
-			() => (data: { x: number }) => ({
-				...data,
-				x: 3,
-			}),
-		);
-		group2.setListener(add2.channelName, add2.onReceive({} as any));
-		group2.setListener(set3.channelName, set3.onReceive({} as any));
-		expect(await group1.send(add2(0))).toStrictEqual([2]);
-		expect(await group1.send(add2(1))).toStrictEqual([3]);
-		expect(await group1.send(add2(3.5))).toStrictEqual([5.5]);
-		expect(await group1.send(set3({ x: 2 }))).toStrictEqual([{ x: 3 }]);
+		group2.setListener('add2', (data: number) => data + 2);
+		group2.setListener('set3', (data: { x: number }) => ({
+			...data,
+			x: 3,
+		}));
+		expect(await group1.send('add2', 0)).toStrictEqual([2]);
+		expect(await group1.send('add2', 1)).toStrictEqual([3]);
+		expect(await group1.send('add2', 3.5)).toStrictEqual([5.5]);
+		expect(await group1.send('set3', { x: 2 })).toStrictEqual([{ x: 3 }]);
 	});
 
 	it('receives null back if no listener is set up', async () => {
 		const [group1, group2] = getMockThreads();
-		expect(await group1.send(['do something!', 0, []])).toStrictEqual([
+		expect(await group1.send('do something!', undefined)).toStrictEqual([
 			null,
 		]);
 		group2.setListener('do something!', (n: number) => n * 2);
-		expect(await group1.send(['do something!', 1, [8]])).toStrictEqual([
-			16,
-		]);
+		expect(await group1.send('do something!', 8)).toStrictEqual([16]);
 		group2.deleteListener('do something!');
-		expect(await group1.send(['do something!', 2, [0]])).toStrictEqual([
-			null,
-		]);
+		expect(await group1.send('do something!', 0)).toStrictEqual([null]);
 	});
 
 	it.todo('queue and wrapInQueue works', async () => {});
