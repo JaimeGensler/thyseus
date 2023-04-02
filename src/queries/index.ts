@@ -1,4 +1,4 @@
-export { Query } from './Query';
+export { Query, type Accessors } from './Query';
 export { QueryDescriptor } from './QueryDescriptor';
 export {
 	Optional,

@@ -6,7 +6,7 @@ import type { World } from '../world';
 import type { Commands } from '../commands';
 import type { Mut, Optional, Filter } from './modifiers';
 
-type Accessors = object | object[];
+export type Accessors = object | object[];
 type QueryIteration<A extends Accessors> = A extends any[]
 	? {
 			[Index in keyof A]: IteratorItem<A[Index]>;
@@ -290,7 +290,7 @@ if (import.meta.vitest) {
 			for (let i = 0; i < 5; i++) {
 				world.commands.spawn().addType(Vec3).addType(ZST);
 			}
-			applyCommands.fn(world, new Map());
+			applyCommands(world, new Map());
 
 			let j = 0;
 			for (const [vec, ent] of query) {
@@ -373,7 +373,7 @@ if (import.meta.vitest) {
 			for (let i = 1; i < 8; i++) {
 				world.commands.spawn().addType(Vec3);
 			}
-			applyCommands.fn(world, new Map());
+			applyCommands(world, new Map());
 			expect(query.length).toBe(8);
 
 			let i = 0;
