@@ -1,6 +1,8 @@
 import type * as Thyseus from '.';
 import type { Accessors, Filter, OrContent } from './queries';
 
+// NOTE: When developing locally, you must comment out these global types!
+// We do not rely on global injection in the core library.
 declare global {
 	type Entity = Thyseus.Entity;
 	type EntityCommands = Thyseus.EntityCommands;
