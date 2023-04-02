@@ -1,15 +1,14 @@
-import { defineSystem } from '../systems';
 import { CoreSchedule } from './CoreSchedule';
+import { WorldDescriptor } from '../descriptors';
+import type { World } from '../world';
 
-export const runOuterSchedule = defineSystem(
-	({ World }) => [World()],
-	async function runOuterSchedule(world) {
-		await world.runSchedule(CoreSchedule.Startup);
+export async function runOuterSchedule(world: World) {
+	await world.runSchedule(CoreSchedule.Startup);
 
-		async function loop(timestep: number) {
-			await world.runSchedule(CoreSchedule.Main);
-			requestAnimationFrame(loop);
-		}
-		loop(0);
-	},
-);
+	async function loop(timestep: number) {
+		await world.runSchedule(CoreSchedule.Main);
+		requestAnimationFrame(loop);
+	}
+	loop(0);
+}
+runOuterSchedule.parameters = [WorldDescriptor()];

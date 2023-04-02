@@ -1,69 +1,72 @@
 import { memory } from '../utils/memory';
-import { defineSystem } from '../systems/defineSystem';
+import { SystemResourceDescriptor, WorldDescriptor } from '../descriptors';
 import {
 	ADD_COMPONENT_COMMAND,
 	CLEAR_QUEUE_COMMAND,
 	REMOVE_COMPONENT_COMMAND,
 } from './Commands';
+import type { World } from '../world';
+import type { Res } from '../resources';
 
-export const applyCommands = defineSystem(
-	({ World, SystemRes }) => [World(), SystemRes<Map<bigint, bigint>>(Map)],
-	function applyCommands(world, entityDestinations) {
-		const { commands, entities, archetypes, components } = world;
-		entities.resetCursor();
-		entityDestinations.clear();
+export function applyCommands(
+	world: World,
+	entityDestinations: Res<Map<bigint, bigint>>,
+) {
+	const { commands, entities, archetypes, components } = world;
+	entities.resetCursor();
+	entityDestinations.clear();
 
-		for (const { type, dataStart } of commands) {
-			if (type === CLEAR_QUEUE_COMMAND) {
-				const queueLengthPointer = memory.views.u32[dataStart >> 2];
-				memory.views.u32[queueLengthPointer >> 2] = 0;
-			}
-			if (
-				type !== ADD_COMPONENT_COMMAND &&
-				type !== REMOVE_COMPONENT_COMMAND
-			) {
-				continue;
-			}
-			const entityId = memory.views.u64[dataStart >> 3];
-			let val = entityDestinations.get(entityId);
-			if (val === 0n) {
-				continue;
-			}
-			const componentId = memory.views.u16[(dataStart + 8) >> 1];
-			val ??= entities.getBitset(entityId);
-			entityDestinations.set(
-				entityId,
-				type === ADD_COMPONENT_COMMAND
-					? val | (1n << BigInt(componentId))
-					: componentId === 0
-					? 0n
-					: val ^ (1n << BigInt(componentId)),
-			);
+	for (const { type, dataStart } of commands) {
+		if (type === CLEAR_QUEUE_COMMAND) {
+			const queueLengthPointer = memory.views.u32[dataStart >> 2];
+			memory.views.u32[queueLengthPointer >> 2] = 0;
 		}
-		for (const [entityId, tableId] of entityDestinations) {
-			world.moveEntity(entityId, tableId);
+		if (
+			type !== ADD_COMPONENT_COMMAND &&
+			type !== REMOVE_COMPONENT_COMMAND
+		) {
+			continue;
 		}
-
-		for (const { type, dataStart } of commands) {
-			if (type !== ADD_COMPONENT_COMMAND) {
-				continue;
-			}
-			const entityId = memory.views.u64[dataStart >> 3];
-			const tableId = entities.getTableIndex(entityId);
-			if (tableId === 0 || tableId === 1) {
-				continue;
-			}
-			const componentId = memory.views.u32[(dataStart + 8) >> 2];
-			archetypes[tableId].copyComponentIntoRow(
-				entities.getRow(entityId),
-				components[componentId],
-				dataStart + 16,
-			);
+		const entityId = memory.views.u64[dataStart >> 3];
+		let val = entityDestinations.get(entityId);
+		if (val === 0n) {
+			continue;
 		}
+		const componentId = memory.views.u16[(dataStart + 8) >> 1];
+		val ??= entities.getBitset(entityId);
+		entityDestinations.set(
+			entityId,
+			type === ADD_COMPONENT_COMMAND
+				? val | (1n << BigInt(componentId))
+				: componentId === 0
+				? 0n
+				: val ^ (1n << BigInt(componentId)),
+		);
+	}
+	for (const [entityId, tableId] of entityDestinations) {
+		world.moveEntity(entityId, tableId);
+	}
 
-		commands.reset();
-	},
-);
+	for (const { type, dataStart } of commands) {
+		if (type !== ADD_COMPONENT_COMMAND) {
+			continue;
+		}
+		const entityId = memory.views.u64[dataStart >> 3];
+		const tableId = entities.getTableIndex(entityId);
+		if (tableId === 0 || tableId === 1) {
+			continue;
+		}
+		const componentId = memory.views.u32[(dataStart + 8) >> 2];
+		archetypes[tableId].copyComponentIntoRow(
+			entities.getRow(entityId),
+			components[componentId],
+			dataStart + 16,
+		);
+	}
+
+	commands.reset();
+}
+applyCommands.parameters = [WorldDescriptor(), SystemResourceDescriptor(Map)];
 
 /*---------*\
 |   TESTS   |
@@ -129,7 +132,8 @@ if (import.meta.vitest) {
 		const moveEntitySpy = vi.spyOn(myWorld, 'moveEntity');
 		myWorld.commands.spawn().addType(CompA).add(new CompD());
 		myWorld.commands.spawn().addType(CompB).addType(ZST).add(new CompD());
-		await applyCommands.fn(myWorld, new Map());
+
+		applyCommands(myWorld, new Map());
 		expect(moveEntitySpy).toHaveBeenCalledTimes(2);
 		expect(moveEntitySpy).toHaveBeenCalledWith(0n, 0b100101n);
 		expect(moveEntitySpy).toHaveBeenCalledWith(1n, 0b101011n);
@@ -138,7 +142,8 @@ if (import.meta.vitest) {
 	it('initializes data', async () => {
 		const myWorld = await createWorld();
 		myWorld.commands.spawn().addType(CompA).add(new CompD(1, 2));
-		await applyCommands.fn(myWorld, new Map());
+
+		applyCommands(myWorld, new Map());
 		const archetypeD = myWorld.archetypes[2];
 		const testComp = new CompD();
 
@@ -159,7 +164,8 @@ if (import.meta.vitest) {
 		expect(writer.length).toBe(1);
 		writer.clear();
 		expect(writer.length).toBe(1);
-		await applyCommands.fn(myWorld, new Map());
+
+		applyCommands(myWorld, new Map());
 		expect(writer.length).toBe(0);
 	});
 }
