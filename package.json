@@ -12,12 +12,20 @@
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
+		"./package.json": "./package.json",
+		"./src/*": "./src/*",
 		".": {
 			"import": "./dist/index.js",
 			"require": "./dist/index.umd.cjs"
 		},
-		"./package.json": "./package.json",
-		"./src/*": "./src/*"
+		"./descriptors": {
+			"import": "./dist/descriptors.js",
+			"require": "./dist/descriptors.umd.cjs"
+		},
+		"./types": {
+			"import": "./types.ts",
+			"require": "./types.ts"
+		}
 	},
 	"repository": {
 		"type": "git",
