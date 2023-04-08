@@ -13,6 +13,7 @@ declare global {
 	type Struct = Thyseus.Struct;
 	type System = Thyseus.System;
 	type SystemParameter = Thyseus.SystemParameter;
+	type SystemOrder = Thyseus.SystemOrder;
 	type ThreadGroup = Thyseus.ThreadGroup;
 	type Memory = Thyseus.Memory;
 	type WorldBuilder = Thyseus.WorldBuilder;
