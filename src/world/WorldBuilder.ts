@@ -1,5 +1,5 @@
+import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 import { World } from './World';
-import { applyCommands } from '../commands';
 import { defaultPlugin, type Plugin } from './defaultPlugin';
 import { ThreadGroup } from '../threads';
 import {
@@ -7,18 +7,20 @@ import {
 	SimpleExecutor,
 	type ExecutorType,
 } from '../schedule/executors';
-import { CoreSchedule } from '../schedule';
+import { CoreSchedule, type SystemOrder } from '../schedule';
 import type { System } from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 
+type SystemList = (System | SystemOrder)[];
 export class WorldBuilder {
-	systems: Record<symbol, System[]> = {};
+	schedules: Record<symbol, SystemList> = {};
 
 	components: Set<Struct> = new Set();
 	resources: Set<Class> = new Set();
 	events: Set<Struct> = new Set();
 
+	#systems: Set<System> = new Set();
 	defaultExecutor: ExecutorType;
 	executors: Record<symbol, ExecutorType> = {};
 
@@ -33,11 +35,11 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Adds systems to the default schedule of the world.
+	 * Adds systems to the default schedule of the world (`CoreSchedule.Main`).
 	 * @param systems The systems to add.
 	 * @returns `this`, for chaining.
 	 */
-	addSystems(...systems: System[]): this {
+	addSystems(...systems: SystemList): this {
 		this.addSystemsToSchedule(CoreSchedule.Main, ...systems);
 		return this;
 	}
@@ -48,11 +50,27 @@ export class WorldBuilder {
 	 * @param systems The systems to add.
 	 * @returns `this`, for chaining.
 	 */
-	addSystemsToSchedule(schedule: symbol, ...systems: System[]): this {
+	addSystemsToSchedule(schedule: symbol, ...systems: SystemList): this {
 		if (!(schedule in systems)) {
-			this.systems[schedule] = [] as System[];
+			this.schedules[schedule] = [] as System[];
 		}
-		this.systems[schedule].push(...systems);
+		for (const s of systems) {
+			const system = typeof s === 'function' ? s : s.system;
+			this.#systems.add(system);
+			DEV_ASSERT(
+				// NOTE: We allow a mismatch here so long as systems receive at
+				// least as many parameters as its length. Fewer than the length
+				// is almost always the result of a failed transformation, but
+				// more the length could just be the result of atypical typing.
+				(system.parameters?.length ?? 0) >= system.length,
+				`System "${system.name}" expects ${
+					system.length
+				} parameters, but will receive ${
+					system.parameters?.length ?? 0
+				}. This is likely due to a failed transformation.`,
+			);
+		}
+		this.schedules[schedule].push(...systems);
 		return this;
 	}
 
@@ -67,7 +85,7 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Registers a Component in the world.
+	 * Registers a component type in the world.
 	 * Called automatically for all queried components when a system is added.
 	 * @param componentType The componentType (`Struct`) to register.
 	 * @returns `this`, for chaining.
@@ -78,7 +96,7 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Registers a Resource in the world.
+	 * Registers a resource type in the world.
 	 * Called automatically for all accessed resources when a system is added.
 	 * @param resourceType The Resource type (`Class`) to register.
 	 * @returns `this`, for chaining.
@@ -126,7 +144,7 @@ export class WorldBuilder {
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
-		for (const key of Object.getOwnPropertySymbols(this.systems)) {
+		for (const key of Object.getOwnPropertySymbols(this.schedules)) {
 			if (!(key in this.executors)) {
 				this.executors[key] = this.defaultExecutor;
 			}
@@ -137,18 +155,40 @@ export class WorldBuilder {
 			isMainThread: this.config.isMainThread,
 		});
 
-		const world = await threads.wrapInQueue(
-			() =>
-				new World(
-					this.config,
-					threads,
-					[...this.components],
-					[...this.resources],
-					[...this.events],
-					this.systems,
-					this.executors,
-				),
-		);
+		const world = await threads.wrapInQueue(async () => {
+			const world = new World(
+				this.config,
+				threads,
+				[...this.components],
+				[...this.resources],
+				[...this.events],
+			);
+			const systemArguments = new Map();
+			for (const system of this.#systems) {
+				systemArguments.set(
+					system,
+					await Promise.all(
+						system.parameters?.map(parameter =>
+							parameter.intoArgument(world),
+						) ?? [],
+					),
+				);
+			}
+			Object.getOwnPropertySymbols(this.executors).reduce((acc, key) => {
+				acc[key] = this.executors[key].fromWorld(
+					world,
+					this.schedules[key],
+					this.schedules[key].map(s =>
+						systemArguments.get(
+							typeof s === 'function' ? s : s.system,
+						),
+					),
+				);
+				return acc;
+			}, world.schedules);
+
+			return world;
+		});
 
 		if (threads.isMainThread) {
 			await Promise.all(
@@ -242,7 +282,7 @@ if (import.meta.vitest) {
 	it('adds defaultPlugin', async () => {
 		const world = await World.new({ isMainThread: true }).build();
 		expect(world.components).toStrictEqual([Entity]);
-		expect(world.systems[0]).toBe(applyCommands);
+		// expect(world.systems[0]).toBe(applyCommands);
 	});
 
 	it('constructs struct resources correctly', async () => {

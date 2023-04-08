@@ -13,13 +13,23 @@ import {
 	type WorldConfig,
 	type SingleThreadedWorldConfig,
 } from './config';
-import type { ExecutorInstance, ExecutorType } from '../schedule/executors';
+import type { ExecutorInstance } from '../schedule/executors';
 import type { ThreadGroup } from '../threads';
-import type { System } from '../systems';
 import type { Query } from '../queries';
 
 export class World {
+	/**
+	 * Constructs and returns a new `WorldBuilder`.
+	 * @param config The config of the world.
+	 * @returns A `WorldBuilder`
+	 */
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
+	/**
+	 * Constructs and returns a new `WorldBuilder`.
+	 * @param config The config of the world.
+	 * @param url The url to provide to workers. **This should always be `import.meta.url`.**
+	 * @returns A `WorldBuilder`.
+	 */
 	static new(config: Partial<WorldConfig>, url: string | URL): WorldBuilder;
 	static new(
 		config?: Partial<WorldConfig>,
@@ -35,10 +45,7 @@ export class World {
 	eventReaders: EventReader<any>[] = [];
 	eventWriters: EventWriter<any>[] = [];
 
-	systems: ((...args: any[]) => any)[] = [];
-	arguments: any[][] = [];
-
-	schedules: Record<symbol, ExecutorInstance>;
+	schedules: Record<symbol, ExecutorInstance> = {};
 
 	commands: Commands;
 	entities: Entities;
@@ -51,8 +58,6 @@ export class World {
 		components: Struct[],
 		resourceTypes: Class[],
 		eventTypes: Struct[],
-		schedules: Record<symbol, System[]>,
-		executors: Record<symbol, ExecutorType>,
 	) {
 		this.config = config;
 		this.threads = threads;
@@ -66,22 +71,14 @@ export class World {
 			),
 		);
 
+		this.components = components;
 		const emptyTable = Table.createEmptyTable(this);
 		const recycledTable = Table.createRecycledTable(this);
 		this.archetypes.push(emptyTable, recycledTable);
 		this.#archetypeLookup.set(0n, recycledTable);
 
-		this.components = components;
 		this.entities = Entities.fromWorld(this);
 		this.commands = Commands.fromWorld(this);
-
-		this.schedules = Object.getOwnPropertySymbols(executors).reduce(
-			(acc, key) => {
-				acc[key] = executors[key].fromWorld(this, schedules[key], []);
-				return acc;
-			},
-			{} as Record<symbol, ExecutorInstance>,
-		);
 
 		for (const eventType of eventTypes) {
 			const pointer = this.threads.queue(() => {
