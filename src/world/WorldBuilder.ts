@@ -174,8 +174,8 @@ export class WorldBuilder {
 					),
 				);
 			}
-			Object.getOwnPropertySymbols(this.executors).reduce((acc, key) => {
-				acc[key] = this.executors[key].fromWorld(
+			for (const key of Object.getOwnPropertySymbols(this.executors)) {
+				world.schedules[key] = this.executors[key].fromWorld(
 					world,
 					this.schedules[key],
 					this.schedules[key].map(s =>
@@ -184,9 +184,7 @@ export class WorldBuilder {
 						),
 					),
 				);
-				return acc;
-			}, world.schedules);
-
+			}
 			return world;
 		});
 

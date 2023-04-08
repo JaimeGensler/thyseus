@@ -1,11 +1,12 @@
+import type { SystemOrder } from '../order';
 import type { World } from '../../world';
-import type { SystemDefinition, SystemDependencies } from '../../systems';
+import type { System } from '../../systems';
 
 export type ExecutorInstance = { start(): Promise<void> };
 export type ExecutorType = {
 	fromWorld(
 		world: World,
-		systemDefinitions: SystemDefinition[],
-		systemDependencies: SystemDependencies[],
+		systems: (System | SystemOrder)[],
+		systemArguments: any[][],
 	): ExecutorInstance;
 };
