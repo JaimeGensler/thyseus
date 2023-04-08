@@ -6,11 +6,12 @@ import {
 	REMOVE_COMPONENT_COMMAND,
 } from './Commands';
 import type { World } from '../world';
-import type { Res } from '../resources';
+import type { SystemRes } from '../resources';
 
+// @thyseus-ignore
 export function applyCommands(
 	world: World,
-	entityDestinations: Res<Map<bigint, bigint>>,
+	entityDestinations: SystemRes<Map<bigint, bigint>>,
 ) {
 	const { commands, entities, archetypes, components } = world;
 	entities.resetCursor();

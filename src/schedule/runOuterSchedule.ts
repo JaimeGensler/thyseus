@@ -2,6 +2,7 @@ import { CoreSchedule } from './CoreSchedule';
 import { WorldDescriptor } from '../descriptors';
 import type { World } from '../world';
 
+//@thyseus-ignore
 export async function runOuterSchedule(world: World) {
 	await world.runSchedule(CoreSchedule.Startup);
 
