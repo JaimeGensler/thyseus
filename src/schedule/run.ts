@@ -1,9 +1,9 @@
 import type { System } from '../systems';
 import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 
-class SystemOrder {
-	beforeList: System[] = [];
-	afterList: System[] = [];
+class SystemConfig {
+	dependents: System[] = [];
+	dependencies: System[] = [];
 	isFirst: boolean = false;
 	isLast: boolean = false;
 
@@ -18,7 +18,7 @@ class SystemOrder {
 	 * @returns `this`, for chaining.
 	 */
 	before(...systems: System[]): this {
-		this.beforeList.push(...systems);
+		this.dependents.push(...systems);
 		return this;
 	}
 
@@ -28,7 +28,7 @@ class SystemOrder {
 	 * @returns `this`, for chaining.
 	 */
 	after(...systems: System[]): this {
-		this.afterList.push(...systems);
+		this.dependencies.push(...systems);
 		return this;
 	}
 
@@ -59,19 +59,17 @@ class SystemOrder {
 		return this;
 	}
 }
-export type { SystemOrder };
+export { SystemConfig };
 
-type Order = {
-	(system: System): SystemOrder;
-	chain(...systems: System[]): SystemOrder[];
+type Run = {
+	(system: System): SystemConfig;
+	chain(...systems: System[]): (System | SystemConfig)[];
 };
 
-const order: Order = system => new SystemOrder(system);
-order.chain = (...systems) =>
+const run: Run = system => new SystemConfig(system);
+run.chain = (...systems) =>
 	systems.map((system, i) =>
-		i === 0
-			? new SystemOrder(system)
-			: new SystemOrder(system).after(systems[i - 1]),
+		i === 0 ? system : new SystemConfig(system).after(systems[i - 1]),
 	);
 
-export { order };
+export { run };

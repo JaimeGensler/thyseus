@@ -1,5 +1,4 @@
 export { CoreSchedule } from './CoreSchedule';
-export { runOuterSchedule } from './runOuterSchedule';
-export { order, type SystemOrder } from './order';
+export { run, type SystemConfig } from './run';
 
 export * from './executors';
