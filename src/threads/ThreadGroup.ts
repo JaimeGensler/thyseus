@@ -225,6 +225,4 @@ if (import.meta.vitest) {
 		group2.deleteListener('do something!');
 		expect(await group1.send('do something!', 0)).toStrictEqual([null]);
 	});
-
-	it.todo('queue and wrapInQueue works', async () => {});
 }
