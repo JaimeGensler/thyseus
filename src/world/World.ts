@@ -135,17 +135,10 @@ export class World {
 
 	/**
 	 * Gets the resource (instance) of the passed type.
-	 * Throws if the resource is not in the world.
 	 * @param resourceType The type of the resource to get.
 	 * @returns The resource instance.
 	 */
 	getResource<T extends Class>(resourceType: T): InstanceType<T> {
-		DEV_ASSERT(
-			this.resources.some(
-				instance => instance.constructor === resourceType,
-			),
-			'Did not find resource in world. world.getResource() requires that the resource exist.',
-		);
 		return this.resources.find(
 			instance => instance.constructor === resourceType,
 		)! as any;
