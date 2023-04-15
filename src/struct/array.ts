@@ -1,7 +1,7 @@
 import { memory } from '../utils/memory';
 import { addField, TYPE_TO_CONSTRUCTOR, type PrimitiveName } from './addField';
 
-type ArrayOptions = {
+export type ArrayOptions = {
 	type: PrimitiveName;
 	length: number;
 };

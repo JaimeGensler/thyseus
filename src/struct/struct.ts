@@ -13,7 +13,7 @@ import {
 	bool,
 } from './primitives';
 import { string } from './string';
-import { array } from './array';
+import { array, type ArrayOptions } from './array';
 import { substruct } from './substruct';
 import { initStruct } from '../storage';
 
@@ -38,7 +38,31 @@ export type Struct = {
 	new (): object;
 };
 
-export function struct(targetClass: Class): any {
+type StructDecorator = {
+	(targetClass: Class): any;
+	bool(prototype: object, propertyKey: string | symbol): void;
+	u8(prototype: object, propertyKey: string | symbol): void;
+	u16(prototype: object, propertyKey: string | symbol): void;
+	u32(prototype: object, propertyKey: string | symbol): void;
+	u64(prototype: object, propertyKey: string | symbol): void;
+	i8(prototype: object, propertyKey: string | symbol): void;
+	i16(prototype: object, propertyKey: string | symbol): void;
+	i32(prototype: object, propertyKey: string | symbol): void;
+	i64(prototype: object, propertyKey: string | symbol): void;
+	f32(prototype: object, propertyKey: string | symbol): void;
+	f64(prototype: object, propertyKey: string | symbol): void;
+
+	string(prototype: object, propertyKey: string | symbol): void;
+
+	array({
+		type,
+		length,
+	}: ArrayOptions): (prototype: object, propertyKey: string | symbol) => void;
+	substruct(
+		struct: Struct,
+	): (prototype: object, propertyKey: string | symbol) => void;
+};
+export const struct: StructDecorator = function struct(targetClass) {
 	const { size, alignment, pointers } = resetFields();
 	return class extends targetClass {
 		static size = size;
@@ -52,7 +76,8 @@ export function struct(targetClass: Class): any {
 			initStruct(this);
 		}
 	};
-}
+};
+
 struct.bool = bool;
 struct.u8 = u8;
 struct.u16 = u16;
