@@ -124,6 +124,7 @@ if (import.meta.vitest) {
 						(t: any) => t.constructor === type,
 					);
 				},
+				threads: { isMainThread: true },
 			} as any;
 
 			expect(
