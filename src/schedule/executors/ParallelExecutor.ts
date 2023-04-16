@@ -130,6 +130,10 @@ export class ParallelExecutor {
 		);
 	}
 
+	get length() {
+		return this.#systems.length;
+	}
+
 	async start() {
 		this.#systemsRemaining = this.#systems.length;
 		this.#status[1] = 0;

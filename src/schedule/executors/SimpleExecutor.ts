@@ -42,6 +42,10 @@ export class SimpleExecutor {
 		this.#systemOrder = systemOrder;
 	}
 
+	get length() {
+		return this.#systems.length;
+	}
+
 	async start() {
 		for (const systemId of this.#systemOrder) {
 			await this.#systems[systemId](...this.#arguments[systemId]);
