@@ -1,18 +1,18 @@
-import type { SystemDefinition } from '../../systems';
+import type { System } from '../../systems';
 
-function getSystemRelationship(
-	left: SystemDefinition,
-	right: SystemDefinition,
-): 0 | 1 {
+function getSystemRelationship(left: System, right: System): 0 | 1 {
+	if (!left.parameters || !right.parameters) {
+		return 0; // Disjoint
+	}
 	return left.parameters.some(pL =>
-		right.parameters.some(
+		right.parameters!.some(
 			pR => pL.intersectsWith(pR) || pR.intersectsWith(pL),
 		),
 	)
 		? 1 //  Intersecting
 		: 0; // Disjoint
 }
-export function getSystemIntersections(systems: SystemDefinition[]): bigint[] {
+export function getSystemIntersections(systems: System[]): bigint[] {
 	return systems.map(current =>
 		systems.reduce(
 			(acc, other, i) =>
@@ -28,9 +28,9 @@ export function getSystemIntersections(systems: SystemDefinition[]): bigint[] {
 \*---------*/
 if (import.meta.vitest) {
 	const { describe, it, expect, vi } = import.meta.vitest;
-	const { defineSystem } = await import('../../systems');
-
-	const sys = () => {};
+	const { QueryDescriptor, Mut, ResourceDescriptor } = await import(
+		'../../descriptors'
+	);
 
 	class AnyComponent {
 		static size = 1;
@@ -108,16 +108,24 @@ if (import.meta.vitest) {
 
 	describe('getSystemIntersections', () => {
 		it('returns bigint bitmasks indicating system intersection', () => {
-			const s0 = defineSystem(P => [P.Query([P.Mut(A), B])], sys);
-			const s1 = defineSystem(P => [P.Query([A, D])], sys);
-			const s2 = defineSystem(P => [P.Query([P.Mut(B), C])], sys);
-			const s3 = defineSystem(P => [P.Query([B, D])], sys);
+			const s0 = { parameters: [QueryDescriptor([Mut(A), B])] };
+			const s1 = { parameters: [QueryDescriptor([A, D])] };
+			const s2 = { parameters: [QueryDescriptor([Mut(B), C])] };
+			const s3 = { parameters: [QueryDescriptor([B, D])] };
 
-			const s4 = defineSystem(P => [P.Res(B)], sys);
-			const s5 = defineSystem(P => [P.Res(B)], sys);
-			const s6 = defineSystem(P => [P.Res(P.Mut(B))], sys);
+			const s4 = { parameters: [ResourceDescriptor(B)] };
+			const s5 = { parameters: [ResourceDescriptor(B)] };
+			const s6 = { parameters: [ResourceDescriptor(Mut(B))] };
 
-			const result = getSystemIntersections([s0, s1, s2, s3, s4, s5, s6]);
+			const result = getSystemIntersections([
+				s0,
+				s1,
+				s2,
+				s3,
+				s4,
+				s5,
+				s6,
+			] as any);
 			expect(result[0]).toBe(0b0000_0111n);
 			expect(result[1]).toBe(0b0000_0001n);
 			expect(result[2]).toBe(0b0000_1101n);

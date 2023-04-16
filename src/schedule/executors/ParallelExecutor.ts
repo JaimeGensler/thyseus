@@ -2,7 +2,8 @@ import { memory } from '../../utils/memory';
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
 import { overlaps } from './overlaps';
-import type { SystemDefinition, SystemDependencies } from '../../systems';
+import type { SystemConfig } from '../run';
+import type { System } from '../../systems';
 import type { World } from '../../world';
 
 let nextId = 0;
@@ -11,18 +12,28 @@ const noop = (...args: any[]) => {};
 export class ParallelExecutor {
 	static fromWorld(
 		world: World,
-		systems: SystemDefinition[],
-		systemDependencies: SystemDependencies[],
-	) {
+		systems: (System | SystemConfig)[],
+		systemArguments: any[][],
+	): ParallelExecutor {
+		const sys = systems.map(s => (typeof s === 'function' ? s : s.system));
+
 		const intersections = world.threads.queue(() =>
-			getSystemIntersections(systems),
+			getSystemIntersections(sys),
 		);
 		const dependencies = world.threads.queue(() =>
-			getSystemDependencies(systems, systemDependencies, intersections),
+			getSystemDependencies(systems),
 		);
 		const locallyAvailable = world.threads.isMainThread
 			? systems.map(() => true)
-			: systems.map(s => !s.parameters.some(p => p.isLocalToThread()));
+			: systems.map(s => {
+					const system = typeof s === 'function' ? s : s.system;
+					if (!system.parameters) {
+						return true;
+					}
+					return system.parameters.every(
+						parameter => !parameter.isLocalToThread(),
+					);
+			  });
 
 		const { buffer } = memory.views;
 		const pointer = world.threads.queue(() =>
@@ -34,6 +45,8 @@ export class ParallelExecutor {
 
 		return new this(
 			world,
+			sys,
+			systemArguments,
 			new Uint32Array(buffer, pointer, 2),
 			new Uint8Array(buffer, pointer + 8, systems.length),
 			new Uint8Array(
@@ -73,6 +86,8 @@ export class ParallelExecutor {
 	#arguments: any[][];
 	constructor(
 		world: World,
+		systems: System[],
+		systemArguments: any[][],
 		status: Uint32Array, // [ needingExecution, completedExecution ]
 		toExecuteSystems: Uint8Array,
 		executingSystems: Uint8Array,
@@ -82,8 +97,8 @@ export class ParallelExecutor {
 		locallyAvailable: boolean[],
 		lockName: string,
 	) {
-		this.#systems = world.systems;
-		this.#arguments = world.arguments;
+		this.#systems = systems;
+		this.#arguments = systemArguments;
 		this.#isMainThread = world.threads.isMainThread;
 
 		this.#intersections = intersections;
@@ -253,6 +268,8 @@ if (import.meta.vitest) {
 					isMainThread,
 				},
 			} as any,
+			systems,
+			args,
 			...arrs,
 			i,
 			d,
