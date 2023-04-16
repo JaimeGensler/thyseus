@@ -1,11 +1,11 @@
 const Main = Symbol('MainSchedule');
-const Startup = Symbol('FixedTimeStepSchedule');
-const FixedTimeStep = Symbol('StartupSchedule');
+const FixedUpdate = Symbol('FixedUpdateSchedule');
+const Startup = Symbol('StartupSchedule');
 const Outer = Symbol('OuterSchedule');
 
 export const CoreSchedule = {
 	Main,
+	FixedUpdate,
 	Startup,
-	FixedTimeStep,
 	Outer,
 } as const;
