@@ -1,5 +1,6 @@
 import { memory } from '../utils/memory';
-import { SystemResourceDescriptor, WorldDescriptor } from '../descriptors';
+import { WorldDescriptor } from '../world/WorldDescriptor';
+import { SystemResourceDescriptor } from '../resources';
 import {
 	ADD_COMPONENT_COMMAND,
 	CLEAR_QUEUE_COMMAND,
@@ -67,7 +68,10 @@ export function applyCommands(
 
 	commands.reset();
 }
-applyCommands.parameters = [WorldDescriptor(), SystemResourceDescriptor(Map)];
+applyCommands.parameters = [
+	new WorldDescriptor(),
+	new SystemResourceDescriptor(Map),
+];
 
 /*---------*\
 |   TESTS   |
