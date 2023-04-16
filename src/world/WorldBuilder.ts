@@ -7,12 +7,12 @@ import {
 	SimpleExecutor,
 	type ExecutorType,
 } from '../schedule/executors';
-import { CoreSchedule, type SystemOrder } from '../schedule';
+import { CoreSchedule, type SystemConfig } from '../schedule';
 import type { System } from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
 
-type SystemList = (System | SystemOrder)[];
+type SystemList = (System | SystemConfig)[];
 export class WorldBuilder {
 	schedules: Record<symbol, SystemList> = {};
 
