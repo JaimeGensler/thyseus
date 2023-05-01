@@ -1,1335 +1,483 @@
-import { DEV as Ct } from "esm-env";
-function g(n, t, e = Error) {
-  if (Ct && !n)
-    throw new e(t);
-}
-function q(n) {
-  return n + 7 & -8;
-}
-const y = {};
-let d, W, f, dt = 0;
-const C = 8, z = 4, A = 4, x = 8, mt = 16;
-function X() {
-  for (; Atomics.compareExchange(f, C >> 2, 0, 1) === 1; )
-    ;
-}
-function P() {
-  Atomics.store(f, C >> 2, 0);
-}
-function It(n, t = !1) {
-  if (d)
-    return d;
-  if (typeof n == "number") {
-    const e = t ? SharedArrayBuffer : ArrayBuffer;
-    d = new e(q(n));
-  } else
-    d = n;
-  return W = new Uint8Array(d), f = new Uint32Array(d), y.buffer = d, y.u8 = W, y.u16 = new Uint16Array(d), y.u32 = f, y.u64 = new BigUint64Array(d), y.i8 = new Int8Array(d), y.i16 = new Int16Array(d), y.i32 = new Int32Array(d), y.i64 = new BigInt64Array(d), y.f32 = new Float32Array(d), y.f64 = new Float64Array(d), y.dataview = new DataView(d), dt = d.byteLength - 4, typeof n == "number" && (f[1] = d.byteLength - 8, f[f.length - 2] = d.byteLength - 8, R(8)), d;
-}
-function R(n) {
-  const t = q(n), e = x + t;
-  let s = C - z;
-  for (X(); s < dt; ) {
-    const i = f[s >> 2], r = i & -2;
-    if (i !== r || r < e) {
-      s += r;
-      continue;
-    }
-    const c = r - e >= mt, h = c ? e : r;
-    if (f[s >> 2] = h | 1, f[s + h - A >> 2] = h | 1, c) {
-      const a = s + e, l = r - e;
-      f[a >> 2] = l, f[a + l - A >> 2] = l;
-    }
-    return P(), s + z;
-  }
-  throw P(), new Error(`Out of memory (requesting ${n} bytes).`);
-}
-function pt(n) {
-  if (g(
-    n % 8 === 0,
-    "Invalid pointer in free - pointer was not correctly aligned."
-  ), n === C || n === 0)
-    return;
-  let t = n - z;
-  X();
-  let e = f[t >> 2] & -2, s = t + e - A;
-  if (f[t >> 2] &= -2, f[s >> 2] &= -2, s !== d.byteLength - A) {
-    const i = f[t + e >> 2];
-    i & 1 || (s += i, e += i);
-  }
-  if (t !== 0) {
-    const i = f[t - A >> 2];
-    i & 1 || (t -= i, e += i);
-  }
-  f[t >> 2] = e, f[s >> 2] = e, W.fill(0, t + z, s - z), P();
-}
-function $t(n, t) {
-  if (g(
-    n % 8 === 0,
-    "Invalid pointer in realloc - pointer was not correctly aligned."
-  ), n === C || n === 0)
-    return R(t);
-  const e = q(t);
-  X();
-  const s = n - z, i = f[s >> 2] & -2, r = i - x;
-  if (r >= e)
-    return P(), n;
-  const u = s + i, c = f[u >> 2];
-  if (!(c & 1) && c - x >= e - i) {
-    const a = e - r, l = c - a >= mt, p = l ? e + x : i + c;
-    if (f[u >> 2] = 0, f[u - A >> 2] = 0, f[s >> 2] = p | 1, f[s + p - A >> 2] = p | 1, l) {
-      const m = i + c - p;
-      f[s + p >> 2] = m, f[s + p + m - A >> 2] = m;
-    }
-    return P(), n;
-  }
-  P();
-  const h = R(e);
-  return K(n, r, h), pt(n), h;
-}
-function K(n, t, e) {
-  W.copyWithin(e, n, n + t);
-}
-function gt(n, t, e) {
-  W.fill(e, n, n + t);
-}
-function Mt(n) {
-  if (n === C || n === 0)
-    return C;
-  const t = (f[n - z >> 2] & -2) - x, e = R(t);
-  return K(n, t, e), e;
-}
-function Pt() {
-  d && (gt(0, d.byteLength, 0), f[1] = d.byteLength - 8, f[f.length - 2] = d.byteLength - 8, R(8));
-}
-const o = {
-  init: It,
-  get isInitialized() {
-    return d !== void 0;
-  },
-  alloc: R,
-  free: pt,
-  realloc: $t,
-  copy: K,
-  copyPointer: Mt,
-  set: gt,
-  views: y,
-  UNSAFE_CLEAR_ALL: Pt
-};
-class wt {
-  #t;
-  constructor(t) {
-    this.#t = t;
-  }
-  get id() {
-    return 0n;
-  }
-  /**
-   * Queues a component to be inserted into this entity.
-   * @param component The component instance to insert into the entity.
-   * @returns `this`, for chaining.
-   */
-  add(t) {
-    return this.#t.insertInto(this.id, t), this;
-  }
-  /**
-   * Queues a component type to be inserted into this entity.
-   * @param componentType The component class to insert into the entity.
-   * @returns `this`, for chaining.
-   */
-  addType(t) {
-    return this.#t.insertTypeInto(this.id, t), this;
-  }
-  /**
-   * Queues a component to be removed from this entity.
-   * @param Component The Component **class** to remove from the entity.
-   * @returns `this`, for chaining.
-   */
-  remove(t) {
-    return this.#t.removeFrom(this.id, t), this;
-  }
-  /**
-   * Queues this entity to be despawned.
-   * @returns `void`
-   */
-  despawn() {
-    this.#t.despawn(this.id);
-  }
-}
-class at extends wt {
-  #t;
-  constructor(t, e) {
-    super(t), this.#t = e;
-  }
-  get id() {
-    return this.#t;
-  }
-}
-let Q = 0;
-function yt(n) {
-  g(
-    o.isInitialized,
-    // Structs require memory to be initialized.
-    "Tried to create a struct before memory was initialized."
-  ), !n.__$$b && (n.__$$b = Q !== 0 ? Q : o.alloc(n.constructor.size));
-}
-function tt(n) {
-  const t = n.constructor, e = n.__$$b;
-  for (const s of t.pointers ?? [])
-    o.free(o.views.u32[e + s >> 2]);
-  o.free(e);
-}
-function et(n, t) {
-  Q = t;
-  const e = new n();
-  return Q = 0, e;
-}
-class v extends wt {
-  static size = 8;
-  static alignment = 8;
-  constructor(t) {
-    super(t), yt(this);
-  }
-  /**
-   * The entity's world-unique integer id (uint64).
-   * Composed of an entity's generation & index.
-   */
-  get id() {
-    return o.views.u64[this.__$$b >> 3];
-  }
-  /**
-   * The index of this entity (uint32).
-   */
-  get index() {
-    return o.views.u32[this.__$$b >> 2];
-  }
-  /**
-   * The generation of this entity (uint32).
-   */
-  get generation() {
-    return o.views.u32[(this.__$$b >> 2) + 1];
-  }
-}
-class k {
-  static createEmptyTable(t) {
-    const e = t.threads.queue(() => {
-      const i = o.alloc(8);
-      return o.views.u32[i >> 2] = 4294967295, o.views.u32[(i >> 2) + 1] = 4294967295, i;
+import "esm-env";
+import { m as memory, E as Entity, D as DEV_ASSERT, d as defaultPlugin, C as CoreSchedule, a as dropStruct, b as CLEAR_QUEUE_COMMAND, c as Commands, i as isStruct, e as createManagedStruct } from "./defaultPlugin-6e1eea47.js";
+import { f, g, r, s } from "./defaultPlugin-6e1eea47.js";
+class Table {
+  static createEmptyTable(world) {
+    const pointer = world.threads.queue(() => {
+      const ptr = memory.alloc(8);
+      return memory.views.u32[ptr >> 2] = 4294967295, memory.views.u32[(ptr >> 2) + 1] = 4294967295, ptr;
     });
-    return new this(t, [], e, 0n, 0);
+    return new this(world, [], pointer, 0n, 0);
   }
-  static createRecycledTable(t) {
-    const e = t.threads.queue(() => {
-      const s = t.config.getNewTableSize(0), i = o.alloc(8);
-      return o.views.u32[i >> 2] = 0, o.views.u32[(i >> 2) + 1] = s, o.views.u32[(i >> 2) + 2] = o.alloc(
-        s * v.size
-      ), i;
+  static createRecycledTable(world) {
+    const pointer = world.threads.queue(() => {
+      const capacity = world.config.getNewTableSize(0), ptr = memory.alloc(8);
+      return memory.views.u32[ptr >> 2] = 0, memory.views.u32[(ptr >> 2) + 1] = capacity, memory.views.u32[(ptr >> 2) + 2] = memory.alloc(
+        capacity * Entity.size
+      ), ptr;
     });
-    return new this(t, [v], e, 0n, 1);
+    return new this(world, [Entity], pointer, 0n, 1);
   }
-  static create(t, e, s, i) {
-    const r = t.config.getNewTableSize(0), u = e.filter(
-      (a) => a.size > 0
-    ), c = o.alloc(4 * (2 + u.length));
-    o.views.u32[(c >> 2) + 1] = r;
-    let h = 2;
-    for (const a of u)
-      o.views.u32[(c >> 2) + h] = o.alloc(
-        a.size * r
-      ), h++;
-    return new this(t, u, c, s, i);
+  static create(world, components, bitfield, id) {
+    const capacity = world.config.getNewTableSize(0), sizedComponents = components.filter(
+      (component) => component.size > 0
+    ), pointer = memory.alloc(4 * (2 + sizedComponents.length));
+    memory.views.u32[(pointer >> 2) + 1] = capacity;
+    let i = 2;
+    for (const component of sizedComponents)
+      memory.views.u32[(pointer >> 2) + i] = memory.alloc(
+        component.size * capacity
+      ), i++;
+    return new this(world, sizedComponents, pointer, bitfield, id);
   }
-  #t;
-  #e;
-  #s;
+  #world;
+  #components;
+  #pointer;
   // [size, capacity, ...componentPointers]
   bitfield;
-  #i;
-  constructor(t, e, s, i, r) {
-    this.#t = t, this.#e = e, this.#s = s, this.bitfield = i, this.#i = r;
+  #id;
+  constructor(world, sizedComponents, pointer, bitfield, id) {
+    this.#world = world, this.#components = sizedComponents, this.#pointer = pointer, this.bitfield = bitfield, this.#id = id;
   }
   get pointer() {
-    return this.#s;
+    return this.#pointer;
   }
   get id() {
-    return this.#i;
+    return this.#id;
   }
   get capacity() {
-    return o.views.u32[(this.#s >> 2) + 1];
+    return memory.views.u32[(this.#pointer >> 2) + 1];
   }
-  get size() {
-    return o.views.u32[this.#s >> 2];
+  get length() {
+    return memory.views.u32[this.#pointer >> 2];
   }
-  set size(t) {
-    o.views.u32[this.#s >> 2] = t;
+  set length(value) {
+    memory.views.u32[this.#pointer >> 2] = value;
   }
-  getColumn(t) {
-    return o.views.u32[(this.#s >> 2) + 2 + this.#e.indexOf(t)];
+  getColumn(componentType) {
+    return memory.views.u32[(this.#pointer >> 2) + 2 + this.#components.indexOf(componentType)];
   }
-  hasColumn(t) {
-    return this.#e.includes(t);
+  hasColumn(componentType) {
+    return this.#components.includes(componentType);
   }
-  delete(t) {
-    this.size--;
-    let e = 2;
-    for (const s of this.#e) {
-      const i = o.views.u32[(this.#s >> 2) + e];
-      o.copy(
-        i + this.size * s.size,
+  delete(index) {
+    this.length--;
+    let i = 2;
+    for (const component of this.#components) {
+      const ptr = memory.views.u32[(this.#pointer >> 2) + i];
+      memory.copy(
+        ptr + this.length * component.size,
         // From the last element
-        s.size,
+        component.size,
         // Copy one component
-        i + t * s.size
+        ptr + index * component.size
         // To this element
-      ), e++;
+      ), i++;
     }
   }
-  move(t, e) {
-    e.capacity === e.size && e.grow();
-    const { u32: s, u64: i } = o.views;
-    if (this.#e[0] !== v)
-      return e.size++, BigInt(t);
-    const r = this.getColumn(v), u = i[(r >> 3) + this.size];
-    for (const c of this.#e) {
-      const h = this.getColumn(c) + t * c.size;
-      if (e.hasColumn(c))
-        o.copy(
-          h,
-          c.size,
-          e.getColumn(c) + e.size * c.size
+  move(index, targetTable) {
+    targetTable.capacity === targetTable.length && targetTable.grow();
+    const { u32, u64 } = memory.views;
+    if (this.#components[0] !== Entity)
+      return targetTable.length++, BigInt(index);
+    const ptr = this.getColumn(Entity), lastEntity = u64[(ptr >> 3) + this.length];
+    for (const component of this.#components) {
+      const componentPointer = this.getColumn(component) + index * component.size;
+      if (targetTable.hasColumn(component))
+        memory.copy(
+          componentPointer,
+          component.size,
+          targetTable.getColumn(component) + targetTable.length * component.size
         );
       else
-        for (const a of c.pointers ?? [])
-          o.free(s[h + a >> 2]);
+        for (const pointerOffset of component.pointers ?? [])
+          memory.free(u32[componentPointer + pointerOffset >> 2]);
     }
-    return e.size++, this.delete(t), u;
+    return targetTable.length++, this.delete(index), lastEntity;
   }
   grow() {
-    o.views.u32[(this.#s >> 2) + 1] = this.#t.config.getNewTableSize(this.capacity);
-    let t = 2;
-    for (const e of this.#e)
-      o.views.u32[(this.#s >> 2) + t] = o.realloc(
-        o.views.u32[(this.#s >> 2) + t],
-        e.size * this.capacity
-      ), t++;
+    memory.views.u32[(this.#pointer >> 2) + 1] = this.#world.config.getNewTableSize(this.capacity);
+    let i = 2;
+    for (const component of this.#components)
+      memory.reallocAt(
+        this.#pointer + (i << 2),
+        component.size * this.capacity
+      ), i++;
   }
-  copyComponentIntoRow(t, e, s) {
-    this.hasColumn(e) && o.copy(
-      s,
-      e.size,
-      this.getColumn(e) + t * e.size
+  copyComponentIntoRow(row, componentType, copyFrom) {
+    this.hasColumn(componentType) && memory.copy(
+      copyFrom,
+      componentType.size,
+      this.getColumn(componentType) + row * componentType.size
     );
   }
+  getColumnPointer(componentType) {
+    const componentIndex = this.#components.indexOf(componentType);
+    return componentIndex === -1 ? 0 : this.#pointer + 8 + (componentIndex << 2);
+  }
+  getTableSizePointer() {
+    return this.#pointer;
+  }
 }
-const Bt = 0x00000000ffffffffn, lt = (n) => Number(n & Bt), U = 256, Lt = 1n << 32n;
-class Rt {
-  static fromWorld(t) {
+const lo32 = 0x00000000ffffffffn, getIndex = (entityId) => Number(entityId & lo32), ENTITY_BATCH_SIZE = 256, ONE_GENERATION = 1n << 32n;
+class Entities {
+  static fromWorld(world) {
     return new this(
-      t,
-      t.threads.queue(() => {
-        const { u32: e } = o.views, s = o.alloc(4 * 4) >> 2;
-        return e[s + 2] = o.alloc(8 * U), e[s + 3] = U, s;
+      world,
+      world.threads.queue(() => {
+        const { u32 } = memory.views, pointer = memory.alloc(4 * 4) >> 2;
+        return u32[pointer + 2] = memory.alloc(8 * ENTITY_BATCH_SIZE), u32[pointer + 3] = ENTITY_BATCH_SIZE, pointer;
       })
     );
   }
-  #t;
-  #e;
+  #world;
+  #pointer;
   // [nextId, cursor, locationsPointer, capacity]
-  #s;
-  constructor(t, e) {
-    this.#e = e, this.#t = t, this.#s = t.archetypes[1];
+  #recycled;
+  constructor(world, pointer) {
+    this.#pointer = pointer, this.#world = world, this.#recycled = world.archetypes[1];
   }
   /**
    * A lockfree method to obtain a new Entity ID
    */
   spawn() {
-    const { u32: t, u64: e } = o.views, s = this.#s.size, i = this.#s.getColumn(v);
-    for (let r = this.#o(); r < s; r = this.#o())
-      if (this.#c(r))
-        return e[(i >> 3) + r] + Lt;
-    return BigInt(Atomics.add(t, this.#e, 1));
+    const { u32, u64 } = memory.views, recycledSize = this.#recycled.length, recycledPtr = this.#recycled.getColumn(Entity);
+    for (let currentCursor = this.#getCursor(); currentCursor < recycledSize; currentCursor = this.#getCursor())
+      if (this.#tryCursorMove(currentCursor))
+        return u64[(recycledPtr >> 3) + currentCursor] + ONE_GENERATION;
+    return BigInt(Atomics.add(u32, this.#pointer, 1));
   }
   /**
    * Checks if an entity is currently alive or not.
    * @param entityId The entity id to check
    * @returns `true` if alive, `false` if not.
    */
-  isAlive(t) {
-    const { u32: e, u64: s } = o.views, i = this.getTableIndex(t), r = this.getRow(t), u = this.#t.archetypes[i].getColumn(v);
-    return lt(t) < Atomics.load(e, this.#e) && (i === 0 || i !== 1 || s[(u >> 3) + r] === t);
+  isAlive(entityId) {
+    const { u32, u64 } = memory.views, tableIndex = this.getTableIndex(entityId), row = this.getRow(entityId), ptr = this.#world.archetypes[tableIndex].getColumn(Entity);
+    return getIndex(entityId) < Atomics.load(u32, this.#pointer) && (tableIndex === 0 || tableIndex !== 1 || u64[(ptr >> 3) + row] === entityId);
+  }
+  /**
+   * Verifies if an entity has a specific component type.
+   * @param entityId The id of the entity
+   * @param componentType The type (class) of the component to detect.
+   * @returns `boolean`, true if the entity has the component and false if it does not.
+   */
+  hasComponent(entityId, componentType) {
+    const componentId = this.#world.components.indexOf(componentType);
+    DEV_ASSERT(
+      componentId !== -1,
+      "hasComponent method must receive a component that exists in the world."
+    );
+    const archetype = this.#world.archetypes[this.getTableIndex(entityId)].bitfield, componentBit = 1n << BigInt(componentId);
+    return (archetype & componentBit) === componentBit;
   }
   resetCursor() {
-    const { u32: t } = o.views;
-    if (t[this.#e + 1] = 0, t[this.#e] >= this.#n) {
-      const e = Math.ceil((t[this.#e] + 1) / U) * U;
-      this.#i = o.realloc(
-        this.#i,
-        e * 8
-      ), t[this.#e + 3] = e;
+    const { u32 } = memory.views;
+    if (u32[this.#pointer + 1] = 0, u32[this.#pointer] >= this.#capacity) {
+      const newElementCount = Math.ceil((u32[this.#pointer] + 1) / ENTITY_BATCH_SIZE) * ENTITY_BATCH_SIZE;
+      memory.reallocAt(this.#locationsPointer, newElementCount * 8), u32[this.#pointer + 3] = newElementCount;
     }
   }
-  getTableIndex(t) {
-    return o.views.u32[this.#r(t)] ?? 0;
+  getTableIndex(entityId) {
+    return memory.views.u32[this.#getOffset(entityId)] ?? 0;
   }
-  setTableIndex(t, e) {
-    o.views.u32[this.#r(t)] = e;
+  setTableIndex(entityId, tableIndex) {
+    memory.views.u32[this.#getOffset(entityId)] = tableIndex;
   }
-  getRow(t) {
-    return o.views.u32[this.#r(t) + 1] ?? 0;
+  getRow(entityId) {
+    return memory.views.u32[this.#getOffset(entityId) + 1] ?? 0;
   }
-  setRow(t, e) {
-    o.views.u32[this.#r(t) + 1] = e;
+  setRow(entityId, row) {
+    memory.views.u32[this.#getOffset(entityId) + 1] = row;
   }
-  getBitset(t) {
-    return this.#t.archetypes[this.getTableIndex(t)].bitfield;
+  getBitset(entityId) {
+    return this.#world.archetypes[this.getTableIndex(entityId)].bitfield;
   }
-  get #i() {
-    return o.views.u32[this.#e + 2];
+  get #locationsPointer() {
+    return memory.views.u32[this.#pointer + 2];
   }
-  set #i(t) {
-    o.views.u32[this.#e + 2] = t;
+  set #locationsPointer(val) {
+    memory.views.u32[this.#pointer + 2] = val;
   }
-  get #n() {
-    return o.views.u32[this.#e + 3];
+  get #capacity() {
+    return memory.views.u32[this.#pointer + 3];
   }
-  set #n(t) {
-    o.views.u32[this.#e + 3] = t;
+  set #capacity(val) {
+    memory.views.u32[this.#pointer + 3] = val;
   }
-  #r(t) {
-    return (this.#i >> 2) + (lt(t) << 1);
+  #getOffset(entityId) {
+    return (this.#locationsPointer >> 2) + (getIndex(entityId) << 1);
   }
   /**
    * Atomically grabs the current cursor.
    * @returns The current cursor value.
    */
-  #o() {
-    return Atomics.load(o.views.u32, this.#e + 1);
+  #getCursor() {
+    return Atomics.load(memory.views.u32, this.#pointer + 1);
   }
   /**
    * Tries to atomically move the cursor by one.
    * @param expected The value the cursor is currently expected to be.
    * @returns A boolean, indicating if the move was successful or not.
    */
-  #c(t) {
-    return t === Atomics.compareExchange(
-      o.views.u32,
-      this.#e + 1,
-      t,
-      t + 1
+  #tryCursorMove(expected) {
+    return expected === Atomics.compareExchange(
+      memory.views.u32,
+      this.#pointer + 1,
+      expected,
+      expected + 1
     );
   }
 }
-const G = 0, B = 1, vt = 2;
-class xt {
-  static fromWorld(t) {
-    const e = t.threads.queue(() => {
-      const i = t.components.reduce(
-        (c, h) => c + h.size,
-        0
-      ), r = [];
-      let u = o.alloc(i);
-      for (const c of t.components) {
-        if (r.push(u), c.size === 0)
-          continue;
-        const h = new c();
-        o.copy(h.__$$b, c.size, u), o.free(h.__$$b), u += c.size;
+function getSystemRelationship(left, right) {
+  return !left.parameters || !right.parameters ? 0 : left.parameters.some(
+    (pL) => right.parameters.some(
+      (pR) => pL.intersectsWith(pR) || pR.intersectsWith(pL)
+    )
+  ) ? 1 : 0;
+}
+function getSystemIntersections(systems) {
+  return systems.map(
+    (current) => systems.reduce(
+      (acc, other, i) => acc | BigInt(getSystemRelationship(current, other)) << BigInt(i),
+      0n
+    )
+  );
+}
+function* bits(val) {
+  let i = 0;
+  for (; val !== 0n; )
+    (val & 1n) === 1n && (yield i), val >>= 1n, i++;
+}
+function getSystemDependencies(systems) {
+  const masks = systems.map(() => 0n);
+  for (let i = 0; i < systems.length; i++) {
+    const system = systems[i];
+    if (typeof system != "function") {
+      for (const dependency of system.dependencies) {
+        const dependencyIndex = systems.findIndex(
+          (s2) => typeof s2 == "function" ? s2 === dependency : s2.system === dependency
+        );
+        DEV_ASSERT(
+          dependencyIndex !== -1,
+          `System "${system.system.name}" must run after system "${dependency.name}", but "${dependency.name}" is not in the schedule!`
+        ), masks[i] |= 1n << BigInt(dependencyIndex);
       }
-      return r;
-    }), s = t.threads.queue(
-      () => o.alloc((1 + 3 * t.config.threads) * 4)
-    );
-    return new this(t, e, s);
-  }
-  #t = { type: 0, dataStart: 0, dataSize: 0 };
-  #e;
-  #s;
-  #i;
-  #n;
-  // [nextId, ...[size, capacity, pointer]]
-  #r;
-  constructor(t, e, s) {
-    this.#e = t.entities, this.#s = t.components, this.#i = e, this.#n = s >> 2, this.#r = 3 * Atomics.add(o.views.u32, this.#n, 1) + this.#n + 1;
-  }
-  get #o() {
-    return o.views.u32[this.#r];
-  }
-  set #o(t) {
-    o.views.u32[this.#r] = t;
-  }
-  get #c() {
-    return o.views.u32[this.#r + 1];
-  }
-  set #c(t) {
-    o.views.u32[this.#r + 1] = t;
-  }
-  get #u() {
-    return o.views.u32[this.#r + 2];
-  }
-  set #u(t) {
-    o.views.u32[this.#r + 2] = t;
-  }
-  /**
-   * Queues an entity to be spawned.
-   * @returns `EntityCommands`, which can add/remove components from an entity.
-   */
-  spawn() {
-    const t = this.#e.spawn(), e = this.#h(
-      B,
-      t,
-      v
-    );
-    return o.views.u64[e >> 3] = t, new at(this, t);
-  }
-  /**
-   * Queues an entity to be despawned.
-   * @param id The id of the entity to despawn.
-   * @returns `this`, for chaining.
-   */
-  despawn(t) {
-    this.#h(G, t, v);
-  }
-  /**
-   * Gets `EntityCommands` for an Entity.
-   * @param id The id of the entity to get.
-   * @returns `EntityCommands`, which can add/remove components from an entity.
-   */
-  getEntityById(t) {
-    return new at(this, t);
-  }
-  insertInto(t, e) {
-    const s = e.constructor;
-    g(
-      s !== v,
-      "Tried to add Entity component, which is forbidden."
-    );
-    const i = this.#h(
-      B,
-      t,
-      s
-    );
-    s.size !== 0 && (o.copy(e.__$$b, s.size, i), this.#a(s, i));
-  }
-  insertTypeInto(t, e) {
-    g(
-      e !== v,
-      "Tried to add Entity component, which is forbidden."
-    );
-    const s = this.#h(
-      B,
-      t,
-      e
-    );
-    e.size !== 0 && (o.copy(
-      this.#i[this.#s.indexOf(e)],
-      e.size,
-      s
-    ), this.#a(e, s));
-  }
-  removeFrom(t, e) {
-    g(
-      e !== v,
-      "Tried to remove Entity component, which is forbidden."
-    ), this.#h(
-      G,
-      t,
-      e
-    );
-  }
-  *[Symbol.iterator]() {
-    const { u32: t } = o.views, e = 1 + t[this.#n] * 3;
-    for (let s = 1; s < e; s += 3) {
-      const i = t[this.#n + s + 2], r = i + t[this.#n + s];
-      for (let u = i; u < r; u += t[u >> 2])
-        this.#t.type = t[u + 4 >> 2], this.#t.dataSize = t[u >> 2] - 8, this.#t.dataStart = u + 8, yield this.#t;
+      for (const dependent of system.dependents) {
+        const dependentIndex = systems.findIndex(
+          (s2) => typeof s2 == "function" ? s2 === dependent : s2.system === dependent
+        );
+        DEV_ASSERT(
+          dependentIndex !== -1,
+          `System "${system.system.name}" must run before "${dependent.name}", but "${dependent.name}" is not in the schedule!`
+        ), masks[dependentIndex] |= 1n << BigInt(i);
+      }
     }
   }
-  pushCommand(t, e) {
-    const s = 8 + q(t);
-    let i = this.#o + s;
-    this.#c < i && (i <<= 1, this.#u = o.realloc(this.#u, i), this.#c = i);
-    const r = this.#u + this.#o;
-    return o.views.u32[r >> 2] = s, o.views.u32[r + 4 >> 2] = e, this.#o += s, r + 8;
-  }
-  reset() {
-    const { u32: t } = o.views, e = 1 + t[this.#n] * 3;
-    for (let s = 1; s < e; s += 3)
-      t[this.#n + s] = 0;
-  }
-  #h(t, e, s) {
-    g(
-      this.#s.includes(s),
-      `Tried to add/remove unregistered component (${s.name}) on an Entity.`
-    );
-    const i = this.pushCommand(
-      16 + q(t * s.size),
-      t
-    );
-    return o.views.u64[i >> 3] = e, o.views.u16[i + 8 >> 1] = this.#s.indexOf(s), i + 16;
-  }
-  #a(t, e) {
-    for (const s of t.pointers ?? [])
-      o.views.u32[e + s >> 2] = o.copyPointer(
-        o.views.u32[e + s >> 2]
-      );
-  }
-}
-class Ot {
-  isLocalToThread() {
-    return !1;
-  }
-  intersectsWith(t) {
-    return !1;
-  }
-  intoArgument(t) {
-    return t.commands;
-  }
-  onAddSystem(t) {
-  }
-}
-class qt {
-  #t = [];
-  #e = [];
-  #s;
-  #i;
-  #n;
-  #r;
-  #o;
-  constructor(t, e, s, i, r) {
-    this.#s = t, this.#i = e, this.#r = s, this.#n = i, this.#o = r.commands;
-  }
-  /**
-   * The number of entities that match this query.
-   */
-  get length() {
-    return this.#t.reduce((t, e) => t + e.size, 0);
-  }
-  *[Symbol.iterator]() {
-    let t;
-    const e = this.#c();
-    for (const s of this.#t)
-      if (s.size !== 0) {
-        for (let i = 0; i < e.length; i++) {
-          const r = e[i] ?? t[i], u = s.hasColumn(r.constructor);
-          !u && e[i] !== null ? (t ??= [], t[i] = e[i], e[i] = null) : u && (e[i] === null && (e[i] = t[i], t[i] = null), r.__$$b = s.getColumn(r.constructor));
-        }
-        for (let i = 0; i < s.size; i++) {
-          yield this.#r ? e[0] : e;
-          for (const r of e)
-            r && (r.__$$b += r.constructor.size);
-        }
-      }
-    if (t)
-      for (let s = 0; s < t.length; s++)
-        t[s] && (e[s] = t[s]);
-    this.#e.push(e);
-  }
-  forEach(t) {
-    if (this.#r)
-      for (const e of this)
-        t(e);
-    else
-      for (const e of this)
-        t(...e);
-  }
-  #c() {
-    return this.#e.pop() ?? this.#n.map((t) => {
-      const e = t === v ? new t(this.#o) : new t();
-      return tt(e), e;
-    });
-  }
-  testAdd(t, e) {
-    this.#u(t) && this.#t.push(e);
-  }
-  #u(t) {
-    for (let e = 0; e < this.#s.length; e++)
-      if ((this.#s[e] & t) === this.#s[e] && (this.#i[e] & t) === 0n)
-        return !0;
-    return !1;
-  }
-}
-class Y {
-  #t;
-  constructor(t) {
-    this.#t = t;
-  }
-  get value() {
-    return this.#t;
-  }
-}
-class $ {
-  #t;
-  constructor(t) {
-    this.#t = t;
-  }
-  get value() {
-    return this.#t;
-  }
-}
-class st {
-  #t;
-  constructor(t) {
-    this.#t = t;
-  }
-  get value() {
-    return this.#t;
-  }
-}
-class it {
-  #t;
-  constructor(t) {
-    this.#t = t;
-  }
-  get value() {
-    return this.#t;
-  }
-}
-class nt {
-  #t;
-  #e;
-  constructor(t, e) {
-    this.#t = t, this.#e = e;
-  }
-  get l() {
-    return this.#t;
-  }
-  get r() {
-    return this.#e;
-  }
-}
-const H = (n, t, e = []) => (Array.isArray(t) ? t : [t]).reduce(
-  (s, i, r) => e[r] ? s : s | 1n << BigInt(n.indexOf(i)),
-  0n
-);
-function L(n, t, e) {
-  let s = e;
-  for (const i of Array.isArray(n) ? n : [n])
-    s = t(s, i);
-  return s;
-}
-function Wt(n, t) {
-  L(t, function e(s, i) {
-    i instanceof st || i instanceof it ? (i.value instanceof Array ? i.value : [i.value]).forEach((u) => n.registerComponent(u)) : i instanceof nt && (L(i.l, e), L(i.r, e));
+  const deepDependencies = [...masks];
+  deepDependencies.forEach(function mergeDependencies(mask, i) {
+    for (const bit of bits(mask))
+      mergeDependencies(deepDependencies[bit], bit), deepDependencies[i] |= deepDependencies[bit];
   });
-}
-function Nt(n, t, e, s) {
-  const i = L(
-    s,
-    function u(c, h) {
-      if (h instanceof st) {
-        const a = H(
-          n,
-          h.value
-        );
-        return {
-          withs: c.withs.map((l) => l | a),
-          withouts: c.withouts
-        };
-      } else if (h instanceof it) {
-        const a = H(
-          n,
-          h.value
-        );
-        return {
-          withs: c.withs,
-          withouts: c.withouts.map((l) => l | a)
-        };
-      } else if (h instanceof nt) {
-        const a = L(h.l, u, c), l = L(h.r, u, c);
-        return {
-          withs: [...a.withs, ...l.withs],
-          withouts: [...a.withouts, ...l.withouts]
-        };
-      }
-      throw new Error(
-        `Unrecognized filter (${h.constructor.name}) in Query.`
-      );
-    },
-    {
-      withs: [
-        H(n, t, e)
-      ],
-      withouts: [0n]
-    }
-  ), r = i.withs.reduce(
-    (u, c, h) => (i.withs[h] & i.withouts[h]) === 0n ? u.add(h) : u,
-    /* @__PURE__ */ new Set()
-  );
-  return i.withs = i.withs.filter((u, c) => r.has(c)), i.withouts = i.withouts.filter((u, c) => r.has(c)), g(
-    i.withs.length > 0,
-    "Tried to construct a query that cannot match any entities."
-  ), i;
-}
-class rt {
-  components = [];
-  writes = [];
-  optionals = [];
-  filters;
-  isIndividual;
-  constructor(t, e = []) {
-    this.isIndividual = !Array.isArray(t);
-    const s = Array.isArray(t) ? t : [t];
-    for (const i of s) {
-      const r = i instanceof $ || i instanceof Y && i.value instanceof $;
-      this.writes.push(r), this.optionals.push(i instanceof Y);
-      const u = i instanceof $ ? i.value : i instanceof Y ? i.value instanceof $ ? i.value.value : i.value : i;
-      g(
-        u.size > 0,
-        "You may not request direct access to ZSTs - use a With filter instead."
-      ), this.components.push(u);
-    }
-    this.filters = e;
-  }
-  isLocalToThread() {
-    return !1;
-  }
-  intersectsWith(t) {
-    return t instanceof rt ? this.components.some(
-      (e, s) => t.components.some(
-        (i, r) => e === i && (this.writes[s] || t.writes[r])
-      )
-    ) : !1;
-  }
-  onAddSystem(t) {
-    this.components.forEach((e) => t.registerComponent(e)), Wt(t, this.filters);
-  }
-  intoArgument(t) {
-    const { withs: e, withouts: s } = Nt(
-      t.components,
-      this.components,
-      this.optionals,
-      this.filters
-    ), i = new qt(
-      e,
-      s,
-      this.isIndividual,
-      this.components,
-      t
-    );
-    return t.queries.push(i), i;
-  }
-}
-const Et = {
-  u8: Uint8Array,
-  u16: Uint16Array,
-  u32: Uint32Array,
-  u64: BigUint64Array,
-  i8: Int8Array,
-  i16: Int16Array,
-  i32: Int32Array,
-  i64: BigInt64Array,
-  f32: Float32Array,
-  f64: Float64Array
-};
-let M = 1, V = 0;
-const T = [], I = [];
-let _ = {}, J = {};
-const Dt = (n, t, e) => {
-  const s = I.reduce(
-    (r, u, c) => u < t && c < r ? c : r,
-    I.length
-  );
-  if (s === I.length) {
-    T.push(n), I.push(t), _[n] = T.length === 0 ? 0 : V;
-    return;
-  }
-  const i = T[s];
-  T.splice(s, 0, n), I.splice(s, 0, t), _[n] = _[i];
-  for (let r = s + 1; r < T.length; r++)
-    _[T[r]] += e;
-};
-function N(n, t, e, s) {
-  return M = Math.max(M, t), s && (J[n] = s), Dt(n, t, e), V += e, _;
-}
-function Ut() {
-  const n = [];
-  for (const e in J)
-    for (const s of J[e])
-      n.push(s + _[e]);
-  const t = {
-    size: Math.ceil(V / M) * M,
-    alignment: M,
-    pointers: n
-  };
-  return V = 0, M = 1, _ = {}, T.length = 0, I.length = 0, t;
-}
-function b(n) {
-  return function(e, s) {
-    const i = Et[n], r = N(
-      s,
-      i.BYTES_PER_ELEMENT,
-      i.BYTES_PER_ELEMENT
-    ), u = 31 - Math.clz32(i.BYTES_PER_ELEMENT);
-    Object.defineProperty(e, s, {
-      enumerable: !0,
-      get() {
-        return o.views[n][this.__$$b + r[s] >> u];
-      },
-      set(c) {
-        o.views[n][this.__$$b + r[s] >> u] = c;
-      }
-    });
-  };
-}
-const Ft = b("u8"), kt = b("u16"), Yt = b("u32"), Qt = b("u64"), Vt = b("i8"), Zt = b("i16"), jt = b("i32"), Ht = b("i64"), Gt = b("f32"), Jt = b("f64"), Xt = function(t, e) {
-  const s = N(
-    e,
-    Uint8Array.BYTES_PER_ELEMENT,
-    Uint8Array.BYTES_PER_ELEMENT
-  );
-  Object.defineProperty(t, e, {
-    enumerable: !0,
-    get() {
-      return !!o.views.u8[this.__$$b + s[e]];
-    },
-    set(i) {
-      o.views.u8[this.__$$b + s[e]] = Number(i);
-    }
-  });
-};
-function Kt(n) {
-  let t = n.length;
-  for (let e = n.length - 1; e >= 0; e--) {
-    const s = n.charCodeAt(e);
-    s > 127 && s <= 2047 ? t++ : s > 2047 && s <= 65535 && (t += 2), s >= 56320 && s <= 57343 && e--;
-  }
-  return t;
-}
-const te = new TextEncoder(), ee = new TextDecoder();
-function se(n, t) {
-  const e = N(
-    t,
-    Uint32Array.BYTES_PER_ELEMENT,
-    Uint32Array.BYTES_PER_ELEMENT * 3,
-    [8]
-  );
-  Object.defineProperty(n, t, {
-    enumerable: !0,
-    get() {
-      const s = this.__$$b + e[t], i = o.views.u32[s >> 2], r = o.views.u32[s + 8 >> 2];
-      return ee.decode(o.views.u8.subarray(r, r + i));
-    },
-    set(s) {
-      const i = Kt(s), r = this.__$$b + e[t], u = o.views.u32[r + 4 >> 2];
-      let c = o.views.u32[r + 8 >> 2];
-      if (u < i) {
-        const h = o.realloc(c, i);
-        c = h, o.views.u32[r + 4 >> 2] = i, o.views.u32[r + 8 >> 2] = h;
-      }
-      o.views.u32[r >> 2] = i, te.encodeInto(
-        s,
-        o.views.u8.subarray(c, c + i)
-      );
-    }
-  });
-}
-function ie({ type: n, length: t }) {
-  return function(s, i) {
-    const r = Et[n], u = N(
-      i,
-      r.BYTES_PER_ELEMENT,
-      r.BYTES_PER_ELEMENT * t
-    ), c = 31 - Math.clz32(r.BYTES_PER_ELEMENT);
-    Object.defineProperty(s, i, {
-      enumerable: !0,
-      get() {
-        return o.views[n].subarray(
-          this.__$$b + u[i] >> c,
-          (this.__$$b + u[i] >> c) + t
-        );
-      },
-      set(h) {
-        o.views[n].set(
-          h.subarray(0, t),
-          this.__$$b + u[i] >> c
-        );
-      }
-    });
-  };
-}
-function ne(n) {
-  return function(e, s) {
-    const i = N(
-      s,
-      n.alignment,
-      n.size,
-      n.pointers
-    );
-    Object.defineProperty(e, s, {
-      enumerable: !0,
-      get() {
-        return et(
-          n,
-          this.__$$b + i[s]
-        );
-      },
-      set(r) {
-        o.copy(r.__$$b, n.size, this.__$$b);
-      }
-    });
-  };
-}
-function w(n) {
-  const { size: t, alignment: e, pointers: s } = Ut();
-  return class extends n {
-    static size = t;
-    static alignment = e;
-    static pointers = s;
-    constructor(...i) {
-      super(...i), yt(this);
-    }
-  };
-}
-w.bool = Xt;
-w.u8 = Ft;
-w.u16 = kt;
-w.u32 = Yt;
-w.u64 = Qt;
-w.i8 = Vt;
-w.i16 = Zt;
-w.i32 = jt;
-w.i64 = Ht;
-w.f32 = Gt;
-w.f64 = Jt;
-w.string = se;
-w.array = ie;
-w.substruct = ne;
-function Z(n) {
-  return typeof n == "function" && //@ts-ignore
-  typeof n.size == "number" && //@ts-ignore
-  typeof n.alignment == "number";
-}
-class ot {
-  resource;
-  canWrite;
-  constructor(t) {
-    const e = t instanceof $;
-    this.resource = e ? t.value : t, this.canWrite = e;
-  }
-  isLocalToThread() {
-    return !Z(this.resource);
-  }
-  intersectsWith(t) {
-    return t instanceof ot ? this.resource === t.resource && (this.canWrite || t.canWrite) : !1;
-  }
-  onAddSystem(t) {
-    t.registerResource(this.resource);
-  }
-  intoArgument(t) {
-    return t.resources.find(
-      (e) => e.constructor === this.resource
+  for (let i = 0; i < deepDependencies.length; i++) {
+    const system = systems[i];
+    DEV_ASSERT(
+      (deepDependencies[i] & 1n << BigInt(i)) === 0n,
+      `Circular dependency detected - sytem "${typeof system == "function" ? system.name : system.system.name}" depends on itself!`
     );
   }
+  for (let i = 0; i < systems.length; i++) {
+    const system = systems[i];
+    if (typeof system != "function") {
+      if (system.isFirst)
+        for (let bit = 0; bit < systems.length; bit++)
+          bit !== i && (deepDependencies[i] & 1n << BigInt(bit)) === 0n && (masks[bit] |= 1n << BigInt(i), deepDependencies[bit] |= 1n << BigInt(i));
+      else if (system.isLast)
+        for (let bit = 0; bit < systems.length; bit++)
+          bit !== i && (deepDependencies[bit] & 1n << BigInt(i)) === 0n && (masks[i] |= 1n << BigInt(bit), deepDependencies[i] |= 1n << BigInt(bit));
+    }
+  }
+  return masks;
 }
-class re {
-  resourceType;
-  constructor(t) {
-    this.resourceType = t;
-  }
-  isLocalToThread() {
-    return !Z(this.resourceType);
-  }
-  intersectsWith(t) {
-    return !1;
-  }
-  onAddSystem(t) {
-  }
-  async intoArgument({ threads: t }) {
-    const { resourceType: e } = this, s = Z(e) ? et(
-      e,
-      e.size !== 0 ? t.queue(() => o.alloc(e.size)) : 0
-    ) : new e();
-    return t.isMainThread && await s.initialize?.(), s;
-  }
+function overlaps(arr, big, mode) {
+  for (const bit of bits(big))
+    if (arr[bit] === mode)
+      return !1;
+  return !0;
 }
-class bt {
-  #t;
-  #e;
-  #s;
-  #i;
-  // [length, capacity, pointerStart, ...defaultData]
-  constructor(t, e, s, i) {
-    i === void 0 && (i = new e(), tt(i)), this.#t = t, this.#s = i, this.#e = e, this.#i = s >> 2;
-  }
-  /**
-   * The event type (struct) for this queue.
-   */
-  get type() {
-    return this.#e;
-  }
-  /**
-   * The number of events currently in this queue.
-   */
-  get length() {
-    return o.views.u32[this.#i];
-  }
-  *[Symbol.iterator]() {
-    const t = this.#e.size;
-    this.#s.__$$b = o.views.u32[this.#i + 2];
-    for (let e = 0; e < this.length; e++)
-      yield this.#s, this.#s.__$$b += t;
-  }
-  /**
-   * Sets this event queue to be cleared when commands are next processed.
-   */
-  clear() {
-    const t = this.#t.pushCommand(4, vt);
-    o.views.u32[t >> 2] = this.#i << 2;
-  }
-}
-class oe extends bt {
-  #t;
-  #e;
-  // [length, capacity, pointerStart, ...defaultData]
-  constructor(t, e, s) {
-    const i = new e();
-    tt(i), super(t, e, s, i), this.#t = i, this.#e = s >> 2;
-  }
-  /**
-   * Creates a new event and returns a mutable instance of that event.
-   * Returned instance will be reused.
-   *
-   * @returns A mutable instance of the event.
-   */
-  create() {
-    const t = this.#s();
-    return this.#t.__$$b = t, o.copy(this.#e + 3 << 2, this.type.size, t), this.#t;
-  }
-  /**
-   * Creates an event on the queue from a passed instance of a struct.
-   * @param instance The event to add to the event queue.
-   */
-  createFrom(t) {
-    o.copy(t.__$$b, this.type.size, this.#s());
-  }
-  /**
-   * Creates an event with the default data for that event.
-   */
-  createDefault() {
-    o.copy(
-      this.#e + 3 << 2,
-      this.type.size,
-      this.#s()
-    );
-  }
-  /**
-   * **Immediately** clears all events in this queue.
-   */
-  clearImmediate() {
-    o.views.u32[this.#e] = 0;
-  }
-  /**
-   * Increments length, returns a pointer to the new event (in queue).
-   * Will grow queue, if necessary.
-   */
-  #s() {
-    const { length: t } = this;
-    return t === o.views.u32[this.#e + 1] && this.type.size !== 0 && (o.views.u32[this.#e + 2] = o.realloc(
-      o.views.u32[this.#e + 2],
-      t * this.type.size + 8 * this.type.size
-    ), o.views.u32[this.#e + 1] += 8), o.views.u32[this.#e]++, t * this.type.size + o.views.u32[this.#e + 2];
-  }
-}
-class At {
-  eventType;
-  constructor(t) {
-    this.eventType = t;
-  }
-  isLocalToThread() {
-    return !1;
-  }
-  intersectsWith(t) {
-    return t instanceof j && t.eventType === this.eventType;
-  }
-  onAddSystem(t) {
-    t.registerEvent(this.eventType);
-  }
-  intoArgument(t) {
-    return t.eventReaders.find((e) => e.type === this.eventType);
-  }
-}
-class j {
-  eventType;
-  constructor(t) {
-    this.eventType = t;
-  }
-  isLocalToThread() {
-    return !1;
-  }
-  intersectsWith(t) {
-    return (t instanceof j || t instanceof At) && t.eventType === this.eventType;
-  }
-  onAddSystem(t) {
-    t.registerEvent(this.eventType);
-  }
-  intoArgument(t) {
-    return t.eventWriters.find((e) => e.type === this.eventType);
-  }
-}
-class ce {
-  isLocalToThread() {
-    return !0;
-  }
-  intersectsWith(t) {
-    return !0;
-  }
-  intoArgument(t) {
-    return t;
-  }
-  onAddSystem(t) {
-  }
-}
-function E(n) {
-  return (...t) => new n(...t);
-}
-const ue = {
-  Commands: E(Ot),
-  Query: E(rt),
-  Res: E(ot),
-  World: E(ce),
-  SystemRes: E(re),
-  Mut: E($),
-  Optional: E(Y),
-  With: E(st),
-  Without: E(it),
-  EventReader: E(At),
-  EventWriter: E(j),
-  Or(n, t) {
-    return new nt(n, t);
-  }
+let nextId = 0;
+const noop = (...args) => {
 };
-class ct {
-  #t = 0;
-  #e = [];
-  #s;
-  fn;
-  constructor(t, e) {
-    this.#s = t, this.fn = e;
-  }
-  get parameters() {
-    return this.#s(ue);
-  }
-  before(...t) {
-    for (const e of t)
-      e.after(this);
-    return this;
-  }
-  after(...t) {
-    for (const e of t)
-      this.#e.push(e);
-    return this;
-  }
-  beforeAll() {
-    return this.#t = -1, this;
-  }
-  afterAll() {
-    return this.#t = 1, this;
-  }
-  clone() {
-    return new ct(this.#s, this.fn);
-  }
-  getAndClearDependencies() {
-    const t = {
-      dependencies: this.#e,
-      implicitPosition: this.#t
-    };
-    return this.#e = [], this.#t = 0, t;
-  }
-}
-function he(n, t) {
-  return new ct(n, t);
-}
-const Tt = he(
-  ({ World: n, SystemRes: t }) => [n(), t(Map)],
-  function(t, e) {
-    const { commands: s, entities: i, archetypes: r, components: u } = t;
-    i.resetCursor(), e.clear();
-    for (const { type: c, dataStart: h } of s) {
-      if (c === vt) {
-        const m = o.views.u32[h >> 2];
-        o.views.u32[m >> 2] = 0;
-      }
-      if (c !== B && c !== G)
-        continue;
-      const a = o.views.u64[h >> 3];
-      let l = e.get(a);
-      if (l === 0n)
-        continue;
-      const p = o.views.u16[h + 8 >> 1];
-      l ??= i.getBitset(a), e.set(
-        a,
-        c === B ? l | 1n << BigInt(p) : p === 0 ? 0n : l ^ 1n << BigInt(p)
-      );
-    }
-    for (const [c, h] of e)
-      t.moveEntity(c, h);
-    for (const { type: c, dataStart: h } of s) {
-      if (c !== B)
-        continue;
-      const a = o.views.u64[h >> 3], l = i.getTableIndex(a);
-      if (l === 0 || l === 1)
-        continue;
-      const p = o.views.u32[h + 8 >> 2];
-      r[l].copyComponentIntoRow(
-        i.getRow(a),
-        u[p],
-        h + 16
-      );
-    }
-    s.reset();
-  }
-);
-function* S(n) {
-  let t = 0;
-  for (; n !== 0n; )
-    (n & 1n) === 1n && (yield t), n >>= 1n, t++;
-}
-let ae = 1;
-function le(n, t) {
-  function e(...s) {
-    return [n, ae++, s];
-  }
-  return e.channelName = n, e.onReceive = t, e;
-}
-class O {
-  static isMainThread = !!globalThis.document;
-  isMainThread = O.isMainThread;
-  static spawn(t, e) {
+class ParallelExecutor {
+  static fromWorld(world, systems, systemArguments) {
+    const sys = systems.map((s2) => typeof s2 == "function" ? s2 : s2.system), intersections = world.threads.queue(
+      () => getSystemIntersections(sys)
+    ), dependencies = world.threads.queue(
+      () => getSystemDependencies(systems)
+    ), locallyAvailable = world.threads.isMainThread ? systems.map(() => !0) : systems.map((s2) => {
+      const system = typeof s2 == "function" ? s2 : s2.system;
+      return system.parameters ? system.parameters.every(
+        (parameter) => !parameter.isLocalToThread()
+      ) : !0;
+    }), { buffer } = memory.views, pointer = world.threads.queue(
+      () => memory.alloc(8 + systems.length * 3)
+    ), lockName = world.threads.queue(
+      () => `thyseus::ParallelExecutor${nextId++}`
+    );
     return new this(
-      O.isMainThread ? Array.from(
-        { length: t },
-        () => new Worker(e, { type: "module" })
-      ) : [globalThis]
+      world,
+      sys,
+      systemArguments,
+      new Uint32Array(buffer, pointer, 2),
+      new Uint8Array(buffer, pointer + 8, systems.length),
+      new Uint8Array(
+        buffer,
+        pointer + 8 + systems.length,
+        systems.length
+      ),
+      new Uint8Array(
+        buffer,
+        pointer + 8 + systems.length * 2,
+        systems.length
+      ),
+      intersections,
+      dependencies,
+      locallyAvailable,
+      lockName
     );
   }
-  #t = /* @__PURE__ */ new Map();
-  #e = /* @__PURE__ */ new Map();
-  #s = {};
-  #i = [];
-  #n;
-  constructor(t) {
-    this.#n = t;
-    const e = ({
-      currentTarget: s,
-      data: [i, r, u]
+  #resolveExecutionChange = noop;
+  #resolveExecutionComplete = noop;
+  #status;
+  #toExecuteSystems;
+  #executingSystems;
+  #completedSystems;
+  #locallyAvailable;
+  #intersections;
+  #dependencies;
+  #lockName;
+  #channel;
+  #isMainThread;
+  #systems;
+  #arguments;
+  constructor(world, systems, systemArguments, status, toExecuteSystems, executingSystems, completedSystems, intersections, dependencies, locallyAvailable, lockName) {
+    this.#systems = systems, this.#arguments = systemArguments, this.#isMainThread = world.threads.isMainThread, this.#intersections = intersections, this.#dependencies = dependencies, this.#locallyAvailable = locallyAvailable, this.#status = status, this.#toExecuteSystems = toExecuteSystems, this.#executingSystems = executingSystems, this.#completedSystems = completedSystems, this.#channel = new BroadcastChannel(lockName), this.#lockName = lockName, this.#channel.addEventListener(
+      "message",
+      ({ data }) => {
+        data === 0 ? this.#runSystems() : data === 1 ? (this.#resolveExecutionChange(), this.#resolveExecutionChange = noop) : (this.#resolveExecutionComplete(), this.#resolveExecutionComplete = noop);
+      }
+    );
+  }
+  get length() {
+    return this.#systems.length;
+  }
+  async start() {
+    return this.#systemsRemaining = this.#systems.length, this.#status[1] = 0, this.#toExecuteSystems.fill(1), this.#completedSystems.fill(0), this.#executingSystems.fill(0), this.#startOnAllThreads(), this.#runSystems();
+  }
+  get #systemsRemaining() {
+    return this.#status[0];
+  }
+  set #systemsRemaining(val) {
+    this.#status[0] = val;
+  }
+  async #runSystems() {
+    for (; this.#systemsRemaining > 0; ) {
+      let systemId = -1;
+      if (await navigator.locks.request(this.#lockName, () => {
+        systemId = this.#toExecuteSystems.findIndex(
+          (isSet, id) => !!isSet && overlaps(this.#completedSystems, this.#dependencies[id], 0) && overlaps(this.#executingSystems, this.#intersections[id], 1) && this.#locallyAvailable[id]
+        ), systemId !== -1 && (this.#toExecuteSystems[systemId] = 0, this.#executingSystems[systemId] = 1, this.#systemsRemaining--);
+      }), systemId === -1) {
+        await this.#awaitExecutionChange();
+        continue;
+      }
+      await this.#systems[systemId](...this.#arguments[systemId]), await navigator.locks.request(this.#lockName, () => {
+        this.#executingSystems[systemId] = 0, this.#completedSystems[systemId] = 1, Atomics.add(this.#status, 1, 1);
+      }), this.#alertExecutionChange();
+    }
+    this.#isMainThread && Atomics.load(this.#status, 1) !== this.#systems.length && await this.#awaitExecutionComplete();
+  }
+  #startOnAllThreads() {
+    this.#channel.postMessage(0);
+  }
+  #alertExecutionChange() {
+    Atomics.load(this.#status, 1) === this.#systems.length ? this.#channel.postMessage(2) : this.#channel.postMessage(1);
+  }
+  async #awaitExecutionChange() {
+    return new Promise((r2) => this.#resolveExecutionChange = r2);
+  }
+  async #awaitExecutionComplete() {
+    return new Promise((r2) => this.#resolveExecutionComplete = r2);
+  }
+}
+class SimpleExecutor {
+  static fromWorld(_, systems, systemArguments) {
+    const dependencies = getSystemDependencies(systems), order = dependencies.reduce(function addSystem(acc, val, i) {
+      for (const bit of bits(val))
+        addSystem(acc, dependencies[bit], bit);
+      return acc.includes(i) || acc.push(i), acc;
+    }, []);
+    return new this(
+      systems.map((s2) => typeof s2 == "function" ? s2 : s2.system),
+      systemArguments,
+      order
+    );
+  }
+  #systems;
+  #arguments;
+  #systemOrder;
+  constructor(systems, systemArguments, systemOrder) {
+    this.#systems = systems, this.#arguments = systemArguments, this.#systemOrder = systemOrder;
+  }
+  get length() {
+    return this.#systems.length;
+  }
+  async start() {
+    for (const systemId of this.#systemOrder)
+      await this.#systems[systemId](...this.#arguments[systemId]);
+  }
+}
+class ThreadGroup {
+  static new({ count, url, isMainThread }) {
+    return new this(
+      isMainThread ? Array.from(
+        { length: count },
+        () => new Worker(url, { type: "module" })
+      ) : [globalThis],
+      isMainThread
+    );
+  }
+  isMainThread;
+  #resolvers = /* @__PURE__ */ new Map();
+  #resolvedData = /* @__PURE__ */ new Map();
+  #listeners = {};
+  #queue = [];
+  #nextId = 0;
+  #threads;
+  constructor(threads, isMainThread) {
+    this.#threads = threads, this.isMainThread = isMainThread;
+    const handleMessage = ({
+      currentTarget,
+      data: [channel, id, message]
     }) => {
-      if (this.#t.has(r)) {
-        const c = this.#e.get(r);
-        c.push(u), c.length === this.#n.length && (this.#t.get(r)(c), this.#t.delete(r), this.#e.delete(r));
+      if (this.#resolvers.has(id)) {
+        const data = this.#resolvedData.get(id);
+        data.push(message), data.length === this.#threads.length && (this.#resolvers.get(id)(data), this.#resolvers.delete(id), this.#resolvedData.delete(id));
       } else
-        i in this.#s ? s.postMessage([
-          i,
-          r,
-          this.#s[i](...u)
-        ]) : s.postMessage([i, r, null]);
+        channel in this.#listeners ? currentTarget.postMessage([
+          channel,
+          id,
+          this.#listeners[channel](message)
+        ]) : currentTarget.postMessage([channel, id, null]);
     };
-    for (const s of this.#n)
-      s.addEventListener("message", e);
+    for (const thread of this.#threads)
+      thread.addEventListener("message", handleMessage);
   }
-  setListener(t, e) {
-    this.#s[t] = e;
+  setListener(channelName, listener) {
+    this.#listeners[channelName] = listener;
   }
-  deleteListener(t) {
-    delete this.#s[t];
+  deleteListener(channelName) {
+    delete this.#listeners[channelName];
   }
   /**
    * Sends a value to a channel.
@@ -1337,11 +485,12 @@ class O {
    * @param message The value to send.
    * @returns A promise, resolves to an array of results from all threads.
    */
-  send(t) {
-    return this.#n.length === 0 ? Promise.resolve([]) : new Promise((e) => {
-      for (const s of this.#n)
-        s.postMessage(t);
-      this.#e.set(t[1], []), this.#t.set(t[1], e);
+  send(channel, data) {
+    return this.#threads.length === 0 ? Promise.resolve([]) : new Promise((r2) => {
+      const id = this.#nextId++;
+      for (const thread of this.#threads)
+        thread.postMessage([channel, id, data]);
+      this.#resolvedData.set(id, []), this.#resolvers.set(id, r2);
     });
   }
   /**
@@ -1353,445 +502,397 @@ class O {
    * @param create A function to create the value - only called on the main thread.
    * @returns The value created by `create` function.
    */
-  queue(t) {
-    if (O.isMainThread) {
-      const e = t();
-      return this.#i.push(e), e;
+  queue(create) {
+    if (this.isMainThread) {
+      const val = create();
+      return this.#queue.push(val), val;
     }
-    return this.#i.shift();
+    return this.#queue.shift();
   }
-  async wrapInQueue(t) {
-    const e = "threadGroup::queue";
-    let s;
-    return this.isMainThread ? (s = await t(), await this.send([e, 0, [this.#i]])) : (s = await new Promise(
-      (i) => this.setListener(e, (r) => {
-        this.#i = r, i(t());
+  async wrapInQueue(callback) {
+    const channel = "threadGroup::queue";
+    let result;
+    return this.isMainThread ? (result = await callback(), await this.send(channel, this.#queue)) : (result = await new Promise(
+      (resolve) => this.setListener(channel, (queue) => {
+        this.#queue = queue, resolve(callback());
       })
-    ), this.deleteListener(e)), this.#i.length = 0, s;
+    ), this.deleteListener(channel)), this.#queue.length = 0, result;
   }
 }
-const _t = le(
-  "thyseus::sendTable",
-  (n) => (t, e, s) => {
-    const i = [...S(s)].reduce((u, c) => {
-      const h = n.components[c];
-      return h.size > 0 && u.push(h), u;
-    }, []), r = new k(n, i, t, s, e);
-    n.archetypes[e] = r;
-    for (const u of n.queries)
-      u.testAdd(s, r);
-  }
-);
-function fe(n) {
-  n.registerComponent(v).addSystem(Tt.afterAll()).registerThreadChannel(_t);
-}
-function de(n, t) {
-  return n.parameters.some(
-    (e) => t.parameters.some(
-      (s) => e.intersectsWith(s) || s.intersectsWith(e)
-    )
-  ) ? 1 : 0;
-}
-function zt(n) {
-  return n.map(
-    (t) => n.reduce(
-      (e, s, i) => e | BigInt(de(t, s)) << BigInt(i),
-      0n
-    )
-  );
-}
-function St(n, t, e) {
-  const s = t.map(
-    (r) => r.dependencies.reduce((u, c) => {
-      const h = n.indexOf(c);
-      return h === -1 ? u : u | 1n << BigInt(h);
-    }, 0n)
-  ), i = [...s];
-  i.forEach(function r(u, c) {
-    for (const h of S(u))
-      r(i[h], h), i[c] |= i[h];
-  });
-  for (let r = 0; r < i.length; r++)
-    g(
-      (i[r] & 1n << BigInt(r)) === 0n,
-      `Circular Dependency Detected - Sytem #${r} (${n[r].fn.name}) depends on itself!`
-    );
-  for (let r = 0; r < n.length; r++) {
-    const u = t[r];
-    if (u.implicitPosition === -1)
-      for (const c of S(e[r]))
-        c !== r && (i[r] & 1n << BigInt(c)) === 0n && (s[c] |= 1n << BigInt(r), i[c] |= 1n << BigInt(r));
-    else if (u.implicitPosition === 1)
-      for (const c of S(e[r]))
-        c !== r && (i[c] & 1n << BigInt(r)) === 0n && (s[r] |= 1n << BigInt(c), i[r] |= 1n << BigInt(c));
-  }
-  return s.forEach((r, u) => s[u] &= e[u]), s;
-}
-function ft(n, t, e) {
-  for (const s of S(t))
-    if (n[s] === e)
-      return !1;
-  return !0;
-}
-let me = 0;
-const F = (...n) => {
-};
-class pe {
-  static fromWorld(t, e, s) {
-    const i = t.threads.queue(
-      () => zt(e)
-    ), r = t.threads.queue(
-      () => St(e, s, i)
-    ), u = t.threads.isMainThread ? e.map(() => !0) : e.map((l) => !l.parameters.some((p) => p.isLocalToThread())), { buffer: c } = o.views, h = t.threads.queue(
-      () => o.alloc(8 + e.length * 3)
-    ), a = t.threads.queue(
-      () => `thyseus::ParallelExecutor${me++}`
-    );
-    return new this(
-      t,
-      new Uint32Array(c, h, 2),
-      new Uint8Array(c, h + 8, e.length),
-      new Uint8Array(
-        c,
-        h + 8 + e.length,
-        e.length
-      ),
-      new Uint8Array(
-        c,
-        h + 8 + e.length * 2,
-        e.length
-      ),
-      i,
-      r,
-      u,
-      a
-    );
-  }
-  #t = F;
-  #e = F;
-  #s;
-  #i;
-  #n;
-  #r;
-  #o;
-  #c;
-  #u;
-  #h;
-  #a;
-  #d;
-  #l;
-  #m;
-  constructor(t, e, s, i, r, u, c, h, a) {
-    this.#l = t.systems, this.#m = t.arguments, this.#d = t.threads.isMainThread, this.#c = u, this.#u = c, this.#o = h, this.#s = e, this.#i = s, this.#n = i, this.#r = r, this.#a = new BroadcastChannel(a), this.#h = a, this.#a.addEventListener(
-      "message",
-      ({ data: l }) => {
-        l === 0 ? this.#p() : l === 1 ? (this.#t(), this.#t = F) : (this.#e(), this.#e = F);
-      }
-    );
-  }
-  async start() {
-    return this.#f = this.#l.length, this.#s[1] = 0, this.#i.fill(1), this.#r.fill(0), this.#n.fill(0), this.#g(), this.#p();
-  }
-  get #f() {
-    return this.#s[0];
-  }
-  set #f(t) {
-    this.#s[0] = t;
-  }
-  async #p() {
-    for (; this.#f > 0; ) {
-      let t = -1;
-      if (await navigator.locks.request(this.#h, () => {
-        t = this.#i.findIndex(
-          (e, s) => !!e && ft(this.#r, this.#u[s], 0) && ft(this.#n, this.#c[s], 1) && this.#o[s]
-        ), t !== -1 && (this.#i[t] = 0, this.#n[t] = 1, this.#f--);
-      }), t === -1) {
-        await this.#y();
-        continue;
-      }
-      await this.#l[t](...this.#m[t]), await navigator.locks.request(this.#h, () => {
-        this.#n[t] = 0, this.#r[t] = 1, Atomics.add(this.#s, 1, 1);
-      }), this.#w();
-    }
-    this.#d && Atomics.load(this.#s, 1) !== this.#l.length && await this.#v();
-  }
-  #g() {
-    this.#a.postMessage(0);
-  }
-  #w() {
-    Atomics.load(this.#s, 1) === this.#l.length ? this.#a.postMessage(2) : this.#a.postMessage(1);
-  }
-  async #y() {
-    return new Promise((t) => this.#t = t);
-  }
-  async #v() {
-    return new Promise((t) => this.#e = t);
-  }
-}
-class ge {
-  static fromWorld(t, e, s) {
-    const i = St(
-      e,
-      s,
-      zt(e)
-    ), r = i.reduce(function u(c, h, a) {
-      for (const l of S(h))
-        u(c, i[l], l);
-      return c.includes(a) || c.push(a), c;
-    }, []);
-    return new this(t, r);
-  }
-  #t;
-  #e;
-  #s;
-  constructor(t, e) {
-    this.#t = t.systems, this.#e = t.arguments, this.#s = e;
-  }
-  async start() {
-    for (const t of this.#s)
-      await this.#t[t](...this.#e[t]);
-  }
-}
-class we {
-  systems = [];
-  #t = [];
-  #e = [];
+class WorldBuilder {
+  schedules = {};
   components = /* @__PURE__ */ new Set();
   resources = /* @__PURE__ */ new Set();
   events = /* @__PURE__ */ new Set();
-  threadChannels = [];
-  executor;
+  #systems = /* @__PURE__ */ new Set();
+  defaultExecutor;
+  executors = {};
   config;
   url;
-  constructor(t, e) {
-    this.config = t, this.url = e, this.executor = t.threads > 1 ? pe : ge, fe(this);
+  constructor(config, url) {
+    this.config = config, this.url = url, this.defaultExecutor = config.threads > 1 ? ParallelExecutor : SimpleExecutor, defaultPlugin(this);
   }
   /**
-   * Adds a system to the world and processes its parameter descriptors.
-   * @param system The system to add.
-   * @param dependencies The dependencies of this system.
+   * Adds systems to the default schedule of the world (`CoreSchedule.Main`).
+   * @param systems The systems to add.
    * @returns `this`, for chaining.
    */
-  addSystem(t) {
-    return this.systems.push(t), this.#t.push(t.getAndClearDependencies()), t.parameters.forEach((e) => e.onAddSystem(this)), this;
+  addSystems(...systems) {
+    return this.addSystemsToSchedule(CoreSchedule.Main, ...systems), this;
   }
   /**
-   * Adds a system to the world _**that will only be run once when built**_.
-   * @param system The system to add.
+   * Adds systems to the specified schedule.
+   * @param schedule The schedule to add the systems to.
+   * @param systems The systems to add.
    * @returns `this`, for chaining.
    */
-  addStartupSystem(t) {
-    return this.#e.push(t), t.parameters.forEach((e) => e.onAddSystem(this)), this;
+  addSystemsToSchedule(schedule, ...systems) {
+    schedule in systems || (this.schedules[schedule] = []);
+    for (const s2 of systems) {
+      const system = typeof s2 == "function" ? s2 : s2.system;
+      this.#systems.add(system), DEV_ASSERT(
+        // NOTE: We allow a mismatch here so long as systems receive at
+        // least as many parameters as its length. Fewer than the length
+        // is almost always the result of a failed transformation, but
+        // more the length could just be the result of atypical typing.
+        (system.parameters?.length ?? 0) >= system.length,
+        `System "${system.name}" expects ${system.length} parameters, but will receive ${system.parameters?.length ?? 0}. This is likely due to a failed transformation.`
+      );
+    }
+    return this.schedules[schedule].push(...systems), this;
   }
   /**
    * Passes this WorldBuilder to the provided plugin function.
    * @param plugin The plugin to pass this WorldBuilder to.
    * @returns `this`, for chaining.
    */
-  addPlugin(t) {
-    return t(this), this;
+  addPlugin(plugin) {
+    return plugin(this), this;
   }
   /**
-   * Registers a Component in the world. Called automatically for all queried components when a system is added.
+   * Registers a component type in the world.
+   * Called automatically for all queried components when a system is added.
    * @param componentType The componentType (`Struct`) to register.
    * @returns `this`, for chaining.
    */
-  registerComponent(t) {
-    return this.components.add(t), this;
+  registerComponent(componentType) {
+    return this.components.add(componentType), this;
   }
   /**
-   * Registers a Resource in the world. Called automatically for all accessed resources when a system is added.
+   * Registers a resource type in the world.
+   * Called automatically for all accessed resources when a system is added.
    * @param resourceType The Resource type (`Class`) to register.
    * @returns `this`, for chaining.
    */
-  registerResource(t) {
-    return this.resources.add(t), this;
+  registerResource(resourceType) {
+    return this.resources.add(resourceType), this;
   }
   /**
-   * Registers an event type in the world. Called automatically for all event readers/writers when a system is added.
+   * Registers an event type in the world.
+   * Called automatically for all event readers/writers when a system is added.
    * @param resourceType The Event type (`Struct`) to register.
    * @returns `this`, for chaining.
    */
-  registerEvent(t) {
-    return this.events.add(t), this;
+  registerEvent(eventType) {
+    return this.events.add(eventType), this;
   }
   /**
-   * Registers a message channel for threads. When a thread receives a message, it will run the callback created by `listenerCreator`.
-   * @param channel The **_unique_** name of the channel. _NOTE: Calling this method again with the same channel will override the previous listener!_
-   * @param listenerCreator A creator function that will be called with the world when built. Should return a function that receives whatever data that is sent across threads, and returns data to be sent back.
+   * Sets the executor that schedules will use by default.
+   * Individual schedules can specify their own executor; if they do not, this executor will be used.
+   * @param executor The executor type to use by default.
    * @returns `this`, for chaining.
    */
-  registerThreadChannel(t) {
-    return this.threadChannels.push(t), this;
+  setDefaultExecutor(executor) {
+    return this.defaultExecutor = executor, this;
   }
   /**
-   * Sets the Executor that this world will use.
-   * @param executor The Executor to use.
+   * Sets the executor to use for a specific schedule.
+   * @param schedule The schedule.
+   * @param executor The executor type for this schedule.
    * @returns `this`, for chaining.
    */
-  setExecutor(t) {
-    return this.executor = t, this;
+  setExecutorForSchedule(schedule, executor) {
+    return this.executors[schedule] = executor, this;
   }
   /**
    * Builds the world.
-   * `World` instances cannot add new systems or register new types.
    * @returns `Promise<World>`
    */
   async build() {
-    const t = O.spawn(this.config.threads - 1, this.url), e = await t.wrapInQueue(
-      () => new Ae(
+    for (const key of Object.getOwnPropertySymbols(this.schedules))
+      key in this.executors || (this.executors[key] = this.defaultExecutor);
+    const threads = ThreadGroup.new({
+      count: this.config.threads - 1,
+      url: this.url,
+      isMainThread: this.config.isMainThread
+    }), world = await threads.wrapInQueue(async () => {
+      const world2 = new World(
         this.config,
-        t,
-        this.executor,
+        threads,
         [...this.components],
         [...this.resources],
-        [...this.events],
-        this.systems,
-        this.#t,
-        this.threadChannels
-      )
-    );
-    for (const s of this.systems)
-      e.systems.push(s.fn), e.arguments.push(
-        await Promise.all(
-          s.parameters.map((i) => i.intoArgument(e))
-        )
-      );
-    if (t.isMainThread) {
-      await Promise.all(
-        //@ts-ignore
-        e.resources.map((s) => s.initialize?.(e))
-      );
-      for (const s of this.#e)
-        await s.fn(
-          ...s.parameters.map((i) => i.intoArgument(e))
+        [...this.events]
+      ), systemArguments = /* @__PURE__ */ new Map();
+      for (const system of this.#systems)
+        systemArguments.set(
+          system,
+          await Promise.all(
+            system.parameters?.map(
+              (parameter) => parameter.intoArgument(world2)
+            ) ?? []
+          )
         );
-      await Tt.fn(e, /* @__PURE__ */ new Map());
-    }
-    return e;
+      for (const key of Object.getOwnPropertySymbols(this.executors))
+        world2.schedules[key] = this.executors[key].fromWorld(
+          world2,
+          this.schedules[key],
+          this.schedules[key].map(
+            (s2) => systemArguments.get(
+              typeof s2 == "function" ? s2 : s2.system
+            )
+          )
+        );
+      return world2;
+    });
+    return threads.isMainThread && await Promise.all(
+      //@ts-ignore
+      world.resources.map((resource) => resource.initialize?.(world))
+    ), world;
   }
 }
-const ye = 1048576, ve = (n = {}) => ({
+class EventReader {
+  #commands;
+  #struct;
+  #instance;
+  #pointer;
+  // [length, capacity, pointerStart, ...defaultData]
+  constructor(commands, struct, pointer, instance) {
+    instance === void 0 && (instance = new struct(), dropStruct(instance)), this.#commands = commands, this.#instance = instance, this.#struct = struct, this.#pointer = pointer >> 2;
+  }
+  /**
+   * The event type (struct) for this queue.
+   */
+  get type() {
+    return this.#struct;
+  }
+  /**
+   * The number of events currently in this queue.
+   */
+  get length() {
+    return memory.views.u32[this.#pointer];
+  }
+  *[Symbol.iterator]() {
+    const size = this.#struct.size;
+    this.#instance.__$$b = memory.views.u32[this.#pointer + 2];
+    for (let i = 0; i < this.length; i++)
+      yield this.#instance, this.#instance.__$$b += size;
+  }
+  /**
+   * Sets this event queue to be cleared when commands are next processed.
+   */
+  clear() {
+    const pointer = this.#commands.pushCommand(4, CLEAR_QUEUE_COMMAND);
+    memory.views.u32[pointer >> 2] = this.#pointer << 2;
+  }
+}
+class EventWriter extends EventReader {
+  #instance;
+  #pointer;
+  // [length, capacity, pointerStart, ...defaultData]
+  constructor(commands, struct, pointer) {
+    const instance = new struct();
+    dropStruct(instance), super(commands, struct, pointer, instance), this.#instance = instance, this.#pointer = pointer >> 2;
+  }
+  /**
+   * Creates a new event and returns a mutable instance of that event.
+   * Returned instance will be reused.
+   *
+   * @returns A mutable instance of the event.
+   */
+  create() {
+    const byteOffset = this.#addEvent();
+    return this.#instance.__$$b = byteOffset, memory.copy(this.#pointer + 3 << 2, this.type.size, byteOffset), this.#instance;
+  }
+  /**
+   * Creates an event on the queue from a passed instance of a struct.
+   * @param instance The event to add to the event queue.
+   */
+  createFrom(instance) {
+    memory.copy(instance.__$$b, this.type.size, this.#addEvent());
+  }
+  /**
+   * Creates an event with the default data for that event.
+   */
+  createDefault() {
+    memory.copy(
+      this.#pointer + 3 << 2,
+      this.type.size,
+      this.#addEvent()
+    );
+  }
+  /**
+   * **Immediately** clears all events in this queue.
+   */
+  clearImmediate() {
+    memory.views.u32[this.#pointer] = 0;
+  }
+  /**
+   * Increments length, returns a pointer to the new event (in queue).
+   * Will grow queue, if necessary.
+   */
+  #addEvent() {
+    const { length } = this;
+    return length === memory.views.u32[this.#pointer + 1] && this.type.size !== 0 && (memory.reallocAt(
+      this.#pointer + 2 << 2,
+      length * this.type.size + 8 * this.type.size
+    ), memory.views.u32[this.#pointer + 1] += 8), memory.views.u32[this.#pointer]++, length * this.type.size + memory.views.u32[this.#pointer + 2];
+  }
+}
+const MB = 1048576, getCompleteConfig = (config = {}) => ({
   threads: 1,
-  memory: 64 * ye,
-  getNewTableSize: (t) => t === 0 ? 8 : t * 2,
-  ...n
-}), Ee = ({ threads: n, memory: t }, e) => {
-  n > 1 && (g(
+  memorySize: 64 * MB,
+  useSharedMemory: !1,
+  isMainThread: typeof document < "u",
+  getNewTableSize: (prev) => prev === 0 ? 8 : prev * 2,
+  ...config
+}), validateConfig = ({ threads, memorySize, useSharedMemory }, url) => {
+  (threads > 1 || useSharedMemory) && (DEV_ASSERT(
     isSecureContext,
-    "Invalid config - Multithreading (threads > 1) requires a secure context."
-  ), g(
+    "Invalid config - shared memory requires a secure context."
+  ), DEV_ASSERT(
     typeof SharedArrayBuffer < "u",
-    "Invalid config - Multithreading (threads > 1) requires SharedArrayBuffer."
-  ), g(
-    e,
-    "Invalid config - Multithreading (threads > 1) requires a module URL parameter.",
+    "Invalid config - shared memory requires SharedArrayBuffer."
+  ), DEV_ASSERT(
+    threads > 1 ? url : !0,
+    "Invalid config - multithreading (threads > 1) requires a module URL parameter.",
     TypeError
-  )), g(
-    Number.isInteger(n) && 0 < n && n < 64,
-    "Invalid config - 'threads' must be an integer such that 0 < threads < 64",
+  )), DEV_ASSERT(
+    Number.isInteger(threads) && 0 < threads && threads < 64,
+    "Invalid config - threads must be an integer such that 0 < threads < 64",
     RangeError
-  ), g(
-    Number.isInteger(t) && t < 2 ** 32,
-    "Invalid config - 'memory' must be at most 4 GB ((2**32) - 1 bytes)"
+  ), DEV_ASSERT(
+    Number.isInteger(memorySize) && memorySize < 2 ** 32,
+    "Invalid config - memorySize must be at most 4 GB ((2**32) - 1 bytes)"
   );
 };
-function be(n, t) {
-  const e = ve(n);
-  return Ee(e, t), e;
+function validateAndCompleteConfig(inConfig, url) {
+  const completeConfig = getCompleteConfig(inConfig);
+  return validateConfig(completeConfig, url), completeConfig;
 }
-class Ae {
-  static new(t, e) {
-    return new we(be(t, e), e);
+class World {
+  static new(config, url) {
+    return new WorldBuilder(validateAndCompleteConfig(config, url), url);
   }
   archetypes = [];
-  #t = /* @__PURE__ */ new Map();
+  #archetypeLookup = /* @__PURE__ */ new Map();
   queries = [];
   resources = [];
   eventReaders = [];
   eventWriters = [];
-  systems = [];
-  arguments = [];
+  schedules = {};
   commands;
   entities;
   config;
   threads;
-  executor;
   components;
-  constructor(t, e, s, i, r, u, c, h, a) {
-    this.config = t, this.threads = e, o.init(
+  constructor(config, threads, components, resourceTypes, eventTypes) {
+    this.config = config, this.threads = threads, memory.init(
       this.threads.queue(
-        () => o.init(t.memory, t.threads > 1)
+        () => memory.init(
+          config.memorySize,
+          config.useSharedMemory || config.threads > 1
+        )
       )
-    );
-    const l = k.createEmptyTable(this), p = k.createRecycledTable(this);
-    this.archetypes.push(l, p), this.#t.set(0n, p);
-    for (const m of a)
-      this.threads.setListener(
-        m.channelName,
-        m.onReceive(this)
-      );
-    this.components = i, this.entities = Rt.fromWorld(this), this.commands = xt.fromWorld(this), this.executor = s.fromWorld(this, c, h);
-    for (const m of u) {
-      const D = this.threads.queue(() => {
-        const ut = o.alloc(12 + m.size);
-        if (m.size !== 0) {
-          const ht = new m();
-          o.copy(ht.__$$b, m.size, ut + 12), o.free(ht.__$$b);
+    ), this.components = components;
+    const emptyTable = Table.createEmptyTable(this), recycledTable = Table.createRecycledTable(this);
+    this.archetypes.push(emptyTable, recycledTable), this.#archetypeLookup.set(0n, recycledTable), this.entities = Entities.fromWorld(this), this.commands = Commands.fromWorld(this);
+    for (const eventType of eventTypes) {
+      const pointer = this.threads.queue(() => {
+        const ptr = memory.alloc(12 + eventType.size);
+        if (eventType.size !== 0) {
+          const instance = new eventType();
+          memory.copy(instance.__$$b, eventType.size, ptr + 12), memory.free(instance.__$$b);
         }
-        return ut;
+        return ptr;
       });
       this.eventReaders.push(
-        new bt(this.commands, m, D)
+        new EventReader(this.commands, eventType, pointer)
       ), this.eventWriters.push(
-        new oe(this.commands, m, D)
+        new EventWriter(this.commands, eventType, pointer)
       );
     }
-    for (const m of r)
-      if (Z(m)) {
-        const D = this.threads.queue(
-          () => m.size !== 0 ? o.alloc(m.size) : 0
+    for (const resourceType of resourceTypes)
+      if (isStruct(resourceType)) {
+        const pointer = this.threads.queue(
+          () => resourceType.size !== 0 ? memory.alloc(resourceType.size) : 0
         );
-        this.resources.push(et(m, D));
+        this.resources.push(createManagedStruct(resourceType, pointer));
       } else
-        e.isMainThread && this.resources.push(new m());
+        threads.isMainThread && this.resources.push(new resourceType());
   }
-  async update() {
-    return this.executor.start();
+  /**
+   * Starts execution of the world.
+   */
+  start() {
+    this.schedules[CoreSchedule.Outer].start();
   }
-  moveEntity(t, e) {
-    if (!this.entities.isAlive(t))
+  /**
+   * Runs the specified schedule.
+   * Throws if that schedule cannot be found.
+   * @param schedule The schedule to run.
+   * @returns A promise that resolves when the schedule has completed
+   */
+  async runSchedule(schedule) {
+    return DEV_ASSERT(
+      schedule in this.schedules,
+      `Could not find schedule (${String(schedule)}) in the world!`
+    ), this.schedules[schedule].start();
+  }
+  /**
+   * Gets the resource (instance) of the passed type.
+   * @param resourceType The type of the resource to get.
+   * @returns The resource instance.
+   */
+  getResource(resourceType) {
+    return this.resources.find(
+      (instance) => instance.constructor === resourceType
+    );
+  }
+  moveEntity(entityId, targetTableId) {
+    if (!this.entities.isAlive(entityId))
       return;
-    const s = this.archetypes[this.entities.getTableIndex(t)], i = this.#e(e), r = this.entities.getRow(t), u = s.move(r, i);
-    this.entities.setRow(u, r), this.entities.setTableIndex(t, i.id), this.entities.setRow(t, i.size - 1);
+    const currentTable = this.archetypes[this.entities.getTableIndex(entityId)], targetTable = this.#getTable(targetTableId), row = this.entities.getRow(entityId), backfilledEntity = currentTable.move(row, targetTable);
+    this.entities.setRow(backfilledEntity, row), this.entities.setTableIndex(entityId, targetTable.id), this.entities.setRow(entityId, targetTable.length - 1);
   }
-  #e(t) {
-    let e = this.#t.get(t);
-    if (e)
-      return e;
-    const s = this.archetypes.length;
-    e = k.create(
+  #getTable(tableId) {
+    let table = this.#archetypeLookup.get(tableId);
+    if (table)
+      return table;
+    const id = this.archetypes.length;
+    table = Table.create(
       this,
-      Array.from(S(t), (i) => this.components[i]),
-      t,
-      s
-    ), this.#t.set(t, e), this.archetypes.push(e), this.threads.send(_t(e.pointer, s, t));
-    for (const i of this.queries)
-      i.testAdd(t, e);
-    return e;
+      Array.from(bits(tableId), (cid) => this.components[cid]),
+      tableId,
+      id
+    ), this.#archetypeLookup.set(tableId, table), this.archetypes.push(table);
+    for (const query of this.queries)
+      query.testAdd(table);
+    return table;
   }
 }
-function _e(n) {
-  return n;
+function cloneSystem(system) {
+  const clone = system.bind(null);
+  return clone.parameters = system.parameters, clone;
 }
 export {
-  v as Entity,
-  Ae as World,
-  Tt as applyCommands,
-  le as createThreadChannel,
-  _e as definePlugin,
-  he as defineSystem,
-  tt as dropStruct,
-  yt as initStruct,
-  w as struct
+  CoreSchedule,
+  Entity,
+  World,
+  f as applyCommands,
+  cloneSystem,
+  dropStruct,
+  g as initStruct,
+  memory,
+  r as run,
+  s as struct
 };
