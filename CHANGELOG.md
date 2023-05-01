@@ -1,5 +1,64 @@
 # Changelog
 
+## v0.12.0
+
+### 💥 Breaking Changes
+
+-   `WorldBuilder`
+    -   Removed `addSystem()`
+    -   Removed `addStartupSystem()`
+    -   Removed `setExecutor()`
+    -   Removed `registerThreadChannel()`
+-   `World`
+    -   Removed `update()`
+-   `ThreadGroup`
+    -   Changed send to `send(channelName: string, data: SendableType)`
+-   Removed `definePlugin()`
+-   Removed `defineSystem()`
+-   Removed `SystemDefinition`
+-   `applyCommands()` is now a function (prev. `SystemDefinition`)
+-   Previous "Startup systems" (now systems in the startup core schedule) do not
+    run when `worldBuilder.build()` is called, but when `world.start()` is
+    called
+-   The `memory` option of world config has been renamed to `memorySize`
+-   The `Entity` component will throw an error if trying to construct it without
+    `world.commands` and `world.entities`
+-   Renamed `table.size` to `table.length`
+-   `Table`s are no longer constructed on threads
+
+### ✨ Features
+
+-   Added schedules
+-   Added `run()` export
+-   Added `cloneSystem()` export
+-   Added `CoreSchedule` export
+-   `WorldBuilder`
+    -   Added `addSystems(...systems: System[]): WorldBuilder`
+    -   Added
+        `addSystemsToSchedule(schedule: symbol, ...systems: System[]): WorldBuilder`
+    -   Added `setDefaultExecutor(executor: ExecutorType): WorldBuilder`
+    -   Added
+        `setExecutorForSchedule(schedule: symbol, executor: ExecutorType): WorldBuilder`
+-   `World`
+    -   Added `start(): void`
+    -   Added `runSchedule(schedule: symbol): Promise<void>`
+    -   Added `getResource<T extends Class>(resourceType: T): InstanceType<T>`
+-   `Entity`
+    -   Added `hasComponent(componentType: Struct): boolean`
+-   Added `isMainThread: boolean` and `useSharedMemory: boolean` world config
+-   Exposed `thyseus/types` as possible import
+-   Exposed `thyseus/descriptors` as possible import
+-   Exposed nearly all internal types
+-   Exposed `memory` API
+
+### 🐛 Bug Fixes
+
+-   Fixed struct system resources not constructing properly on threads.
+
+### 🔧 Maintenance
+
+-   Updated build to preserve identifiers.
+
 ## v0.11.0
 
 ### 💥 Breaking Changes
