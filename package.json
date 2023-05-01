@@ -1,12 +1,13 @@
 {
 	"name": "thyseus",
 	"version": "0.11.0",
-	"description": "An archetypal Entity Component System for the modern web.",
+	"description": "An archetypal Entity Component System for the modern web",
 	"author": "Jaime Gensler",
 	"license": "MIT",
 	"type": "module",
 	"files": [
-		"dist"
+		"dist",
+		"src/types.ts"
 	],
 	"main": "./dist/index.umd.cjs",
 	"module": "./dist/index.js",
@@ -16,11 +17,11 @@
 		"./src/*": "./src/*",
 		".": {
 			"import": "./dist/index.js",
-			"require": "./dist/index.umd.cjs"
+			"require": "./dist/index.cjs"
 		},
 		"./descriptors": {
 			"import": "./dist/descriptors.js",
-			"require": "./dist/descriptors.umd.cjs"
+			"require": "./dist/descriptors.cjs"
 		},
 		"./types": {
 			"import": "./types.ts",
@@ -33,7 +34,7 @@
 	},
 	"scripts": {
 		"start": "vite",
-		"build": "vite build && tsup src/index.ts --dts-only",
+		"build": "vite build && tsup src/index.ts --dts-only && tsup src/descriptors.ts --dts-only",
 		"test": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"typecheck": "tsc --noEmit"

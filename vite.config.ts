@@ -3,12 +3,17 @@ import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
 
 export default defineConfig({
+	esbuild: {
+		minifyIdentifiers: false,
+	},
 	build: {
 		target: 'esnext',
 		lib: {
-			entry: resolve(__dirname, 'src/index.ts'),
+			entry: {
+				index: resolve(__dirname, 'src/index.ts'),
+				descriptors: resolve(__dirname, 'src/descriptors.ts'),
+			},
 			name: 'Thyseus',
-			fileName: 'index',
 		},
 		rollupOptions: {
 			external: ['esm-env'],
