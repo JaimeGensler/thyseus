@@ -1,6 +1,6 @@
 {
 	"name": "thyseus",
-	"version": "0.12.0-beta.0",
+	"version": "0.12.0-beta.1",
 	"description": "An archetypal Entity Component System for the modern web",
 	"author": "Jaime Gensler",
 	"license": "MIT",
@@ -9,9 +9,6 @@
 		"dist",
 		"src/types.ts"
 	],
-	"main": "./dist/index.umd.cjs",
-	"module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
 	"exports": {
 		"./package.json": "./package.json",
 		"./src/*": "./src/*",
