@@ -9,6 +9,8 @@
 		"dist",
 		"src/types.ts"
 	],
+	"main": "dist/index.cjs",
+	"types": "dist/index.d.ts",
 	"exports": {
 		"./package.json": "./package.json",
 		"./src/*": "./src/*",
@@ -21,8 +23,8 @@
 			"require": "./dist/descriptors.cjs"
 		},
 		"./types": {
-			"import": "./types.ts",
-			"require": "./types.ts"
+			"import": "./src/types.ts",
+			"require": "./src/types.ts"
 		}
 	},
 	"repository": {
