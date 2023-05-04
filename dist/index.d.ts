@@ -582,7 +582,7 @@ declare class SystemResourceDescriptor<T extends object> implements SystemParame
     intoArgument({ threads }: World): Promise<T>;
 }
 
-type Res<T extends object> = T extends Mut<T> ? T : Readonly<T>;
+type Res<T extends object> = T extends Mut<infer X> ? X : Readonly<T>;
 type SystemRes<T extends object> = T;
 
 declare function applyCommands(world: World, entityDestinations: SystemRes<Map<bigint, bigint>>): void;
