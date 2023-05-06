@@ -78,7 +78,7 @@ if (import.meta.vitest) {
 	};
 
 	it('executes systems sequentially if unordered', async () => {
-		const { systems, executionOrder, world, args } = createOrderTracking(5);
+		const { systems, executionOrder, world } = createOrderTracking(5);
 		const exec = SimpleExecutor.fromWorld(
 			world,
 			systems,

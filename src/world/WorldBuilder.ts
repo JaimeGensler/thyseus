@@ -51,17 +51,22 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	addSystemsToSchedule(schedule: symbol, ...systems: SystemList): this {
-		if (!(schedule in systems)) {
+		if (!(schedule in this.schedules)) {
 			this.schedules[schedule] = [] as System[];
 		}
 		for (const s of systems) {
 			const system = typeof s === 'function' ? s : s.system;
 			this.#systems.add(system);
+			if (system.parameters) {
+				for (const descriptor of system.parameters) {
+					descriptor.onAddSystem(this);
+				}
+			}
 			DEV_ASSERT(
-				// NOTE: We allow a mismatch here so long as systems receive at
-				// least as many parameters as its length. Fewer than the length
-				// is almost always the result of a failed transformation, but
-				// more the length could just be the result of atypical typing.
+				// We allow a mismatch here so long as systems receive at least
+				// as many parameters as its length. Fewer than the length is
+				// probably the result of a failed transformation, but more than
+				// the length could just be the result of handwritten params.
 				(system.parameters?.length ?? 0) >= system.length,
 				`System "${system.name}" expects ${
 					system.length
@@ -267,6 +272,25 @@ if (import.meta.vitest) {
 		static size = 8;
 		initialize = initializeTimeSpy;
 	}
+
+	it('calls onAddSystem for all parameters', () => {
+		const builder = World.new({ isMainThread: true });
+		const spy1 = vi.fn();
+		const spy2 = vi.fn();
+		const spy3 = vi.fn();
+		const spy4 = vi.fn();
+		function mockSystem1() {}
+		mockSystem1.parameters = [
+			{ onAddSystem: spy1 },
+			{ onAddSystem: spy2 },
+		] as any;
+		function mockSystem2() {}
+		mockSystem2.parameters = [
+			{ onAddSystem: spy3 },
+			{ onAddSystem: spy4 },
+		] as any;
+		builder.addSystems(mockSystem1, mockSystem2);
+	});
 
 	it('initializes resources', async () => {
 		const builder = World.new({ isMainThread: true }).registerResource(
