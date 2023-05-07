@@ -95,7 +95,7 @@ export class Entities {
 			const newElementCount =
 				Math.ceil((u32[this.#pointer] + 1) / ENTITY_BATCH_SIZE) *
 				ENTITY_BATCH_SIZE;
-			memory.reallocAt(this.#locationsPointer, newElementCount * 8);
+			memory.reallocAt((this.#pointer + 2) << 2, newElementCount * 8);
 			u32[this.#pointer + 3] = newElementCount;
 		}
 	}
@@ -120,9 +120,6 @@ export class Entities {
 
 	get #locationsPointer() {
 		return memory.views.u32[this.#pointer + 2];
-	}
-	set #locationsPointer(val: number) {
-		memory.views.u32[this.#pointer + 2] = val;
 	}
 	get #capacity() {
 		return memory.views.u32[this.#pointer + 3];

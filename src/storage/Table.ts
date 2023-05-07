@@ -145,13 +145,13 @@ export class Table {
 	grow(): void {
 		memory.views.u32[(this.#pointer >> 2) + 1] =
 			this.#world.config.getNewTableSize(this.capacity);
-		let i = 2;
+		let i = 8;
 		for (const component of this.#components) {
 			memory.reallocAt(
-				this.#pointer + (i << 2),
+				this.#pointer + i,
 				component.size! * this.capacity,
 			);
-			i++;
+			i += 4;
 		}
 	}
 
