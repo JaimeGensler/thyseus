@@ -381,6 +381,18 @@ declare class EventWriter<T extends object> extends EventReader<T> {
     clearImmediate(): void;
 }
 
+declare class EventReaderDescriptor$1<T extends Struct> implements SystemParameter {
+    eventType: T;
+    constructor(eventType: T);
+    isLocalToThread(): boolean;
+    intersectsWith(other: unknown): boolean;
+    onAddSystem(builder: WorldBuilder): void;
+    intoArgument(world: World): EventReader<InstanceType<T>>;
+}
+declare class EventWriterDescriptor$1<T extends Struct> extends EventReaderDescriptor$1<T> {
+    intoArgument(world: World): EventWriter<InstanceType<T>>;
+}
+
 type SendableType = void | null | undefined | boolean | number | string | bigint | ArrayBuffer | SharedArrayBuffer | Uint8Array | Uint16Array | Uint32Array | BigUint64Array | Int8Array | Int16Array | Int32Array | BigInt64Array | Float32Array | Float64Array | Uint8ClampedArray | DataView | Date | RegExp | Blob | File | FileList | ImageBitmap | ImageData | SendableType[] | {
     [key: string]: SendableType;
 } | Map<SendableType, SendableType> | Set<SendableType>;
@@ -482,6 +494,23 @@ declare class Query<A extends Accessors, F extends Filter = []> {
     testAdd(table: Table): void;
 }
 
+type AccessDescriptor = Struct | Mut<object> | Optional<object> | Optional<Mut<object>>;
+type UnwrapElement<E extends any> = E extends Class ? InstanceType<E> : E;
+declare class QueryDescriptor$1<A extends AccessDescriptor | AccessDescriptor[], F extends Filter = []> implements SystemParameter {
+    components: Struct[];
+    writes: boolean[];
+    optionals: boolean[];
+    filters: F;
+    isIndividual: boolean;
+    constructor(accessors: A | [...(A extends any[] ? A : never)], filters?: F);
+    isLocalToThread(): boolean;
+    intersectsWith(other: unknown): boolean;
+    onAddSystem(builder: WorldBuilder): void;
+    intoArgument(world: World): Query<A extends any[] ? {
+        [Index in keyof A]: UnwrapElement<A[Index]>;
+    } : UnwrapElement<A>, F>;
+}
+
 declare class World {
     #private;
     /**
@@ -529,7 +558,7 @@ declare class World {
     moveEntity(entityId: bigint, targetTableId: bigint): void;
 }
 
-declare class WorldDescriptor implements SystemParameter {
+declare class WorldDescriptor$1 implements SystemParameter {
     isLocalToThread(): boolean;
     intersectsWith(other: unknown): boolean;
     intoArgument(world: World): World;
@@ -571,7 +600,24 @@ declare class Commands {
     reset(): void;
 }
 
-declare class SystemResourceDescriptor<T extends object> implements SystemParameter {
+declare class CommandsDescriptor$1 implements SystemParameter {
+    isLocalToThread(): boolean;
+    intersectsWith(other: unknown): boolean;
+    intoArgument(world: World): Commands;
+    onAddSystem(builder: WorldBuilder): void;
+}
+
+declare class ResourceDescriptor$1<T extends Class | Mut<Class>> implements SystemParameter {
+    resourceType: Class;
+    canWrite: boolean;
+    constructor(resource: T);
+    isLocalToThread(): boolean;
+    intersectsWith(other: unknown): boolean;
+    onAddSystem(builder: WorldBuilder): void;
+    intoArgument(world: World): T extends Mut<infer X> ? X : Readonly<InstanceType<T extends Class ? T : never>>;
+}
+
+declare class SystemResourceDescriptor$1<T extends object> implements SystemParameter {
     resourceType: Class;
     constructor(resource: {
         new (): T;
@@ -587,7 +633,7 @@ type SystemRes<T extends object> = T;
 
 declare function applyCommands(world: World, entityDestinations: SystemRes<Map<bigint, bigint>>): void;
 declare namespace applyCommands {
-    var parameters: (WorldDescriptor | SystemResourceDescriptor<Map<unknown, unknown>>)[];
+    var parameters: (WorldDescriptor$1 | SystemResourceDescriptor$1<Map<unknown, unknown>>)[];
 }
 
 type Pointer = number;
@@ -692,4 +738,16 @@ declare const memory: {
 };
 type Memory = typeof memory;
 
-export { Commands, CoreSchedule, Entities, Entity, EntityCommands, EventReader, EventWriter, ExecutorInstance, ExecutorType, Memory, Mut, Optional, Or, Plugin, Query, Res, Struct, System, SystemConfig, SystemParameter, SystemRes, Table, ThreadGroup, With, Without, World, WorldBuilder, WorldConfig, applyCommands, cloneSystem, dropStruct, initStruct, memory, run, struct };
+declare const CommandsDescriptor: () => CommandsDescriptor$1;
+declare const QueryDescriptor: <A extends AccessDescriptor | AccessDescriptor[], F extends Filter = []>(accessors: A | [...A extends any[] ? A : never], filters?: F | undefined) => QueryDescriptor$1<A, F>;
+declare const ResourceDescriptor: <T extends Class | Mut<Class>>(resource: T) => ResourceDescriptor$1<T>;
+declare const SystemResourceDescriptor: <T extends object>(resource: new () => T) => SystemResourceDescriptor$1<T>;
+declare const WorldDescriptor: () => WorldDescriptor$1;
+declare const EventReaderDescriptor: <T extends Struct>(eventType: T) => EventReaderDescriptor$1<T>;
+declare const EventWriterDescriptor: <T extends Struct>(eventType: T) => EventWriterDescriptor$1<T>;
+declare const MutDescriptor: <T extends object>(value: new (...args: any) => T) => Mut<T>;
+declare const WithDescriptor: <T extends object | object[]>(value: (new (...args: any) => T) | (new (...args: any) => T)[]) => With<T>;
+declare const WithoutDescriptor: <T extends object | object[]>(value: (new (...args: any) => T) | (new (...args: any) => T)[]) => Without<T>;
+declare const OrDescriptor: <L extends OrContent, R extends OrContent>(l: L, r: R) => Or<L, R>;
+
+export { Commands, CommandsDescriptor, CoreSchedule, Entities, Entity, EntityCommands, EventReader, EventReaderDescriptor, EventWriter, EventWriterDescriptor, ExecutorInstance, ExecutorType, Memory, Mut, MutDescriptor, Optional, Or, OrDescriptor, Plugin, Query, QueryDescriptor, Res, ResourceDescriptor, Struct, System, SystemConfig, SystemParameter, SystemRes, SystemResourceDescriptor, Table, ThreadGroup, With, WithDescriptor, Without, WithoutDescriptor, World, WorldBuilder, WorldConfig, WorldDescriptor, applyCommands, cloneSystem, dropStruct, initStruct, memory, run, struct };

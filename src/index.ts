@@ -6,6 +6,21 @@ export { run, CoreSchedule } from './schedule';
 export { memory } from './utils/memory';
 export { cloneSystem } from './systems';
 
+export {
+	CommandsDescriptor,
+	QueryDescriptor,
+	ResourceDescriptor,
+	SystemResourceDescriptor,
+	WorldDescriptor,
+	EventReaderDescriptor,
+	EventWriterDescriptor,
+	MutDescriptor,
+	WithDescriptor,
+	WithoutDescriptor,
+	// Optional,
+	OrDescriptor,
+} from './descriptors';
+
 export type { Commands, EntityCommands } from './commands';
 export type { EventReader, EventWriter } from './events';
 export type { Query, Mut, Optional, With, Without, Or } from './queries';

@@ -1,5 +1,0 @@
-{
-  "main": "../dist/descriptors.js",
-  "module": "../dist/descriptors.cjs",
-  "types": "../dist/descriptors.d.ts"
-}

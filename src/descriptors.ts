@@ -9,7 +9,7 @@ import {
 } from './events';
 import {
 	Mut as MutModifier,
-	Optional as OptionalModifier,
+	// Optional as OptionalModifier,
 	With as WithModifier,
 	Without as WithoutModifier,
 	Or as OrModifier,
@@ -29,8 +29,8 @@ export const WorldDescriptor = wrap(WorldDescriptorClass);
 export const EventReaderDescriptor = wrap(EventReaderDescriptorClass);
 export const EventWriterDescriptor = wrap(EventWriterDescriptorClass);
 
-export const Mut = wrap(MutModifier);
-export const With = wrap(WithModifier);
-export const Without = wrap(WithoutModifier);
-export const Optional = wrap(OptionalModifier);
-export const Or = wrap(OrModifier);
+export const MutDescriptor = wrap(MutModifier);
+export const WithDescriptor = wrap(WithModifier);
+export const WithoutDescriptor = wrap(WithoutModifier);
+// export const OptionalDescriptor = wrap(OptionalModifier);
+export const OrDescriptor = wrap(OrModifier);
