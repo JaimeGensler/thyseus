@@ -58,7 +58,7 @@ export function applyCommands(
 		if (tableId === 0 || tableId === 1) {
 			continue;
 		}
-		const componentId = memory.views.u32[(dataStart + 8) >> 2];
+		const componentId = memory.views.u16[(dataStart + 8) >> 1];
 		archetypes[tableId].copyComponentIntoRow(
 			entities.getRow(entityId),
 			components[componentId],
