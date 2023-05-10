@@ -16,13 +16,17 @@ async function runInnerSchedules(world: World) {
 	await world.runSchedule(CoreSchedule.Startup);
 	let previousTime = 0;
 	let delta = 0;
+	const hasFixedUpdate = CoreSchedule.FixedUpdate in world.schedules;
 
 	async function loop(currentTime: number) {
 		await world.runSchedule(CoreSchedule.Main);
 		delta = currentTime - previousTime;
-		for (let i = delta; i > 20; i -= 20) {
-			// TODO: Test
-			await world.runSchedule(CoreSchedule.FixedUpdate);
+
+		if (hasFixedUpdate) {
+			for (let i = delta; i > 20; i -= 20) {
+				// TODO: Test
+				await world.runSchedule(CoreSchedule.FixedUpdate);
+			}
 		}
 
 		requestAnimationFrame(loop);
