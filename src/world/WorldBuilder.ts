@@ -14,7 +14,7 @@ import type { WorldConfig } from './config';
 
 type SystemList = (System | SystemConfig)[];
 export class WorldBuilder {
-	schedules: Record<symbol, SystemList> = {};
+	schedules: Map<symbol, SystemList> = new Map();
 
 	components: Set<Struct> = new Set();
 	resources: Set<Class> = new Set();
@@ -22,7 +22,7 @@ export class WorldBuilder {
 
 	#systems: Set<System> = new Set();
 	defaultExecutor: ExecutorType;
-	executors: Record<symbol, ExecutorType> = {};
+	executors: Map<symbol, ExecutorType> = new Map();
 
 	config: Readonly<WorldConfig>;
 	url: Readonly<string | URL | undefined>;
@@ -51,8 +51,8 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	addSystemsToSchedule(schedule: symbol, ...systems: SystemList): this {
-		if (!(schedule in this.schedules)) {
-			this.schedules[schedule] = [] as System[];
+		if (!this.schedules.has(schedule)) {
+			this.schedules.set(schedule, []);
 		}
 		for (const s of systems) {
 			const system = typeof s === 'function' ? s : s.system;
@@ -75,7 +75,7 @@ export class WorldBuilder {
 				}. This is likely due to a failed transformation.`,
 			);
 		}
-		this.schedules[schedule].push(...systems);
+		this.schedules.get(schedule)!.push(...systems);
 		return this;
 	}
 
@@ -140,7 +140,7 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	setExecutorForSchedule(schedule: symbol, executor: ExecutorType): this {
-		this.executors[schedule] = executor;
+		this.executors.set(schedule, executor);
 		return this;
 	}
 
@@ -149,9 +149,9 @@ export class WorldBuilder {
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
-		for (const key of Object.getOwnPropertySymbols(this.schedules)) {
-			if (!(key in this.executors)) {
-				this.executors[key] = this.defaultExecutor;
+		for (const [scheduleSymbol] of this.schedules) {
+			if (!this.executors.has(scheduleSymbol)) {
+				this.executors.set(scheduleSymbol, this.defaultExecutor);
 			}
 		}
 		const threads = ThreadGroup.new({
@@ -179,16 +179,18 @@ export class WorldBuilder {
 					),
 				);
 			}
-			for (const key of Object.getOwnPropertySymbols(this.executors)) {
-				world.schedules[key] = this.executors[key].fromWorld(
-					world,
-					this.schedules[key],
-					this.schedules[key].map(s =>
-						systemArguments.get(
-							typeof s === 'function' ? s : s.system,
+			for (const [scheduleSymbol, systems] of this.schedules) {
+				world.schedules[scheduleSymbol] = this.executors
+					.get(scheduleSymbol)!
+					.fromWorld(
+						world,
+						systems,
+						systems.map(s =>
+							systemArguments.get(
+								typeof s === 'function' ? s : s.system,
+							),
 						),
-					),
-				);
+					);
 			}
 			return world;
 		});
