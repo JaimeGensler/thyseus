@@ -17,8 +17,12 @@ class SystemConfig {
 	 * @param ...systems The systems that this system must run before.
 	 * @returns `this`, for chaining.
 	 */
-	before(...systems: System[]): this {
-		this.dependents.push(...systems);
+	before(...systems: (System | System[])[]): this {
+		for (const system of systems) {
+			if (Array.isArray(system)) this.dependents.push(...system);
+			else this.dependents.push(system);
+		}
+
 		return this;
 	}
 
@@ -27,8 +31,12 @@ class SystemConfig {
 	 * @param ...systems The systems that this system must run after.
 	 * @returns `this`, for chaining.
 	 */
-	after(...systems: System[]): this {
-		this.dependencies.push(...systems);
+	after(...systems: (System | System[])[]): this {
+		for (const system of systems) {
+			if (Array.isArray(system)) this.dependencies.push(...system);
+			else this.dependencies.push(system);
+		}
+
 		return this;
 	}
 
@@ -62,14 +70,24 @@ class SystemConfig {
 export { SystemConfig };
 
 type Run = {
-	(system: System): SystemConfig;
-	chain(...systems: System[]): (System | SystemConfig)[];
+	(system: System | System[]): SystemConfig | SystemConfig[];
+	chain(
+		...systems: (System | System[])[]
+	): (System | System[] | SystemConfig | SystemConfig[])[];
 };
 
-const run: Run = system => new SystemConfig(system);
+const run: Run = system =>
+	Array.isArray(system)
+		? system.map(s => new SystemConfig(s))
+		: new SystemConfig(system);
+
 run.chain = (...systems) =>
 	systems.map((system, i) =>
-		i === 0 ? system : new SystemConfig(system).after(systems[i - 1]),
+		i === 0
+			? system
+			: Array.isArray(system)
+			? system.map(s => new SystemConfig(s).after(systems[i - 1]))
+			: new SystemConfig(system).after(systems[i - 1]),
 	);
 
 export { run };
