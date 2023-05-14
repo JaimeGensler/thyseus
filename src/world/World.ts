@@ -38,8 +38,8 @@ export class World {
 		return new WorldBuilder(validateAndCompleteConfig(config, url), url);
 	}
 
-	archetypes: Table[] = [];
-	#archetypeLookup = new Map<bigint, Table>();
+	tables: Table[] = [];
+	#archetypeToTable = new Map<bigint, Table>();
 	queries: Query<any, any>[] = [];
 	resources: object[] = [];
 	eventReaders: EventReader<any>[] = [];
@@ -61,6 +61,7 @@ export class World {
 	) {
 		this.config = config;
 		this.threads = threads;
+		this.components = components;
 
 		memory.init(
 			this.threads.queue(() =>
@@ -71,13 +72,11 @@ export class World {
 			),
 		);
 
-		this.components = components;
-		const emptyTable = Table.createEmptyTable(this);
-		const recycledTable = Table.createRecycledTable(this);
-		this.archetypes.push(emptyTable, recycledTable);
-		this.#archetypeLookup.set(0n, recycledTable);
+		const emptyTable = Table.createEmpty(this);
+		this.tables.push(emptyTable);
+		this.#archetypeToTable.set(0n, emptyTable);
 
-		this.entities = Entities.fromWorld(this);
+		this.entities = new Entities(this);
 		this.commands = Commands.fromWorld(this);
 
 		for (const eventType of eventTypes) {
@@ -144,13 +143,19 @@ export class World {
 		)! as any;
 	}
 
-	moveEntity(entityId: bigint, targetTableId: bigint): void {
+	/**
+	 * Moves an entity from one table to another.
+	 * Neither the current nor the target table may be the "null" table.
+	 * @param entityId The id of the entity to move.
+	 * @param targetTableArchetype The archetype of the target table.
+
+	 */
+	moveEntity(entityId: bigint, targetTableArchetype: bigint): void {
 		if (!this.entities.isAlive(entityId)) {
 			return;
 		}
-		const currentTable =
-			this.archetypes[this.entities.getTableIndex(entityId)];
-		const targetTable = this.#getTable(targetTableId);
+		const currentTable = this.tables[this.entities.getTableIndex(entityId)];
+		const targetTable = this.#getTable(targetTableArchetype);
 
 		const row = this.entities.getRow(entityId);
 		const backfilledEntity = currentTable.move(row, targetTable);
@@ -161,19 +166,19 @@ export class World {
 	}
 
 	#getTable(tableId: bigint): Table {
-		let table = this.#archetypeLookup.get(tableId);
+		let table = this.#archetypeToTable.get(tableId);
 		if (table) {
 			return table;
 		}
-		const id = this.archetypes.length;
-		table = Table.create(
+		const id = this.tables.length;
+		table = new Table(
 			this,
 			Array.from(bits(tableId), cid => this.components[cid]),
 			tableId,
 			id,
 		);
-		this.#archetypeLookup.set(tableId, table);
-		this.archetypes.push(table);
+		this.#archetypeToTable.set(tableId, table);
+		this.tables.push(table);
 
 		for (const query of this.queries) {
 			query.testAdd(table);

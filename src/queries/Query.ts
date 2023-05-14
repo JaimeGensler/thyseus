@@ -142,7 +142,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 
 	testAdd(table: Table): void {
 		const { u32 } = memory.views;
-		if (this.#test(table.bitfield)) {
+		if (this.#test(table.archetype)) {
 			if (this.#size === this.#capacity) {
 				// Grow for 8 tables at a time
 				const additionalSize = 8 * (this.#components.length + 1);
@@ -212,23 +212,23 @@ if (import.meta.vitest) {
 		const world = await createWorld(ZST);
 		const entity1 = world.entities.spawn();
 		world.moveEntity(entity1, 0b0001n);
-		const table = world.archetypes[2];
+		const table = world.tables[2];
 		const query1 = new Query([0b0001n], [0b0000n], false, [], world);
 		expect(query1.length).toBe(0);
 		query1.testAdd(table);
 		expect(query1.length).toBe(1);
 
-		table.bitfield = 0b0010n; // No longer matches
+		table.archetype = 0b0010n; // No longer matches
 		query1.testAdd(table);
 		expect(query1.length).toBe(1);
 
 		const query2 = new Query([0b0100n], [0b1011n], false, [], world);
 		expect(query2.length).toBe(0);
-		table.bitfield = 0b0110n;
+		table.archetype = 0b0110n;
 		query2.testAdd(table);
 		expect(query2.length).toBe(0);
 
-		table.bitfield = 0b0100n;
+		table.archetype = 0b0100n;
 		query2.testAdd(table);
 		expect(query2.length).toBe(1);
 
@@ -240,26 +240,26 @@ if (import.meta.vitest) {
 			world,
 		);
 		expect(query3.length).toBe(0);
-		table.bitfield = 0b0001n;
+		table.archetype = 0b0001n;
 		query3.testAdd(table); // Passes 1
 		expect(query3.length).toBe(1);
-		table.bitfield = 0b0010n;
+		table.archetype = 0b0010n;
 		query3.testAdd(table); // Passes 2
 		expect(query3.length).toBe(2);
-		table.bitfield = 0b0100n;
+		table.archetype = 0b0100n;
 		query3.testAdd(table); // Passes 3
 		expect(query3.length).toBe(3);
-		table.bitfield = 0b0110n;
+		table.archetype = 0b0110n;
 		query3.testAdd(table); // Fails 1 With, 2/3 without
 		expect(query3.length).toBe(3);
-		table.bitfield = 0b1001n;
+		table.archetype = 0b1001n;
 		query3.testAdd(table); // Fails 1 Without, 2/3 With
 		expect(query3.length).toBe(3);
 	});
 
 	describe('iteration', () => {
 		const createTable = (world: World, ...components: Struct[]) =>
-			Table.create(world, components, 0n, 0);
+			new Table(world, components, 0n, 0);
 
 		class Vec3 {
 			static size = 24;
@@ -314,8 +314,8 @@ if (import.meta.vitest) {
 			const vecTable = createTable(world, Entity, Vec3);
 			const noVecTable = createTable(world, Entity);
 
-			query.testAdd({ ...noVecTable, bitfield: 0n } as any);
-			query.testAdd({ ...vecTable, bitfield: 0n } as any);
+			query.testAdd({ ...noVecTable, archetype: 0n } as any);
+			query.testAdd({ ...vecTable, archetype: 0n } as any);
 			expect(query.length).toBe(0);
 			for (let i = 0; i < 10; i++) {
 				spawnIntoTable(i, i < 5 ? noVecTable : vecTable);
@@ -341,8 +341,8 @@ if (import.meta.vitest) {
 			for (let i = 0; i < 10; i++) {
 				world.moveEntity(world.entities.spawn(), 0b11n);
 			}
-			const table = world.archetypes[2];
-			table.bitfield = 0n;
+			const table = world.tables[2];
+			table.archetype = 0n;
 			expect(query.length).toBe(0);
 			query.testAdd(table);
 			expect(query.length).toBe(10);
@@ -364,10 +364,10 @@ if (import.meta.vitest) {
 				world,
 			);
 			world.moveEntity(world.entities.spawn(), 0b11n);
-			const table = world.archetypes[2];
+			const table = world.tables[2];
 			expect(query.length).toBe(0);
 
-			table.bitfield = 0n;
+			table.archetype = 0n;
 			query.testAdd(table);
 			expect(query.length).toBe(1);
 			for (let i = 1; i < 8; i++) {
@@ -409,8 +409,8 @@ if (import.meta.vitest) {
 				world,
 			);
 			world.moveEntity(world.entities.spawn(), 0b111n);
-			const table = world.archetypes[2];
-			table.bitfield = 0n;
+			const table = world.tables[2];
+			table.archetype = 0n;
 
 			expect(queryTuple.length).toBe(0);
 			expect(querySolo.length).toBe(0);

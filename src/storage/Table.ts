@@ -4,73 +4,26 @@ import type { World } from '../world';
 import type { Struct } from '../struct';
 
 export class Table {
-	static createEmptyTable(world: World): Table {
-		const pointer = world.threads.queue(() => {
-			const capacity = 2 ** 32 - 1;
-			const ptr = memory.alloc(8); // [length, capacity]
-			memory.views.u32[ptr >> 2] = capacity;
-			memory.views.u32[(ptr >> 2) + 1] = capacity;
-			return ptr;
-		});
-		return new this(world, [], pointer, 0n, 0);
-	}
-	static createRecycledTable(world: World): Table {
-		const pointer = world.threads.queue(() => {
-			const capacity = world.config.getNewTableSize(0);
-			const ptr = memory.alloc(8); // [length, capacity, Entity]
-			memory.views.u32[ptr >> 2] = 0;
-			memory.views.u32[(ptr >> 2) + 1] = capacity;
-			memory.views.u32[(ptr >> 2) + 2] = memory.alloc(
-				capacity * Entity.size,
-			);
-			return ptr;
-		});
-		return new this(world, [Entity], pointer, 0n, 1);
-	}
-
-	static create(
-		world: World,
-		components: Struct[],
-		bitfield: bigint,
-		id: number,
-	): Table {
-		const capacity = world.config.getNewTableSize(0);
-		const sizedComponents = components.filter(
-			component => component.size! > 0,
-		);
-		const pointer = memory.alloc(4 * (2 + sizedComponents.length));
-		memory.views.u32[(pointer >> 2) + 1] = capacity;
-		let i = 2;
-		for (const component of sizedComponents) {
-			memory.views.u32[(pointer >> 2) + i] = memory.alloc(
-				component.size! * capacity,
-			);
-			i++;
-		}
-		return new this(world, sizedComponents, pointer, bitfield, id);
+	static createEmpty(world: World): Table {
+		return new this(world, [], 0n, 1);
 	}
 
 	#world: World;
 	#components: Struct[];
-	#pointer: number; // [size, capacity, ...componentPointers]
-	bitfield: bigint;
+	#pointer: number; // [size, capacity, ...columnPointers]
+	archetype: bigint;
 	#id: number;
 	constructor(
 		world: World,
-		sizedComponents: Struct[],
-		pointer: number,
-		bitfield: bigint,
+		components: Struct[],
+		archetype: bigint,
 		id: number,
 	) {
 		this.#world = world;
-		this.#components = sizedComponents;
-		this.#pointer = pointer;
-		this.bitfield = bitfield;
+		this.#components = components.filter(component => component.size! > 0);
+		this.#pointer = memory.alloc(8 * (2 + this.#components.length));
+		this.archetype = archetype;
 		this.#id = id;
-	}
-
-	get pointer() {
-		return this.#pointer;
 	}
 
 	get id(): number {
@@ -79,7 +32,6 @@ export class Table {
 	get capacity(): number {
 		return memory.views.u32[(this.#pointer >> 2) + 1];
 	}
-
 	get length(): number {
 		return memory.views.u32[this.#pointer >> 2];
 	}
@@ -115,7 +67,7 @@ export class Table {
 			targetTable.grow();
 		}
 		const { u32, u64 } = memory.views;
-		if (this.#components[0] !== Entity) {
+		if (this.#components.length === 0) {
 			targetTable.length++;
 			return BigInt(index);
 		}
@@ -214,7 +166,7 @@ if (import.meta.vitest) {
 			.registerComponent(StringComponent)
 			.build();
 	const createTable = (world: World, ...components: Struct[]) =>
-		Table.create(world, components, 0n, 0);
+		new Table(world, components, 0n, 0);
 	const spawnIntoTable = (eid: number, targetTable: Table) => {
 		if (targetTable.capacity === targetTable.length) {
 			targetTable.grow();
