@@ -19,8 +19,11 @@ class SystemConfig {
 	 */
 	before(...systems: (System | System[])[]): this {
 		for (const system of systems) {
-			if (Array.isArray(system)) this.dependents.push(...system);
-			else this.dependents.push(system);
+			if (Array.isArray(system)) {
+				this.dependents.push(...system);
+			} else {
+				this.dependents.push(system);
+			}
 		}
 
 		return this;
@@ -33,8 +36,11 @@ class SystemConfig {
 	 */
 	after(...systems: (System | System[])[]): this {
 		for (const system of systems) {
-			if (Array.isArray(system)) this.dependencies.push(...system);
-			else this.dependencies.push(system);
+			if (Array.isArray(system)) {
+				this.dependencies.push(...system);
+			} else {
+				this.dependencies.push(system);
+			}
 		}
 
 		return this;
@@ -69,11 +75,11 @@ class SystemConfig {
 }
 export { SystemConfig };
 
+type SystemList = System | System[] | SystemConfig | SystemConfig[];
+
 type Run = {
 	(system: System | System[]): SystemConfig | SystemConfig[];
-	chain(
-		...systems: (System | System[])[]
-	): (System | System[] | SystemConfig | SystemConfig[])[];
+	chain(...systems: (System | System[])[]): SystemList[];
 };
 
 const run: Run = system =>
@@ -82,12 +88,15 @@ const run: Run = system =>
 		: new SystemConfig(system);
 
 run.chain = (...systems) =>
-	systems.map((system, i) =>
-		i === 0
-			? system
-			: Array.isArray(system)
-			? system.map(s => new SystemConfig(s).after(systems[i - 1]))
-			: new SystemConfig(system).after(systems[i - 1]),
-	);
+	systems.map((system, i) => {
+		if (i === 0) {
+			return system;
+		} else if (Array.isArray(system)) {
+			return system.map(s => new SystemConfig(s).after(systems[i - 1]));
+		} else {
+			return new SystemConfig(system).after(systems[i - 1]);
+		}
+	});
 
 export { run };
+export type { SystemList };
