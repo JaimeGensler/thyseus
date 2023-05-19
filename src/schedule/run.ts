@@ -78,14 +78,11 @@ export { SystemConfig };
 type SystemList = System | System[] | SystemConfig | SystemConfig[];
 
 type Run = {
-	(system: System | System[]): SystemConfig | SystemConfig[];
+	(system: System): SystemConfig;
 	chain(...systems: (System | System[])[]): SystemList[];
 };
 
-const run: Run = system =>
-	Array.isArray(system)
-		? system.map(s => new SystemConfig(s))
-		: new SystemConfig(system);
+const run: Run = system => new SystemConfig(system);
 
 run.chain = (...systems) =>
 	systems.map((system, i) => {
