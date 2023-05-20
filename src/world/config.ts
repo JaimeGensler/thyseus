@@ -22,7 +22,7 @@ const getCompleteConfig = (
 	memorySize: 64 * MB,
 	useSharedMemory: false,
 	isMainThread: typeof document !== 'undefined',
-	getNewTableSize: (prev: number) => (prev === 0 ? 8 : prev * 2),
+	getNewTableSize: (prev: number) => prev * 2 || 8,
 	...config,
 });
 

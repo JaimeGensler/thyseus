@@ -1,76 +1,23 @@
 import { memory } from '../utils/memory';
 import { Entity } from './Entity';
-import type { World } from '../world';
 import type { Struct } from '../struct';
 
 export class Table {
-	static createEmptyTable(world: World): Table {
-		const pointer = world.threads.queue(() => {
-			const capacity = 2 ** 32 - 1;
-			const ptr = memory.alloc(8); // [length, capacity]
-			memory.views.u32[ptr >> 2] = capacity;
-			memory.views.u32[(ptr >> 2) + 1] = capacity;
-			return ptr;
-		});
-		return new this(world, [], pointer, 0n, 0);
-	}
-	static createRecycledTable(world: World): Table {
-		const pointer = world.threads.queue(() => {
-			const capacity = world.config.getNewTableSize(0);
-			const ptr = memory.alloc(8); // [length, capacity, Entity]
-			memory.views.u32[ptr >> 2] = 0;
-			memory.views.u32[(ptr >> 2) + 1] = capacity;
-			memory.views.u32[(ptr >> 2) + 2] = memory.alloc(
-				capacity * Entity.size,
-			);
-			return ptr;
-		});
-		return new this(world, [Entity], pointer, 0n, 1);
+	static createEmpty(): Table {
+		const table = new this([], 0n, 0);
+		table.length = 2 ** 32 - 1;
+		return table;
 	}
 
-	static create(
-		world: World,
-		components: Struct[],
-		bitfield: bigint,
-		id: number,
-	): Table {
-		const capacity = world.config.getNewTableSize(0);
-		const sizedComponents = components.filter(
-			component => component.size! > 0,
-		);
-		const pointer = memory.alloc(4 * (2 + sizedComponents.length));
-		memory.views.u32[(pointer >> 2) + 1] = capacity;
-		let i = 2;
-		for (const component of sizedComponents) {
-			memory.views.u32[(pointer >> 2) + i] = memory.alloc(
-				component.size! * capacity,
-			);
-			i++;
-		}
-		return new this(world, sizedComponents, pointer, bitfield, id);
-	}
-
-	#world: World;
 	#components: Struct[];
-	#pointer: number; // [size, capacity, ...componentPointers]
-	bitfield: bigint;
+	#pointer: number; // [size, capacity, ...columnPointers]
+	archetype: bigint;
 	#id: number;
-	constructor(
-		world: World,
-		sizedComponents: Struct[],
-		pointer: number,
-		bitfield: bigint,
-		id: number,
-	) {
-		this.#world = world;
-		this.#components = sizedComponents;
-		this.#pointer = pointer;
-		this.bitfield = bitfield;
+	constructor(components: Struct[], archetype: bigint, id: number) {
+		this.#components = components.filter(component => component.size! > 0);
+		this.#pointer = memory.alloc(8 * (2 + this.#components.length));
+		this.archetype = archetype;
 		this.#id = id;
-	}
-
-	get pointer() {
-		return this.#pointer;
 	}
 
 	get id(): number {
@@ -79,7 +26,6 @@ export class Table {
 	get capacity(): number {
 		return memory.views.u32[(this.#pointer >> 2) + 1];
 	}
-
 	get length(): number {
 		return memory.views.u32[this.#pointer >> 2];
 	}
@@ -87,11 +33,6 @@ export class Table {
 		memory.views.u32[this.#pointer >> 2] = value;
 	}
 
-	getColumn(componentType: Struct): number {
-		return memory.views.u32[
-			(this.#pointer >> 2) + 2 + this.#components.indexOf(componentType)
-		];
-	}
 	hasColumn(componentType: Struct): boolean {
 		return this.#components.includes(componentType);
 	}
@@ -110,25 +51,22 @@ export class Table {
 		}
 	}
 
-	move(index: number, targetTable: Table): bigint {
-		if (targetTable.capacity === targetTable.length) {
-			targetTable.grow();
-		}
+	move(index: number, targetTable: Table): null | bigint {
 		const { u32, u64 } = memory.views;
-		if (this.#components[0] !== Entity) {
+		if (this.#components.length === 0) {
 			targetTable.length++;
-			return BigInt(index);
+			return null;
 		}
-		const ptr = this.getColumn(Entity);
+		const ptr = this.#getColumn(Entity);
 		const lastEntity = u64[(ptr >> 3) + this.length];
 		for (const component of this.#components) {
 			const componentPointer =
-				this.getColumn(component) + index * component.size!;
+				this.#getColumn(component) + index * component.size!;
 			if (targetTable.hasColumn(component)) {
 				memory.copy(
 					componentPointer,
 					component.size!,
-					targetTable.getColumn(component) +
+					targetTable.#getColumn(component) +
 						targetTable.length * component.size!,
 				);
 			} else {
@@ -142,9 +80,8 @@ export class Table {
 		return lastEntity;
 	}
 
-	grow(): void {
-		memory.views.u32[(this.#pointer >> 2) + 1] =
-			this.#world.config.getNewTableSize(this.capacity);
+	grow(newCapacity: number): void {
+		memory.views.u32[(this.#pointer >> 2) + 1] = newCapacity;
 		let i = 8;
 		for (const component of this.#components) {
 			memory.reallocAt(
@@ -164,7 +101,7 @@ export class Table {
 			memory.copy(
 				copyFrom,
 				componentType.size!,
-				this.getColumn(componentType) + row * componentType.size!,
+				this.#getColumn(componentType) + row * componentType.size!,
 			);
 		}
 	}
@@ -178,6 +115,11 @@ export class Table {
 	getTableSizePointer(): number {
 		return this.#pointer;
 	}
+	#getColumn(componentType: Struct): number {
+		return memory.views.u32[
+			(this.#pointer >> 2) + 2 + this.#components.indexOf(componentType)
+		];
+	}
 }
 
 /*---------*\
@@ -188,7 +130,10 @@ if (import.meta.vitest) {
 	const { World } = await import('../world');
 	const { struct } = await import('../struct');
 
-	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
+	beforeEach(() => {
+		memory.init(10_000);
+		return () => memory.UNSAFE_CLEAR_ALL();
+	});
 
 	@struct
 	class Vec3 {
@@ -213,39 +158,45 @@ if (import.meta.vitest) {
 			.registerComponent(Vec3)
 			.registerComponent(StringComponent)
 			.build();
-	const createTable = (world: World, ...components: Struct[]) =>
-		Table.create(world, components, 0n, 0);
+	const createTable = (...components: Struct[]) =>
+		new Table(components, 0n, 0);
+	const getColumn = (table: Table, column: Struct) =>
+		memory.views.u32[table.getColumnPointer(column) >> 2];
 	const spawnIntoTable = (eid: number, targetTable: Table) => {
 		if (targetTable.capacity === targetTable.length) {
-			targetTable.grow();
+			targetTable.grow(targetTable.capacity * 2 || 8);
 		}
-		memory.views.u64[
-			(targetTable.getColumn(Entity) + targetTable.length * 8) >> 3
-		] = BigInt(eid);
+		const column = getColumn(targetTable, Entity);
+		memory.views.u64[(column + targetTable.length * 8) >> 3] = BigInt(eid);
 		targetTable.length++;
 	};
 
 	it('adds an element', async () => {
 		const world = await createWorld();
-		const table = createTable(world, Entity);
+		const table = createTable(Entity);
 		expect(table.length).toBe(0);
-		expect(table.capacity).toBe(8);
+		expect(table.capacity).toBe(0);
+
 		spawnIntoTable(0, table);
-		const entity = new Entity(world.commands, world.entities);
-		(entity as any).__$$b = table.getColumn(Entity);
-		expect(entity.id).toBe(0n);
 		expect(table.length).toBe(1);
+		expect(table.capacity).toBe(8);
+
+		const entity = new Entity(world.commands, world.entities);
+		(entity as any).__$$b = getColumn(table, Entity);
+		expect(entity.id).toBe(0n);
+
 		spawnIntoTable(3, table);
 		expect(entity.id).toBe(0n);
-		(entity as any).__$$b += 8;
+
+		(entity as any).__$$b += Entity.size;
 		expect(entity.id).toBe(3n);
 		expect(table.length).toBe(2);
 	});
 
 	it('moves elements from one table to another', async () => {
 		const world = await createWorld();
-		const fromTable = createTable(world, Entity, Vec3);
-		const toTable = createTable(world, Entity, Vec3);
+		const fromTable = createTable(Entity, Vec3);
+		const toTable = createTable(Entity, Vec3);
 
 		spawnIntoTable(3, fromTable);
 		spawnIntoTable(1, fromTable);
@@ -255,11 +206,11 @@ if (import.meta.vitest) {
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
-		(ent as any).__$$b = fromTable.getColumn(Entity);
+		(ent as any).__$$b = getColumn(fromTable, Entity);
 		expect(ent.id).toBe(3n);
 
 		const from = new Vec3();
-		from.__$$b = fromTable.getColumn(Vec3);
+		from.__$$b = getColumn(fromTable, Vec3);
 		from.x = 1;
 		from.y = 2;
 		from.z = 3;
@@ -269,7 +220,7 @@ if (import.meta.vitest) {
 		from.z = 9;
 
 		const to = new Vec3();
-		to.__$$b = toTable.getColumn(Vec3)!;
+		to.__$$b = getColumn(toTable, Vec3)!;
 		expect(to.x).toBe(0);
 		expect(to.y).toBe(0);
 		expect(to.z).toBe(0);
@@ -284,7 +235,7 @@ if (import.meta.vitest) {
 		expect(to.y).toBe(2);
 		expect(to.z).toBe(3);
 
-		from.__$$b = fromTable.getColumn(Vec3);
+		from.__$$b = getColumn(fromTable, Vec3);
 		expect(from.x).toBe(7);
 		expect(from.y).toBe(8);
 		expect(from.z).toBe(9);
@@ -293,19 +244,20 @@ if (import.meta.vitest) {
 
 	it('deletes elements, swaps in last elements', async () => {
 		const world = await createWorld();
-		const table = createTable(world, Entity, Vec3);
-		const entPtr = table.getColumn(Entity);
-		const vecPtr = table.getColumn(Vec3);
-		const vec = new Vec3();
-		vec.__$$b = vecPtr;
-		const ent = new Entity(world.commands, world.entities);
-		(ent as any).__$$b = entPtr;
+		const table = createTable(Entity, Vec3);
 
 		spawnIntoTable(1, table);
 		spawnIntoTable(2, table);
 		spawnIntoTable(3, table);
 		spawnIntoTable(4, table);
 		expect(table.length).toBe(4);
+
+		const entPtr = getColumn(table, Entity);
+		const vecPtr = getColumn(table, Vec3);
+		const vec = new Vec3();
+		vec.__$$b = vecPtr;
+		const ent = new Entity(world.commands, world.entities);
+		(ent as any).__$$b = entPtr;
 
 		vec.x = 1;
 		vec.y = 2;
@@ -348,27 +300,27 @@ if (import.meta.vitest) {
 
 	it('grows correctly', async () => {
 		const world = await createWorld();
-		const table = createTable(world, Entity);
-
-		const ent = new Entity(world.commands, world.entities);
-		(ent as any).__$$b = table.getColumn(Entity);
+		const table = createTable(Entity);
 
 		spawnIntoTable(1, table);
-
-		expect(table.capacity).toBe(8);
 		expect(table.length).toBe(1);
-		expect(ent.id).toBe(1n);
-		table.grow();
-		(ent as any).__$$b = table.getColumn(Entity);
+		expect(table.capacity).toBe(8);
+
+		const entity = new Entity(world.commands, world.entities);
+		(entity as any).__$$b = getColumn(table, Entity);
+		expect(entity.id).toBe(1n);
+
+		table.grow(table.capacity * 2 || 8);
+		(entity as any).__$$b = getColumn(table, Entity);
 		expect(table.capacity).toBe(16);
-		expect(ent.id).toBe(1n);
+		expect(entity.id).toBe(1n);
 	});
 
 	// v0.6 changelog bugfix
 	it('backfills elements for ALL stores', async () => {
 		const world = await createWorld();
-		const fromTable = createTable(world, Entity, Vec3);
-		const toTable = createTable(world, Entity);
+		const fromTable = createTable(Entity, Vec3);
+		const toTable = createTable(Entity);
 		const ent = new Entity(world.commands, world.entities);
 
 		spawnIntoTable(3, fromTable);
@@ -377,11 +329,11 @@ if (import.meta.vitest) {
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
-		(ent as any).__$$b = fromTable.getColumn(Entity);
+		(ent as any).__$$b = getColumn(fromTable, Entity);
 		expect(ent.id).toBe(3n);
 
 		const from = new Vec3();
-		from.__$$b = fromTable.getColumn(Vec3)!;
+		from.__$$b = getColumn(fromTable, Vec3)!;
 		from.x = 1;
 		from.y = 2;
 		from.z = 3;
@@ -392,11 +344,11 @@ if (import.meta.vitest) {
 
 		fromTable.move(0, toTable);
 
-		(ent as any).__$$b = toTable.getColumn(Entity)! + Entity.size!;
+		(ent as any).__$$b = getColumn(toTable, Entity)! + Entity.size!;
 		expect(ent.id).toBe(3n);
 
-		from.__$$b = fromTable.getColumn(Vec3);
-		(ent as any).__$$b = fromTable.getColumn(Entity);
+		from.__$$b = getColumn(fromTable, Vec3);
+		(ent as any).__$$b = getColumn(fromTable, Entity);
 		expect(ent.id).toBe(1n);
 		expect(from.x).toBe(7);
 		expect(from.y).toBe(8);
@@ -409,21 +361,19 @@ if (import.meta.vitest) {
 			static size = 0;
 			static alignment = 1;
 		}
-		const world = await createWorld();
-		const table = createTable(world, Entity, Vec3, ZST);
+		const table = createTable(Entity, Vec3, ZST);
 		expect(table.hasColumn(ZST)).toBe(false);
 	});
 
 	it('move frees pointers if the target table does not have the pointer column', async () => {
-		const world = await createWorld();
 		const freeSpy = vi.spyOn(memory, 'free');
-		const initialTable = createTable(world, Entity, StringComponent);
-		const targetTable = createTable(world, Entity);
+		const initialTable = createTable(Entity, StringComponent);
+		const targetTable = createTable(Entity);
 
 		spawnIntoTable(0, initialTable);
 
 		const pointer = memory.alloc(8);
-		memory.views.u32[(initialTable.getColumn(StringComponent) + 8) >> 2] =
+		memory.views.u32[(getColumn(initialTable, StringComponent) + 8) >> 2] =
 			pointer;
 
 		expect(freeSpy).not.toHaveBeenCalled();

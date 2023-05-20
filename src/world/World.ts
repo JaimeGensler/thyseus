@@ -38,8 +38,8 @@ export class World {
 		return new WorldBuilder(validateAndCompleteConfig(config, url), url);
 	}
 
-	archetypes: Table[] = [];
-	#archetypeLookup = new Map<bigint, Table>();
+	tables: Table[] = [];
+	#archetypeToTable = new Map<bigint, Table>();
 	queries: Query<any, any>[] = [];
 	resources: object[] = [];
 	eventReaders: EventReader<any>[] = [];
@@ -61,6 +61,7 @@ export class World {
 	) {
 		this.config = config;
 		this.threads = threads;
+		this.components = components;
 
 		memory.init(
 			this.threads.queue(() =>
@@ -71,13 +72,11 @@ export class World {
 			),
 		);
 
-		this.components = components;
-		const emptyTable = Table.createEmptyTable(this);
-		const recycledTable = Table.createRecycledTable(this);
-		this.archetypes.push(emptyTable, recycledTable);
-		this.#archetypeLookup.set(0n, recycledTable);
+		const emptyTable = Table.createEmpty();
+		this.tables.push(emptyTable);
+		this.#archetypeToTable.set(0n, emptyTable);
 
-		this.entities = Entities.fromWorld(this);
+		this.entities = new Entities(this);
 		this.commands = Commands.fromWorld(this);
 
 		for (const eventType of eventTypes) {
@@ -144,36 +143,53 @@ export class World {
 		)! as any;
 	}
 
-	moveEntity(entityId: bigint, targetTableId: bigint): void {
+	/**
+	 * Moves an entity from one table to another.
+	 * @param entityId The id of the entity to move.
+	 * @param targetArchetype The archetype of the target table.
+	 */
+	moveEntity(entityId: bigint, targetArchetype: bigint): void {
 		if (!this.entities.isAlive(entityId)) {
 			return;
 		}
-		const currentTable =
-			this.archetypes[this.entities.getTableIndex(entityId)];
-		const targetTable = this.#getTable(targetTableId);
+
+		const currentTable = this.tables[this.entities.getTableId(entityId)];
+		const targetTable = this.#getTable(targetArchetype);
+
+		if (targetTable.length === targetTable.capacity) {
+			targetTable.grow(this.config.getNewTableSize(targetTable.capacity));
+		}
 
 		const row = this.entities.getRow(entityId);
-		const backfilledEntity = currentTable.move(row, targetTable);
 
-		this.entities.setRow(backfilledEntity, row);
-		this.entities.setTableIndex(entityId, targetTable.id);
+		// If the moving entity is the last element, move() returns the id of
+		// the entity that's moving tables. This means we set row for that
+		// entity twice, but the last set will be correct.
+		const backfilledEntity = currentTable.move(row, targetTable);
+		if (backfilledEntity !== null) {
+			this.entities.setRow(backfilledEntity, row);
+		}
+
+		if (targetArchetype === 0n) {
+			this.entities.freeId(entityId);
+		}
+
+		this.entities.setTableId(entityId, targetTable.id);
 		this.entities.setRow(entityId, targetTable.length - 1);
 	}
 
-	#getTable(tableId: bigint): Table {
-		let table = this.#archetypeLookup.get(tableId);
+	#getTable(archetype: bigint): Table {
+		let table = this.#archetypeToTable.get(archetype);
 		if (table) {
 			return table;
 		}
-		const id = this.archetypes.length;
-		table = Table.create(
-			this,
-			Array.from(bits(tableId), cid => this.components[cid]),
-			tableId,
-			id,
+		table = new Table(
+			Array.from(bits(archetype), cid => this.components[cid]),
+			archetype,
+			this.tables.length,
 		);
-		this.#archetypeLookup.set(tableId, table);
-		this.archetypes.push(table);
+		this.tables.push(table);
+		this.#archetypeToTable.set(archetype, table);
 
 		for (const query of this.queries) {
 			query.testAdd(table);

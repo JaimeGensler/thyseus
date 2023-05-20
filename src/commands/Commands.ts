@@ -81,7 +81,7 @@ export class Commands {
 	 * @returns `EntityCommands`, which can add/remove components from an entity.
 	 */
 	spawn(): EntityCommands {
-		const entityId = this.#entities.spawn();
+		const entityId = this.#entities.getId();
 		const dataStart = this.#pushComponentCommand(
 			ADD_COMPONENT_COMMAND,
 			entityId,
@@ -329,7 +329,7 @@ if (import.meta.vitest) {
 				continue;
 			}
 			const componentId = memory.views.u16[(dataStart + 8) >> 1];
-			val ??= world.entities.getBitset(entityId);
+			val ??= world.entities.getArchetype(entityId);
 			entityDestinations.set(
 				entityId,
 				type === ADD_COMPONENT_COMMAND

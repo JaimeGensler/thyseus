@@ -1,72 +1,98 @@
 import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 import { memory } from '../utils/memory';
 import { Entity } from './Entity';
-import type { Table } from './Table';
+import { Vec } from './Vec';
 import type { World } from '../world';
 import type { Struct } from '../struct';
 
-const lo32 = 0x00_00_00_00_ff_ff_ff_ffn;
-const getIndex = (entityId: bigint) => Number(entityId & lo32);
+const low32 = 0x0000_0000_ffff_ffffn;
+const getIndex = (entityId: bigint) => Number(entityId & low32);
+const getGeneration = (entityId: bigint) => Number(entityId >> 32n);
 const ENTITY_BATCH_SIZE = 256;
-const ONE_GENERATION = 1n << 32n;
+const createSharedVec = (world: World) =>
+	Vec.fromPointer(world.threads.queue(() => memory.alloc(Vec.size)));
+
+const ENTITIES_POINTER_SIZE = 8; // [u32, u32]
 
 export class Entities {
-	static fromWorld(world: World): Entities {
-		return new this(
-			world,
-			world.threads.queue(() => {
-				const { u32 } = memory.views;
-				const pointer = memory.alloc(4 * 4) >> 2;
-				u32[pointer + 2] = memory.alloc(8 * ENTITY_BATCH_SIZE);
-				u32[pointer + 3] = ENTITY_BATCH_SIZE;
-				return pointer;
-			}),
-		);
-	}
-
-	#world: World;
-	#pointer: number; // [nextId, cursor, locationsPointer, capacity]
-	#recycled: Table;
-	constructor(world: World, pointer: number) {
-		this.#pointer = pointer;
-		this.#world = world;
-		this.#recycled = world.archetypes[1];
-	}
-
 	/**
-	 * A lockfree method to obtain a new Entity ID
+	 * The world this `Entities` instance belongs to.
 	 */
-	spawn(): bigint {
-		const { u32, u64 } = memory.views;
-		const recycledSize = this.#recycled.length;
-		const recycledPtr = this.#recycled.getColumn(Entity);
-		for (
-			let currentCursor = this.#getCursor();
-			currentCursor < recycledSize;
-			currentCursor = this.#getCursor()
-		) {
-			if (this.#tryCursorMove(currentCursor)) {
-				return u64[(recycledPtr >> 3) + currentCursor] + ONE_GENERATION;
-			}
-		}
-		return BigInt(Atomics.add(u32, this.#pointer, 1));
+	#world: World;
+	/**
+	 * Pointer to [nextId: u32, cursor: u32].
+	 * **Already shifted for u32 access.**
+	 */
+	#data: number;
+	/**
+	 * Generations of all spawned entities.
+	 *
+	 * `entityGeneration = generations[entityIndex]`
+	 */
+	#generations: Vec;
+	/**
+	 * Locations of all spawned entities [table, row]
+	 *
+	 * `entityTable = locations[entityIndex * 2]`
+	 * `entityRow = locations[(entityIndex * 2) + 1]`
+	 */
+	#locations: Vec;
+	/**
+	 * List of freed entity indexes for reuse
+	 */
+	#freed: Vec;
+	constructor(world: World) {
+		this.#world = world;
+		this.#data = world.threads.queue(
+			() => memory.alloc(ENTITIES_POINTER_SIZE) >> 2,
+		);
+		this.#generations = createSharedVec(world);
+		this.#locations = createSharedVec(world);
+		this.#freed = createSharedVec(world);
 	}
 
 	/**
-	 * Checks if an entity is currently alive or not.
-	 * @param entityId The entity id to check
-	 * @returns `true` if alive, `false` if not.
+	 * A **lockfree** method to obtain a new Entity ID.
+	 */
+	getId(): bigint {
+		const cursor = this.#moveCursor();
+		if (cursor >= this.#freed.length) {
+			// If we've already exhausted freed ids,
+			// bump the nextId and return that (generation = 0)
+			return BigInt(Atomics.add(memory.views.u32, this.#data, 1));
+		}
+		const index = this.#freed.get(this.#freed.length - 1 - cursor);
+		// generations[index] will exist because we've allocated
+		// generation lookups for all freed entities.
+		const generation = this.#generations.get(index);
+		return (BigInt(generation) << 32n) | BigInt(index);
+	}
+
+	/**
+	 * Adds the provided entityId to the list of recycled Entity IDs,
+	 * increments its generation, and moves its location.
+	 *
+	 * **NOTE: Is _not_ lock-free!**
+	 * @param entityId The id of the entity to despawn.
+	 */
+	freeId(entityId: bigint): void {
+		const index = getIndex(entityId);
+		const newGeneration = this.#generations.get(index) + 1;
+		this.#generations.set(index, newGeneration);
+		this.#freed.push(getIndex(entityId));
+		this.#locations.set(getIndex(entityId) << 1, 0);
+	}
+
+	/**
+	 * Checks if this entity is currently alive
+	 * @param entityId The id of the entity to check.
+	 * @returns A `boolean`, true if the entity is alive and false if it is not.
 	 */
 	isAlive(entityId: bigint): boolean {
-		const { u32, u64 } = memory.views;
-		const tableIndex = this.getTableIndex(entityId);
-		const row = this.getRow(entityId);
-		const ptr = this.#world.archetypes[tableIndex].getColumn(Entity);
+		// If generations mismatch, it was despawned.
 		return (
-			getIndex(entityId) < Atomics.load(u32, this.#pointer) &&
-			(tableIndex === 0 ||
-				tableIndex !== 1 ||
-				u64[(ptr >> 3) + row] === entityId)
+			getGeneration(entityId) ===
+			this.#generations.get(getIndex(entityId))
 		);
 	}
 
@@ -74,7 +100,7 @@ export class Entities {
 	 * Verifies if an entity has a specific component type.
 	 * @param entityId The id of the entity
 	 * @param componentType The type (class) of the component to detect.
-	 * @returns `boolean`, true if the entity has the component and false if it does not.
+	 * @returns A `boolean`, true if the entity has the component and false if it does not.
 	 */
 	hasComponent(entityId: bigint, componentType: Struct): boolean {
 		const componentId = this.#world.components.indexOf(componentType);
@@ -82,79 +108,60 @@ export class Entities {
 			componentId !== -1,
 			'hasComponent method must receive a component that exists in the world.',
 		);
-		const archetype =
-			this.#world.archetypes[this.getTableIndex(entityId)].bitfield;
+		const archetype = this.getArchetype(entityId);
 		const componentBit = 1n << BigInt(componentId);
 		return (archetype & componentBit) === componentBit;
 	}
 
 	resetCursor(): void {
 		const { u32 } = memory.views;
-		u32[this.#pointer + 1] = 0;
-		if (u32[this.#pointer] >= this.#capacity) {
-			const newElementCount =
-				Math.ceil((u32[this.#pointer] + 1) / ENTITY_BATCH_SIZE) *
+		this.#freed.length -= Math.min(this.#freed.length, u32[this.#data + 1]);
+		u32[this.#data + 1] = 0;
+
+		const entityCount = u32[this.#data];
+		if (entityCount >= this.#generations.length) {
+			const newLength =
+				Math.ceil((entityCount + 1) / ENTITY_BATCH_SIZE) *
 				ENTITY_BATCH_SIZE;
-			memory.reallocAt((this.#pointer + 2) << 2, newElementCount * 8);
-			u32[this.#pointer + 3] = newElementCount;
+			// Set the length rather than call grow because we want these
+			// elements to be initialized.
+			this.#generations.length = newLength;
+			this.#locations.length = newLength * 2;
 		}
 	}
 
-	getTableIndex(entityId: bigint): number {
-		return memory.views.u32[this.#getOffset(entityId)] ?? 0;
+	getTableId(entityId: bigint): number {
+		return this.#locations.get(getIndex(entityId) << 1);
 	}
-	setTableIndex(entityId: bigint, tableIndex: number): void {
-		memory.views.u32[this.#getOffset(entityId)] = tableIndex;
+	setTableId(entityId: bigint, tableIndex: number): void {
+		this.#locations.set(getIndex(entityId) << 1, tableIndex);
 	}
 
 	getRow(entityId: bigint): number {
-		return memory.views.u32[this.#getOffset(entityId) + 1] ?? 0;
+		return this.#locations.get((getIndex(entityId) << 1) + 1);
 	}
 	setRow(entityId: bigint, row: number): void {
-		memory.views.u32[this.#getOffset(entityId) + 1] = row;
-	}
-
-	getBitset(entityId: bigint): bigint {
-		return this.#world.archetypes[this.getTableIndex(entityId)].bitfield;
-	}
-
-	get #locationsPointer() {
-		return memory.views.u32[this.#pointer + 2];
-	}
-	get #capacity() {
-		return memory.views.u32[this.#pointer + 3];
-	}
-	set #capacity(val: number) {
-		memory.views.u32[this.#pointer + 3] = val;
-	}
-
-	#getOffset(entityId: bigint) {
-		return (this.#locationsPointer >> 2) + (getIndex(entityId) << 1);
+		this.#locations.set((getIndex(entityId) << 1) + 1, row);
 	}
 
 	/**
-	 * Atomically grabs the current cursor.
-	 * @returns The current cursor value.
+	 * Gets the archetype (`bigint`) for the provided entity.
+	 * @param entityId The id of the entity.
+	 * @returns `bigint`, the archetype of the entity.
 	 */
-	#getCursor() {
-		return Atomics.load(memory.views.u32, this.#pointer + 1);
+	getArchetype(entityId: bigint): bigint {
+		return this.#world.tables[this.getTableId(entityId)]?.archetype ?? 0n;
 	}
 
 	/**
-	 * Tries to atomically move the cursor by one.
-	 * @param expected The value the cursor is currently expected to be.
-	 * @returns A boolean, indicating if the move was successful or not.
+	 * Atomically moves the cursor by one.
+	 * @returns
 	 */
-	#tryCursorMove(expected: number) {
-		return (
-			expected ===
-			Atomics.compareExchange(
-				memory.views.u32,
-				this.#pointer + 1,
-				expected,
-				expected + 1,
-			)
-		);
+	#moveCursor() {
+		// This will move the cursor past the length of the freed Vec - this is
+		// intentional, we check to see if we've moved too far to see if we need
+		// to get fresh (generation = 0) ids.
+		return Atomics.add(memory.views.u32, this.#data + 1, 1);
 	}
 }
 
@@ -162,9 +169,10 @@ export class Entities {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi, beforeEach } = import.meta.vitest;
+	const { it, expect, beforeEach } = import.meta.vitest;
 	const { World } = await import('../world');
 
+	const ONE_GENERATION = 1n << 32n;
 	async function createWorld(...components: Struct[]) {
 		const builder = World.new({ isMainThread: true });
 		for (const comp of components) {
@@ -177,61 +185,35 @@ if (import.meta.vitest) {
 
 	it('returns incrementing generational integers', async () => {
 		const world = await createWorld();
-		const entities = world.entities;
+		const { entities } = world;
 
 		for (let i = 0n; i < 256n; i++) {
-			expect(entities.spawn()).toBe(i);
+			expect(entities.getId()).toBe(i);
 		}
 	});
 
-	it('returns entities from the Recycled table with incremented generation', async () => {
-		const world = await createWorld();
-		const entities = world.entities;
-		const recycledTable = world.archetypes[1];
-
-		expect(entities.spawn()).toBe(0n);
-		expect(entities.spawn()).toBe(1n);
-		expect(entities.spawn()).toBe(2n);
-
-		recycledTable.length = 3;
-
-		const ptr = recycledTable.getColumn(Entity);
-
-		memory.views.u64[(ptr >> 3) + 0] = 0n;
-		memory.views.u64[(ptr >> 3) + 1] = 1n;
-		memory.views.u64[(ptr >> 3) + 2] = 2n;
-
-		expect(entities.spawn()).toBe(0n + ONE_GENERATION);
-		expect(entities.spawn()).toBe(1n + ONE_GENERATION);
-		expect(entities.spawn()).toBe(2n + ONE_GENERATION);
-		expect(entities.spawn()).toBe(3n);
-	});
-
-	it('reset grows by at least as many entities have been spawned', async () => {
-		const reallocSpy = vi.spyOn(memory, 'reallocAt');
+	it('returns entities with incremented generations', async () => {
 		const world = await createWorld();
 		const entities = world.entities;
 
-		expect(reallocSpy).not.toHaveBeenCalled();
-		for (let i = 0; i < ENTITY_BATCH_SIZE - 1; i++) {
-			entities.spawn();
-		}
-		entities.resetCursor();
-		expect(reallocSpy).not.toHaveBeenCalled();
+		expect(entities.getId()).toBe(0n);
+		expect(entities.getId()).toBe(1n);
 
-		entities.spawn();
 		entities.resetCursor();
-		expect(reallocSpy).toHaveBeenCalledOnce();
-		expect(reallocSpy).toHaveBeenCalledWith(152, 4096);
+		entities.freeId(0n);
+		entities.freeId(1n);
 
-		reallocSpy.mockReset();
+		expect(entities.getId()).toBe(ONE_GENERATION | 1n);
+		expect(entities.getId()).toBe(ONE_GENERATION | 0n);
+		expect(entities.getId()).toBe(2n);
+		expect(entities.getId()).toBe(3n);
 
-		for (let i = 0; i < ENTITY_BATCH_SIZE * 2; i++) {
-			entities.spawn();
-		}
 		entities.resetCursor();
-		expect(reallocSpy).toHaveBeenCalledOnce();
-		expect(reallocSpy).toHaveBeenCalledWith(152, 8192);
+		entities.freeId(ONE_GENERATION | 1n);
+		entities.freeId(2n);
+
+		expect(entities.getId()).toBe(ONE_GENERATION | 2n);
+		expect(entities.getId()).toBe((ONE_GENERATION * 2n) | 1n);
 	});
 
 	it('hasComponent returns true if the entity has the component and false otherwise', async () => {
@@ -244,10 +226,12 @@ if (import.meta.vitest) {
 		const world = await createWorld(A, B);
 		const { entities } = world;
 
-		const none = entities.spawn();
-		const a = entities.spawn();
-		const b = entities.spawn();
-		const ab = entities.spawn();
+		const none = entities.getId();
+		const a = entities.getId();
+		const b = entities.getId();
+		const ab = entities.getId();
+		entities.resetCursor();
+
 		world.moveEntity(none, 0b001n);
 		world.moveEntity(a, 0b011n);
 		world.moveEntity(b, 0b101n);
