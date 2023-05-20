@@ -3,15 +3,16 @@ import { World } from './World';
 import { defaultPlugin, type Plugin } from './defaultPlugin';
 import { ThreadGroup } from '../threads';
 import {
+	CoreSchedule,
 	ParallelExecutor,
 	SimpleExecutor,
 	type ExecutorType,
-} from '../schedule/executors';
-import { CoreSchedule, type SystemConfig } from '../schedule';
+	type SystemConfig,
+	type SystemList,
+} from '../schedule';
 import type { System } from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
-import { SystemList } from '../schedule/run';
 
 type SystemListArray = SystemList[];
 export class WorldBuilder {
