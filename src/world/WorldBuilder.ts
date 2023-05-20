@@ -11,10 +11,11 @@ import { CoreSchedule, type SystemConfig } from '../schedule';
 import type { System } from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
+import { SystemList } from '../schedule/run';
 
-type SystemList = (System | SystemConfig)[];
+type SystemListArray = SystemList[];
 export class WorldBuilder {
-	schedules: Map<symbol, SystemList> = new Map();
+	schedules: Map<symbol, (System | SystemConfig)[]> = new Map();
 
 	components: Set<Struct> = new Set();
 	resources: Set<Class> = new Set();
@@ -39,7 +40,7 @@ export class WorldBuilder {
 	 * @param systems The systems to add.
 	 * @returns `this`, for chaining.
 	 */
-	addSystems(...systems: SystemList): this {
+	addSystems(...systems: SystemListArray): this {
 		this.addSystemsToSchedule(CoreSchedule.Main, ...systems);
 		return this;
 	}
@@ -50,32 +51,53 @@ export class WorldBuilder {
 	 * @param systems The systems to add.
 	 * @returns `this`, for chaining.
 	 */
-	addSystemsToSchedule(schedule: symbol, ...systems: SystemList): this {
+	addSystemsToSchedule(schedule: symbol, ...systems: SystemListArray): this {
+		for (const system of systems) {
+			if (Array.isArray(system)) {
+				for (const s of system) {
+					this.#addSystemToSchedule(schedule, s);
+				}
+			} else {
+				this.#addSystemToSchedule(schedule, system);
+			}
+		}
+		return this;
+	}
+
+	/**
+	 * Adds a system to the specified schedule.
+	 * @param schedule The schedule to add the system to.
+	 * @param systemLike The system to add.
+	 * @returns `this`, for chaining.
+	 */
+	#addSystemToSchedule(
+		schedule: symbol,
+		systemLike: System | SystemConfig,
+	): this {
 		if (!this.schedules.has(schedule)) {
 			this.schedules.set(schedule, []);
 		}
-		for (const s of systems) {
-			const system = typeof s === 'function' ? s : s.system;
-			this.#systems.add(system);
-			if (system.parameters) {
-				for (const descriptor of system.parameters) {
-					descriptor.onAddSystem(this);
-				}
+		const system =
+			typeof systemLike === 'function' ? systemLike : systemLike.system;
+		this.#systems.add(system);
+		if (system.parameters) {
+			for (const descriptor of system.parameters) {
+				descriptor.onAddSystem(this);
 			}
-			DEV_ASSERT(
-				// We allow a mismatch here so long as systems receive at least
-				// as many parameters as its length. Fewer than the length is
-				// probably the result of a failed transformation, but more than
-				// the length could just be the result of handwritten params.
-				(system.parameters?.length ?? 0) >= system.length,
-				`System "${system.name}" expects ${
-					system.length
-				} parameters, but will receive ${
-					system.parameters?.length ?? 0
-				}. This is likely due to a failed transformation.`,
-			);
 		}
-		this.schedules.get(schedule)!.push(...systems);
+		DEV_ASSERT(
+			// We allow a mismatch here so long as systems receive at least
+			// as many parameters as its length. Fewer than the length is
+			// probably the result of a failed transformation, but more than
+			// the length could just be the result of handwritten params.
+			(system.parameters?.length ?? 0) >= system.length,
+			`System "${system.name}" expects ${
+				system.length
+			} parameters, but will receive ${
+				system.parameters?.length ?? 0
+			}. This is likely due to a failed transformation.`,
+		);
+		this.schedules.get(schedule)!.push(system);
 		return this;
 	}
 
