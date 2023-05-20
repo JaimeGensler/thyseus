@@ -178,18 +178,18 @@ export class World {
 		this.entities.setRow(entityId, targetTable.length - 1);
 	}
 
-	#getTable(tableId: bigint): Table {
-		let table = this.#archetypeToTable.get(tableId);
+	#getTable(archetype: bigint): Table {
+		let table = this.#archetypeToTable.get(archetype);
 		if (table) {
 			return table;
 		}
 		table = new Table(
-			Array.from(bits(tableId), cid => this.components[cid]),
-			tableId,
+			Array.from(bits(archetype), cid => this.components[cid]),
+			archetype,
 			this.tables.length,
 		);
 		this.tables.push(table);
-		this.#archetypeToTable.set(tableId, table);
+		this.#archetypeToTable.set(archetype, table);
 
 		for (const query of this.queries) {
 			query.testAdd(table);
