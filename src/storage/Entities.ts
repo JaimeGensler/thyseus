@@ -6,12 +6,13 @@ import type { World } from '../world';
 import type { Struct } from '../struct';
 
 const low32 = 0x0000_0000_ffff_ffffn;
-const high32 = 0xffff_ffff_0000_0000n;
 const getIndex = (entityId: bigint) => Number(entityId & low32);
-const getGeneration = (entityId: bigint) => Number((entityId & high32) >> 32n);
+const getGeneration = (entityId: bigint) => Number(entityId >> 32n);
 const ENTITY_BATCH_SIZE = 256;
 const createSharedVec = (world: World) =>
 	Vec.fromPointer(world.threads.queue(() => memory.alloc(Vec.size)));
+
+const ENTITIES_POINTER_SIZE = 8; // [u32, u32]
 
 export class Entities {
 	/**
@@ -42,7 +43,9 @@ export class Entities {
 	#freed: Vec;
 	constructor(world: World) {
 		this.#world = world;
-		this.#data = world.threads.queue(() => memory.alloc(8) >> 2);
+		this.#data = world.threads.queue(
+			() => memory.alloc(ENTITIES_POINTER_SIZE) >> 2,
+		);
 		this.#generations = createSharedVec(world);
 		this.#locations = createSharedVec(world);
 		this.#freed = createSharedVec(world);
@@ -51,14 +54,14 @@ export class Entities {
 	/**
 	 * A **lockfree** method to obtain a new Entity ID.
 	 */
-	spawn(): bigint {
+	getId(): bigint {
 		const cursor = this.#moveCursor();
-		if (cursor > this.#freed.length) {
+		if (cursor >= this.#freed.length) {
 			// If we've already exhausted freed ids,
 			// bump the nextId and return that (generation = 0)
 			return BigInt(Atomics.add(memory.views.u32, this.#data, 1));
 		}
-		const index = this.#freed.get(this.#freed.length - cursor);
+		const index = this.#freed.get(this.#freed.length - 1 - cursor);
 		// generations[index] will exist because we've allocated
 		// generation lookups for all freed entities.
 		const generation = this.#generations.get(index);
@@ -72,9 +75,10 @@ export class Entities {
 	 * **NOTE: Is _not_ lock-free!**
 	 * @param entityId The id of the entity to despawn.
 	 */
-	despawn(entityId: bigint): void {
+	freeId(entityId: bigint): void {
 		const index = getIndex(entityId);
-		this.#generations.set(index, this.#generations.get(index) + 1);
+		const newGeneration = this.#generations.get(index) + 1;
+		this.#generations.set(index, newGeneration);
 		this.#freed.push(getIndex(entityId));
 		this.#locations.set(getIndex(entityId) << 1, 0);
 	}
@@ -111,23 +115,25 @@ export class Entities {
 
 	resetCursor(): void {
 		const { u32 } = memory.views;
-		const cursor = u32[this.#data + 1];
-		for (let i = 0; i < cursor; i++) {}
-		u32[this.#data + 1] = 0; // Reset cursor
+		this.#freed.length -= Math.min(this.#freed.length, u32[this.#data + 1]);
+		u32[this.#data + 1] = 0;
+
 		const entityCount = u32[this.#data];
 		if (entityCount >= this.#generations.length) {
 			const newLength =
 				Math.ceil((entityCount + 1) / ENTITY_BATCH_SIZE) *
 				ENTITY_BATCH_SIZE;
-			this.#generations.grow(newLength);
-			this.#locations.grow(newLength * 2);
+			// Set the length rather than call grow because we want these
+			// elements to be initialized.
+			this.#generations.length = newLength;
+			this.#locations.length = newLength * 2;
 		}
 	}
 
-	getTableIndex(entityId: bigint): number {
+	getTableId(entityId: bigint): number {
 		return this.#locations.get(getIndex(entityId) << 1);
 	}
-	setTableIndex(entityId: bigint, tableIndex: number): void {
+	setTableId(entityId: bigint, tableIndex: number): void {
 		this.#locations.set(getIndex(entityId) << 1, tableIndex);
 	}
 
@@ -144,9 +150,7 @@ export class Entities {
 	 * @returns `bigint`, the archetype of the entity.
 	 */
 	getArchetype(entityId: bigint): bigint {
-		return (
-			this.#world.tables[this.getTableIndex(entityId)]?.archetype ?? 0n
-		);
+		return this.#world.tables[this.getTableId(entityId)]?.archetype ?? 0n;
 	}
 
 	/**
@@ -156,8 +160,8 @@ export class Entities {
 	#moveCursor() {
 		// This will move the cursor past the length of the freed Vec - this is
 		// intentional, we check to see if we've moved too far to see if we need
-		// to get fresh (generation=0) ids.
-		return Atomics.add(memory.views.u32, this.#data, 1) + 1;
+		// to get fresh (generation = 0) ids.
+		return Atomics.add(memory.views.u32, this.#data + 1, 1);
 	}
 }
 
@@ -165,9 +169,10 @@ export class Entities {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi, beforeEach } = import.meta.vitest;
+	const { it, expect, beforeEach } = import.meta.vitest;
 	const { World } = await import('../world');
 
+	const ONE_GENERATION = 1n << 32n;
 	async function createWorld(...components: Struct[]) {
 		const builder = World.new({ isMainThread: true });
 		for (const comp of components) {
@@ -180,61 +185,35 @@ if (import.meta.vitest) {
 
 	it('returns incrementing generational integers', async () => {
 		const world = await createWorld();
-		const entities = world.entities;
+		const { entities } = world;
 
 		for (let i = 0n; i < 256n; i++) {
-			expect(entities.spawn()).toBe(i);
+			expect(entities.getId()).toBe(i);
 		}
 	});
 
-	it('returns entities from the Recycled table with incremented generation', async () => {
-		const world = await createWorld();
-		const entities = world.entities;
-		const recycledTable = world.tables[1];
-
-		expect(entities.spawn()).toBe(0n);
-		expect(entities.spawn()).toBe(1n);
-		expect(entities.spawn()).toBe(2n);
-
-		recycledTable.length = 3;
-
-		const ptr = recycledTable.getColumn(Entity);
-
-		memory.views.u64[(ptr >> 3) + 0] = 0n;
-		memory.views.u64[(ptr >> 3) + 1] = 1n;
-		memory.views.u64[(ptr >> 3) + 2] = 2n;
-
-		// expect(entities.spawn()).toBe(0n + ONE_GENERATION);
-		// expect(entities.spawn()).toBe(1n + ONE_GENERATION);
-		// expect(entities.spawn()).toBe(2n + ONE_GENERATION);
-		expect(entities.spawn()).toBe(3n);
-	});
-
-	it('reset grows by at least as many entities have been spawned', async () => {
-		const reallocSpy = vi.spyOn(memory, 'reallocAt');
+	it('returns entities with incremented generations', async () => {
 		const world = await createWorld();
 		const entities = world.entities;
 
-		expect(reallocSpy).not.toHaveBeenCalled();
-		for (let i = 0; i < ENTITY_BATCH_SIZE - 1; i++) {
-			entities.spawn();
-		}
-		entities.resetCursor();
-		expect(reallocSpy).not.toHaveBeenCalled();
+		expect(entities.getId()).toBe(0n);
+		expect(entities.getId()).toBe(1n);
 
-		entities.spawn();
 		entities.resetCursor();
-		expect(reallocSpy).toHaveBeenCalledOnce();
-		expect(reallocSpy).toHaveBeenCalledWith(152, 4096);
+		entities.freeId(0n);
+		entities.freeId(1n);
 
-		reallocSpy.mockReset();
+		expect(entities.getId()).toBe(ONE_GENERATION | 1n);
+		expect(entities.getId()).toBe(ONE_GENERATION | 0n);
+		expect(entities.getId()).toBe(2n);
+		expect(entities.getId()).toBe(3n);
 
-		for (let i = 0; i < ENTITY_BATCH_SIZE * 2; i++) {
-			entities.spawn();
-		}
 		entities.resetCursor();
-		expect(reallocSpy).toHaveBeenCalledOnce();
-		expect(reallocSpy).toHaveBeenCalledWith(152, 8192);
+		entities.freeId(ONE_GENERATION | 1n);
+		entities.freeId(2n);
+
+		expect(entities.getId()).toBe(ONE_GENERATION | 2n);
+		expect(entities.getId()).toBe((ONE_GENERATION * 2n) | 1n);
 	});
 
 	it('hasComponent returns true if the entity has the component and false otherwise', async () => {
@@ -247,10 +226,12 @@ if (import.meta.vitest) {
 		const world = await createWorld(A, B);
 		const { entities } = world;
 
-		const none = entities.spawn();
-		const a = entities.spawn();
-		const b = entities.spawn();
-		const ab = entities.spawn();
+		const none = entities.getId();
+		const a = entities.getId();
+		const b = entities.getId();
+		const ab = entities.getId();
+		entities.resetCursor();
+
 		world.moveEntity(none, 0b001n);
 		world.moveEntity(a, 0b011n);
 		world.moveEntity(b, 0b101n);

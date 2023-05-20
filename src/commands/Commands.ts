@@ -81,7 +81,7 @@ export class Commands {
 	 * @returns `EntityCommands`, which can add/remove components from an entity.
 	 */
 	spawn(): EntityCommands {
-		const entityId = this.#entities.spawn();
+		const entityId = this.#entities.getId();
 		const dataStart = this.#pushComponentCommand(
 			ADD_COMPONENT_COMMAND,
 			entityId,

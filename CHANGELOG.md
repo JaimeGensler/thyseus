@@ -11,6 +11,12 @@
     -   Removed `registerThreadChannel()`
 -   `World`
     -   Removed `update()`
+    -   Renamed `archetypes` to `tables`
+-   `Table`
+    -   Instances are no longer constructed on threads
+    -   Renamed bitfield to archetype
+    -   `grow()` accepts a `newSize` parameter, to individual tables can grow
+        differently.
 -   `ThreadGroup`
     -   Changed send to `send(channelName: string, data: SendableType)`
 -   Removed `definePlugin()`
@@ -24,7 +30,6 @@
 -   The `Entity` component will throw an error if trying to construct it without
     `world.commands` and `world.entities`
 -   Renamed `table.size` to `table.length`
--   `Table`s are no longer constructed on threads
 
 ### ✨ Features
 

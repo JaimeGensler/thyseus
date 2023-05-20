@@ -72,7 +72,7 @@ export class World {
 			),
 		);
 
-		const emptyTable = Table.createEmpty(this);
+		const emptyTable = Table.createEmpty();
 		this.tables.push(emptyTable);
 		this.#archetypeToTable.set(0n, emptyTable);
 
@@ -145,23 +145,36 @@ export class World {
 
 	/**
 	 * Moves an entity from one table to another.
-	 * Neither the current nor the target table may be the "null" table.
 	 * @param entityId The id of the entity to move.
-	 * @param targetTableArchetype The archetype of the target table.
-
+	 * @param targetArchetype The archetype of the target table.
 	 */
-	moveEntity(entityId: bigint, targetTableArchetype: bigint): void {
+	moveEntity(entityId: bigint, targetArchetype: bigint): void {
 		if (!this.entities.isAlive(entityId)) {
 			return;
 		}
-		const currentTable = this.tables[this.entities.getTableIndex(entityId)];
-		const targetTable = this.#getTable(targetTableArchetype);
+
+		const currentTable = this.tables[this.entities.getTableId(entityId)];
+		const targetTable = this.#getTable(targetArchetype);
+
+		if (targetTable.length === targetTable.capacity) {
+			targetTable.grow(this.config.getNewTableSize(targetTable.capacity));
+		}
 
 		const row = this.entities.getRow(entityId);
-		const backfilledEntity = currentTable.move(row, targetTable);
 
-		this.entities.setRow(backfilledEntity, row);
-		this.entities.setTableIndex(entityId, targetTable.id);
+		// If the moving entity is the last element, move() returns the id of
+		// the entity that's moving tables. This means we set row for that
+		// entity twice, but the last set will be correct.
+		const backfilledEntity = currentTable.move(row, targetTable);
+		if (backfilledEntity !== null) {
+			this.entities.setRow(backfilledEntity, row);
+		}
+
+		if (targetArchetype === 0n) {
+			this.entities.freeId(entityId);
+		}
+
+		this.entities.setTableId(entityId, targetTable.id);
 		this.entities.setRow(entityId, targetTable.length - 1);
 	}
 
@@ -170,15 +183,13 @@ export class World {
 		if (table) {
 			return table;
 		}
-		const id = this.tables.length;
 		table = new Table(
-			this,
 			Array.from(bits(tableId), cid => this.components[cid]),
 			tableId,
-			id,
+			this.tables.length,
 		);
-		this.#archetypeToTable.set(tableId, table);
 		this.tables.push(table);
+		this.#archetypeToTable.set(tableId, table);
 
 		for (const query of this.queries) {
 			query.testAdd(table);

@@ -40,8 +40,8 @@ export function applyCommands(
 	}
 
 	// Move entities to their final destination
-	for (const [entityId, tableId] of entityDestinations) {
-		world.moveEntity(entityId, tableId);
+	for (const [entityId, archetype] of entityDestinations) {
+		world.moveEntity(entityId, archetype);
 	}
 
 	// Handle data insertion from adds
@@ -50,7 +50,7 @@ export function applyCommands(
 			continue;
 		}
 		const entityId = memory.views.u64[dataStart >> 3];
-		const tableId = entities.getTableIndex(entityId);
+		const tableId = entities.getTableId(entityId);
 		if (tableId === 0) {
 			continue;
 		}
@@ -145,10 +145,13 @@ if (import.meta.vitest) {
 		myWorld.commands.spawn().addType(CompA).add(new CompD(1, 2));
 
 		applyCommands(myWorld, new Map());
-		const archetypeD = myWorld.tables[2];
+		const archetypeD = myWorld.tables[1];
 		const testComp = new CompD();
 
-		testComp.__$$b = archetypeD.getColumn(CompD)!;
+		const column =
+			memory.views.u32[archetypeD.getColumnPointer(CompD) >> 2];
+
+		testComp.__$$b = column;
 		expect(archetypeD.length).toBe(1);
 		expect(testComp.x).toBe(1);
 		expect(testComp.y).toBe(2);

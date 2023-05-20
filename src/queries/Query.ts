@@ -193,15 +193,19 @@ if (import.meta.vitest) {
 			)
 			.build();
 
-	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
+	beforeEach(() => {
+		memory.init(24_000);
+		return () => memory.UNSAFE_CLEAR_ALL();
+	});
 
+	const getColumn = (table: Table, column: Struct) =>
+		memory.views.u32[table.getColumnPointer(column) >> 2];
 	const spawnIntoTable = (eid: number, targetTable: Table) => {
 		if (targetTable.capacity === targetTable.length) {
-			targetTable.grow();
+			targetTable.grow(targetTable.capacity * 2 || 8);
 		}
-		memory.views.u64[
-			(targetTable.getColumn(Entity) + targetTable.length * 8) >> 3
-		] = BigInt(eid);
+		const column = getColumn(targetTable, Entity);
+		memory.views.u64[(column + targetTable.length * 8) >> 3] = BigInt(eid);
 		targetTable.length++;
 	};
 
@@ -210,9 +214,11 @@ if (import.meta.vitest) {
 			static size = 0;
 		}
 		const world = await createWorld(ZST);
-		const entity1 = world.entities.spawn();
+		const entity1 = world.entities.getId();
+		world.entities.resetCursor();
 		world.moveEntity(entity1, 0b0001n);
-		const table = world.tables[2];
+		const table = world.tables[1];
+
 		const query1 = new Query([0b0001n], [0b0000n], false, [], world);
 		expect(query1.length).toBe(0);
 		query1.testAdd(table);
@@ -258,8 +264,8 @@ if (import.meta.vitest) {
 	});
 
 	describe('iteration', () => {
-		const createTable = (world: World, ...components: Struct[]) =>
-			new Table(world, components, 0n, 0);
+		const createTable = (...components: Struct[]) =>
+			new Table(components, 0n, 0);
 
 		class Vec3 {
 			static size = 24;
@@ -311,8 +317,8 @@ if (import.meta.vitest) {
 				[Vec3, Entity],
 				world,
 			);
-			const vecTable = createTable(world, Entity, Vec3);
-			const noVecTable = createTable(world, Entity);
+			const vecTable = createTable(Entity, Vec3);
+			const noVecTable = createTable(Entity);
 
 			query.testAdd({ ...noVecTable, archetype: 0n } as any);
 			query.testAdd({ ...vecTable, archetype: 0n } as any);
@@ -338,10 +344,13 @@ if (import.meta.vitest) {
 		it('yields individual elements for non-tuple iterators', async () => {
 			const world = await createWorld(Vec3);
 			const query = new Query<Vec3>([0n], [0n], true, [Vec3], world);
+
 			for (let i = 0; i < 10; i++) {
-				world.moveEntity(world.entities.spawn(), 0b11n);
+				const id = world.entities.getId();
+				world.entities.resetCursor();
+				world.moveEntity(id, 0b11n);
 			}
-			const table = world.tables[2];
+			const table = world.tables[1];
 			table.archetype = 0n;
 			expect(query.length).toBe(0);
 			query.testAdd(table);
@@ -363,8 +372,10 @@ if (import.meta.vitest) {
 				[Vec3, Entity],
 				world,
 			);
-			world.moveEntity(world.entities.spawn(), 0b11n);
-			const table = world.tables[2];
+			const id = world.entities.getId();
+			world.entities.resetCursor();
+			world.moveEntity(id, 0b11n);
+			const table = world.tables[1];
 			expect(query.length).toBe(0);
 
 			table.archetype = 0n;
@@ -408,8 +419,10 @@ if (import.meta.vitest) {
 				[Position],
 				world,
 			);
-			world.moveEntity(world.entities.spawn(), 0b111n);
-			const table = world.tables[2];
+			const id = world.entities.getId();
+			world.entities.resetCursor();
+			world.moveEntity(id, 0b111n);
+			const table = world.tables[1];
 			table.archetype = 0n;
 
 			expect(queryTuple.length).toBe(0);
@@ -419,7 +432,7 @@ if (import.meta.vitest) {
 			expect(queryTuple.length).toBe(1);
 			expect(querySolo.length).toBe(1);
 			for (let i = 1; i < 8; i++) {
-				world.moveEntity(world.entities.spawn(), 0b111n);
+				world.moveEntity(world.entities.getId(), 0b111n);
 				expect(queryTuple.length).toBe(i + 1);
 				expect(querySolo.length).toBe(i + 1);
 			}
