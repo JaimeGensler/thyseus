@@ -1,5 +1,5 @@
 import { addField } from './addField';
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 import type { Struct } from './struct';
 import { createManagedStruct } from '../storage/initStruct';
 
@@ -23,7 +23,7 @@ export function substruct(struct: Struct) {
 				);
 			},
 			set(value: any) {
-				memory.copy(value.__$$b, struct.size!, this.__$$b);
+				Memory.copy(value.__$$b, struct.size!, this.__$$b);
 			},
 		});
 	};

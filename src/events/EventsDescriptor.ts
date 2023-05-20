@@ -44,13 +44,13 @@ export class EventWriterDescriptor<
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
-	const { memory } = await import('../utils/memory');
+	const { Memory } = await import('../utils/Memory');
 	const { initStruct } = await import('../storage');
 	const { EventReader, EventWriter } = await import('./Events');
 
 	beforeEach(() => {
-		memory.init(10_000);
-		return () => memory.UNSAFE_CLEAR_ALL();
+		Memory.init(10_000);
+		return () => Memory.UNSAFE_CLEAR_ALL();
 	});
 
 	class A {
@@ -123,8 +123,8 @@ if (import.meta.vitest) {
 	describe('intoArgument', () => {
 		it('returns an event reader/writer', () => {
 			const commands = {} as any;
-			const p1 = memory.alloc(8);
-			const p2 = memory.alloc(8);
+			const p1 = Memory.alloc(8);
+			const p2 = Memory.alloc(8);
 			const world = {
 				eventReaders: [
 					new EventReader(commands, A, p1),

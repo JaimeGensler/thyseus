@@ -308,7 +308,7 @@ function UNSAFE_CLEAR_ALL(): void {
 	}
 }
 
-export const memory = {
+export const Memory = {
 	init,
 	get isInitialized() {
 		return buffer !== undefined;
@@ -328,7 +328,7 @@ export const memory = {
 
 	UNSAFE_CLEAR_ALL,
 };
-export type Memory = typeof memory;
+export type Memory = typeof Memory;
 
 /*---------*\
 |   TESTS   |
@@ -336,116 +336,116 @@ export type Memory = typeof memory;
 if (import.meta.vitest) {
 	const { describe, it, expect, beforeEach } = import.meta.vitest;
 
-	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
+	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
 	describe('alloc', () => {
 		it('returns a pointer', () => {
-			memory.init(256);
-			const ptr1 = memory.alloc(8);
+			Memory.init(256);
+			const ptr1 = Memory.alloc(8);
 			expect(ptr1).toBe(24);
 
-			const ptr2 = memory.alloc(16);
+			const ptr2 = Memory.alloc(16);
 			expect(ptr2).toBe(40);
 		});
 
 		it('throws when out of memory', () => {
-			memory.init(256);
-			const ptr1 = memory.alloc(212);
+			Memory.init(256);
+			const ptr1 = Memory.alloc(212);
 			expect(ptr1).toBe(24);
 
-			expect(() => memory.alloc(8)).toThrow(/Out of memory/);
+			expect(() => Memory.alloc(8)).toThrow(/Out of memory/);
 		});
 	});
 
 	describe('free', () => {
 		it('clears a block and allows it to be allocated again', () => {
-			memory.init(256);
-			const ptr1 = memory.alloc(8);
+			Memory.init(256);
+			const ptr1 = Memory.alloc(8);
 			expect(ptr1).toBe(24);
 
-			memory.free(ptr1);
-			const ptr2 = memory.alloc(8);
+			Memory.free(ptr1);
+			const ptr2 = Memory.alloc(8);
 			expect(ptr2).toBe(24);
 		});
 
 		it('collects the next block if free', () => {
-			memory.init(256);
-			const ptr1 = memory.alloc(8);
+			Memory.init(256);
+			const ptr1 = Memory.alloc(8);
 			expect(ptr1).toBe(24);
 
-			memory.free(ptr1);
-			const ptr2 = memory.alloc(16);
+			Memory.free(ptr1);
+			const ptr2 = Memory.alloc(16);
 			expect(ptr2).toBe(24);
 		});
 
 		it('collects the previous block if free', () => {
-			memory.init(256);
-			const ptr1 = memory.alloc(8);
+			Memory.init(256);
+			const ptr1 = Memory.alloc(8);
 			expect(ptr1).toBe(24);
-			const ptr2 = memory.alloc(8);
+			const ptr2 = Memory.alloc(8);
 			expect(ptr2).toBe(40);
 
-			memory.free(ptr1);
-			memory.free(ptr2);
+			Memory.free(ptr1);
+			Memory.free(ptr2);
 
-			const ptr3 = memory.alloc(16);
+			const ptr3 = Memory.alloc(16);
 			expect(ptr3).toBe(24);
 		});
 	});
 
 	describe('realloc', () => {
 		it('returns the same pointer if allocated block is large enough already', () => {
-			memory.init(256);
-			const ptr = memory.alloc(3); // This is pushed to 8
-			const newPtr = memory.realloc(ptr, 5);
+			Memory.init(256);
+			const ptr = Memory.alloc(3); // This is pushed to 8
+			const newPtr = Memory.realloc(ptr, 5);
 			expect(newPtr).toBe(ptr);
-			const newerPtr = memory.realloc(newPtr, 7);
+			const newerPtr = Memory.realloc(newPtr, 7);
 			expect(newerPtr).toBe(ptr);
-			const newestPtr = memory.realloc(newerPtr, 7);
+			const newestPtr = Memory.realloc(newerPtr, 7);
 			expect(newestPtr).toBe(ptr);
 		});
 
 		it('returns the same pointer if following block can be used', () => {
-			memory.init(256);
-			const ptr = memory.alloc(8);
-			const newPtr = memory.realloc(ptr, 16);
+			Memory.init(256);
+			const ptr = Memory.alloc(8);
+			const newPtr = Memory.realloc(ptr, 16);
 			expect(newPtr).toBe(ptr);
 		});
 
 		it('returns the same pointer and entire following block, if necessary', () => {
-			memory.init(256);
-			const ptr1 = memory.alloc(8);
-			const ptr2 = memory.alloc(8);
-			const heldPtr = memory.alloc(8);
-			memory.free(ptr2);
-			const ptr1Grow = memory.realloc(ptr1, 12);
+			Memory.init(256);
+			const ptr1 = Memory.alloc(8);
+			const ptr2 = Memory.alloc(8);
+			const heldPtr = Memory.alloc(8);
+			Memory.free(ptr2);
+			const ptr1Grow = Memory.realloc(ptr1, 12);
 			expect(ptr1Grow).toBe(ptr1);
 		});
 	});
 
 	describe('copyPointer', () => {
 		it('allocates a new pointer and copies data from the source', () => {
-			memory.init(256);
+			Memory.init(256);
 			const ALLOCATION_SIZE = 16;
-			const ptr1 = memory.alloc(ALLOCATION_SIZE);
-			memory.views.u32[ptr1 >> 2] = ~0 >>> 0;
-			memory.views.u32[(ptr1 + 4) >> 2] = ~0 >>> 0;
-			const copiedPtr = memory.copyPointer(ptr1);
+			const ptr1 = Memory.alloc(ALLOCATION_SIZE);
+			Memory.views.u32[ptr1 >> 2] = ~0 >>> 0;
+			Memory.views.u32[(ptr1 + 4) >> 2] = ~0 >>> 0;
+			const copiedPtr = Memory.copyPointer(ptr1);
 
-			expect(memory.views.u32[(copiedPtr - BLOCK_HEADER_SIZE) >> 2]).toBe(
+			expect(Memory.views.u32[(copiedPtr - BLOCK_HEADER_SIZE) >> 2]).toBe(
 				(ALLOCATION_SIZE + BLOCK_METADATA_SIZE) | 1,
 			);
-			expect(memory.views.u32[(copiedPtr + ALLOCATION_SIZE) >> 2]).toBe(
+			expect(Memory.views.u32[(copiedPtr + ALLOCATION_SIZE) >> 2]).toBe(
 				(ALLOCATION_SIZE + BLOCK_METADATA_SIZE) | 1,
 			);
-			expect(memory.views.u32[copiedPtr >> 2]).toBe(~0 >>> 0);
-			expect(memory.views.u32[(copiedPtr + 4) >> 2]).toBe(~0 >>> 0);
+			expect(Memory.views.u32[copiedPtr >> 2]).toBe(~0 >>> 0);
+			expect(Memory.views.u32[(copiedPtr + 4) >> 2]).toBe(~0 >>> 0);
 		});
 	});
 
 	describe('spinlock', () => {
 		it('sets NULL_POINTER to 1 when locked, 0 when unlocked', () => {
-			memory.init(256);
+			Memory.init(256);
 			expect(u32[NULL_POINTER >> 2]).toBe(0);
 			spinlock();
 			expect(u32[NULL_POINTER >> 2]).toBe(1);
@@ -456,15 +456,15 @@ if (import.meta.vitest) {
 
 	describe('reallocAt', () => {
 		it('reallocates at a specific position', () => {
-			memory.init(256);
-			const pointerToPointer = memory.alloc(4);
+			Memory.init(256);
+			const pointerToPointer = Memory.alloc(4);
 			expect(u32[pointerToPointer >> 2]).toBe(0);
-			const prevPointer = memory.alloc(8);
+			const prevPointer = Memory.alloc(8);
 			// Grab the next block so that we can't allocate in-place
-			const holdOnNextBlock = memory.alloc(8);
+			const holdOnNextBlock = Memory.alloc(8);
 			u32[pointerToPointer >> 2] = prevPointer;
 			expect(u32[pointerToPointer >> 2]).toBe(prevPointer);
-			memory.reallocAt(pointerToPointer, 16);
+			Memory.reallocAt(pointerToPointer, 16);
 			expect(u32[pointerToPointer >> 2]).not.toBe(prevPointer);
 		});
 	});

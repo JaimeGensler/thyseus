@@ -114,11 +114,11 @@ export class QueryDescriptor<
 if (import.meta.vitest) {
 	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
 	const { struct } = await import('../struct');
-	const { memory } = await import('../utils/memory');
+	const { Memory } = await import('../utils/Memory');
 
 	beforeEach(() => {
-		memory.init(1_000);
-		return () => memory.UNSAFE_CLEAR_ALL();
+		Memory.init(1_000);
+		return () => Memory.UNSAFE_CLEAR_ALL();
 	});
 
 	class Comp {
@@ -243,7 +243,6 @@ if (import.meta.vitest) {
 			const world: any = {
 				components: [A, B],
 				queries: [],
-				memory: { views: {} },
 				threads: {
 					queue: (f: any) => f(),
 				},

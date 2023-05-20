@@ -1,4 +1,4 @@
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 import { createManagedStruct } from '../storage/initStruct';
 import { isStruct, type Class } from '../struct';
 import type { SystemParameter } from '../systems';
@@ -28,7 +28,7 @@ export class SystemResourceDescriptor<T extends object>
 			? createManagedStruct(
 					resourceType,
 					resourceType.size! !== 0
-						? threads.queue(() => memory.alloc(resourceType.size!))
+						? threads.queue(() => Memory.alloc(resourceType.size!))
 						: 0,
 			  )
 			: new resourceType();
@@ -92,7 +92,7 @@ if (import.meta.vitest) {
 		} as any;
 
 		it("returns the instance of the descriptor's ResourceType", async () => {
-			const allocSpy = vi.spyOn(memory, 'alloc');
+			const allocSpy = vi.spyOn(Memory, 'alloc');
 			expect(
 				await new SystemResourceDescriptor(A).intoArgument(world),
 			).toBeInstanceOf(A);
@@ -100,8 +100,8 @@ if (import.meta.vitest) {
 		});
 
 		it('allocates a pointer if struct', async () => {
-			memory.init(256);
-			const allocSpy = vi.spyOn(memory, 'alloc');
+			Memory.init(256);
+			const allocSpy = vi.spyOn(Memory, 'alloc');
 			expect(
 				await new SystemResourceDescriptor(C).intoArgument(world),
 			).toBeInstanceOf(C);

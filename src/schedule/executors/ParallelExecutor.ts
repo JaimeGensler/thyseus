@@ -1,4 +1,4 @@
-import { memory } from '../../utils/memory';
+import { Memory } from '../../utils/Memory';
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
 import { overlaps } from './overlaps';
@@ -35,9 +35,9 @@ export class ParallelExecutor {
 					);
 			  });
 
-		const { buffer } = memory.views;
+		const { buffer } = Memory.views;
 		const pointer = world.threads.queue(() =>
-			memory.alloc(8 + systems.length * 3),
+			Memory.alloc(8 + systems.length * 3),
 		);
 		const lockName = world.threads.queue(
 			() => `thyseus::ParallelExecutor${nextId++}`,
@@ -217,7 +217,7 @@ if (import.meta.vitest) {
 
 	const cbs = [] as any[];
 	beforeEach(() => {
-		memory.UNSAFE_CLEAR_ALL();
+		Memory.UNSAFE_CLEAR_ALL();
 	});
 	afterEach(() => {
 		cbs.length = 0;

@@ -1,4 +1,4 @@
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 import { dropStruct } from '../storage/initStruct';
 import { Entity, type Table, type Entities } from '../storage';
 import type { Struct } from '../struct';
@@ -39,7 +39,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		components: Struct[],
 		world: World,
 	) {
-		this.#pointer = world.threads.queue(() => memory.alloc(12));
+		this.#pointer = world.threads.queue(() => Memory.alloc(12));
 		this.#with = withFilters;
 		this.#without = withoutFilters;
 		this.#isIndividual = isIndividual;
@@ -52,7 +52,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	 * The number of entities that match this query.
 	 */
 	get length(): number {
-		const { u32 } = memory.views;
+		const { u32 } = Memory.views;
 		const tableCount = u32[this.#pointer >> 2];
 		const jump = this.#components.length + 1;
 		let length = 0;
@@ -65,20 +65,20 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	}
 
 	get #size() {
-		return memory.views.u32[this.#pointer >> 2];
+		return Memory.views.u32[this.#pointer >> 2];
 	}
 	set #size(val: number) {
-		memory.views.u32[this.#pointer >> 2] = val;
+		Memory.views.u32[this.#pointer >> 2] = val;
 	}
 	get #capacity() {
-		return memory.views.u32[(this.#pointer + 4) >> 2];
+		return Memory.views.u32[(this.#pointer + 4) >> 2];
 	}
 	set #capacity(val: number) {
-		memory.views.u32[(this.#pointer + 4) >> 2] = val;
+		Memory.views.u32[(this.#pointer + 4) >> 2] = val;
 	}
 
 	*[Symbol.iterator](): Iterator<QueryIteration<A>> {
-		const { u32 } = memory.views;
+		const { u32 } = Memory.views;
 		const elements = this.#getIteration() as Element[];
 
 		const tableCount = u32[this.#pointer >> 2];
@@ -141,12 +141,12 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	}
 
 	testAdd(table: Table): void {
-		const { u32 } = memory.views;
+		const { u32 } = Memory.views;
 		if (this.#test(table.archetype)) {
 			if (this.#size === this.#capacity) {
 				// Grow for 8 tables at a time
 				const additionalSize = 8 * (this.#components.length + 1);
-				memory.reallocAt(
+				Memory.reallocAt(
 					this.#pointer + 8,
 					(this.#size + additionalSize) * 4,
 				);
@@ -194,18 +194,18 @@ if (import.meta.vitest) {
 			.build();
 
 	beforeEach(() => {
-		memory.init(24_000);
-		return () => memory.UNSAFE_CLEAR_ALL();
+		Memory.init(24_000);
+		return () => Memory.UNSAFE_CLEAR_ALL();
 	});
 
 	const getColumn = (table: Table, column: Struct) =>
-		memory.views.u32[table.getColumnPointer(column) >> 2];
+		Memory.views.u32[table.getColumnPointer(column) >> 2];
 	const spawnIntoTable = (eid: number, targetTable: Table) => {
 		if (targetTable.capacity === targetTable.length) {
 			targetTable.grow(targetTable.capacity * 2 || 8);
 		}
 		const column = getColumn(targetTable, Entity);
-		memory.views.u64[(column + targetTable.length * 8) >> 3] = BigInt(eid);
+		Memory.views.u64[(column + targetTable.length * 8) >> 3] = BigInt(eid);
 		targetTable.length++;
 	};
 

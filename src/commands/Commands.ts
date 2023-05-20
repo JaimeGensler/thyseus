@@ -1,6 +1,6 @@
 import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 import { alignTo8 } from '../utils/alignTo8';
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 import { EntityCommands } from './EntityCommands';
 import { Entity, type Entities } from '../storage';
 import type { Struct } from '../struct';
@@ -21,7 +21,7 @@ export class Commands {
 				0,
 			);
 			const componentPointers = [];
-			let pointer = memory.alloc(size);
+			let pointer = Memory.alloc(size);
 			for (const component of world.components) {
 				componentPointers.push(pointer);
 				if (component.size === 0) {
@@ -31,14 +31,14 @@ export class Commands {
 					component === Entity
 						? new (component as any)(this, world.entities)
 						: (new component() as { __$$b: number });
-				memory.copy(instance.__$$b, component.size!, pointer);
-				memory.free(instance.__$$b);
+				Memory.copy(instance.__$$b, component.size!, pointer);
+				Memory.free(instance.__$$b);
 				pointer += component.size!;
 			}
 			return componentPointers;
 		});
 		const dataPointer = world.threads.queue(() =>
-			memory.alloc((1 + 3 * world.config.threads) * 4),
+			Memory.alloc((1 + 3 * world.config.threads) * 4),
 		);
 		return new this(world, initialValuePointers, dataPointer);
 	}
@@ -58,22 +58,22 @@ export class Commands {
 		this.#initialValuePointers = initialValuePointers;
 		this.#pointer = pointer >> 2;
 		this.#ownPointer =
-			3 * Atomics.add(memory.views.u32, this.#pointer, 1) +
+			3 * Atomics.add(Memory.views.u32, this.#pointer, 1) +
 			this.#pointer +
 			1;
 	}
 
 	get #size() {
-		return memory.views.u32[this.#ownPointer];
+		return Memory.views.u32[this.#ownPointer];
 	}
 	set #size(val: number) {
-		memory.views.u32[this.#ownPointer] = val;
+		Memory.views.u32[this.#ownPointer] = val;
 	}
 	get #capacity() {
-		return memory.views.u32[this.#ownPointer + 1];
+		return Memory.views.u32[this.#ownPointer + 1];
 	}
 	set #capacity(val: number) {
-		memory.views.u32[this.#ownPointer + 1] = val;
+		Memory.views.u32[this.#ownPointer + 1] = val;
 	}
 
 	/**
@@ -87,7 +87,7 @@ export class Commands {
 			entityId,
 			Entity,
 		);
-		memory.views.u64[dataStart >> 3] = entityId;
+		Memory.views.u64[dataStart >> 3] = entityId;
 		return new EntityCommands(this, entityId);
 	}
 
@@ -128,7 +128,7 @@ export class Commands {
 		if (componentType.size === 0) {
 			return;
 		}
-		memory.copy((component as any).__$$b, componentType.size!, dataStart);
+		Memory.copy((component as any).__$$b, componentType.size!, dataStart);
 		this.#copyPointers(componentType, dataStart);
 	}
 
@@ -147,7 +147,7 @@ export class Commands {
 		if (componentType.size === 0) {
 			return;
 		}
-		memory.copy(
+		Memory.copy(
 			this.#initialValuePointers[this.#components.indexOf(componentType)],
 			componentType.size!,
 			dataStart,
@@ -169,7 +169,7 @@ export class Commands {
 	}
 
 	*[Symbol.iterator]() {
-		const { u32 } = memory.views;
+		const { u32 } = Memory.views;
 		const queueDataLength = 1 + u32[this.#pointer] * 3;
 		for (
 			let queueOffset = 1;
@@ -192,12 +192,12 @@ export class Commands {
 	}
 
 	pushCommand(size: number, type: number): number {
-		const { u32 } = memory.views;
+		const { u32 } = Memory.views;
 		const addedSize = 8 + alignTo8(size);
 		let newSize = this.#size + addedSize;
 		if (this.#capacity < newSize) {
 			newSize <<= 1; // Double new size
-			memory.reallocAt((this.#ownPointer + 2) << 2, newSize);
+			Memory.reallocAt((this.#ownPointer + 2) << 2, newSize);
 			this.#capacity = newSize;
 		}
 		const queueEnd = u32[this.#ownPointer + 2] + this.#size;
@@ -208,7 +208,7 @@ export class Commands {
 	}
 
 	reset(): void {
-		const { u32 } = memory.views;
+		const { u32 } = Memory.views;
 		const queueDataLength = 1 + u32[this.#pointer] * 3;
 		for (
 			let queueOffset = 1;
@@ -233,15 +233,15 @@ export class Commands {
 			16 + alignTo8(commandType * componentType.size!),
 			commandType,
 		);
-		memory.views.u64[pointer >> 3] = entityId;
-		memory.views.u16[(pointer + 8) >> 1] =
+		Memory.views.u64[pointer >> 3] = entityId;
+		Memory.views.u16[(pointer + 8) >> 1] =
 			this.#components.indexOf(componentType);
 		return pointer + 16;
 	}
 	#copyPointers(componentType: Struct, dataStart: number) {
 		for (const pointer of componentType.pointers! ?? []) {
-			memory.views.u32[(dataStart + pointer) >> 2] = memory.copyPointer(
-				memory.views.u32[(dataStart + pointer) >> 2],
+			Memory.views.u32[(dataStart + pointer) >> 2] = Memory.copyPointer(
+				Memory.views.u32[(dataStart + pointer) >> 2],
 			);
 		}
 	}
@@ -257,8 +257,8 @@ if (import.meta.vitest) {
 	const { struct } = await import('../struct');
 
 	beforeEach(() => {
-		memory.init(10_000);
-		return () => memory.UNSAFE_CLEAR_ALL();
+		Memory.init(10_000);
+		return () => Memory.UNSAFE_CLEAR_ALL();
 	});
 
 	class ZST {
@@ -281,10 +281,10 @@ if (import.meta.vitest) {
 
 		declare __$$b: number;
 		set x(val: number) {
-			memory.views.u32[this.__$$b >> 2] = val;
+			Memory.views.u32[this.__$$b >> 2] = val;
 		}
 		set y(val: number) {
-			memory.views.u32[(this.__$$b + 4) >> 2] = val;
+			Memory.views.u32[(this.__$$b + 4) >> 2] = val;
 		}
 
 		constructor(x = 23, y = 42) {
@@ -323,12 +323,12 @@ if (import.meta.vitest) {
 			) {
 				continue;
 			}
-			const entityId = memory.views.u64[dataStart >> 3];
+			const entityId = Memory.views.u64[dataStart >> 3];
 			let val = entityDestinations.get(entityId);
 			if (val === 0n) {
 				continue;
 			}
-			const componentId = memory.views.u16[(dataStart + 8) >> 1];
+			const componentId = Memory.views.u16[(dataStart + 8) >> 1];
 			val ??= world.entities.getArchetype(entityId);
 			entityDestinations.set(
 				entityId,
@@ -391,13 +391,13 @@ if (import.meta.vitest) {
 		let i = 0;
 		for (const { dataStart } of commands) {
 			if (i !== 0) {
-				const entityId = memory.views.u64[dataStart >> 3];
+				const entityId = Memory.views.u64[dataStart >> 3];
 				expect(entityId).toBe(ent.id);
-				const u32 = memory.views.u32.subarray(
+				const u32 = Memory.views.u32.subarray(
 					(dataStart + 16) >> 2,
 					(dataStart + 16 + CompD.size) >> 2,
 				);
-				const componentId = memory.views.u16[(dataStart + 8) >> 1];
+				const componentId = Memory.views.u16[(dataStart + 8) >> 1];
 				expect(componentId).toBe(5);
 				expect(u32[0]).toBe(23);
 				expect(u32[1]).toBe(42);
@@ -416,13 +416,13 @@ if (import.meta.vitest) {
 				continue;
 			}
 
-			const entityId = memory.views.u64[dataStart >> 3];
+			const entityId = Memory.views.u64[dataStart >> 3];
 			expect(entityId).toBe(ent.id);
-			const u32 = memory.views.u32.subarray(
+			const u32 = Memory.views.u32.subarray(
 				(dataStart + 16) >> 2,
 				(dataStart + 16 + CompD.size) >> 2,
 			);
-			const componentId = memory.views.u16[(dataStart + 8) >> 1];
+			const componentId = Memory.views.u16[(dataStart + 8) >> 1];
 			expect(componentId).toBe(5);
 			expect(u32[0]).toBe(15);
 			expect(u32[1]).toBe(16);
@@ -434,7 +434,7 @@ if (import.meta.vitest) {
 		const commands = Commands.fromWorld(world);
 		const ent1 = commands.spawn().addType(StringComponent);
 		const ent2 = commands.spawn().addType(StringComponent);
-		const { u16, u32 } = memory.views;
+		const { u16, u32 } = Memory.views;
 		let previousPointer = 0;
 		for (const { dataStart } of commands) {
 			const componentId = u16[(dataStart + 8) >> 1];
@@ -450,13 +450,13 @@ if (import.meta.vitest) {
 		const commands = Commands.fromWorld(world);
 		const component = new StringComponent('test');
 		const ent = commands.spawn().add(component);
-		const { u16, u32 } = memory.views;
+		const { u16, u32 } = Memory.views;
 
 		for (const { dataStart } of commands) {
 			const componentId = u16[(dataStart + 8) >> 1];
 			if (componentId === 6) {
 				expect(
-					memory.views.u32[((component as any).__$$b + 8) >> 2],
+					Memory.views.u32[((component as any).__$$b + 8) >> 2],
 				).not.toBe(u32[(dataStart + 24) >> 2]);
 			}
 		}

@@ -234,9 +234,9 @@ export class WorldBuilder {
 if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { Entity, initStruct } = await import('../storage');
-	const { memory } = await import('../utils/memory');
+	const { Memory } = await import('../utils/Memory');
 
-	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
+	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
 	class MockChannel {
 		static channel: MockChannel;

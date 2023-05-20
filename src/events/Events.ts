@@ -1,4 +1,4 @@
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 import { dropStruct } from '../storage/initStruct';
 import { CLEAR_QUEUE_COMMAND, type Commands } from '../commands/Commands';
 import type { Struct } from '../struct';
@@ -36,14 +36,14 @@ export class EventReader<T extends object> {
 	 * The number of events currently in this queue.
 	 */
 	get length(): number {
-		return memory.views.u32[this.#pointer];
+		return Memory.views.u32[this.#pointer];
 	}
 
 	*[Symbol.iterator](): this extends EventWriter<any>
 		? Iterator<T>
 		: Iterator<Readonly<T>> {
 		const size = this.#struct.size!;
-		this.#instance.__$$b = memory.views.u32[this.#pointer + 2];
+		this.#instance.__$$b = Memory.views.u32[this.#pointer + 2];
 		for (let i = 0; i < this.length; i++) {
 			yield this.#instance;
 			this.#instance.__$$b += size;
@@ -55,7 +55,7 @@ export class EventReader<T extends object> {
 	 */
 	clear() {
 		const pointer = this.#commands.pushCommand(4, CLEAR_QUEUE_COMMAND);
-		memory.views.u32[pointer >> 2] = this.#pointer << 2;
+		Memory.views.u32[pointer >> 2] = this.#pointer << 2;
 	}
 }
 
@@ -84,7 +84,7 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	create(): T {
 		const byteOffset = this.#addEvent();
 		this.#instance.__$$b = byteOffset;
-		memory.copy((this.#pointer + 3) << 2, this.type.size!, byteOffset);
+		Memory.copy((this.#pointer + 3) << 2, this.type.size!, byteOffset);
 		return this.#instance;
 	}
 
@@ -93,14 +93,14 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	 * @param instance The event to add to the event queue.
 	 */
 	createFrom(instance: T): void {
-		memory.copy((instance as any).__$$b, this.type.size!, this.#addEvent());
+		Memory.copy((instance as any).__$$b, this.type.size!, this.#addEvent());
 	}
 
 	/**
 	 * Creates an event with the default data for that event.
 	 */
 	createDefault(): void {
-		memory.copy(
+		Memory.copy(
 			(this.#pointer + 3) << 2,
 			this.type.size!,
 			this.#addEvent(),
@@ -111,7 +111,7 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	 * **Immediately** clears all events in this queue.
 	 */
 	clearImmediate(): void {
-		memory.views.u32[this.#pointer] = 0;
+		Memory.views.u32[this.#pointer] = 0;
 	}
 
 	/**
@@ -121,18 +121,18 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	#addEvent(): number {
 		const { length } = this;
 		if (
-			length === memory.views.u32[this.#pointer + 1] &&
+			length === Memory.views.u32[this.#pointer + 1] &&
 			this.type.size !== 0
 		) {
 			// Add space for 8 more events
-			memory.reallocAt(
+			Memory.reallocAt(
 				(this.#pointer + 2) << 2,
 				length * this.type.size! + 8 * this.type.size!,
 			);
-			memory.views.u32[this.#pointer + 1] += 8;
+			Memory.views.u32[this.#pointer + 1] += 8;
 		}
-		memory.views.u32[this.#pointer]++;
-		return length * this.type.size! + memory.views.u32[this.#pointer + 2];
+		Memory.views.u32[this.#pointer]++;
+		return length * this.type.size! + Memory.views.u32[this.#pointer + 2];
 	}
 }
 
@@ -149,10 +149,10 @@ if (import.meta.vitest) {
 		queueType: T,
 	) {
 		const world = await World.new({ isMainThread: true }).build();
-		const pointer = memory.alloc(12 + queueType.size!);
+		const pointer = Memory.alloc(12 + queueType.size!);
 		const instance = new queueType() as { __$$b: number };
-		memory.copy(instance.__$$b, queueType.size!, pointer + 12);
-		memory.free(instance.__$$b);
+		Memory.copy(instance.__$$b, queueType.size!, pointer + 12);
+		Memory.free(instance.__$$b);
 		return [
 			new EventReader<I>(world.commands, queueType as any, pointer),
 			new EventWriter<I>(world.commands, queueType as any, pointer),
@@ -170,8 +170,8 @@ if (import.meta.vitest) {
 	}
 
 	beforeEach(() => {
-		memory.init(5000);
-		return () => memory.UNSAFE_CLEAR_ALL();
+		Memory.init(5000);
+		return () => Memory.UNSAFE_CLEAR_ALL();
 	});
 
 	it('EventReader.type and EventWriter.type point to the struct', async () => {
@@ -291,7 +291,7 @@ if (import.meta.vitest) {
 		}
 		const [, zstWriter] = await setupQueue(ZST);
 		const [, sizedWriter] = await setupQueue(A);
-		const reallocSpy = vi.spyOn(memory, 'reallocAt');
+		const reallocSpy = vi.spyOn(Memory, 'reallocAt');
 		expect(reallocSpy).not.toHaveBeenCalled();
 
 		for (let i = 0; i < 10; i++) {

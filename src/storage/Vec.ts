@@ -1,4 +1,4 @@
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 
 /**
  * A `Vec<u32>`.
@@ -13,7 +13,7 @@ export class Vec {
 		return new this(pointer >> 2);
 	}
 	static new() {
-		return new this(memory.alloc(this.size) >> 2);
+		return new this(Memory.alloc(this.size) >> 2);
 	}
 
 	/**
@@ -30,19 +30,19 @@ export class Vec {
 	 * If set, will grow if needed and initialize new elements to 0.
 	 */
 	get length(): number {
-		return memory.views.u32[this.#rawPointer];
+		return Memory.views.u32[this.#rawPointer];
 	}
 	set length(newLength: number) {
 		if (newLength > this.capacity) {
 			this.grow(newLength);
 		} else if (newLength < this.length) {
-			memory.set(
+			Memory.set(
 				(this.#rawPointer + newLength) << 2,
 				this.length - newLength,
 				0,
 			);
 		}
-		memory.views.u32[this.#rawPointer] = newLength;
+		Memory.views.u32[this.#rawPointer] = newLength;
 	}
 
 	/**
@@ -50,20 +50,20 @@ export class Vec {
 	 * Can be set to resize.
 	 */
 	get capacity(): number {
-		return memory.views.u32[this.#rawPointer + 1];
+		return Memory.views.u32[this.#rawPointer + 1];
 	}
 	set capacity(newCapacity: number) {
 		if (newCapacity > this.capacity) {
 			this.grow(newCapacity);
 		}
-		memory.views.u32[this.#rawPointer + 1] = newCapacity;
+		Memory.views.u32[this.#rawPointer + 1] = newCapacity;
 	}
 
 	/**
 	 * The pointer to this Vecs elements.
 	 */
 	get #pointer(): number {
-		return memory.views.u32[this.#rawPointer + 2] >> 2;
+		return Memory.views.u32[this.#rawPointer + 2] >> 2;
 	}
 
 	/**
@@ -78,7 +78,7 @@ export class Vec {
 				'Out of bounds index access in Vec.prototype.get()!',
 			);
 		}
-		return memory.views.u32[this.#pointer + index];
+		return Memory.views.u32[this.#pointer + index];
 	}
 
 	/**
@@ -93,7 +93,7 @@ export class Vec {
 				'Out of bounds index access in Vec.prototype.get()!',
 			);
 		}
-		memory.views.u32[this.#pointer + index] = value;
+		Memory.views.u32[this.#pointer + index] = value;
 	}
 
 	/**
@@ -105,8 +105,8 @@ export class Vec {
 		if (this.length === this.capacity) {
 			this.grow(this.length * 2 || 8);
 		}
-		memory.views.u32[this.#pointer + this.length] = value;
-		memory.views.u32[this.#rawPointer]++;
+		Memory.views.u32[this.#pointer + this.length] = value;
+		Memory.views.u32[this.#rawPointer]++;
 		return this.length;
 	}
 
@@ -114,9 +114,9 @@ export class Vec {
 	 * Removes the last element of this Vec and returns it.
 	 */
 	pop(): number {
-		memory.views.u32[this.#rawPointer]--;
-		const value = memory.views.u32[this.#pointer + this.length];
-		memory.views.u32[this.#pointer + this.length] = 0;
+		Memory.views.u32[this.#rawPointer]--;
+		const value = Memory.views.u32[this.#pointer + this.length];
+		Memory.views.u32[this.#pointer + this.length] = 0;
 		return value;
 	}
 
@@ -128,8 +128,8 @@ export class Vec {
 		if (newCapacity <= this.capacity) {
 			return;
 		}
-		memory.reallocAt((this.#rawPointer + 2) << 2, newCapacity * 4);
-		memory.views.u32[this.#rawPointer + 1] = newCapacity;
+		Memory.reallocAt((this.#rawPointer + 2) << 2, newCapacity * 4);
+		Memory.views.u32[this.#rawPointer + 1] = newCapacity;
 	}
 }
 
@@ -140,9 +140,9 @@ if (import.meta.vitest) {
 	const { it, expect, beforeEach, vi } = import.meta.vitest;
 
 	beforeEach(() => {
-		memory.init(10_000);
+		Memory.init(10_000);
 		return () => {
-			memory.UNSAFE_CLEAR_ALL();
+			Memory.UNSAFE_CLEAR_ALL();
 			vi.clearAllMocks();
 		};
 	});

@@ -28,7 +28,7 @@ export function getSystemIntersections(systems: System[]): bigint[] {
 \*---------*/
 if (import.meta.vitest) {
 	const { describe, it, expect, vi } = import.meta.vitest;
-	const { QueryDescriptor, MutDescriptor, ResourceDescriptor } = await import(
+	const { QueryDescriptor, Mut, ResourceDescriptor } = await import(
 		'../../descriptors'
 	);
 
@@ -108,14 +108,14 @@ if (import.meta.vitest) {
 
 	describe('getSystemIntersections', () => {
 		it('returns bigint bitmasks indicating system intersection', () => {
-			const s0 = { parameters: [QueryDescriptor([MutDescriptor(A), B])] };
-			const s1 = { parameters: [QueryDescriptor([A, D])] };
-			const s2 = { parameters: [QueryDescriptor([MutDescriptor(B), C])] };
-			const s3 = { parameters: [QueryDescriptor([B, D])] };
+			const s0 = { parameters: [new QueryDescriptor([new Mut(A), B])] };
+			const s1 = { parameters: [new QueryDescriptor([A, D])] };
+			const s2 = { parameters: [new QueryDescriptor([new Mut(B), C])] };
+			const s3 = { parameters: [new QueryDescriptor([B, D])] };
 
-			const s4 = { parameters: [ResourceDescriptor(B)] };
-			const s5 = { parameters: [ResourceDescriptor(B)] };
-			const s6 = { parameters: [ResourceDescriptor(MutDescriptor(B))] };
+			const s4 = { parameters: [new ResourceDescriptor(B)] };
+			const s5 = { parameters: [new ResourceDescriptor(B)] };
+			const s6 = { parameters: [new ResourceDescriptor(new Mut(B))] };
 
 			const result = getSystemIntersections([
 				s0,

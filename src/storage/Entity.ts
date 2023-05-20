@@ -1,5 +1,5 @@
 import { DEV_ASSERT } from '../utils/DEV_ASSERT';
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 import { initStruct } from './initStruct';
 import { BaseEntity } from '../utils/BaseEntity';
 import type { Commands } from '../commands';
@@ -29,21 +29,21 @@ export class Entity extends BaseEntity {
 	 * Composed of an entity's generation & index.
 	 */
 	get id(): bigint {
-		return memory.views.u64![this.__$$b >> 3];
+		return Memory.views.u64![this.__$$b >> 3];
 	}
 
 	/**
 	 * The index of this entity (uint32).
 	 */
 	get index(): number {
-		return memory.views.u32![this.__$$b >> 2];
+		return Memory.views.u32![this.__$$b >> 2];
 	}
 
 	/**
 	 * The generation of this entity (uint32).
 	 */
 	get generation(): number {
-		return memory.views.u32![(this.__$$b >> 2) + 1];
+		return Memory.views.u32![(this.__$$b >> 2) + 1];
 	}
 
 	/**

@@ -99,11 +99,11 @@ struct.substruct = substruct;
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, beforeEach } = import.meta.vitest;
-	const { memory } = await import('../utils/memory');
+	const { Memory } = await import('../utils/Memory');
 
 	beforeEach(() => {
-		memory.init(10_000);
-		return () => memory.UNSAFE_CLEAR_ALL();
+		Memory.init(10_000);
+		return () => Memory.UNSAFE_CLEAR_ALL();
 	});
 
 	@struct
@@ -158,7 +158,7 @@ if (import.meta.vitest) {
 		vec.x = Math.PI;
 		expect(vec.x).toBe(Math.PI);
 
-		vec.__$$b = memory.alloc(Vec3.size!);
+		vec.__$$b = Memory.alloc(Vec3.size!);
 		expect(vec.x).toBe(0);
 		expect(vec.y).toBe(0);
 		expect(vec.z).toBe(0);
@@ -197,13 +197,13 @@ if (import.meta.vitest) {
 			expect(comp.field).toBe(init);
 			comp.field = val;
 			expect(comp.field).toBe(val);
-			comp.__$$b = memory.alloc(Comp.size!);
+			comp.__$$b = Memory.alloc(Comp.size!);
 			expect(comp.field).toBe(init);
 		}
 	});
 
 	it('works for string fields', () => {
-		memory.init(256);
+		Memory.init(256);
 		@struct
 		class Comp {
 			@struct.string declare value: string;
@@ -244,7 +244,7 @@ if (import.meta.vitest) {
 		comp.value2 = new Float64Array(3).fill(Math.PI);
 		expect(comp.value).toStrictEqual(new Uint8Array(8).fill(3));
 		expect(comp.value2).toStrictEqual(new Float64Array(3).fill(Math.PI));
-		comp.__$$b = memory.alloc(Comp.size!);
+		comp.__$$b = Memory.alloc(Comp.size!);
 
 		expect(comp.value).toStrictEqual(new Uint8Array(8));
 		expect(comp.value2).toStrictEqual(new Float64Array(3));

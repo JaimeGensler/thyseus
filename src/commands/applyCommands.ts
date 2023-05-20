@@ -1,4 +1,4 @@
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 import { WorldDescriptor } from '../world/WorldDescriptor';
 import { SystemResourceDescriptor } from '../resources';
 import { ADD_COMPONENT_COMMAND, CLEAR_QUEUE_COMMAND } from './Commands';
@@ -17,17 +17,17 @@ export function applyCommands(
 	// Main command handling loop
 	for (const { type, dataStart } of commands) {
 		if (type === CLEAR_QUEUE_COMMAND) {
-			const queueLengthPointer = memory.views.u32[dataStart >> 2];
-			memory.views.u32[queueLengthPointer >> 2] = 0;
+			const queueLengthPointer = Memory.views.u32[dataStart >> 2];
+			Memory.views.u32[queueLengthPointer >> 2] = 0;
 			continue;
 		}
 
-		const entityId = memory.views.u64[dataStart >> 3];
+		const entityId = Memory.views.u64[dataStart >> 3];
 		let val = entityDestinations.get(entityId);
 		if (val === 0n) {
 			continue;
 		}
-		const componentId = memory.views.u16[(dataStart + 8) >> 1];
+		const componentId = Memory.views.u16[(dataStart + 8) >> 1];
 		val ??= entities.getArchetype(entityId);
 		entityDestinations.set(
 			entityId,
@@ -49,12 +49,12 @@ export function applyCommands(
 		if (type !== ADD_COMPONENT_COMMAND) {
 			continue;
 		}
-		const entityId = memory.views.u64[dataStart >> 3];
+		const entityId = Memory.views.u64[dataStart >> 3];
 		const tableId = entities.getTableId(entityId);
 		if (tableId === 0) {
 			continue;
 		}
-		const componentId = memory.views.u16[(dataStart + 8) >> 1];
+		const componentId = Memory.views.u16[(dataStart + 8) >> 1];
 		tables[tableId]!.copyComponentIntoRow(
 			entities.getRow(entityId),
 			components[componentId],
@@ -76,9 +76,9 @@ if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { initStruct } = await import('../storage');
 	const { World } = await import('../world/World');
-	const { memory } = await import('../utils/memory');
+	const { Memory } = await import('../utils/Memory');
 
-	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
+	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
 	class ZST {
 		static size = 0;
@@ -100,16 +100,16 @@ if (import.meta.vitest) {
 
 		declare __$$b: number;
 		get x() {
-			return memory.views.u32[this.__$$b >> 2];
+			return Memory.views.u32[this.__$$b >> 2];
 		}
 		get y() {
-			return memory.views.u32[(this.__$$b >> 2) + 1];
+			return Memory.views.u32[(this.__$$b >> 2) + 1];
 		}
 		set x(val: number) {
-			memory.views.u32[this.__$$b >> 2] = val;
+			Memory.views.u32[this.__$$b >> 2] = val;
 		}
 		set y(val: number) {
-			memory.views.u32[(this.__$$b >> 2) + 1] = val;
+			Memory.views.u32[(this.__$$b >> 2) + 1] = val;
 		}
 
 		constructor(x = 23, y = 42) {
@@ -149,7 +149,7 @@ if (import.meta.vitest) {
 		const testComp = new CompD();
 
 		const column =
-			memory.views.u32[archetypeD.getColumnPointer(CompD) >> 2];
+			Memory.views.u32[archetypeD.getColumnPointer(CompD) >> 2];
 
 		testComp.__$$b = column;
 		expect(archetypeD.length).toBe(1);

@@ -1,5 +1,5 @@
 import { addField } from './addField';
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 
 // Adapted from https://stackoverflow.com/questions/5515869/string-length-in-bytes-in-javascript
 function getByteLength(val: string) {
@@ -32,27 +32,27 @@ export function string(prototype: object, propertyKey: string | symbol) {
 		enumerable: true,
 		get() {
 			const start = this.__$$b + offset[propertyKey];
-			const length = memory.views.u32[start >> 2];
-			const ptr = memory.views.u32[(start + 8) >> 2];
-			return decoder.decode(memory.views.u8.subarray(ptr, ptr + length));
+			const length = Memory.views.u32[start >> 2];
+			const ptr = Memory.views.u32[(start + 8) >> 2];
+			return decoder.decode(Memory.views.u8.subarray(ptr, ptr + length));
 		},
 
 		set(value: string) {
 			const byteLength = getByteLength(value);
 			const start = this.__$$b + offset[propertyKey];
-			const capacity = memory.views.u32[(start + 4) >> 2];
-			let pointer = memory.views.u32[(start + 8) >> 2];
+			const capacity = Memory.views.u32[(start + 4) >> 2];
+			let pointer = Memory.views.u32[(start + 8) >> 2];
 			if (capacity < byteLength) {
-				const newPointer = memory.realloc(pointer, byteLength);
+				const newPointer = Memory.realloc(pointer, byteLength);
 				pointer = newPointer;
-				memory.views.u32[(start + 4) >> 2] = byteLength;
-				memory.views.u32[(start + 8) >> 2] = newPointer;
+				Memory.views.u32[(start + 4) >> 2] = byteLength;
+				Memory.views.u32[(start + 8) >> 2] = newPointer;
 			}
 
-			memory.views.u32[start >> 2] = byteLength;
+			Memory.views.u32[start >> 2] = byteLength;
 			encoder.encodeInto(
 				value,
-				memory.views.u8.subarray(pointer, pointer + byteLength!),
+				Memory.views.u8.subarray(pointer, pointer + byteLength!),
 			);
 		},
 	});

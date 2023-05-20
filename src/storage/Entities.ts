@@ -1,5 +1,5 @@
 import { DEV_ASSERT } from '../utils/DEV_ASSERT';
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 import { Entity } from './Entity';
 import { Vec } from './Vec';
 import type { World } from '../world';
@@ -10,7 +10,7 @@ const getIndex = (entityId: bigint) => Number(entityId & low32);
 const getGeneration = (entityId: bigint) => Number(entityId >> 32n);
 const ENTITY_BATCH_SIZE = 256;
 const createSharedVec = (world: World) =>
-	Vec.fromPointer(world.threads.queue(() => memory.alloc(Vec.size)));
+	Vec.fromPointer(world.threads.queue(() => Memory.alloc(Vec.size)));
 
 const ENTITIES_POINTER_SIZE = 8; // [u32, u32]
 
@@ -44,7 +44,7 @@ export class Entities {
 	constructor(world: World) {
 		this.#world = world;
 		this.#data = world.threads.queue(
-			() => memory.alloc(ENTITIES_POINTER_SIZE) >> 2,
+			() => Memory.alloc(ENTITIES_POINTER_SIZE) >> 2,
 		);
 		this.#generations = createSharedVec(world);
 		this.#locations = createSharedVec(world);
@@ -59,7 +59,7 @@ export class Entities {
 		if (cursor >= this.#freed.length) {
 			// If we've already exhausted freed ids,
 			// bump the nextId and return that (generation = 0)
-			return BigInt(Atomics.add(memory.views.u32, this.#data, 1));
+			return BigInt(Atomics.add(Memory.views.u32, this.#data, 1));
 		}
 		const index = this.#freed.get(this.#freed.length - 1 - cursor);
 		// generations[index] will exist because we've allocated
@@ -114,7 +114,7 @@ export class Entities {
 	}
 
 	resetCursor(): void {
-		const { u32 } = memory.views;
+		const { u32 } = Memory.views;
 		this.#freed.length -= Math.min(this.#freed.length, u32[this.#data + 1]);
 		u32[this.#data + 1] = 0;
 
@@ -161,7 +161,7 @@ export class Entities {
 		// This will move the cursor past the length of the freed Vec - this is
 		// intentional, we check to see if we've moved too far to see if we need
 		// to get fresh (generation = 0) ids.
-		return Atomics.add(memory.views.u32, this.#data + 1, 1);
+		return Atomics.add(Memory.views.u32, this.#data + 1, 1);
 	}
 }
 
@@ -181,7 +181,7 @@ if (import.meta.vitest) {
 		return builder.build();
 	}
 
-	beforeEach(() => memory.UNSAFE_CLEAR_ALL());
+	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
 	it('returns incrementing generational integers', async () => {
 		const world = await createWorld();

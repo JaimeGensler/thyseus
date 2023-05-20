@@ -1,12 +1,12 @@
 import { DEV_ASSERT } from '../utils/DEV_ASSERT';
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 import type { Struct } from '../struct';
 
 let byteOffset = 0;
 
 export function initStruct(instance: object): void {
 	DEV_ASSERT(
-		memory.isInitialized, // Structs require memory to be initialized.
+		Memory.isInitialized, // Structs require memory to be initialized.
 		'Tried to create a struct before memory was initialized.',
 	);
 
@@ -17,15 +17,15 @@ export function initStruct(instance: object): void {
 	(instance as any).__$$b =
 		byteOffset !== 0
 			? byteOffset // Managed Struct
-			: memory.alloc((instance.constructor as Struct).size!); // Unmanaged Struct
+			: Memory.alloc((instance.constructor as Struct).size!); // Unmanaged Struct
 }
 export function dropStruct(instance: object): void {
 	const structType = instance.constructor as Struct;
 	const byteOffset = (instance as any).__$$b;
 	for (const pointer of structType.pointers ?? []) {
-		memory.free(memory.views.u32[(byteOffset + pointer) >> 2]);
+		Memory.free(Memory.views.u32[(byteOffset + pointer) >> 2]);
 	}
-	memory.free(byteOffset);
+	Memory.free(byteOffset);
 }
 
 export function createManagedStruct<T extends Struct>(
@@ -46,13 +46,13 @@ if (import.meta.vitest) {
 	const { struct } = await import('../struct');
 
 	beforeEach(() => {
-		memory.init(10_000);
-		return () => memory.UNSAFE_CLEAR_ALL();
+		Memory.init(10_000);
+		return () => Memory.UNSAFE_CLEAR_ALL();
 	});
 
 	describe('initStruct', () => {
 		it('allocates space for one struct', () => {
-			const allocSpy = vi.spyOn(memory, 'alloc');
+			const allocSpy = vi.spyOn(Memory, 'alloc');
 			class MyComponent {
 				static size = 15;
 				constructor() {
@@ -71,7 +71,7 @@ if (import.meta.vitest) {
 		});
 
 		it('does not alloc if byteOffset is already set', () => {
-			const allocSpy = vi.spyOn(memory, 'alloc');
+			const allocSpy = vi.spyOn(Memory, 'alloc');
 			class Parent {
 				static size = 15;
 				constructor() {
@@ -100,8 +100,8 @@ if (import.meta.vitest) {
 					initStruct(this);
 				}
 			}
-			const pointer = memory.alloc(MyComponent.size);
-			const allocSpy = vi.spyOn(memory, 'alloc');
+			const pointer = Memory.alloc(MyComponent.size);
+			const allocSpy = vi.spyOn(Memory, 'alloc');
 			expect(allocSpy).not.toHaveBeenCalled();
 
 			const instance = createManagedStruct(MyComponent, pointer);
@@ -117,7 +117,7 @@ if (import.meta.vitest) {
 
 	describe('dropStruct', () => {
 		it('drops plain structs', () => {
-			const freeSpy = vi.spyOn(memory, 'free');
+			const freeSpy = vi.spyOn(Memory, 'free');
 			class StringComp {
 				static size = 8;
 				constructor() {
@@ -128,7 +128,7 @@ if (import.meta.vitest) {
 			expect(freeSpy).toHaveBeenCalledOnce();
 		});
 		it('dropStruct drops pointers', () => {
-			const freeSpy = vi.spyOn(memory, 'free');
+			const freeSpy = vi.spyOn(Memory, 'free');
 			@struct
 			class StringComp {
 				declare __$$b: number;
@@ -138,7 +138,7 @@ if (import.meta.vitest) {
 			const comp = new StringComp();
 			comp.val = 'test!';
 			expect(comp.val).toBe('test!');
-			const stringPointer = memory.views.u32[(comp.__$$b + 8) >> 2];
+			const stringPointer = Memory.views.u32[(comp.__$$b + 8) >> 2];
 			const instancePointer = comp.__$$b;
 			expect(freeSpy).not.toHaveBeenCalled();
 			dropStruct(comp);

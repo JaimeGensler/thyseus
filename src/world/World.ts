@@ -2,7 +2,7 @@ import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 import { WorldBuilder } from './WorldBuilder';
 import { Commands } from '../commands';
 import { bits } from '../utils/bits';
-import { memory } from '../utils/memory';
+import { Memory } from '../utils/Memory';
 import { Entities, Table } from '../storage';
 import { EventReader, EventWriter } from '../events';
 import { createManagedStruct } from '../storage/initStruct';
@@ -63,9 +63,9 @@ export class World {
 		this.threads = threads;
 		this.components = components;
 
-		memory.init(
+		Memory.init(
 			this.threads.queue(() =>
-				memory.init(
+				Memory.init(
 					config.memorySize,
 					config.useSharedMemory || config.threads > 1,
 				),
@@ -81,11 +81,11 @@ export class World {
 
 		for (const eventType of eventTypes) {
 			const pointer = this.threads.queue(() => {
-				const ptr = memory.alloc(12 + eventType.size!);
+				const ptr = Memory.alloc(12 + eventType.size!);
 				if (eventType.size !== 0) {
 					const instance = new eventType() as { __$$b: number };
-					memory.copy(instance.__$$b, eventType.size!, ptr + 12);
-					memory.free(instance.__$$b);
+					Memory.copy(instance.__$$b, eventType.size!, ptr + 12);
+					Memory.free(instance.__$$b);
 				}
 				return ptr;
 			});
@@ -101,7 +101,7 @@ export class World {
 			if (isStruct(resourceType)) {
 				const pointer = this.threads.queue(() =>
 					resourceType.size! !== 0
-						? memory.alloc(resourceType.size!)
+						? Memory.alloc(resourceType.size!)
 						: 0,
 				);
 				this.resources.push(createManagedStruct(resourceType, pointer));
