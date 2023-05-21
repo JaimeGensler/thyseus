@@ -1,4 +1,4 @@
-import { BaseEntity } from '../utils/BaseEntity';
+import { BaseEntity } from '../utils';
 import type { Commands } from './Commands';
 
 export class EntityCommands extends BaseEntity {

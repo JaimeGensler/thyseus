@@ -1,4 +1,4 @@
-import { Memory } from '../utils/Memory';
+import { Memory } from '../utils';
 import { createManagedStruct } from '../storage/initStruct';
 import { isStruct, type Class } from '../struct';
 import type { SystemParameter } from '../systems';

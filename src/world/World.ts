@@ -1,19 +1,15 @@
-import { DEV_ASSERT } from '../utils/DEV_ASSERT';
+import { bits, DEV_ASSERT, Memory } from '../utils';
 import { WorldBuilder } from './WorldBuilder';
 import { Commands } from '../commands';
-import { bits } from '../utils/bits';
-import { Memory } from '../utils/Memory';
-import { Entities, Table } from '../storage';
+import { createManagedStruct, Entities, Table } from '../storage';
 import { EventReader, EventWriter } from '../events';
-import { createManagedStruct } from '../storage/initStruct';
-import { CoreSchedule } from '../schedule';
+import { CoreSchedule, type ExecutorInstance } from '../schedule';
 import { isStruct, type Class, type Struct } from '../struct';
 import {
 	validateAndCompleteConfig,
 	type WorldConfig,
 	type SingleThreadedWorldConfig,
 } from './config';
-import type { ExecutorInstance } from '../schedule/executors';
 import type { ThreadGroup } from '../threads';
 import type { Query } from '../queries';
 

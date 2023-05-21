@@ -1,5 +1,5 @@
 import { addField } from './addField';
-import { Memory } from '../utils/Memory';
+import { Memory } from '../utils';
 import type { Struct } from './struct';
 import { createManagedStruct } from '../storage/initStruct';
 

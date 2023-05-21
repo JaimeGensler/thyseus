@@ -1,4 +1,4 @@
-import { Memory } from '../utils/Memory';
+import { Memory } from '../utils';
 import { addField, TYPE_TO_CONSTRUCTOR, type PrimitiveName } from './addField';
 
 function createPrimativeFieldDecorator(typeName: PrimitiveName) {

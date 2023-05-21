@@ -1,5 +1,5 @@
+import { DEV_ASSERT } from '../utils';
 import type { System } from '../systems';
-import { DEV_ASSERT } from '../utils/DEV_ASSERT';
 
 class SystemConfig {
 	dependents: System[] = [];

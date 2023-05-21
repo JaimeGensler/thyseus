@@ -1,4 +1,4 @@
-import { Memory } from '../utils/Memory';
+import { Memory } from '../utils';
 
 /**
  * A `Vec<u32>`.

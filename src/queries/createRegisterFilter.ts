@@ -1,4 +1,4 @@
-import { DEV_ASSERT } from '../utils/DEV_ASSERT';
+import { DEV_ASSERT } from '../utils';
 import { Or, With, Without, type Filter } from './modifiers';
 import type { Struct } from '../struct';
 import type { WorldBuilder } from '../world';

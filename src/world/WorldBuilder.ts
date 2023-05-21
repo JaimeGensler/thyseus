@@ -1,4 +1,4 @@
-import { DEV_ASSERT } from '../utils/DEV_ASSERT';
+import { DEV_ASSERT } from '../utils';
 import { World } from './World';
 import { defaultPlugin, type Plugin } from './defaultPlugin';
 import { ThreadGroup } from '../threads';
@@ -235,7 +235,7 @@ export class WorldBuilder {
 if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { Entity, initStruct } = await import('../storage');
-	const { Memory } = await import('../utils/Memory');
+	const { Memory } = await import('../utils');
 
 	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 

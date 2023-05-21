@@ -6,8 +6,8 @@ export { SystemResourceDescriptor } from './resources';
 export { EventReaderDescriptor, EventWriterDescriptor } from './events';
 export {
 	Mut,
-	// Optional as OptionalModifier,
 	With,
 	Without,
 	Or,
+	// Optional as OptionalModifier,
 } from './queries';

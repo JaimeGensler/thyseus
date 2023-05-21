@@ -1,5 +1,4 @@
-import { DEV_ASSERT } from '../utils/DEV_ASSERT';
-import { Memory } from '../utils/Memory';
+import { DEV_ASSERT, Memory } from '../utils';
 import type { Struct } from '../struct';
 
 let byteOffset = 0;

@@ -1,4 +1,4 @@
-import { DEV_ASSERT } from '../utils/DEV_ASSERT';
+import { DEV_ASSERT } from '../utils';
 import { Query } from './Query';
 import { Mut, Optional, Filter, With, Without, Or } from './modifiers';
 import { registerFilters, createFilterBitfields } from './createRegisterFilter';
@@ -114,7 +114,7 @@ export class QueryDescriptor<
 if (import.meta.vitest) {
 	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
 	const { struct } = await import('../struct');
-	const { Memory } = await import('../utils/Memory');
+	const { Memory } = await import('../utils');
 
 	beforeEach(() => {
 		Memory.init(1_000);

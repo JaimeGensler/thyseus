@@ -1,4 +1,4 @@
-import { DEV_ASSERT } from '../utils/DEV_ASSERT';
+import { DEV_ASSERT } from '../utils';
 
 export type WorldConfig = {
 	threads: number;

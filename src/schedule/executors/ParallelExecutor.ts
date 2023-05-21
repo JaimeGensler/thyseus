@@ -1,4 +1,4 @@
-import { Memory } from '../../utils/Memory';
+import { Memory } from '../../utils';
 import { getSystemIntersections } from './getSystemIntersections';
 import { getSystemDependencies } from './getSystemDependencies';
 import { overlaps } from './overlaps';

@@ -1,4 +1,4 @@
-import { Memory } from '../utils/Memory';
+import { Memory } from '../utils';
 import { dropStruct } from '../storage/initStruct';
 import { Entity, type Table, type Entities } from '../storage';
 import type { Struct } from '../struct';

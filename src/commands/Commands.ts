@@ -1,6 +1,4 @@
-import { DEV_ASSERT } from '../utils/DEV_ASSERT';
-import { alignTo8 } from '../utils/alignTo8';
-import { Memory } from '../utils/Memory';
+import { alignTo8, DEV_ASSERT, Memory } from '../utils';
 import { EntityCommands } from './EntityCommands';
 import { Entity, type Entities } from '../storage';
 import type { Struct } from '../struct';

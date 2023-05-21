@@ -99,7 +99,7 @@ struct.substruct = substruct;
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, beforeEach } = import.meta.vitest;
-	const { Memory } = await import('../utils/Memory');
+	const { Memory } = await import('../utils');
 
 	beforeEach(() => {
 		Memory.init(10_000);

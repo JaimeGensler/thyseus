@@ -1,5 +1,5 @@
 import { addField } from './addField';
-import { Memory } from '../utils/Memory';
+import { Memory } from '../utils';
 
 // Adapted from https://stackoverflow.com/questions/5515869/string-length-in-bytes-in-javascript
 function getByteLength(val: string) {

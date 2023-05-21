@@ -1,4 +1,4 @@
-import { Memory } from '../utils/Memory';
+import { Memory } from '../utils';
 import { dropStruct } from '../storage/initStruct';
 import { CLEAR_QUEUE_COMMAND, type Commands } from '../commands/Commands';
 import type { Struct } from '../struct';

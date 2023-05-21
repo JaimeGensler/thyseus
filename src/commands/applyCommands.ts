@@ -1,4 +1,4 @@
-import { Memory } from '../utils/Memory';
+import { Memory } from '../utils';
 import { WorldDescriptor } from '../world/WorldDescriptor';
 import { SystemResourceDescriptor } from '../resources';
 import { ADD_COMPONENT_COMMAND, CLEAR_QUEUE_COMMAND } from './Commands';
@@ -76,7 +76,7 @@ if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { initStruct } = await import('../storage');
 	const { World } = await import('../world/World');
-	const { Memory } = await import('../utils/Memory');
+	const { Memory } = await import('../utils');
 
 	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 

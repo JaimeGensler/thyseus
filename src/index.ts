@@ -3,7 +3,7 @@ export { World } from './world';
 export { Entity, initStruct, dropStruct } from './storage';
 export { struct } from './struct';
 export { run, CoreSchedule } from './schedule';
-export { Memory } from './utils/Memory';
+export { Memory } from './utils';
 export { cloneSystem } from './systems';
 
 export {
@@ -17,8 +17,8 @@ export {
 	Mut,
 	With,
 	Without,
-	// Optional,
 	Or,
+	// Optional,
 } from './descriptors';
 
 export type { Commands, EntityCommands } from './commands';

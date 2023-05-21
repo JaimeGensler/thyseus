@@ -1,7 +1,5 @@
-import { DEV_ASSERT } from '../utils/DEV_ASSERT';
-import { Memory } from '../utils/Memory';
+import { BaseEntity, DEV_ASSERT, Memory } from '../utils';
 import { initStruct } from './initStruct';
-import { BaseEntity } from '../utils/BaseEntity';
 import type { Commands } from '../commands';
 import type { Struct } from '../struct';
 import type { Entities } from './Entities';

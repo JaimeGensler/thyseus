@@ -1,5 +1,4 @@
-import { DEV_ASSERT } from '../../utils/DEV_ASSERT';
-import { bits } from '../../utils/bits';
+import { bits, DEV_ASSERT } from '../../utils';
 import type { System } from '../../systems';
 import type { SystemConfig } from '../run';
 

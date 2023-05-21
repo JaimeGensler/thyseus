@@ -1,5 +1,5 @@
 import { getSystemDependencies } from './getSystemDependencies';
-import { bits } from '../../utils/bits';
+import { bits } from '../../utils';
 import type { World } from '../../world';
 import type { System } from '../../systems';
 import type { SystemConfig } from '../run';

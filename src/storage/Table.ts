@@ -1,4 +1,4 @@
-import { Memory } from '../utils/Memory';
+import { Memory } from '../utils';
 import { Entity } from './Entity';
 import type { Struct } from '../struct';
 

@@ -44,7 +44,7 @@ export class EventWriterDescriptor<
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
-	const { Memory } = await import('../utils/Memory');
+	const { Memory } = await import('../utils');
 	const { initStruct } = await import('../storage');
 	const { EventReader, EventWriter } = await import('./Events');
 

@@ -1,4 +1,4 @@
-import { bits } from '../../utils/bits';
+import { bits } from '../../utils';
 
 export function overlaps(arr: Uint8Array, big: bigint, mode: 0 | 1): boolean {
 	for (const bit of bits(big)) {
