@@ -1,6 +1,5 @@
 import { Memory } from '../utils';
-import { dropStruct } from '../storage/initStruct';
-import { Entity, type Table, type Entities } from '../storage';
+import { dropStruct, Entity, Vec, type Table, type Entities } from '../storage';
 import type { Struct } from '../struct';
 import type { World } from '../world';
 import type { Commands } from '../commands';
@@ -24,7 +23,7 @@ type Element = { __$$b: number; constructor: Struct };
 export class Query<A extends Accessors, F extends Filter = []> {
 	#elements: Element[][] = [];
 
-	#pointer: number;
+	#vec: Vec;
 
 	#with: bigint[];
 	#without: bigint[];
@@ -39,7 +38,9 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		components: Struct[],
 		world: World,
 	) {
-		this.#pointer = world.threads.queue(() => Memory.alloc(12));
+		this.#vec = Vec.fromPointer(
+			world.threads.queue(() => Memory.alloc(Vec.size)),
+		);
 		this.#with = withFilters;
 		this.#without = withoutFilters;
 		this.#isIndividual = isIndividual;
@@ -53,55 +54,33 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	 */
 	get length(): number {
 		const { u32 } = Memory.views;
-		const tableCount = u32[this.#pointer >> 2];
 		const jump = this.#components.length + 1;
 		let length = 0;
-		let cursor = u32[(this.#pointer + 8) >> 2] >> 2;
-		for (let i = 0; i < tableCount; i++) {
-			length += u32[u32[cursor] >> 2];
-			cursor += jump;
+		for (let i = 0; i < this.#vec.length; i += jump) {
+			length += u32[this.#vec.get(i) >> 2];
 		}
 		return length;
-	}
-
-	get #size() {
-		return Memory.views.u32[this.#pointer >> 2];
-	}
-	set #size(val: number) {
-		Memory.views.u32[this.#pointer >> 2] = val;
-	}
-	get #capacity() {
-		return Memory.views.u32[(this.#pointer + 4) >> 2];
-	}
-	set #capacity(val: number) {
-		Memory.views.u32[(this.#pointer + 4) >> 2] = val;
 	}
 
 	*[Symbol.iterator](): Iterator<QueryIteration<A>> {
 		const { u32 } = Memory.views;
 		const elements = this.#getIteration() as Element[];
 
-		const tableCount = u32[this.#pointer >> 2];
-
-		let cursor = u32[(this.#pointer + 8) >> 2] >> 2;
-		for (let i = 0; i < tableCount; i++) {
-			const tableLength = u32[u32[cursor] >> 2];
-			cursor++;
+		for (let cursor = 0; cursor < this.#vec.length; ) {
+			const tableLength = u32[this.#vec.get(cursor++) >> 2];
 			if (tableLength === 0) {
+				cursor += this.#components.length;
 				continue;
 			}
 			for (const element of elements) {
-				element.__$$b = u32[u32[cursor] >> 2];
-				cursor++;
+				element.__$$b = u32[this.#vec.get(cursor++) >> 2];
 			}
 
 			for (let j = 0; j < tableLength; j++) {
 				yield (this.#isIndividual ? elements[0] : elements) as any;
 
 				for (const element of elements) {
-					if (element) {
-						element.__$$b += element.constructor.size!;
-					}
+					element.__$$b += element.constructor.size!;
 				}
 			}
 		}
@@ -141,25 +120,16 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	}
 
 	testAdd(table: Table): void {
-		const { u32 } = Memory.views;
 		if (this.#test(table.archetype)) {
-			if (this.#size === this.#capacity) {
+			if (this.#vec.length === this.#vec.capacity) {
 				// Grow for 8 tables at a time
-				const additionalSize = 8 * (this.#components.length + 1);
-				Memory.reallocAt(
-					this.#pointer + 8,
-					(this.#size + additionalSize) * 4,
+				this.#vec.grow(
+					this.#vec.length + 8 * (this.#components.length + 1),
 				);
-				this.#capacity += 8;
 			}
-			let cursor =
-				(u32[(this.#pointer + 8) >> 2] >> 2) +
-				this.#size * (this.#components.length + 1);
-			this.#size++;
-			u32[cursor] = table.getTableSizePointer();
+			this.#vec.push(table.getTableSizePointer());
 			for (const component of this.#components) {
-				cursor++;
-				u32[cursor] = table.getColumnPointer(component);
+				this.#vec.push(table.getColumnPointer(component));
 			}
 		}
 	}
@@ -450,6 +420,42 @@ if (import.meta.vitest) {
 			});
 			expect(tupleIter).toBe(queryTuple.length);
 			expect(soloIter).toBe(querySolo.length);
+		});
+
+		it('works if early table is empty and later table is not', async () => {
+			const world = await createWorld(Vec3);
+			const query = new Query<Entity>([0n], [0n], true, [Entity], world);
+
+			// Move one entity into an `Entity` table, and then move it out.
+			// Query will match that table, but it will be empty.
+			const id = world.entities.getId();
+			world.entities.resetCursor();
+			world.moveEntity(id, 0b01n);
+
+			world.moveEntity(id, 0b11n);
+
+			for (let i = 0; i < 9; i++) {
+				const id = world.entities.getId();
+				world.entities.resetCursor();
+				world.moveEntity(id, 0b11n);
+			}
+
+			const table1 = world.tables[1];
+			query.testAdd(table1);
+			expect(table1.length).toBe(0);
+			expect(query.length).toBe(0);
+
+			const table2 = world.tables[2];
+			query.testAdd(table2);
+			expect(table2.length).toBe(10);
+			expect(query.length).toBe(10);
+
+			let j = 0;
+			for (const vec of query) {
+				expect(vec).toBeInstanceOf(Entity);
+				j++;
+			}
+			expect(j).toBe(10);
 		});
 	});
 }

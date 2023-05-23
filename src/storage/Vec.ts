@@ -121,11 +121,12 @@ export class Vec {
 	}
 
 	/**
-	 * Grows the Vec to the specified size.
-	 * @param newCapacity The new length - **in elements** - of this Vec.
+	 * Grows the Vec to the specified capacity.
+	 * Length will not be changed.
+	 * @param newCapacity The new capacity - **in elements** - of this Vec.
 	 */
 	grow(newCapacity: number): void {
-		if (newCapacity <= this.capacity) {
+		if (this.capacity >= newCapacity) {
 			return;
 		}
 		Memory.reallocAt((this.#rawPointer + 2) << 2, newCapacity * 4);
