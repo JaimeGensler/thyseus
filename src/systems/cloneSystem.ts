@@ -1,11 +1,10 @@
 import { System } from './System';
 
 /**
- * Clones a system. Prefer adding the same system multiple times, if possible.
- *
- * Useful if you want the same system to receive different System Resources.
+ * Clones a system.
  *
  * NOTE: **Does not** preserve your system's `this` value.
+ *
  * @param system The system to clone.
  * @returns The cloned system.
  */

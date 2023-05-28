@@ -2,7 +2,7 @@ export { applyCommands } from './commands';
 export { World } from './world';
 export { Entity, initStruct, dropStruct } from './storage';
 export { struct } from './struct';
-export { run, CoreSchedule } from './schedule';
+export { run, DefaultSchedule, StartSchedule } from './schedule';
 export { Memory } from './utils';
 export { cloneSystem } from './systems';
 

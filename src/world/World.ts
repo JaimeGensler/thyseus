@@ -3,7 +3,7 @@ import { WorldBuilder } from './WorldBuilder';
 import { Commands } from '../commands';
 import { createManagedStruct, Entities, Table } from '../storage';
 import { EventReader, EventWriter } from '../events';
-import { CoreSchedule, type ExecutorInstance } from '../schedule';
+import { StartSchedule, type ExecutorInstance } from '../schedule';
 import { isStruct, type Class, type Struct } from '../struct';
 import {
 	validateAndCompleteConfig,
@@ -111,7 +111,14 @@ export class World {
 	 * Starts execution of the world.
 	 */
 	start(): void {
-		this.schedules[CoreSchedule.Outer].start();
+		DEV_ASSERT(
+			StartSchedule in this.schedules,
+			'Systems must be added to the StartSchedule to use world.start()!',
+		);
+		// Allow start() to be safely called from any thread
+		if (this.threads.isMainThread) {
+			this.schedules[StartSchedule].start();
+		}
 	}
 
 	/**

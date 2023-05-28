@@ -1,15 +1,16 @@
 import { DEV_ASSERT } from '../utils';
 import { World } from './World';
-import { defaultPlugin, type Plugin } from './defaultPlugin';
 import { ThreadGroup } from '../threads';
+import { Entity } from '../storage';
 import {
-	CoreSchedule,
+	DefaultSchedule,
 	ParallelExecutor,
 	SimpleExecutor,
 	type ExecutorType,
 	type SystemConfig,
 	type SystemList,
 } from '../schedule';
+import type { Plugin } from './Plugin';
 import type { System } from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
@@ -18,7 +19,7 @@ type SystemListArray = SystemList[];
 export class WorldBuilder {
 	schedules: Map<symbol, (System | SystemConfig)[]> = new Map();
 
-	components: Set<Struct> = new Set();
+	components: Set<Struct> = new Set([Entity]);
 	resources: Set<Class> = new Set();
 	events: Set<Struct> = new Set();
 
@@ -33,7 +34,6 @@ export class WorldBuilder {
 		this.url = url;
 		this.defaultExecutor =
 			config.threads > 1 ? ParallelExecutor : SimpleExecutor;
-		defaultPlugin(this);
 	}
 
 	/**
@@ -42,7 +42,7 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	addSystems(...systems: SystemListArray): this {
-		this.addSystemsToSchedule(CoreSchedule.Main, ...systems);
+		this.addSystemsToSchedule(DefaultSchedule, ...systems);
 		return this;
 	}
 
