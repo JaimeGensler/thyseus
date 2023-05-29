@@ -10,7 +10,7 @@ export class Table {
 	}
 
 	#components: Struct[];
-	#pointer: number; // [size, capacity, ...columnPointers]
+	#pointer: number; // [length, capacity, ...columnPointers]
 	archetype: bigint;
 	#id: number;
 	constructor(components: Struct[], archetype: bigint, id: number) {
@@ -37,7 +37,13 @@ export class Table {
 		return this.#components.includes(componentType);
 	}
 
-	delete(index: number): void {
+	add(entityId: bigint) {
+		const ptr = this.#getColumn(Entity);
+		Memory.views.u64[(ptr >> 3) + this.length] = entityId;
+		this.length++;
+	}
+
+	delete(row: number): void {
 		this.length--;
 		let i = 2; // Start of pointers
 		for (const component of this.#components) {
@@ -45,23 +51,20 @@ export class Table {
 			Memory.copy(
 				ptr + this.length * component.size!, // From the last element
 				component.size!, // Copy one component
-				ptr + index * component.size!, // To this element
+				ptr + row * component.size!, // To this element
 			);
 			i++;
 		}
 	}
 
-	move(index: number, targetTable: Table): null | bigint {
+	move(row: number, targetTable: Table): bigint {
 		const { u32, u64 } = Memory.views;
-		if (this.#components.length === 0) {
-			targetTable.length++;
-			return null;
-		}
+		// We never call move for the empty table, so ptr will be defined.
 		const ptr = this.#getColumn(Entity);
-		const lastEntity = u64[(ptr >> 3) + this.length];
+		const lastEntity = u64[(ptr >> 3) + this.length - 1];
 		for (const component of this.#components) {
 			const componentPointer =
-				this.#getColumn(component) + index * component.size!;
+				this.#getColumn(component) + row * component.size!;
 			if (targetTable.hasColumn(component)) {
 				Memory.copy(
 					componentPointer,
@@ -76,7 +79,7 @@ export class Table {
 			}
 		}
 		targetTable.length++;
-		this.delete(index);
+		this.delete(row);
 		return lastEntity;
 	}
 

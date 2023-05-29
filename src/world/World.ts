@@ -17,7 +17,7 @@ export class World {
 	/**
 	 * Constructs and returns a new `WorldBuilder`.
 	 * @param config The config of the world.
-	 * @returns A `WorldBuilder`
+	 * @returns A `WorldBuilder`.
 	 */
 	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
 	/**
@@ -158,21 +158,20 @@ export class World {
 
 		const currentTable = this.tables[this.entities.getTableId(entityId)];
 		const targetTable = this.#getTable(targetArchetype);
-
 		if (targetTable.length === targetTable.capacity) {
 			targetTable.grow(this.config.getNewTableSize(targetTable.capacity));
 		}
 
 		const row = this.entities.getRow(entityId);
-
-		// If the moving entity is the last element, move() returns the id of
-		// the entity that's moving tables. This means we set row for that
-		// entity twice, but the last set will be correct.
-		const backfilledEntity = currentTable.move(row, targetTable);
-		if (backfilledEntity !== null) {
+		if (currentTable.archetype === 0n) {
+			targetTable.add(entityId);
+		} else {
+			// If the moving entity is the last element, move() returns the id
+			// of the entity that's moving tables. This means we set row for
+			// that entity twice, but the last set will be correct.
+			const backfilledEntity = currentTable.move(row, targetTable);
 			this.entities.setRow(backfilledEntity, row);
 		}
-
 		if (targetArchetype === 0n) {
 			this.entities.freeId(entityId);
 		}
