@@ -174,6 +174,25 @@ if (import.meta.vitest) {
 		targetTable.length++;
 	};
 
+	it('add() adds an item', async () => {
+		const world = await createWorld();
+		const table = createTable(Entity);
+		expect(table.length).toBe(0);
+		expect(table.capacity).toBe(0);
+		table.grow(8);
+
+		const id1 = 4n;
+		const id2 = (1n << 32n) | 5n;
+		table.add(id1);
+		table.add(id2);
+
+		const entity = new Entity(world.commands, world.entities);
+		(entity as any).__$$b = getColumn(table, Entity);
+		expect(entity.id).toBe(id1);
+		(entity as any).__$$b += 8;
+		expect(entity.id).toBe(id2);
+	});
+
 	it('adds an element', async () => {
 		const world = await createWorld();
 		const table = createTable(Entity);
@@ -299,6 +318,22 @@ if (import.meta.vitest) {
 		expect(vec.x).toBe(7);
 		expect(vec.y).toBe(8);
 		expect(vec.z).toBe(9);
+	});
+
+	it('move() returns the last entity', async () => {
+		const table = createTable(Entity);
+		const empty = Table.createEmpty();
+		expect(table.length).toBe(0);
+		expect(table.capacity).toBe(0);
+		table.grow(8);
+
+		const id1 = 4n;
+		const id2 = (1n << 32n) | 5n;
+		table.add(id1);
+		table.add(id2);
+
+		expect(table.move(0, empty)).toBe(id2);
+		expect(table.move(0, empty)).toBe(id2);
 	});
 
 	it('grows correctly', async () => {
