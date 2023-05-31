@@ -113,7 +113,6 @@ if (import.meta.vitest) {
 		@struct.f64 declare x: number;
 		@struct.f64 declare y: number;
 		@struct.f64 declare z: number;
-		constructor() {}
 	}
 
 	it('adds size, alignment to decorated classes', () => {
@@ -190,7 +189,6 @@ if (import.meta.vitest) {
 				declare __$$b: number;
 				declare static size: number;
 				@decorator declare field: any;
-				constructor() {}
 			}
 
 			const comp = new Comp();
@@ -203,14 +201,9 @@ if (import.meta.vitest) {
 	});
 
 	it('works for string fields', () => {
-		Memory.init(256);
 		@struct
 		class Comp {
 			@struct.string declare value: string;
-
-			constructor() {
-				initStruct(this);
-			}
 		}
 		const comp = new Comp();
 		expect(comp.value).toBe('');
@@ -233,7 +226,6 @@ if (import.meta.vitest) {
 			@struct.array({ type: 'u8', length: 8 }) declare value: Uint8Array;
 			@struct.array({ type: 'f64', length: 3 })
 			declare value2: Float64Array;
-			constructor() {}
 		}
 		const comp = new Comp();
 
@@ -259,16 +251,7 @@ if (import.meta.vitest) {
 			@struct.u64 declare b: bigint;
 			@struct.i16 declare c: number;
 			@struct.f32 declare d: number;
-			constructor() {}
 		}
-		const buffer = new ArrayBuffer(Comp.size * 2);
-		const store = {
-			buffer,
-			u8: new Uint8Array(buffer),
-			u64: new BigUint64Array(buffer),
-			i16: new Int16Array(buffer),
-			f32: new Float32Array(buffer),
-		};
 		const comp = new Comp();
 		expect(comp.a).toBe(0);
 		expect(comp.b).toBe(0n);
@@ -295,7 +278,6 @@ if (import.meta.vitest) {
 			@struct.substruct(Vec3) declare position: Vec3;
 			@struct.f32 declare scale: number;
 			@struct.substruct(Vec3) declare rotation: Vec3;
-			constructor() {}
 		}
 
 		const transform = new Transform();
@@ -322,5 +304,29 @@ if (import.meta.vitest) {
 		expect(transform.rotation.y).toBe(5.5);
 		expect(transform.rotation.z).toBe(6.5);
 		expect(transform.scale).toBe(7.5);
+	});
+
+	it('works for substructs with constructors', () => {
+		@struct
+		class Child {
+			@struct.u32 declare value: number;
+			constructor(val = 0) {
+				initStruct(this);
+				this.value = 0;
+			}
+		}
+
+		@struct
+		class Parent {
+			declare static size: number;
+
+			declare __$$b: number;
+			@struct.substruct(Child) declare child: Child;
+		}
+
+		const parent = new Parent();
+		expect(parent.child.value).toBe(0);
+		parent.child.value = 1;
+		expect(parent.child.value).toBe(1);
 	});
 }

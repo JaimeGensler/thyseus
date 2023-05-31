@@ -81,6 +81,7 @@ export function resetFields() {
 	currentAlignment = 1;
 
 	currentOffset = {};
+	currentPointers = {};
 	keys.length = 0;
 	alignments.length = 0;
 	return result;

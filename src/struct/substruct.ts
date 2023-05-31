@@ -1,7 +1,7 @@
 import { addField } from './addField';
 import { Memory } from '../utils';
+import { dropStruct } from '../storage';
 import type { Struct } from './struct';
-import { createManagedStruct } from '../storage/initStruct';
 
 export function substruct(struct: Struct) {
 	return function fieldDecorator(
@@ -17,10 +17,11 @@ export function substruct(struct: Struct) {
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				return createManagedStruct(
-					struct,
-					this.__$$b + offset[propertyKey],
-				);
+				// TODO: Rework this - we don't want to allocate every access
+				const instance = new struct();
+				dropStruct(instance);
+				(instance as any).__$$b = this.__$$b + offset[propertyKey];
+				return instance;
 			},
 			set(value: any) {
 				Memory.copy(value.__$$b, struct.size!, this.__$$b);
