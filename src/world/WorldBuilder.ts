@@ -53,14 +53,8 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	addSystemsToSchedule(schedule: symbol, ...systems: SystemListArray): this {
-		for (const system of systems) {
-			if (Array.isArray(system)) {
-				for (const s of system) {
-					this.#addSystemToSchedule(schedule, s);
-				}
-			} else {
-				this.#addSystemToSchedule(schedule, system);
-			}
+		for (const system of systems.flat()) {
+			this.#addSystemToSchedule(schedule, system);
 		}
 		return this;
 	}
