@@ -18,14 +18,7 @@ class SystemConfig {
 	 * @returns `this`, for chaining.
 	 */
 	before(...systems: (System | System[])[]): this {
-		for (const system of systems) {
-			if (Array.isArray(system)) {
-				this.dependents.push(...system);
-			} else {
-				this.dependents.push(system);
-			}
-		}
-
+		this.dependents.push(...systems.flat());
 		return this;
 	}
 
@@ -35,14 +28,7 @@ class SystemConfig {
 	 * @returns `this`, for chaining.
 	 */
 	after(...systems: (System | System[])[]): this {
-		for (const system of systems) {
-			if (Array.isArray(system)) {
-				this.dependencies.push(...system);
-			} else {
-				this.dependencies.push(system);
-			}
-		}
-
+		this.dependencies.push(...systems.flat());
 		return this;
 	}
 
