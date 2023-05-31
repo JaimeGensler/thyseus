@@ -1,6 +1,6 @@
 {
 	"name": "thyseus",
-	"version": "0.12.0-beta.6",
+	"version": "0.12.0-beta.7",
 	"description": "An archetypal Entity Component System for the modern web",
 	"author": "Jaime Gensler",
 	"license": "MIT",
