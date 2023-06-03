@@ -8,20 +8,23 @@ export function substruct(struct: Struct) {
 		prototype: object,
 		propertyKey: string | symbol,
 	) {
-		const offset = addField(
-			propertyKey,
-			struct.alignment!,
-			struct.size!,
-			struct.pointers,
-		);
+		const hiddenKey = Symbol();
+		const offset = addField({
+			name: propertyKey,
+			size: struct.size!,
+			alignment: struct.alignment!,
+			pointers: struct.pointers,
+			initializer(val) {
+				val[hiddenKey] = new struct();
+				dropStruct(val[hiddenKey]);
+			},
+		});
+
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				// TODO: Rework this - we don't want to allocate every access
-				const instance = new struct();
-				dropStruct(instance);
-				(instance as any).__$$b = this.__$$b + offset[propertyKey];
-				return instance;
+				this[hiddenKey].__$$b = this.__$$b + offset[propertyKey];
+				return this[hiddenKey];
 			},
 			set(value: any) {
 				Memory.copy(value.__$$b, struct.size!, this.__$$b);

@@ -7,11 +7,11 @@ function createPrimativeFieldDecorator(typeName: PrimitiveName) {
 		propertyKey: string | symbol,
 	) {
 		const type = TYPE_TO_CONSTRUCTOR[typeName];
-		const offset = addField(
-			propertyKey,
-			type.BYTES_PER_ELEMENT,
-			type.BYTES_PER_ELEMENT,
-		);
+		const offset = addField({
+			name: propertyKey,
+			size: type.BYTES_PER_ELEMENT,
+			alignment: type.BYTES_PER_ELEMENT,
+		});
 		const shift = 31 - Math.clz32(type.BYTES_PER_ELEMENT);
 
 		Object.defineProperty(prototype, propertyKey, {
@@ -44,11 +44,11 @@ export const bool = function fieldDecorator(
 	prototype: object,
 	propertyKey: string | symbol,
 ) {
-	const offset = addField(
-		propertyKey,
-		Uint8Array.BYTES_PER_ELEMENT,
-		Uint8Array.BYTES_PER_ELEMENT,
-	);
+	const offset = addField({
+		name: propertyKey,
+		size: Uint8Array.BYTES_PER_ELEMENT,
+		alignment: Uint8Array.BYTES_PER_ELEMENT,
+	});
 
 	Object.defineProperty(prototype, propertyKey, {
 		enumerable: true,

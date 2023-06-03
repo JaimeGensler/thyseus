@@ -21,12 +21,12 @@ function getByteLength(val: string) {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 export function string(prototype: object, propertyKey: string | symbol) {
-	const offset = addField(
-		propertyKey,
-		Uint32Array.BYTES_PER_ELEMENT,
-		Uint32Array.BYTES_PER_ELEMENT * 3,
-		[8],
-	);
+	const offset = addField({
+		name: propertyKey,
+		size: Uint32Array.BYTES_PER_ELEMENT * 3,
+		alignment: Uint32Array.BYTES_PER_ELEMENT,
+		pointers: [8],
+	});
 
 	Object.defineProperty(prototype, propertyKey, {
 		enumerable: true,

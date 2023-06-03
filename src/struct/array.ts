@@ -11,11 +11,11 @@ export function array({ type, length }: ArrayOptions) {
 		propertyKey: string | symbol,
 	) {
 		const typeConstructor = TYPE_TO_CONSTRUCTOR[type];
-		const offset = addField(
-			propertyKey,
-			typeConstructor.BYTES_PER_ELEMENT,
-			typeConstructor.BYTES_PER_ELEMENT * length,
-		);
+		const offset = addField({
+			name: propertyKey,
+			size: typeConstructor.BYTES_PER_ELEMENT * length,
+			alignment: typeConstructor.BYTES_PER_ELEMENT,
+		});
 		const shift = 31 - Math.clz32(typeConstructor.BYTES_PER_ELEMENT);
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
