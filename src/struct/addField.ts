@@ -11,6 +11,7 @@ export const TYPE_TO_CONSTRUCTOR = {
 	f64: Float64Array,
 } as const;
 export type PrimitiveName = keyof typeof TYPE_TO_CONSTRUCTOR;
+type Initializer = (value: Record<string | symbol, any>) => void;
 
 let currentAlignment = 1;
 let currentSize = 0;
@@ -19,6 +20,7 @@ const keys: (string | symbol)[] = [];
 const alignments: number[] = [];
 let currentOffset: Record<string | symbol, number> = {};
 let currentPointers: Record<string | symbol, number[]> = {};
+const currentInitializers: Initializer[] = [];
 
 const updateOffsets = (
 	newKey: string | symbol,
@@ -48,22 +50,34 @@ const updateOffsets = (
 	return;
 };
 
-export function addField(
-	fieldName: string | symbol,
-	alignment: number,
-	byteLength: number,
-	pointers?: number[],
-): Record<string | symbol, number> {
+type FieldProperties = {
+	name: string | symbol;
+	size: number;
+	alignment: number;
+	pointers?: number[];
+	initializer?(instance: Record<string | symbol, any>): void;
+};
+export function addField({
+	name,
+	size,
+	alignment,
+	pointers,
+	initializer,
+}: FieldProperties): Record<string | symbol, number> {
+	if (initializer) {
+		currentInitializers.push(initializer);
+	}
 	currentAlignment = Math.max(currentAlignment, alignment);
 	if (pointers) {
-		currentPointers[fieldName] = pointers;
+		currentPointers[name] = pointers;
 	}
 
-	updateOffsets(fieldName, alignment, byteLength);
-	currentSize += byteLength;
+	updateOffsets(name, alignment, size);
+	currentSize += size;
 
 	return currentOffset;
 }
+
 export function resetFields() {
 	const pointers: number[] = [];
 	for (const key in currentPointers) {
@@ -72,10 +86,16 @@ export function resetFields() {
 		}
 	}
 
+	const initializers = [...currentInitializers];
 	const result = {
 		size: Math.ceil(currentSize / currentAlignment) * currentAlignment,
 		alignment: currentAlignment,
 		pointers,
+		init(value: Record<string | symbol, any>) {
+			for (const initializer of [...initializers]) {
+				initializer(value);
+			}
+		},
 	};
 	currentSize = 0;
 	currentAlignment = 1;
@@ -84,5 +104,6 @@ export function resetFields() {
 	currentPointers = {};
 	keys.length = 0;
 	alignments.length = 0;
+	currentInitializers.length = 0;
 	return result;
 }

@@ -63,11 +63,12 @@ type StructDecorator = {
 	): (prototype: object, propertyKey: string | symbol) => void;
 };
 export const struct: StructDecorator = function struct(targetClass) {
-	const { size, alignment, pointers } = resetFields();
+	const { size, alignment, pointers, init } = resetFields();
 	return class extends targetClass {
 		static size = size;
 		static alignment = alignment;
 		static pointers = pointers;
+		static initializer = init;
 
 		declare __$$b: number;
 
