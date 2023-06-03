@@ -46,6 +46,9 @@ export class Entity extends BaseEntity {
 
 	/**
 	 * Verifies if this entity has a specific component type.
+	 *
+	 * **NOTE: Only works for queries running on the main thread!**
+	 *
 	 * @param componentType The type (class) of the component to detect.
 	 * @returns `boolean`, true if the entity has the component and false if it does not.
 	 */
