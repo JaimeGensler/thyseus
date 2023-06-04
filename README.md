@@ -1,4 +1,4 @@
-# Thyseus
+# [![Thyseus](./logo.svg)](https://thyseus.dev/)
 
 [![npm version](https://img.shields.io/npm/v/thyseus.svg?style=flat)](https://www.npmjs.com/package/thyseus)
 [![license: mit](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
@@ -14,19 +14,20 @@ out of the box, including:
 
 -   Hassle-free multithreading. Don't worry about scheduling, Mutexes, or
     workers - just write your systems and let Thyseus take care of the rest.
--   A **safety-first** approach! No `eval`, `new Function()`, or creating
+-   A **safety-first** approach. No `eval`, `new Function()`, or creating
     workers from blobs - Thyseus leverages recent additions to the language and
     a little bit of ✨ magic ✨ to do what it needs to, and **_will never use
     unsafe code_**.
 -   Archetypal storage for lean memory use and cache-friendly iteration.
--   Dynamically sized types with `string`s.
 -   Complex queries with `Optional`, `With`, `Without`, `And`, and `Or` filters.
+-   Deeply customizable execution logic for easy handling of patterns like fixed
+    updates.
 
-[Check out the documentation here!](https://www.thyseus.dev)
+Get started with [the docs](https://thyseus.dev/docs), or join us on the
+[Web-ECS Discord](https://discord.gg/T3g8U89qqZ)!
 
-**Please note: Thyseus is in early development and is not yet feature-complete
-or nearly as performant as it could be. Pre-1.0.0 releases may have frequent
-breaking changes.**
+**Please note: Thyseus is pre-1.0 - releases may have frequent breaking
+changes.**
 
 ## Installation
 
@@ -47,7 +48,7 @@ If you're interested in contributing, please have a look at the
 [code of conduct](./CODE_OF_CONDUCT.md) and the
 [contributing guide](./CONTRIBUTING.md) first.
 
-## API Examples
+## API
 
 ### Components
 
@@ -76,44 +77,30 @@ export class Velocity extends Vec2 {}
 
 ### Systems
 
-<!-- prettier-ignore -->
 ```ts
-import { defineSystem } from 'thyseus';
-import { Position, Velocity } from './someModule';
+import { Position, Velocity } from './components';
 
-export const moveSystem = defineSystem(
-	({ Query, Mut, Res }) => [Query([Mut(Position), Velocity])],
-	function moveSystem(query) {
-		for (const [pos, vel] of query) {
-			pos.add(vel);
-		}
-	},
-);
-```
+export function spawnEntitiesSystem(commands: Commands) {
+	commands.spawn().addType(Position).add(new Velocity(1, 2));
+}
 
-### Spawning Entities
-
-```ts
-import { defineSystem } from 'thyseus';
-import { Position, Velocity } from './someModule';
-
-export const spawnEntitiesSystem = defineSystem(
-	({ Commands }) => [Commands()],
-	function spawnEntitiesSystem(commands) {
-		commands.spawn().addType(Position).add(new Velocity(1, 2));
-	},
-);
+export function moveSystem(query: Query<[Mut<Position>, Velocity]>) {
+	for (const [pos, vel] of query) {
+		pos.add(vel);
+	}
+}
 ```
 
 ### Worlds
 
-<!-- prettier-ignore -->
 ```ts
-import { World } from 'thyseus';
-import { moveSystem, spawnEntitiesSystem } from './somewhere';
+import { World, CoreSchedule } from 'thyseus';
+import { moveSystem, spawnEntitiesSystem } from './systems';
 
 export const myWorld = await World.new()
-	.addStartupSystem(spawnEntitiesSystem)
-	.addSystem(mover)
+	.addSystemsToSchedule(CoreSchedule.Startup, spawnEntitiesSystem)
+	.addSystems(moveSystem)
 	.build();
+
+myWorld.start();
 ```

@@ -30,6 +30,7 @@
 -   The `Entity` component will throw an error if trying to construct it without
     `world.commands` and `world.entities`
 -   Renamed `table.size` to `table.length`
+-   `applyCommands` is no longer added by default.
 
 ### ✨ Features
 

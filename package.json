@@ -1,6 +1,6 @@
 {
 	"name": "thyseus",
-	"version": "0.12.0-beta.7",
+	"version": "0.12.0",
 	"description": "An archetypal Entity Component System for the modern web",
 	"author": "Jaime Gensler",
 	"license": "MIT",
@@ -10,7 +10,7 @@
 		"types"
 	],
 	"module": "./dist/index.js",
-	"main": "./src/index.cjs",
+	"main": "./src/index.umd.cjs",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		"./package.json": "./package.json",
@@ -18,7 +18,7 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
-			"require": "./dist/index.cjs"
+			"require": "./dist/index.umd.cjs"
 		},
 		"./types": {
 			"types": "./src/types.ts"
