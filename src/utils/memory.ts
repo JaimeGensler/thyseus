@@ -23,17 +23,18 @@ let u8: Uint8Array;
 let u32: Uint32Array;
 
 let BUFFER_END: number = 0;
-const NULL_POINTER: Pointer = 8;
+const NULL_POINTER: Pointer = 0;
+const FIRST_POINTER: Pointer = 4;
 const BLOCK_HEADER_SIZE = 4;
 const BLOCK_FOOTER_SIZE = 4;
 const BLOCK_METADATA_SIZE = 8;
 const MINIMUM_BLOCK_SIZE = 16; // Metadata + 8 bytes
 
 function spinlock(): void {
-	while (Atomics.compareExchange(u32, NULL_POINTER >> 2, 0, 1) === 1);
+	while (Atomics.compareExchange(u32, 0, NULL_POINTER, 1) === 1);
 }
 function releaseLock(): void {
-	Atomics.store(u32, NULL_POINTER >> 2, 0);
+	Atomics.store(u32, NULL_POINTER, 0);
 }
 
 /**
@@ -79,7 +80,6 @@ function init(
 	if (typeof sizeOrBuffer === 'number') {
 		u32[1] = buffer.byteLength - 8;
 		u32[u32.length - 2] = buffer.byteLength - 8;
-		alloc(8); // NULL_POINTER
 	}
 	return buffer;
 }
@@ -95,7 +95,7 @@ function init(
 function alloc(size: number): Pointer {
 	const alignedSize = alignTo8(size);
 	const requiredSize = BLOCK_METADATA_SIZE + alignedSize;
-	let pointer = NULL_POINTER - BLOCK_HEADER_SIZE;
+	let pointer = FIRST_POINTER;
 
 	spinlock();
 	while (pointer < BUFFER_END) {
@@ -127,7 +127,6 @@ function alloc(size: number): Pointer {
 		return pointer + BLOCK_HEADER_SIZE;
 	}
 
-	// NOTE: Just return NULL_POINTER?
 	releaseLock();
 	throw new Error(`Out of memory (requesting ${size} bytes).`);
 }
@@ -143,15 +142,14 @@ function free(pointer: Pointer): void {
 		'Invalid pointer in free - pointer was not correctly aligned.',
 	);
 
-	if (pointer === NULL_POINTER || pointer === 0) {
+	if (pointer === 0) {
 		return;
 	}
-	let header = pointer - BLOCK_HEADER_SIZE;
 	spinlock();
+
+	let header = pointer - BLOCK_HEADER_SIZE;
 	let size = u32[header >> 2] & ~1;
 	let footer = header + size - BLOCK_FOOTER_SIZE;
-	u32[header >> 2] &= ~1;
-	u32[footer >> 2] &= ~1;
 
 	if (footer !== buffer.byteLength - BLOCK_FOOTER_SIZE) {
 		const next = u32[(header + size) >> 2];
@@ -170,7 +168,7 @@ function free(pointer: Pointer): void {
 	}
 	u32[header >> 2] = size;
 	u32[footer >> 2] = size;
-	u8.fill(0, header + BLOCK_HEADER_SIZE, footer - BLOCK_HEADER_SIZE);
+	u8.fill(0, header + BLOCK_HEADER_SIZE, footer);
 	releaseLock();
 }
 
@@ -190,7 +188,7 @@ function realloc(pointer: Pointer, newSize: number): Pointer {
 		'Invalid pointer in realloc - pointer was not correctly aligned.',
 	);
 
-	if (pointer === NULL_POINTER || pointer === 0) {
+	if (pointer === 0) {
 		return alloc(newSize);
 	}
 	// TODO: Allow realloc to shrink if newSize is small enough to make this reasonable.
@@ -269,8 +267,8 @@ function set(from: Pointer, length: number, value: number): void {
  * @returns The newly allocated pointer with data copied from the passed pointer.
  */
 function copyPointer(pointer: Pointer): Pointer {
-	if (pointer === NULL_POINTER || pointer === 0) {
-		return NULL_POINTER;
+	if (pointer === 0) {
+		return 0;
 	}
 	const size =
 		(u32[(pointer - BLOCK_HEADER_SIZE) >> 2] & ~1) - BLOCK_METADATA_SIZE;
@@ -304,7 +302,6 @@ function UNSAFE_CLEAR_ALL(): void {
 		set(0, buffer.byteLength, 0);
 		u32[1] = buffer.byteLength - 8;
 		u32[u32.length - 2] = buffer.byteLength - 8;
-		alloc(8); // Restore NULL_POINTER
 	}
 }
 
@@ -342,16 +339,16 @@ if (import.meta.vitest) {
 		it('returns a pointer', () => {
 			Memory.init(256);
 			const ptr1 = Memory.alloc(8);
-			expect(ptr1).toBe(24);
+			expect(ptr1).toBe(8);
 
 			const ptr2 = Memory.alloc(16);
-			expect(ptr2).toBe(40);
+			expect(ptr2).toBe(24);
 		});
 
 		it('throws when out of memory', () => {
 			Memory.init(256);
-			const ptr1 = Memory.alloc(212);
-			expect(ptr1).toBe(24);
+			const ptr1 = Memory.alloc(232);
+			expect(ptr1).toBe(8);
 
 			expect(() => Memory.alloc(8)).toThrow(/Out of memory/);
 		});
@@ -361,35 +358,48 @@ if (import.meta.vitest) {
 		it('clears a block and allows it to be allocated again', () => {
 			Memory.init(256);
 			const ptr1 = Memory.alloc(8);
-			expect(ptr1).toBe(24);
+			expect(ptr1).toBe(8);
 
 			Memory.free(ptr1);
 			const ptr2 = Memory.alloc(8);
-			expect(ptr2).toBe(24);
+			expect(ptr2).toBe(ptr1);
+		});
+
+		it('clears all memory in a block', () => {
+			Memory.init(256);
+			const ptr1 = Memory.alloc(8);
+			const heldBlock = Memory.alloc(8);
+			u32[(ptr1 >> 2) + 1] = 2 ** 32 - 1;
+
+			Memory.free(ptr1);
+			console.log(u32);
+			const ptr2 = Memory.alloc(8);
+			expect(ptr2).toBe(ptr1);
+			expect(u32[(ptr2 >> 2) + 1]).toBe(0);
 		});
 
 		it('collects the next block if free', () => {
 			Memory.init(256);
 			const ptr1 = Memory.alloc(8);
-			expect(ptr1).toBe(24);
+			expect(ptr1).toBe(8);
 
 			Memory.free(ptr1);
 			const ptr2 = Memory.alloc(16);
-			expect(ptr2).toBe(24);
+			expect(ptr2).toBe(8);
 		});
 
 		it('collects the previous block if free', () => {
 			Memory.init(256);
 			const ptr1 = Memory.alloc(8);
-			expect(ptr1).toBe(24);
+			expect(ptr1).toBe(8);
 			const ptr2 = Memory.alloc(8);
-			expect(ptr2).toBe(40);
+			expect(ptr2).toBe(24);
 
 			Memory.free(ptr1);
 			Memory.free(ptr2);
 
 			const ptr3 = Memory.alloc(16);
-			expect(ptr3).toBe(24);
+			expect(ptr3).toBe(8);
 		});
 	});
 
