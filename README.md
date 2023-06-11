@@ -1,9 +1,9 @@
 <h1>
 	<a href="https://thyseus.dev" target="_blank">
 		<picture>
-			<source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/JaimeGensler/thyseus/HEAD/.github/logo-dark.svg">
-			<source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/JaimeGensler/thyseus/HEAD/.github/logo-light.svg">
-			<img alt="Thyseus" src="https://raw.githubusercontent.com/JaimeGensler/thyseus/HEAD/.github/logo-light.svg" style="max-width: 100%;">
+			<source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/JaimeGensler/thyseus/main/.github/logo-dark.svg">
+			<source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/JaimeGensler/thyseus/main/.github/logo-light.svg">
+			<img alt="Thyseus" src="https://raw.githubusercontent.com/JaimeGensler/thyseus/main/.github/logo-light.svg" style="max-width: 100%;">
 		</picture>
 	</a>
 </h1>
