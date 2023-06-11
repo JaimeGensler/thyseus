@@ -17,22 +17,22 @@ import type { WorldConfig } from './config';
 
 type SystemListArray = SystemList[];
 export class WorldBuilder {
-	schedules: Map<symbol, (System | SystemConfig)[]> = new Map();
+	#schedules: Map<symbol, (System | SystemConfig)[]> = new Map();
 
-	components: Set<Struct> = new Set([Entity]);
-	resources: Set<Class> = new Set();
-	events: Set<Struct> = new Set();
+	#components: Set<Struct> = new Set([Entity]);
+	#resources: Set<Class> = new Set();
+	#events: Set<Struct> = new Set();
 
 	#systems: Set<System> = new Set();
-	defaultExecutor: ExecutorType;
-	executors: Map<symbol, ExecutorType> = new Map();
+	#defaultExecutor: ExecutorType;
+	#executors: Map<symbol, ExecutorType> = new Map();
 
 	config: Readonly<WorldConfig>;
 	url: Readonly<string | URL | undefined>;
 	constructor(config: WorldConfig, url: string | URL | undefined) {
 		this.config = config;
 		this.url = url;
-		this.defaultExecutor =
+		this.#defaultExecutor =
 			config.threads > 1 ? ParallelExecutor : SimpleExecutor;
 	}
 
@@ -69,8 +69,8 @@ export class WorldBuilder {
 		schedule: symbol,
 		systemLike: System | SystemConfig,
 	): this {
-		if (!this.schedules.has(schedule)) {
-			this.schedules.set(schedule, []);
+		if (!this.#schedules.has(schedule)) {
+			this.#schedules.set(schedule, []);
 		}
 		const system =
 			typeof systemLike === 'function' ? systemLike : systemLike.system;
@@ -92,7 +92,7 @@ export class WorldBuilder {
 				system.parameters?.length ?? 0
 			}. This is likely due to a failed transformation.`,
 		);
-		this.schedules.get(schedule)!.push(system);
+		this.#schedules.get(schedule)!.push(system);
 		return this;
 	}
 
@@ -113,7 +113,7 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	registerComponent(componentType: Struct): this {
-		this.components.add(componentType);
+		this.#components.add(componentType);
 		return this;
 	}
 
@@ -124,7 +124,7 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	registerResource(resourceType: Class): this {
-		this.resources.add(resourceType);
+		this.#resources.add(resourceType);
 		return this;
 	}
 
@@ -135,7 +135,7 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	registerEvent(eventType: Struct): this {
-		this.events.add(eventType);
+		this.#events.add(eventType);
 		return this;
 	}
 
@@ -146,7 +146,7 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	setDefaultExecutor(executor: ExecutorType): this {
-		this.defaultExecutor = executor;
+		this.#defaultExecutor = executor;
 		return this;
 	}
 
@@ -157,7 +157,7 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	setExecutorForSchedule(schedule: symbol, executor: ExecutorType): this {
-		this.executors.set(schedule, executor);
+		this.#executors.set(schedule, executor);
 		return this;
 	}
 
@@ -166,9 +166,9 @@ export class WorldBuilder {
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
-		for (const [scheduleSymbol] of this.schedules) {
-			if (!this.executors.has(scheduleSymbol)) {
-				this.executors.set(scheduleSymbol, this.defaultExecutor);
+		for (const [scheduleSymbol] of this.#schedules) {
+			if (!this.#executors.has(scheduleSymbol)) {
+				this.#executors.set(scheduleSymbol, this.#defaultExecutor);
 			}
 		}
 		const threads = ThreadGroup.new({
@@ -181,9 +181,9 @@ export class WorldBuilder {
 			const world = new World(
 				this.config,
 				threads,
-				[...this.components],
-				[...this.resources],
-				[...this.events],
+				[...this.#components],
+				[...this.#resources],
+				[...this.#events],
 			);
 			const systemArguments = new Map();
 			for (const system of this.#systems) {
@@ -196,8 +196,8 @@ export class WorldBuilder {
 					),
 				);
 			}
-			for (const [scheduleSymbol, systems] of this.schedules) {
-				world.schedules[scheduleSymbol] = this.executors
+			for (const [scheduleSymbol, systems] of this.#schedules) {
+				world.schedules[scheduleSymbol] = this.#executors
 					.get(scheduleSymbol)!
 					.fromWorld(
 						world,
