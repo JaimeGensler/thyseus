@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 396.35 120.23">
 <defs>
-<style>.cls-1{fill:#fff;}.cls-2{fill:url(#linear-gradient);}.cls-3{fill:url(#linear-gradient-2);}.cls-4{fill:url(#linear-gradient-3);}.cls-5{fill:url(#linear-gradient-4);}.cls-6{fill:url(#linear-gradient-5);}.cls-7{fill:#16b8a8;}</style>
+<style>.cls-1{fill:#000;}.cls-2{fill:url(#linear-gradient);}.cls-3{fill:url(#linear-gradient-2);}.cls-4{fill:url(#linear-gradient-3);}.cls-5{fill:url(#linear-gradient-4);}.cls-6{fill:url(#linear-gradient-5);}.cls-7{fill:#16b8a8;}</style>
 <linearGradient id="linear-gradient" x1="52.84" y1="38.49" x2="97.2" y2="65.14" gradientUnits="userSpaceOnUse">
 <stop offset="0" stop-color="#143744"/>
 <stop offset="0.07" stop-color="#143c48"/>
