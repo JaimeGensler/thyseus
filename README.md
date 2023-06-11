@@ -1,4 +1,12 @@
-# [![Thyseus](./logo.svg)](https://thyseus.dev/)
+<h1>
+	<a href="https://thyseus.dev" target="_blank">
+		<picture>
+			<source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/JaimeGensler/thyseus/HEAD/.github/logo-dark.svg">
+			<source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/JaimeGensler/thyseus/HEAD/.github/logo-light.svg">
+			<img alt="Thyseus" src="https://raw.githubusercontent.com/JaimeGensler/thyseus/HEAD/.github/logo-light.svg" style="max-width: 100%;">
+		</picture>
+	</a>
+</h1>
 
 [![npm version](https://img.shields.io/npm/v/thyseus.svg?style=flat)](https://www.npmjs.com/package/thyseus)
 [![license: mit](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
