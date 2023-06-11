@@ -23,7 +23,6 @@ let u8: Uint8Array;
 let u32: Uint32Array;
 
 let BUFFER_END: number = 0;
-const NULL_POINTER: Pointer = 0;
 const FIRST_POINTER: Pointer = 4;
 const BLOCK_HEADER_SIZE = 4;
 const BLOCK_FOOTER_SIZE = 4;
@@ -31,10 +30,10 @@ const BLOCK_METADATA_SIZE = 8;
 const MINIMUM_BLOCK_SIZE = 16; // Metadata + 8 bytes
 
 function spinlock(): void {
-	while (Atomics.compareExchange(u32, 0, NULL_POINTER, 1) === 1);
+	while (Atomics.compareExchange(u32, 0, 0, 1) === 1);
 }
 function releaseLock(): void {
-	Atomics.store(u32, NULL_POINTER, 0);
+	Atomics.store(u32, 0, 0);
 }
 
 /**
@@ -80,12 +79,14 @@ function init(
 	if (typeof sizeOrBuffer === 'number') {
 		u32[1] = buffer.byteLength - 8;
 		u32[u32.length - 2] = buffer.byteLength - 8;
+		u32[u32.length - 1] = 1;
 	}
 	return buffer;
 }
 
 /**
  * Allocates the specified number of bytes and returns a pointer.
+ * Pointers are always 8 byte aligned.
  *
  * Throws if there is not enough memory to allocate the specified size.
  *
@@ -133,7 +134,7 @@ function alloc(size: number): Pointer {
 
 /**
  * Frees a pointer, allowing the memory at that location to be used again.
- * If a null or 0 pointer is provided, simply returns.
+ * If a 0-pointer is provided, this function is a no-op.
  * @param pointer The pointer to free.
  */
 function free(pointer: Pointer): void {
@@ -151,30 +152,28 @@ function free(pointer: Pointer): void {
 	let size = u32[header >> 2] & ~1;
 	let footer = header + size - BLOCK_FOOTER_SIZE;
 
-	if (footer !== buffer.byteLength - BLOCK_FOOTER_SIZE) {
-		const next = u32[(header + size) >> 2];
-		if ((next & 1) === 0) {
-			footer += next;
-			size += next;
-		}
+	const prev = u32[(header - BLOCK_FOOTER_SIZE) >> 2];
+	const next = u32[(header + size) >> 2];
+	// If this is the first allocated block, spinlock() will have set
+	// u32[0] to 1, so this will never observe prev being 0
+	if ((prev & 1) === 0) {
+		header -= prev;
+		size += prev;
+	}
+	if ((next & 1) === 0) {
+		footer += next;
+		size += next;
 	}
 
-	if (header !== 0) {
-		const prev = u32[(header - BLOCK_FOOTER_SIZE) >> 2];
-		if ((prev & 1) === 0) {
-			header -= prev;
-			size += prev;
-		}
-	}
+	u8.fill(0, header, footer);
 	u32[header >> 2] = size;
 	u32[footer >> 2] = size;
-	u8.fill(0, header + BLOCK_HEADER_SIZE, footer);
 	releaseLock();
 }
 
 /**
  * Reallocates the memory at a pointer with a new size, copying data to the new location if necessary.
- * If a null or 0 pointer is provided, will simply `alloc`.
+ * If a 0-pointer is provided, will simply `alloc`.
  *
  * Throws if there is not enough memory to allocate the specified size.
  *
@@ -262,7 +261,7 @@ function set(from: Pointer, length: number, value: number): void {
 
 /**
  * Copies the data at the provided pointer to a newly allocated pointer.
- * If a null or 0 pointer is provided, returns a null pointer.
+ * If a 0-pointer is provided, returns the 0-pointer.
  * @param pointer The pointer to copy.
  * @returns The newly allocated pointer with data copied from the passed pointer.
  */
@@ -372,7 +371,6 @@ if (import.meta.vitest) {
 			u32[(ptr1 >> 2) + 1] = 2 ** 32 - 1;
 
 			Memory.free(ptr1);
-			console.log(u32);
 			const ptr2 = Memory.alloc(8);
 			expect(ptr2).toBe(ptr1);
 			expect(u32[(ptr2 >> 2) + 1]).toBe(0);
@@ -456,11 +454,11 @@ if (import.meta.vitest) {
 	describe('spinlock', () => {
 		it('sets NULL_POINTER to 1 when locked, 0 when unlocked', () => {
 			Memory.init(256);
-			expect(u32[NULL_POINTER >> 2]).toBe(0);
+			expect(u32[0 >> 2]).toBe(0);
 			spinlock();
-			expect(u32[NULL_POINTER >> 2]).toBe(1);
+			expect(u32[0 >> 2]).toBe(1);
 			releaseLock();
-			expect(u32[NULL_POINTER >> 2]).toBe(0);
+			expect(u32[0 >> 2]).toBe(0);
 		});
 	});
 
