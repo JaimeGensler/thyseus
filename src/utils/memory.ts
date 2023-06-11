@@ -301,6 +301,7 @@ function UNSAFE_CLEAR_ALL(): void {
 		set(0, buffer.byteLength, 0);
 		u32[1] = buffer.byteLength - 8;
 		u32[u32.length - 2] = buffer.byteLength - 8;
+		u32[u32.length - 1] = 1;
 	}
 }
 
