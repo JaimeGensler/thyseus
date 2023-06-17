@@ -1,6 +1,6 @@
 import { Memory } from '../utils';
-import { dropStruct } from '../storage/initStruct';
-import { CLEAR_QUEUE_COMMAND, type Commands } from '../commands/Commands';
+import { dropStruct } from '../storage';
+import { ClearEventQueueCommand, type Commands } from '../commands';
 import type { Struct } from '../struct';
 
 export class EventReader<T extends object> {
@@ -54,8 +54,11 @@ export class EventReader<T extends object> {
 	 * Sets this event queue to be cleared when commands are next processed.
 	 */
 	clear() {
-		const pointer = this.#commands.pushCommand(4, CLEAR_QUEUE_COMMAND);
-		Memory.views.u32[pointer >> 2] = this.#pointer << 2;
+		const command = this.#commands.push(
+			ClearEventQueueCommand,
+			ClearEventQueueCommand.size,
+		);
+		command.queueLengthPointer = this.#pointer << 2;
 	}
 }
 
@@ -264,7 +267,7 @@ if (import.meta.vitest) {
 
 	it('clear() queues a clear command', async () => {
 		const [reader, writer, world] = await setupQueue(A);
-		const pushCommandSpy = vi.spyOn(world.commands, 'pushCommand');
+		const pushCommandSpy = vi.spyOn(world.commands, 'push');
 		expect(reader.length).toBe(0);
 		expect(writer.length).toBe(0);
 
@@ -274,11 +277,17 @@ if (import.meta.vitest) {
 
 		expect(reader.clear());
 		expect(pushCommandSpy).toHaveBeenCalledOnce();
-		expect(pushCommandSpy).toHaveBeenCalledWith(4, CLEAR_QUEUE_COMMAND);
+		expect(pushCommandSpy).toHaveBeenCalledWith(
+			ClearEventQueueCommand,
+			ClearEventQueueCommand.size,
+		);
 
 		expect(writer.clear());
 		expect(pushCommandSpy).toHaveBeenCalledTimes(2);
-		expect(pushCommandSpy).toHaveBeenLastCalledWith(4, CLEAR_QUEUE_COMMAND);
+		expect(pushCommandSpy).toHaveBeenLastCalledWith(
+			ClearEventQueueCommand,
+			ClearEventQueueCommand.size,
+		);
 	});
 
 	it('never allocates a queue for ZSTs', async () => {

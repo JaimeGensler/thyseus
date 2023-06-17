@@ -1,7 +1,11 @@
 import { Memory } from '../utils';
 import { WorldDescriptor } from '../world/WorldDescriptor';
 import { SystemResourceDescriptor } from '../resources';
-import { ADD_COMPONENT_COMMAND, CLEAR_QUEUE_COMMAND } from './Commands';
+import {
+	AddComponentCommand,
+	RemoveComponentCommand,
+	ClearEventQueueCommand,
+} from './commandTypes';
 import type { World } from '../world';
 import type { SystemRes } from '../resources';
 
@@ -15,23 +19,28 @@ export function applyCommands(
 	entityDestinations.clear();
 
 	// Main command handling loop
-	for (const { type, dataStart } of commands) {
-		if (type === CLEAR_QUEUE_COMMAND) {
-			const queueLengthPointer = Memory.views.u32[dataStart >> 2];
-			Memory.views.u32[queueLengthPointer >> 2] = 0;
+	for (const command of commands) {
+		if (command instanceof ClearEventQueueCommand) {
+			Memory.views.u32[command.queueLengthPointer >> 2] = 0;
 			continue;
 		}
-
-		const entityId = Memory.views.u64[dataStart >> 3];
+		if (
+			!(
+				command instanceof AddComponentCommand ||
+				command instanceof RemoveComponentCommand
+			)
+		) {
+			continue;
+		}
+		const { entityId, componentId } = command;
 		let val = entityDestinations.get(entityId);
 		if (val === 0n) {
 			continue;
 		}
-		const componentId = Memory.views.u16[(dataStart + 8) >> 1];
 		val ??= entities.getArchetype(entityId);
 		entityDestinations.set(
 			entityId,
-			type === ADD_COMPONENT_COMMAND
+			command instanceof AddComponentCommand
 				? val | (1n << BigInt(componentId))
 				: componentId === 0
 				? 0n
@@ -45,20 +54,19 @@ export function applyCommands(
 	}
 
 	// Handle data insertion from adds
-	for (const { type, dataStart } of commands) {
-		if (type !== ADD_COMPONENT_COMMAND) {
+	for (const command of commands) {
+		if (!(command instanceof AddComponentCommand)) {
 			continue;
 		}
-		const entityId = Memory.views.u64[dataStart >> 3];
+		const { entityId, componentId, dataStart } = command;
 		const tableId = entities.getTableId(entityId);
 		if (tableId === 0) {
 			continue;
 		}
-		const componentId = Memory.views.u16[(dataStart + 8) >> 1];
 		tables[tableId]!.copyComponentIntoRow(
 			entities.getRow(entityId),
 			components[componentId],
-			dataStart + 16,
+			dataStart,
 		);
 	}
 
@@ -157,7 +165,7 @@ if (import.meta.vitest) {
 		expect(testComp.y).toBe(2);
 	});
 
-	it('clears queues', async () => {
+	it('clears event queues', async () => {
 		const myWorld = await World.new({ isMainThread: true })
 			.registerEvent(CompA)
 			.build();
