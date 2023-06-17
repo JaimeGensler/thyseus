@@ -95,6 +95,9 @@ export class Commands {
 	 * @returns `this`, for chaining.
 	 */
 	despawn(id: bigint): void {
+		if (this.#entities.wasDespawned(id)) {
+			return;
+		}
 		const command = this.push(
 			RemoveComponentCommand,
 			RemoveComponentCommand.size,
@@ -116,6 +119,9 @@ export class Commands {
 		entityId: bigint,
 		component: NotFunction<T>,
 	): void {
+		if (this.#entities.wasDespawned(entityId)) {
+			return;
+		}
 		const componentType: Struct = component.constructor as any;
 
 		DEV_ASSERT(
@@ -145,6 +151,9 @@ export class Commands {
 			componentType !== Entity,
 			'Tried to add Entity component, which is forbidden.',
 		);
+		if (this.#entities.wasDespawned(entityId)) {
+			return;
+		}
 
 		const command = this.push(
 			AddComponentCommand,
@@ -168,6 +177,9 @@ export class Commands {
 			componentType !== Entity,
 			'Tried to remove Entity component, which is forbidden.',
 		);
+		if (this.#entities.wasDespawned(entityId)) {
+			return;
+		}
 		const command = this.push(
 			RemoveComponentCommand,
 			RemoveComponentCommand.size,
