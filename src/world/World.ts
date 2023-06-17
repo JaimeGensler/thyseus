@@ -73,7 +73,7 @@ export class World {
 		this.#archetypeToTable.set(0n, emptyTable);
 
 		this.entities = new Entities(this);
-		this.commands = Commands.fromWorld(this);
+		this.commands = new Commands(this);
 
 		for (const eventType of eventTypes) {
 			const pointer = this.threads.queue(() => {
