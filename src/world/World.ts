@@ -157,6 +157,10 @@ export class World {
 		}
 
 		const currentTable = this.tables[this.entities.getTableId(entityId)];
+		if (currentTable.archetype === targetArchetype) {
+			// No need to move, we're already there!
+			return;
+		}
 		const targetTable = this.#getTable(targetArchetype);
 		if (targetTable.length === targetTable.capacity) {
 			targetTable.grow(this.config.getNewTableSize(targetTable.capacity));

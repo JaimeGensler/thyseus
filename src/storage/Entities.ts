@@ -96,6 +96,19 @@ export class Entities {
 	}
 
 	/**
+	 * Checks if the provided entity id was despawned.
+	 * @param entityId The id of the entity to check.
+	 * @returns A `boolean`, true if the entity is alive and false if it is not.
+	 */
+	wasDespawned(entityId: bigint): boolean {
+		const index = getIndex(entityId);
+		return (
+			this.#generations.length > index &&
+			this.#generations.get(index) !== getGeneration(entityId)
+		);
+	}
+
+	/**
 	 * Verifies if an entity has a specific component type.
 	 * @param entityId The id of the entity
 	 * @param componentType The type (class) of the component to detect.
