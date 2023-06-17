@@ -12,8 +12,19 @@ export const ADD_COMPONENT_COMMAND = 1;
 export const CLEAR_QUEUE_COMMAND = 2;
 
 export class Commands {
-	static fromWorld(world: World) {
-		const initialValuePointers = world.threads.queue(() => {
+	#command: Command = { type: 0, dataStart: 0, dataSize: 0 };
+
+	#entities: Entities;
+	#components: Struct[];
+
+	#initialValuePointers: number[];
+	#pointer: number; // [nextId, ...[size, capacity, pointer]]
+	#ownPointer: number;
+	constructor(world: World) {
+		this.#entities = world.entities;
+		this.#components = world.components;
+
+		this.#initialValuePointers = world.threads.queue(() => {
 			const size = world.components.reduce(
 				(acc, val) => acc + val.size!,
 				0,
@@ -35,26 +46,10 @@ export class Commands {
 			}
 			return componentPointers;
 		});
-		const dataPointer = world.threads.queue(() =>
-			Memory.alloc((1 + 3 * world.config.threads) * 4),
-		);
-		return new this(world, initialValuePointers, dataPointer);
-	}
-
-	#command: Command = { type: 0, dataStart: 0, dataSize: 0 };
-
-	#entities: Entities;
-	#components: Struct[];
-
-	#initialValuePointers: number[];
-	#pointer: number; // [nextId, ...[size, capacity, pointer]]
-	#ownPointer: number;
-	constructor(world: World, initialValuePointers: number[], pointer: number) {
-		this.#entities = world.entities;
-		this.#components = world.components;
-
-		this.#initialValuePointers = initialValuePointers;
-		this.#pointer = pointer >> 2;
+		this.#pointer =
+			world.threads.queue(() =>
+				Memory.alloc((1 + 3 * world.config.threads) * 4),
+			) >> 2;
 		this.#ownPointer =
 			3 * Atomics.add(Memory.views.u32, this.#pointer, 1) +
 			this.#pointer +
@@ -429,7 +424,7 @@ if (import.meta.vitest) {
 
 	it('copies pointers for default values', async () => {
 		const world = await createWorld();
-		const commands = Commands.fromWorld(world);
+		const commands = new Commands(world);
 		const ent1 = commands.spawn().addType(StringComponent);
 		const ent2 = commands.spawn().addType(StringComponent);
 		const { u16, u32 } = Memory.views;
@@ -445,7 +440,7 @@ if (import.meta.vitest) {
 
 	it('copies pointers for passed values', async () => {
 		const world = await createWorld();
-		const commands = Commands.fromWorld(world);
+		const commands = new Commands(world);
 		const component = new StringComponent('test');
 		const ent = commands.spawn().add(component);
 		const { u16, u32 } = Memory.views;
