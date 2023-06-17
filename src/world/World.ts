@@ -180,6 +180,20 @@ export class World {
 		this.entities.setRow(entityId, targetTable.length - 1);
 	}
 
+	/**
+	 * Gets the internal id for a component in this world.
+	 * May differ from world to world.
+	 * @param componentType The component type to get an id for.
+	 * @returns The numeric id of the component.
+	 */
+	getComponentId(componentType: Struct): number {
+		DEV_ASSERT(
+			this.components.includes(componentType),
+			`Tried to get id of unregistered component "${componentType.name}"`,
+		);
+		return this.components.indexOf(componentType);
+	}
+
 	#getTable(archetype: bigint): Table {
 		let table = this.#archetypeToTable.get(archetype);
 		if (table) {
