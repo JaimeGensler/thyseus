@@ -78,10 +78,7 @@ export class Commands {
 	 * @returns `EntityCommands`, which can add/remove components from an entity.
 	 */
 	spawn(): EntityCommands {
-		const command = this.push(
-			AddComponentCommand,
-			AddComponentCommand.size + Entity.size,
-		);
+		const command = this.push(AddComponentCommand, Entity.size);
 		const entityId = this.#entities.getId();
 		command.entityId = entityId;
 		command.componentId = 0;
@@ -98,10 +95,7 @@ export class Commands {
 		if (this.#entities.wasDespawned(id)) {
 			return;
 		}
-		const command = this.push(
-			RemoveComponentCommand,
-			RemoveComponentCommand.size,
-		);
+		const command = this.push(RemoveComponentCommand);
 		command.entityId = id;
 		command.componentId = 0; // ID of Entity component is always 0
 	}
@@ -131,19 +125,14 @@ export class Commands {
 
 		const command = this.push(
 			AddComponentCommand,
-			AddComponentCommand.size + (component.constructor as Struct).size!,
+			(component.constructor as Struct).size!,
 		);
 		command.entityId = entityId;
 		command.componentId = this.#world.getComponentId(componentType);
 		if (componentType.size === 0) {
 			return;
 		}
-		Memory.copy(
-			(component as any).__$$b,
-			componentType.size!,
-			command.dataStart,
-		);
-		this.#copyPointers(componentType, command.dataStart);
+		componentType.copy!((component as any).__$$b, command.dataStart);
 	}
 
 	insertTypeInto(entityId: bigint, componentType: Struct): void {
@@ -155,21 +144,16 @@ export class Commands {
 			return;
 		}
 
-		const command = this.push(
-			AddComponentCommand,
-			AddComponentCommand.size + componentType.size!,
-		);
+		const command = this.push(AddComponentCommand, componentType.size!);
 		command.entityId = entityId;
 		command.componentId = this.#world.getComponentId(componentType);
 		if (componentType.size === 0) {
 			return;
 		}
-		Memory.copy(
+		componentType.copy!(
 			this.#initialValuePointers[command.componentId],
-			componentType.size!,
 			command.dataStart,
 		);
-		this.#copyPointers(componentType, command.dataStart);
 	}
 
 	removeFrom(entityId: bigint, componentType: Struct): void {
@@ -180,10 +164,7 @@ export class Commands {
 		if (this.#entities.wasDespawned(entityId)) {
 			return;
 		}
-		const command = this.push(
-			RemoveComponentCommand,
-			RemoveComponentCommand.size,
-		);
+		const command = this.push(RemoveComponentCommand);
 		command.entityId = entityId;
 		command.componentId = this.#world.getComponentId(componentType);
 	}
@@ -223,13 +204,16 @@ export class Commands {
 		}
 	}
 
-	push<T extends Struct>(commandType: T, size: number): InstanceType<T> {
+	push<T extends Struct>(
+		commandType: T,
+		additionalSize: number = 0,
+	): InstanceType<T> {
 		const { u32 } = Memory.views;
 		const commandId = this.#commands.findIndex(
 			command => command.constructor === commandType,
 		);
 		const command = this.#commands[commandId];
-		const addedSize = 8 + alignTo8(size);
+		const addedSize = 8 + alignTo8(commandType.size! + additionalSize);
 		let newSize = this.#size + addedSize;
 		if (this.#capacity < newSize) {
 			newSize <<= 1; // Double new size
@@ -242,15 +226,6 @@ export class Commands {
 		this.#size += addedSize;
 		command.__$$b = queueEnd + 8;
 		return command as InstanceType<T>;
-	}
-
-	#copyPointers(componentType: Struct, dataStart: number) {
-		const { u32 } = Memory.views;
-		for (const pointer of componentType.pointers! ?? []) {
-			u32[(dataStart + pointer) >> 2] = Memory.copyPointer(
-				u32[(dataStart + pointer) >> 2],
-			);
-		}
 	}
 }
 
@@ -269,10 +244,12 @@ if (import.meta.vitest) {
 	});
 
 	class ZST {
+		static copy() {}
 		static size = 0;
 		static alignment = 1;
 	}
 	class Struct {
+		static copy() {}
 		static size = 1;
 		static alignment = 1;
 		constructor() {
@@ -282,17 +259,13 @@ if (import.meta.vitest) {
 	class CompA extends Struct {}
 	class CompB extends Struct {}
 	class CompC extends Struct {}
+	@struct
 	class CompD {
-		static size = 8;
-		static alignment = 4;
+		declare static size: number;
+		@struct.u32 declare x: number;
+		@struct.u32 declare y: number;
 
 		declare __$$b: number;
-		set x(val: number) {
-			Memory.views.u32[this.__$$b >> 2] = val;
-		}
-		set y(val: number) {
-			Memory.views.u32[(this.__$$b + 4) >> 2] = val;
-		}
 
 		constructor(x = 23, y = 42) {
 			initStruct(this);
@@ -342,6 +315,7 @@ if (import.meta.vitest) {
 
 	it('inserts ZSTs', async () => {
 		const world = await createWorld();
+		const zstID = world.getComponentId(ZST);
 		const { commands } = world;
 		const ent = commands.spawn().addType(ZST);
 		let i = 0;
@@ -351,7 +325,9 @@ if (import.meta.vitest) {
 			if (i === 0) {
 				expect((command as AddComponentCommand).componentId).toBe(0);
 			} else {
-				expect((command as AddComponentCommand).componentId).toBe(1);
+				expect((command as AddComponentCommand).componentId).toBe(
+					zstID,
+				);
 			}
 			i++;
 		}
@@ -361,6 +337,7 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const { commands } = world;
 		const ent = commands.spawn().addType(ZST).remove(ZST);
+		const zstID = world.getComponentId(ZST);
 		let i = 0;
 		for (const command of commands) {
 			if (i == 2) {
@@ -368,7 +345,9 @@ if (import.meta.vitest) {
 				expect((command as RemoveComponentCommand).entityId).toBe(
 					ent.id,
 				);
-				expect((command as RemoveComponentCommand).componentId).toBe(1);
+				expect((command as RemoveComponentCommand).componentId).toBe(
+					zstID,
+				);
 			}
 			i++;
 		}

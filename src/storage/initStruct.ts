@@ -9,7 +9,7 @@ export function initStruct(instance: object): void {
 		'Tried to create a struct before memory was initialized.',
 	);
 	const constructor: any = instance.constructor;
-	constructor.initializer?.(instance);
+	constructor.initialize?.(instance);
 
 	if ((instance as any).__$$b) {
 		return; // We already initialized this struct, likely in the super() call.
@@ -21,12 +21,8 @@ export function initStruct(instance: object): void {
 			: Memory.alloc((constructor as Struct).size!); // Unmanaged Struct
 }
 export function dropStruct(instance: object): void {
-	const structType = instance.constructor as Struct;
-	const byteOffset = (instance as any).__$$b;
-	for (const pointer of structType.pointers ?? []) {
-		Memory.free(Memory.views.u32[(byteOffset + pointer) >> 2]);
-	}
-	Memory.free(byteOffset);
+	(instance.constructor as Struct).drop?.((instance as any).__$$b);
+	Memory.free((instance as any).__$$b);
 }
 
 export function createManagedStruct<T extends Struct>(

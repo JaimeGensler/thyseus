@@ -83,42 +83,30 @@ applyCommands.parameters = [
 if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { initStruct } = await import('../storage');
-	const { World } = await import('../world/World');
+	const { World } = await import('../world');
 	const { Memory } = await import('../utils');
+	const { struct } = await import('../struct');
 
 	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
-	class ZST {
-		static size = 0;
-		static alignment = 1;
-	}
+	@struct
+	class ZST {}
+
+	@struct
 	class Struct {
-		static size = 1;
-		static alignment = 1;
-		constructor() {
-			initStruct(this);
-		}
+		@struct.u8 declare x: number;
 	}
 	class CompA extends Struct {}
 	class CompB extends Struct {}
 	class CompC extends Struct {}
+	@struct
 	class CompD {
 		static size = 8;
 		static alignment = 4;
 
+		@struct.u32 declare x: number;
+		@struct.u32 declare y: number;
 		declare __$$b: number;
-		get x() {
-			return Memory.views.u32[this.__$$b >> 2];
-		}
-		get y() {
-			return Memory.views.u32[(this.__$$b >> 2) + 1];
-		}
-		set x(val: number) {
-			Memory.views.u32[this.__$$b >> 2] = val;
-		}
-		set y(val: number) {
-			Memory.views.u32[(this.__$$b >> 2) + 1] = val;
-		}
 
 		constructor(x = 23, y = 42) {
 			initStruct(this);
@@ -137,15 +125,24 @@ if (import.meta.vitest) {
 			.build();
 
 	it('moves entities', async () => {
-		const myWorld = await createWorld();
-		const moveEntitySpy = vi.spyOn(myWorld, 'moveEntity');
-		myWorld.commands.spawn().addType(CompA).add(new CompD());
-		myWorld.commands.spawn().addType(CompB).addType(ZST).add(new CompD());
+		const world = await createWorld();
+		const moveEntitySpy = vi.spyOn(world, 'moveEntity');
+		world.commands.spawn().addType(CompA).add(new CompD());
+		world.commands.spawn().addType(CompB).addType(ZST).add(new CompD());
+		const archetype1 =
+			1n |
+			(1n << BigInt(world.getComponentId(CompA))) |
+			(1n << BigInt(world.getComponentId(CompD)));
+		const archetype2 =
+			1n |
+			(1n << BigInt(world.getComponentId(CompB))) |
+			(1n << BigInt(world.getComponentId(ZST))) |
+			(1n << BigInt(world.getComponentId(CompD)));
 
-		applyCommands(myWorld, new Map());
+		applyCommands(world, new Map());
 		expect(moveEntitySpy).toHaveBeenCalledTimes(2);
-		expect(moveEntitySpy).toHaveBeenCalledWith(0n, 0b100101n);
-		expect(moveEntitySpy).toHaveBeenCalledWith(1n, 0b101011n);
+		expect(moveEntitySpy).toHaveBeenCalledWith(0n, archetype1);
+		expect(moveEntitySpy).toHaveBeenCalledWith(1n, archetype2);
 	});
 
 	it('initializes data', async () => {
@@ -156,13 +153,11 @@ if (import.meta.vitest) {
 		const archetypeD = myWorld.tables[1];
 		const testComp = new CompD();
 
-		const column =
+		testComp.__$$b =
 			Memory.views.u32[archetypeD.getColumnPointer(CompD) >> 2];
-
-		testComp.__$$b = column;
 		expect(archetypeD.length).toBe(1);
-		expect(testComp.x).toBe(1);
 		expect(testComp.y).toBe(2);
+		expect(testComp.x).toBe(1);
 	});
 
 	it('clears event queues', async () => {

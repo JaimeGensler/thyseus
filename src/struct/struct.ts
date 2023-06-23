@@ -1,4 +1,4 @@
-import { resetFields } from './addField';
+import { resetFields, type Copy, type Drop, Initialize } from './addField';
 import {
 	u8,
 	u16,
@@ -33,7 +33,20 @@ export type Struct = {
 	 */
 	size?: number;
 
-	pointers?: number[];
+	/**
+	 * A function that handles initializing some fields of an instance of a struct.
+	 */
+	initialize?: Initialize;
+
+	/**
+	 * A function that creates a **deep** copy given an instance of a struct.
+	 */
+	copy?: Copy;
+
+	/**
+	 * A function that fully drops an instance of a struct.
+	 */
+	drop?: Drop;
 
 	new (): object;
 };
@@ -63,12 +76,13 @@ type StructDecorator = {
 	): (prototype: object, propertyKey: string | symbol) => void;
 };
 export const struct: StructDecorator = function struct(targetClass) {
-	const { size, alignment, pointers, init } = resetFields();
+	const { size, alignment, initialize, copy, drop } = resetFields();
 	return class extends targetClass {
 		static size = size;
 		static alignment = alignment;
-		static pointers = pointers;
-		static initializer = init;
+		static initialize = initialize;
+		static copy = copy;
+		static drop = drop;
 
 		declare __$$b: number;
 
