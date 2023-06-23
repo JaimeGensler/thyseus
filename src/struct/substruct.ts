@@ -13,10 +13,18 @@ export function substruct(struct: Struct) {
 			name: propertyKey,
 			size: struct.size!,
 			alignment: struct.alignment!,
-			pointers: struct.pointers,
-			initializer(val) {
+			initialize(val) {
 				val[hiddenKey] = new struct();
 				dropStruct(val[hiddenKey]);
+			},
+			copy(from, to) {
+				struct.copy!(
+					from + offset[propertyKey],
+					to + offset[propertyKey],
+				);
+			},
+			drop(pointer) {
+				struct.drop?.(pointer + offset[propertyKey]);
 			},
 		});
 

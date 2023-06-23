@@ -5,6 +5,9 @@ import type { Struct } from '../struct';
 import type { Entities } from './Entities';
 
 export class Entity extends BaseEntity {
+	static copy(from: number, to: number) {
+		Memory.copy(from, this.size, to);
+	}
 	static size = 8;
 	static alignment = 8;
 

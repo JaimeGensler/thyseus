@@ -25,7 +25,27 @@ export function string(prototype: object, propertyKey: string | symbol) {
 		name: propertyKey,
 		size: Uint32Array.BYTES_PER_ELEMENT * 3,
 		alignment: Uint32Array.BYTES_PER_ELEMENT,
-		pointers: [8],
+		copy(from, to) {
+			const instanceStart = from + offset[propertyKey];
+			const length = Memory.views.u32[instanceStart >> 2];
+			const newPointer = length > 0 ? Memory.alloc(length) : 0;
+			if (newPointer !== 0) {
+				Memory.copy(
+					Memory.views.u32[(instanceStart + 8) >> 2],
+					length,
+					newPointer,
+				);
+			}
+			const copyStart = to + offset[propertyKey];
+			Memory.views.u32[copyStart >> 2] = length;
+			Memory.views.u32[(copyStart + 4) >> 2] = length;
+			Memory.views.u32[(copyStart + 8) >> 2] = newPointer;
+		},
+		drop(pointer) {
+			Memory.free(
+				Memory.views.u32[(pointer + offset[propertyKey] + 8) >> 2],
+			);
+		},
 	});
 
 	Object.defineProperty(prototype, propertyKey, {

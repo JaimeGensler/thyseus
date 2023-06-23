@@ -57,7 +57,11 @@ export class World {
 	) {
 		this.config = config;
 		this.threads = threads;
-		this.components = components;
+		// Components are sorted by alignment (largest -> smallest) so we can
+		// create "default" data for all of them without needing to pad any.
+		this.components = components.sort(
+			(a, z) => z.alignment! - a.alignment!,
+		);
 
 		Memory.init(
 			this.threads.queue(() =>

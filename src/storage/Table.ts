@@ -58,10 +58,9 @@ export class Table {
 	}
 
 	move(row: number, targetTable: Table): bigint {
-		const { u32, u64 } = Memory.views;
 		// We never call move for the empty table, so ptr will be defined.
 		const ptr = this.#getColumn(Entity);
-		const lastEntity = u64[(ptr >> 3) + this.length - 1];
+		const lastEntity = Memory.views.u64[(ptr >> 3) + this.length - 1];
 		for (const component of this.#components) {
 			const componentPointer =
 				this.#getColumn(component) + row * component.size!;
@@ -73,9 +72,7 @@ export class Table {
 						targetTable.length * component.size!,
 				);
 			} else {
-				for (const pointerOffset of component.pointers ?? []) {
-					Memory.free(u32[(componentPointer + pointerOffset) >> 2]);
-				}
+				component.drop?.(componentPointer);
 			}
 		}
 		targetTable.length++;

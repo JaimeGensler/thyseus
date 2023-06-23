@@ -181,6 +181,7 @@ if (import.meta.vitest) {
 
 	it('testAdd adds tables only if a filter passes', async () => {
 		class ZST {
+			static copy() {}
 			static size = 0;
 		}
 		const world = await createWorld(ZST);
@@ -239,6 +240,7 @@ if (import.meta.vitest) {
 
 		class Vec3 {
 			static size = 24;
+			static copy() {}
 			constructor() {
 				initStruct(this);
 			}
@@ -247,6 +249,7 @@ if (import.meta.vitest) {
 
 		it('yields normal elements for all table members', async () => {
 			class ZST {
+				static copy() {}
 				static size = 0;
 			}
 			const world = await createWorld(Vec3, ZST);
