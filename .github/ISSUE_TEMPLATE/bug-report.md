@@ -8,12 +8,12 @@ assignees: JaimeGensler
 
 <!-- Please provide all of the info requested below. Failure to provide this info will likely result in your report being closed, as it is not feasible to diagnose and resolve bugs without this info -->
 
-**Thyseus Version (e.g. v0.9.0)**
+## Bug Description
 
-**Bundler / Build Tool (e.g. Vite, Webpack)**
+### Thyseus Version (e.g. v0.9.0)\*\*
 
-**Environment & Version (e.g. \<browser\> \<version\>, Node \<version\>)**
+### Bundler / Build Tool (e.g. Vite, Webpack)\*\*
 
-**Reproduction URL (optional)**
+### Environment & Version (e.g. \<browser\> \<version\>, Node \<version\>)\*\*
 
-**Bug Description**
+### Reproduction URL (optional)\*\*
