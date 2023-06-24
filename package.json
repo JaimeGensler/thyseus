@@ -20,8 +20,8 @@
 			"import": "./dist/index.js",
 			"require": "./dist/index.umd.cjs"
 		},
-		"./types": {
-			"types": "./src/types.ts"
+		"./global": {
+			"types": "./global.d.ts"
 		}
 	},
 	"repository": {

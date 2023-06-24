@@ -23,7 +23,7 @@ export {
 
 export type { Commands, EntityCommands } from './commands';
 export type { EventReader, EventWriter } from './events';
-export type { Query, Optional } from './queries';
+export type { Query, Optional, OrContent, Accessors, Filter } from './queries';
 export type { Res, SystemRes } from './resources';
 export type { ExecutorType, ExecutorInstance, SystemConfig } from './schedule';
 export type { Table, Entities } from './storage';

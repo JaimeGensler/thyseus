@@ -1,5 +1,4 @@
-import type * as Thyseus from '.';
-import type { Accessors, Filter, OrContent } from './queries';
+import type * as Thyseus from './src';
 
 // NOTE: When developing locally, you must comment out these global types!
 // We do not rely on global injection in the core library.
@@ -24,10 +23,10 @@ declare global {
 	type Commands = Thyseus.Commands;
 	type EventReader<T extends object> = Thyseus.EventReader<T>;
 	type EventWriter<T extends object> = Thyseus.EventWriter<T>;
-	type Query<A extends Accessors, F extends Filter = []> = Thyseus.Query<
-		A,
-		F
-	>;
+	type Query<
+		A extends Thyseus.Accessors,
+		F extends Thyseus.Filter = [],
+	> = Thyseus.Query<A, F>;
 	type Res<T extends object> = Thyseus.Res<T>;
 	type SystemRes<T extends object> = Thyseus.SystemRes<T>;
 	type World = Thyseus.World;
@@ -37,5 +36,8 @@ declare global {
 	type Optional<T extends object> = Thyseus.Optional<T>;
 	type With<T extends object | object[]> = Thyseus.With<T>;
 	type Without<T extends object | object[]> = Thyseus.Without<T>;
-	type Or<L extends OrContent, R extends OrContent> = Thyseus.Or<L, R>;
+	type Or<
+		L extends Thyseus.OrContent,
+		R extends Thyseus.OrContent,
+	> = Thyseus.Or<L, R>;
 }
