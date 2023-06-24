@@ -104,38 +104,6 @@ if (import.meta.vitest) {
 		expect(executionOrder).toStrictEqual([1, 4, 3, 0, 2]);
 	});
 
-	it('handles beforeAll', async () => {
-		const {
-			systems: [a, b, c, d, e],
-			executionOrder,
-			world,
-			args,
-		} = createOrderTracking(5);
-		const exec = SimpleExecutor.fromWorld(
-			world,
-			[a, run(b).before(d), c, run(d).first(), e],
-			args,
-		);
-		await exec.start();
-		expect(executionOrder).toStrictEqual([1, 3, 0, 2, 4]);
-	});
-
-	it('handles afterAll', async () => {
-		const {
-			systems: [a, b, c, d, e],
-			executionOrder,
-			world,
-			args,
-		} = createOrderTracking(5);
-		const exec = SimpleExecutor.fromWorld(
-			world,
-			[a, run(b).after(d), c, run(d).last(), e],
-			args,
-		);
-		await exec.start();
-		expect(executionOrder).toStrictEqual([0, 2, 4, 3, 1]);
-	});
-
 	it('handles a combination of all', async () => {
 		const {
 			systems: [a, b, c, d, e, f],
@@ -145,17 +113,10 @@ if (import.meta.vitest) {
 		} = createOrderTracking(6);
 		const exec = SimpleExecutor.fromWorld(
 			world,
-			[
-				run(a).last(),
-				run(b).after(a),
-				c,
-				run(d).before(c),
-				run(e).before(f),
-				run(f).first(),
-			],
+			[a, run(b).after(a), c, run(d).before(c), run(e).before(f), f],
 			args,
 		);
 		await exec.start();
-		expect(executionOrder).toStrictEqual([4, 5, 3, 2, 0, 1]);
+		expect(executionOrder).toStrictEqual([0, 1, 3, 2, 4, 5]);
 	});
 }

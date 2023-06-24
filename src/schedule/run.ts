@@ -1,11 +1,8 @@
-import { DEV_ASSERT } from '../utils';
 import type { System } from '../systems';
 
 class SystemConfig {
 	dependents: System[] = [];
 	dependencies: System[] = [];
-	isFirst: boolean = false;
-	isLast: boolean = false;
 
 	system: System;
 	constructor(system: System) {
@@ -29,33 +26,6 @@ class SystemConfig {
 	 */
 	after(...systems: (System | System[])[]): this {
 		this.dependencies.push(...systems.flat());
-		return this;
-	}
-
-	/**
-	 * Specifies that this system should try to run before any other systems in the schedule have run.
-	 * Systems ordered to run before this will still run before.
-	 * @returns `this`, for chaining.
-	 */
-	first(): this {
-		DEV_ASSERT(
-			!this.isLast,
-			'A system cannot be ordered to run both first and last!',
-		);
-		this.isFirst = true;
-		return this;
-	}
-
-	/**
-	 * Specifies that this system should try to run after all other systems in the schedule have run.
-	 * @returns `this`, for chaining.
-	 */
-	last(): this {
-		DEV_ASSERT(
-			!this.isFirst,
-			'A system cannot be ordered to run both first and last!',
-		);
-		this.isLast = true;
 		return this;
 	}
 }
