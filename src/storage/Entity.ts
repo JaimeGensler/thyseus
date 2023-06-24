@@ -1,27 +1,16 @@
-import { BaseEntity, DEV_ASSERT, Memory } from '../utils';
+import { Memory } from '../utils';
 import { initStruct } from './initStruct';
-import type { Commands } from '../commands';
-import type { Struct } from '../struct';
-import type { Entities } from './Entities';
 
-export class Entity extends BaseEntity {
+export class Entity {
+	static size = 8;
+	static alignment = 8;
 	static copy(from: number, to: number) {
 		Memory.copy(from, this.size, to);
 	}
-	static size = 8;
-	static alignment = 8;
 
 	private declare __$$b: number;
 
-	#entities: Entities;
-
-	constructor(commands?: Commands, entities?: Entities) {
-		DEV_ASSERT(
-			commands && entities,
-			'An instance of the Entity component did not receive World commands and entities. This is likely a result of using Entity as a substruct, which is currently not supported.',
-		);
-		super(commands!);
-		this.#entities = entities!;
+	constructor() {
 		initStruct(this);
 	}
 
@@ -45,17 +34,5 @@ export class Entity extends BaseEntity {
 	 */
 	get generation(): number {
 		return Memory.views.u32![(this.__$$b >> 2) + 1];
-	}
-
-	/**
-	 * Verifies if this entity has a specific component type.
-	 *
-	 * **NOTE: Only works for queries running on the main thread!**
-	 *
-	 * @param componentType The type (class) of the component to detect.
-	 * @returns `boolean`, true if the entity has the component and false if it does not.
-	 */
-	hasComponent(componentType: Struct): boolean {
-		return this.#entities.hasComponent(this.id, componentType);
 	}
 }

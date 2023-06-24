@@ -228,7 +228,7 @@ export class WorldBuilder {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
-	const { Entity, initStruct } = await import('../storage');
+	const { initStruct } = await import('../storage');
 	const { Memory } = await import('../utils');
 
 	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());

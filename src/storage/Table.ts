@@ -183,7 +183,7 @@ if (import.meta.vitest) {
 		table.add(id1);
 		table.add(id2);
 
-		const entity = new Entity(world.commands, world.entities);
+		const entity = new Entity();
 		(entity as any).__$$b = getColumn(table, Entity);
 		expect(entity.id).toBe(id1);
 		(entity as any).__$$b += 8;
@@ -200,7 +200,7 @@ if (import.meta.vitest) {
 		expect(table.length).toBe(1);
 		expect(table.capacity).toBe(8);
 
-		const entity = new Entity(world.commands, world.entities);
+		const entity = new Entity();
 		(entity as any).__$$b = getColumn(table, Entity);
 		expect(entity.id).toBe(0n);
 
@@ -221,7 +221,7 @@ if (import.meta.vitest) {
 		spawnIntoTable(1, fromTable);
 		spawnIntoTable(4, toTable);
 
-		const ent = new Entity(world.commands, world.entities);
+		const ent = new Entity();
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
@@ -275,7 +275,7 @@ if (import.meta.vitest) {
 		const vecPtr = getColumn(table, Vec3);
 		const vec = new Vec3();
 		vec.__$$b = vecPtr;
-		const ent = new Entity(world.commands, world.entities);
+		const ent = new Entity();
 		(ent as any).__$$b = entPtr;
 
 		vec.x = 1;
@@ -341,7 +341,7 @@ if (import.meta.vitest) {
 		expect(table.length).toBe(1);
 		expect(table.capacity).toBe(8);
 
-		const entity = new Entity(world.commands, world.entities);
+		const entity = new Entity();
 		(entity as any).__$$b = getColumn(table, Entity);
 		expect(entity.id).toBe(1n);
 
@@ -356,7 +356,7 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const fromTable = createTable(Entity, Vec3);
 		const toTable = createTable(Entity);
-		const ent = new Entity(world.commands, world.entities);
+		const ent = new Entity();
 
 		spawnIntoTable(3, fromTable);
 		spawnIntoTable(1, fromTable);

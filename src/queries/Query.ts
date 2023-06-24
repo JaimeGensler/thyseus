@@ -1,8 +1,7 @@
 import { Memory } from '../utils';
-import { dropStruct, Entity, Vec, type Table, type Entities } from '../storage';
+import { dropStruct, Vec, type Table } from '../storage';
 import type { Struct } from '../struct';
 import type { World } from '../world';
-import type { Commands } from '../commands';
 import type { Mut, Optional, Filter } from './modifiers';
 
 export type Accessors = object | object[];
@@ -29,8 +28,6 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	#without: bigint[];
 	#components: Struct[];
 	#isIndividual: boolean;
-	#commands: Commands;
-	#entities: Entities;
 	constructor(
 		withFilters: bigint[],
 		withoutFilters: bigint[],
@@ -45,8 +42,6 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		this.#without = withoutFilters;
 		this.#isIndividual = isIndividual;
 		this.#components = components;
-		this.#commands = world.commands;
-		this.#entities = world.entities;
 	}
 
 	/**
@@ -109,10 +104,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		return (
 			this.#elements.pop() ??
 			(this.#components.map(comp => {
-				const instance =
-					comp === Entity
-						? new (comp as any)(this.#commands, this.#entities)
-						: (new comp() as any);
+				const instance = new comp() as any;
 				dropStruct(instance);
 				return instance;
 			}) as any)
@@ -427,7 +419,7 @@ if (import.meta.vitest) {
 
 		it('works if early table is empty and later table is not', async () => {
 			const world = await createWorld(Vec3);
-			const query = new Query<Entity>([0n], [0n], true, [Entity], world);
+			const query = new Query<any>([0n], [0n], true, [Entity], world);
 
 			// Move one entity into an `Entity` table, and then move it out.
 			// Query will match that table, but it will be empty.
