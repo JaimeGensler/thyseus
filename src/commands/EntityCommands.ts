@@ -13,12 +13,17 @@ export class EntityCommands {
 	#initialValuePointers: number[];
 	#id: bigint;
 	#isAlive: boolean;
-	constructor(world: World, id: bigint, initialValuePointers: number[]) {
+	constructor(
+		world: World,
+		commands: Commands,
+		initialValuePointers: number[],
+		id: bigint,
+	) {
 		this.#world = world;
-		this.#commands = world.commands;
+		this.#commands = commands;
 		this.#initialValuePointers = initialValuePointers;
 		this.#id = id;
-		this.#isAlive = this.#world.entities.wasDespawned(this.id);
+		this.#isAlive = !this.#world.entities.wasDespawned(this.id);
 	}
 
 	get id() {
@@ -26,7 +31,7 @@ export class EntityCommands {
 	}
 	setId(newId: bigint): this {
 		this.#id = newId;
-		this.#isAlive = this.#world.entities.wasDespawned(this.id);
+		this.#isAlive = !this.#world.entities.wasDespawned(this.id);
 		return this;
 	}
 

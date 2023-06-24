@@ -51,8 +51,9 @@ export class Commands {
 		});
 		this.#entityCommands = new EntityCommands(
 			world,
-			0n,
+			this,
 			this.#initialValuePointers,
+			0n,
 		);
 		this.#pointer =
 			world.threads.queue(() =>
@@ -131,8 +132,9 @@ export class Commands {
 		return unique
 			? new EntityCommands(
 					this.#world,
-					entityId,
+					this,
 					this.#initialValuePointers,
+					entityId,
 			  )
 			: this.#entityCommands.setId(entityId);
 	}
@@ -276,12 +278,23 @@ if (import.meta.vitest) {
 			.registerComponent(StringComponent)
 			.build();
 
-	it('returns unique entity handles', async () => {
+	it('returns identical entity handles if unique is false', async () => {
 		const world = await createWorld();
 		const { commands } = world;
 		const e1 = commands.getById(0n);
 		const e2 = commands.getById(1n);
+		const e3 = commands.getById(2n, false);
+		expect(e1).toBe(e2);
+		expect(e2).toBe(e3);
+	});
+	it('returns unique entity handles if unique is true', async () => {
+		const world = await createWorld();
+		const { commands } = world;
+		const e1 = commands.getById(0n, true);
+		const e2 = commands.getById(1n);
+		const e3 = commands.getById(2n, true);
 		expect(e1).not.toBe(e2);
+		expect(e1).not.toBe(e3);
 	});
 
 	it('adds Entity component to spawned entities', async () => {
@@ -422,7 +435,7 @@ if (import.meta.vitest) {
 		const commands = new Commands(world);
 		const component = new StringComponent('test');
 		const ent = commands.spawn().add(component);
-		const { u16, u32 } = Memory.views;
+		const { u32 } = Memory.views;
 
 		for (const command of commands) {
 			if (!(command instanceof AddComponentCommand)) {
