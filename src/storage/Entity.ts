@@ -19,20 +19,20 @@ export class Entity {
 	 * Composed of an entity's generation & index.
 	 */
 	get id(): bigint {
-		return Memory.views.u64![this.__$$b >> 3];
+		return Memory.u64![this.__$$b >> 3];
 	}
 
 	/**
 	 * The index of this entity (uint32).
 	 */
 	get index(): number {
-		return Memory.views.u32![this.__$$b >> 2];
+		return Memory.u32![this.__$$b >> 2];
 	}
 
 	/**
 	 * The generation of this entity (uint32).
 	 */
 	get generation(): number {
-		return Memory.views.u32![(this.__$$b >> 2) + 1];
+		return Memory.u32![(this.__$$b >> 2) + 1];
 	}
 }

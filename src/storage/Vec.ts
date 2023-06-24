@@ -30,7 +30,7 @@ export class Vec {
 	 * If set, will grow if needed and initialize new elements to 0.
 	 */
 	get length(): number {
-		return Memory.views.u32[this.#rawPointer];
+		return Memory.u32[this.#rawPointer];
 	}
 	set length(newLength: number) {
 		if (newLength > this.capacity) {
@@ -42,7 +42,7 @@ export class Vec {
 				0,
 			);
 		}
-		Memory.views.u32[this.#rawPointer] = newLength;
+		Memory.u32[this.#rawPointer] = newLength;
 	}
 
 	/**
@@ -50,20 +50,20 @@ export class Vec {
 	 * Can be set to resize.
 	 */
 	get capacity(): number {
-		return Memory.views.u32[this.#rawPointer + 1];
+		return Memory.u32[this.#rawPointer + 1];
 	}
 	set capacity(newCapacity: number) {
 		if (newCapacity > this.capacity) {
 			this.grow(newCapacity);
 		}
-		Memory.views.u32[this.#rawPointer + 1] = newCapacity;
+		Memory.u32[this.#rawPointer + 1] = newCapacity;
 	}
 
 	/**
 	 * The pointer to this Vecs elements.
 	 */
 	get #pointer(): number {
-		return Memory.views.u32[this.#rawPointer + 2] >> 2;
+		return Memory.u32[this.#rawPointer + 2] >> 2;
 	}
 
 	/**
@@ -78,7 +78,7 @@ export class Vec {
 				'Out of bounds index access in Vec.prototype.get()!',
 			);
 		}
-		return Memory.views.u32[this.#pointer + index];
+		return Memory.u32[this.#pointer + index];
 	}
 
 	/**
@@ -93,7 +93,7 @@ export class Vec {
 				'Out of bounds index access in Vec.prototype.get()!',
 			);
 		}
-		Memory.views.u32[this.#pointer + index] = value;
+		Memory.u32[this.#pointer + index] = value;
 	}
 
 	/**
@@ -105,8 +105,8 @@ export class Vec {
 		if (this.length === this.capacity) {
 			this.grow(this.length * 2 || 8);
 		}
-		Memory.views.u32[this.#pointer + this.length] = value;
-		Memory.views.u32[this.#rawPointer]++;
+		Memory.u32[this.#pointer + this.length] = value;
+		Memory.u32[this.#rawPointer]++;
 		return this.length;
 	}
 
@@ -114,9 +114,9 @@ export class Vec {
 	 * Removes the last element of this Vec and returns it.
 	 */
 	pop(): number {
-		Memory.views.u32[this.#rawPointer]--;
-		const value = Memory.views.u32[this.#pointer + this.length];
-		Memory.views.u32[this.#pointer + this.length] = 0;
+		Memory.u32[this.#rawPointer]--;
+		const value = Memory.u32[this.#pointer + this.length];
+		Memory.u32[this.#pointer + this.length] = 0;
 		return value;
 	}
 
@@ -130,7 +130,7 @@ export class Vec {
 			return;
 		}
 		Memory.reallocAt((this.#rawPointer + 2) << 2, newCapacity * 4);
-		Memory.views.u32[this.#rawPointer + 1] = newCapacity;
+		Memory.u32[this.#rawPointer + 1] = newCapacity;
 	}
 }
 

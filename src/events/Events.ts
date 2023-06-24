@@ -36,14 +36,14 @@ export class EventReader<T extends object> {
 	 * The number of events currently in this queue.
 	 */
 	get length(): number {
-		return Memory.views.u32[this.#pointer];
+		return Memory.u32[this.#pointer];
 	}
 
 	*[Symbol.iterator](): this extends EventWriter<any>
 		? Iterator<T>
 		: Iterator<Readonly<T>> {
 		const size = this.#struct.size!;
-		this.#instance.__$$b = Memory.views.u32[this.#pointer + 2];
+		this.#instance.__$$b = Memory.u32[this.#pointer + 2];
 		for (let i = 0; i < this.length; i++) {
 			yield this.#instance;
 			this.#instance.__$$b += size;
@@ -114,7 +114,7 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	 * **Immediately** clears all events in this queue.
 	 */
 	clearImmediate(): void {
-		Memory.views.u32[this.#pointer] = 0;
+		Memory.u32[this.#pointer] = 0;
 	}
 
 	/**
@@ -123,19 +123,16 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	 */
 	#addEvent(): number {
 		const { length } = this;
-		if (
-			length === Memory.views.u32[this.#pointer + 1] &&
-			this.type.size !== 0
-		) {
+		if (length === Memory.u32[this.#pointer + 1] && this.type.size !== 0) {
 			// Add space for 8 more events
 			Memory.reallocAt(
 				(this.#pointer + 2) << 2,
 				length * this.type.size! + 8 * this.type.size!,
 			);
-			Memory.views.u32[this.#pointer + 1] += 8;
+			Memory.u32[this.#pointer + 1] += 8;
 		}
-		Memory.views.u32[this.#pointer]++;
-		return length * this.type.size! + Memory.views.u32[this.#pointer + 2];
+		Memory.u32[this.#pointer]++;
+		return length * this.type.size! + Memory.u32[this.#pointer + 2];
 	}
 }
 

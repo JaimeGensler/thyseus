@@ -2,21 +2,6 @@ import { DEV_ASSERT } from './DEV_ASSERT';
 import { alignTo8 } from './alignTo8';
 
 type Pointer = number;
-export type MemoryViews = {
-	buffer: ArrayBuffer;
-	u8: Uint8Array;
-	u16: Uint16Array;
-	u32: Uint32Array;
-	u64: BigUint64Array;
-	i8: Int8Array;
-	i16: Int16Array;
-	i32: Int32Array;
-	i64: BigInt64Array;
-	f32: Float32Array;
-	f64: Float64Array;
-	dataview: DataView;
-};
-const views = {} as MemoryViews;
 
 let buffer: ArrayBuffer;
 let u8: Uint8Array;
@@ -63,18 +48,18 @@ function init(
 
 	u8 = new Uint8Array(buffer);
 	u32 = new Uint32Array(buffer);
-	views.buffer = buffer;
-	views.u8 = u8;
-	views.u16 = new Uint16Array(buffer);
-	views.u32 = u32;
-	views.u64 = new BigUint64Array(buffer);
-	views.i8 = new Int8Array(buffer);
-	views.i16 = new Int16Array(buffer);
-	views.i32 = new Int32Array(buffer);
-	views.i64 = new BigInt64Array(buffer);
-	views.f32 = new Float32Array(buffer);
-	views.f64 = new Float64Array(buffer);
-	views.dataview = new DataView(buffer);
+	Memory.buffer = buffer;
+	Memory.u8 = u8;
+	Memory.u16 = new Uint16Array(buffer);
+	Memory.u32 = u32;
+	Memory.u64 = new BigUint64Array(buffer);
+	Memory.i8 = new Int8Array(buffer);
+	Memory.i16 = new Int16Array(buffer);
+	Memory.i32 = new Int32Array(buffer);
+	Memory.i64 = new BigInt64Array(buffer);
+	Memory.f32 = new Float32Array(buffer);
+	Memory.f64 = new Float64Array(buffer);
+	Memory.dataview = new DataView(buffer);
 	BUFFER_END = buffer.byteLength - 4;
 	if (typeof sizeOrBuffer === 'number') {
 		u32[1] = buffer.byteLength - 8;
@@ -321,7 +306,18 @@ export const Memory = {
 	copyPointer,
 	set,
 
-	views,
+	buffer: null as any as ArrayBuffer,
+	u8: null as any as Uint8Array,
+	u16: null as any as Uint16Array,
+	u32: null as any as Uint32Array,
+	u64: null as any as BigUint64Array,
+	i8: null as any as Int8Array,
+	i16: null as any as Int16Array,
+	i32: null as any as Int32Array,
+	i64: null as any as BigInt64Array,
+	f32: null as any as Float32Array,
+	f64: null as any as Float64Array,
+	dataview: null as any as DataView,
 
 	UNSAFE_CLEAR_ALL,
 };
@@ -437,18 +433,18 @@ if (import.meta.vitest) {
 			Memory.init(256);
 			const ALLOCATION_SIZE = 16;
 			const ptr1 = Memory.alloc(ALLOCATION_SIZE);
-			Memory.views.u32[ptr1 >> 2] = ~0 >>> 0;
-			Memory.views.u32[(ptr1 + 4) >> 2] = ~0 >>> 0;
+			Memory.u32[ptr1 >> 2] = ~0 >>> 0;
+			Memory.u32[(ptr1 + 4) >> 2] = ~0 >>> 0;
 			const copiedPtr = Memory.copyPointer(ptr1);
 
-			expect(Memory.views.u32[(copiedPtr - BLOCK_HEADER_SIZE) >> 2]).toBe(
+			expect(Memory.u32[(copiedPtr - BLOCK_HEADER_SIZE) >> 2]).toBe(
 				(ALLOCATION_SIZE + BLOCK_METADATA_SIZE) | 1,
 			);
-			expect(Memory.views.u32[(copiedPtr + ALLOCATION_SIZE) >> 2]).toBe(
+			expect(Memory.u32[(copiedPtr + ALLOCATION_SIZE) >> 2]).toBe(
 				(ALLOCATION_SIZE + BLOCK_METADATA_SIZE) | 1,
 			);
-			expect(Memory.views.u32[copiedPtr >> 2]).toBe(~0 >>> 0);
-			expect(Memory.views.u32[(copiedPtr + 4) >> 2]).toBe(~0 >>> 0);
+			expect(Memory.u32[copiedPtr >> 2]).toBe(~0 >>> 0);
+			expect(Memory.u32[(copiedPtr + 4) >> 2]).toBe(~0 >>> 0);
 		});
 	});
 

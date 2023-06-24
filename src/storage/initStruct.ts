@@ -135,7 +135,7 @@ if (import.meta.vitest) {
 			const comp = new StringComp();
 			comp.val = 'test!';
 			expect(comp.val).toBe('test!');
-			const stringPointer = Memory.views.u32[(comp.__$$b + 8) >> 2];
+			const stringPointer = Memory.u32[(comp.__$$b + 8) >> 2];
 			const instancePointer = comp.__$$b;
 			expect(freeSpy).not.toHaveBeenCalled();
 			dropStruct(comp);

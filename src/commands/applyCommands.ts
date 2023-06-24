@@ -21,7 +21,7 @@ export function applyCommands(
 	// Main command handling loop
 	for (const command of commands) {
 		if (command instanceof ClearEventQueueCommand) {
-			Memory.views.u32[command.queueLengthPointer >> 2] = 0;
+			Memory.u32[command.queueLengthPointer >> 2] = 0;
 			continue;
 		}
 		if (
@@ -154,8 +154,7 @@ if (import.meta.vitest) {
 		const archetypeD = myWorld.tables[1];
 		const testComp = new CompD();
 
-		testComp.__$$b =
-			Memory.views.u32[archetypeD.getColumnPointer(CompD) >> 2];
+		testComp.__$$b = Memory.u32[archetypeD.getColumnPointer(CompD) >> 2];
 		expect(archetypeD.length).toBe(1);
 		expect(testComp.y).toBe(2);
 		expect(testComp.x).toBe(1);

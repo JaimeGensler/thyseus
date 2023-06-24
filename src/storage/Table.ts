@@ -24,13 +24,13 @@ export class Table {
 		return this.#id;
 	}
 	get capacity(): number {
-		return Memory.views.u32[(this.#pointer >> 2) + 1];
+		return Memory.u32[(this.#pointer >> 2) + 1];
 	}
 	get length(): number {
-		return Memory.views.u32[this.#pointer >> 2];
+		return Memory.u32[this.#pointer >> 2];
 	}
 	set length(value: number) {
-		Memory.views.u32[this.#pointer >> 2] = value;
+		Memory.u32[this.#pointer >> 2] = value;
 	}
 
 	hasColumn(componentType: Struct): boolean {
@@ -39,7 +39,7 @@ export class Table {
 
 	add(entityId: bigint) {
 		const ptr = this.#getColumn(Entity);
-		Memory.views.u64[(ptr >> 3) + this.length] = entityId;
+		Memory.u64[(ptr >> 3) + this.length] = entityId;
 		this.length++;
 	}
 
@@ -47,7 +47,7 @@ export class Table {
 		this.length--;
 		let i = 2; // Start of pointers
 		for (const component of this.#components) {
-			const ptr = Memory.views.u32[(this.#pointer >> 2) + i];
+			const ptr = Memory.u32[(this.#pointer >> 2) + i];
 			Memory.copy(
 				ptr + this.length * component.size!, // From the last element
 				component.size!, // Copy one component
@@ -60,7 +60,7 @@ export class Table {
 	move(row: number, targetTable: Table): bigint {
 		// We never call move for the empty table, so ptr will be defined.
 		const ptr = this.#getColumn(Entity);
-		const lastEntity = Memory.views.u64[(ptr >> 3) + this.length - 1];
+		const lastEntity = Memory.u64[(ptr >> 3) + this.length - 1];
 		for (const component of this.#components) {
 			const componentPointer =
 				this.#getColumn(component) + row * component.size!;
@@ -81,7 +81,7 @@ export class Table {
 	}
 
 	grow(newCapacity: number): void {
-		Memory.views.u32[(this.#pointer >> 2) + 1] = newCapacity;
+		Memory.u32[(this.#pointer >> 2) + 1] = newCapacity;
 		let i = 8;
 		for (const component of this.#components) {
 			Memory.reallocAt(
@@ -116,7 +116,7 @@ export class Table {
 		return this.#pointer;
 	}
 	#getColumn(componentType: Struct): number {
-		return Memory.views.u32[
+		return Memory.u32[
 			(this.#pointer >> 2) + 2 + this.#components.indexOf(componentType)
 		];
 	}
@@ -161,13 +161,13 @@ if (import.meta.vitest) {
 	const createTable = (...components: Struct[]) =>
 		new Table(components, 0n, 0);
 	const getColumn = (table: Table, column: Struct) =>
-		Memory.views.u32[table.getColumnPointer(column) >> 2];
+		Memory.u32[table.getColumnPointer(column) >> 2];
 	const spawnIntoTable = (eid: number, targetTable: Table) => {
 		if (targetTable.capacity === targetTable.length) {
 			targetTable.grow(targetTable.capacity * 2 || 8);
 		}
 		const column = getColumn(targetTable, Entity);
-		Memory.views.u64[(column + targetTable.length * 8) >> 3] = BigInt(eid);
+		Memory.u64[(column + targetTable.length * 8) >> 3] = BigInt(eid);
 		targetTable.length++;
 	};
 
@@ -408,7 +408,7 @@ if (import.meta.vitest) {
 		spawnIntoTable(0, initialTable);
 
 		const pointer = Memory.alloc(8);
-		Memory.views.u32[(getColumn(initialTable, StringComponent) + 8) >> 2] =
+		Memory.u32[(getColumn(initialTable, StringComponent) + 8) >> 2] =
 			pointer;
 
 		expect(freeSpy).not.toHaveBeenCalled();
