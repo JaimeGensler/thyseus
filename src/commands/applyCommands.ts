@@ -70,7 +70,8 @@ export function applyCommands(
 		);
 	}
 
-	commands.reset();
+	// SAFETY: We have ownership of World right now, this is safe.
+	(commands as any).reset();
 }
 applyCommands.parameters = [
 	new WorldDescriptor(),

@@ -1,4 +1,4 @@
-import { alignTo8, DEV_ASSERT, Memory } from '../utils';
+import { alignTo8, Memory } from '../utils';
 import { EntityCommands } from './EntityCommands';
 import {
 	AddComponentCommand,
@@ -9,13 +9,12 @@ import { Entity, type Entities } from '../storage';
 import type { Struct } from '../struct';
 import type { World } from '../world';
 
-type NotFunction<T> = T extends Function ? never : T;
-
 export class Commands {
 	#commands: { __$$b: number }[] = [];
 
 	#world: World;
 	#entities: Entities;
+	#entityCommands: EntityCommands;
 	#initialValuePointers: number[];
 	#pointer: number; // [nextId, ...[size, capacity, pointer]]
 	#ownPointer: number;
@@ -50,6 +49,11 @@ export class Commands {
 			}
 			return componentPointers;
 		});
+		this.#entityCommands = new EntityCommands(
+			world,
+			0n,
+			this.#initialValuePointers,
+		);
 		this.#pointer =
 			world.threads.queue(() =>
 				Memory.alloc((1 + 3 * world.config.threads) * 4),
@@ -75,135 +79,72 @@ export class Commands {
 
 	/**
 	 * Queues an entity to be spawned.
+	 * @param unique - (optional) Whether or not the returned `EntityCommands` should be unique. Defaults to false.
 	 * @returns `EntityCommands`, which can add/remove components from an entity.
 	 */
-	spawn(): EntityCommands {
+	spawn(unique: boolean = false): EntityCommands {
 		const command = this.push(AddComponentCommand, Entity.size);
 		const entityId = this.#entities.getId();
 		command.entityId = entityId;
 		command.componentId = 0;
 		Memory.views.u64[command.dataStart >> 3] = entityId;
-		return new EntityCommands(this, command.entityId);
+		return this.getById(entityId, unique);
 	}
 
 	/**
-	 * Queues an entity to be despawned.
-	 * @param id The id of the entity to despawn.
-	 * @returns `this`, for chaining.
+	 * Queues the provided entity to be despawned.
+	 * @param entity The Entity to be despawned.
 	 */
-	despawn(id: bigint): void {
-		if (this.#entities.wasDespawned(id)) {
+	despawn(entity: Entity): void {
+		this.despawnById(entity.id);
+	}
+	/**
+	 * Queues the provided entity to be despawned.
+	 * @param entityId The id of the Entity to be despawned.
+	 */
+	despawnById(entityId: bigint): void {
+		if (this.#entities.wasDespawned(entityId)) {
 			return;
 		}
 		const command = this.push(RemoveComponentCommand);
-		command.entityId = id;
+		command.entityId = entityId;
 		command.componentId = 0; // ID of Entity component is always 0
 	}
 
 	/**
 	 * Gets `EntityCommands` for an Entity.
-	 * @param id The id of the entity to get.
-	 * @returns `EntityCommands`, which can add/remove components from an entity.
+	 * @param entityId The id of the Entity to get.
+	 * @param unique (optional) Whether or not the returned `EntityCommands` should be unique. Defaults to false.
+	 * @returns `EntityCommands` for the provided entity.
 	 */
-	getEntityById(id: bigint): EntityCommands {
-		return new EntityCommands(this, id);
+	get(entity: Entity, unique: boolean = false): EntityCommands {
+		return this.getById(entity.id, unique);
 	}
 
-	insertInto<T extends object>(
-		entityId: bigint,
-		component: NotFunction<T>,
-	): void {
-		if (this.#entities.wasDespawned(entityId)) {
-			return;
-		}
-		const componentType: Struct = component.constructor as any;
-
-		DEV_ASSERT(
-			componentType !== Entity,
-			'Tried to add Entity component, which is forbidden.',
-		);
-
-		const command = this.push(
-			AddComponentCommand,
-			(component.constructor as Struct).size!,
-		);
-		command.entityId = entityId;
-		command.componentId = this.#world.getComponentId(componentType);
-		if (componentType.size === 0) {
-			return;
-		}
-		componentType.copy!((component as any).__$$b, command.dataStart);
+	/**
+	 * Gets `EntityCommands` given an Entity's id.
+	 * @param entityId The id of the Entity to get.
+	 * @param unique (optional) Whether or not the returned `EntityCommands` should be unique. Defaults to false.
+	 * @returns `EntityCommands` for the provided entity.
+	 */
+	getById(entityId: bigint, unique: boolean = false): EntityCommands {
+		return unique
+			? new EntityCommands(
+					this.#world,
+					entityId,
+					this.#initialValuePointers,
+			  )
+			: this.#entityCommands.setId(entityId);
 	}
 
-	insertTypeInto(entityId: bigint, componentType: Struct): void {
-		DEV_ASSERT(
-			componentType !== Entity,
-			'Tried to add Entity component, which is forbidden.',
-		);
-		if (this.#entities.wasDespawned(entityId)) {
-			return;
-		}
-
-		const command = this.push(AddComponentCommand, componentType.size!);
-		command.entityId = entityId;
-		command.componentId = this.#world.getComponentId(componentType);
-		if (componentType.size === 0) {
-			return;
-		}
-		componentType.copy!(
-			this.#initialValuePointers[command.componentId],
-			command.dataStart,
-		);
-	}
-
-	removeFrom(entityId: bigint, componentType: Struct): void {
-		DEV_ASSERT(
-			componentType !== Entity,
-			'Tried to remove Entity component, which is forbidden.',
-		);
-		if (this.#entities.wasDespawned(entityId)) {
-			return;
-		}
-		const command = this.push(RemoveComponentCommand);
-		command.entityId = entityId;
-		command.componentId = this.#world.getComponentId(componentType);
-	}
-
-	*[Symbol.iterator]() {
-		const { u32 } = Memory.views;
-		const queueDataLength = 1 + u32[this.#pointer] * 3;
-		for (
-			let queueOffset = 1;
-			queueOffset < queueDataLength;
-			queueOffset += 3
-		) {
-			const start = u32[this.#pointer + queueOffset + 2];
-			const end = start + u32[this.#pointer + queueOffset];
-			for (
-				let current = start;
-				current < end;
-				current += u32[current >> 2]
-			) {
-				const commandId = u32[(current + 4) >> 2];
-				const command = this.#commands[commandId];
-				command.__$$b = current + 8;
-				yield command as object;
-			}
-		}
-	}
-
-	reset(): void {
-		const { u32 } = Memory.views;
-		const queueDataLength = 1 + u32[this.#pointer] * 3;
-		for (
-			let queueOffset = 1;
-			queueOffset < queueDataLength;
-			queueOffset += 3
-		) {
-			u32[this.#pointer + queueOffset] = 0;
-		}
-	}
-
+	/**
+	 * Pushes a command of type `T` to the queue and returns a mutable instance of that command.
+	 *
+	 * Added Commands must have been registered - only useable for internal commands right now.
+	 * @param commandType The type of command to add.
+	 * @param additionalSize The _additional size_ (beyond the size of the commandType) this command will need.
+	 * @returns A mutable instance of the provided command type.
+	 */
 	push<T extends Struct>(
 		commandType: T,
 		additionalSize: number = 0,
@@ -226,6 +167,47 @@ export class Commands {
 		this.#size += addedSize;
 		command.__$$b = queueEnd + 8;
 		return command as InstanceType<T>;
+	}
+
+	*[Symbol.iterator](): Iterator<object> {
+		const { u32 } = Memory.views;
+		const queueDataLength = 1 + u32[this.#pointer] * 3;
+		for (
+			let queueOffset = 1;
+			queueOffset < queueDataLength;
+			queueOffset += 3
+		) {
+			const start = u32[this.#pointer + queueOffset + 2];
+			const end = start + u32[this.#pointer + queueOffset];
+			for (
+				let current = start;
+				current < end;
+				current += u32[current >> 2]
+			) {
+				const commandId = u32[(current + 4) >> 2];
+				const command = this.#commands[commandId];
+				command.__$$b = current + 8;
+				yield command as object;
+			}
+		}
+	}
+
+	// Marked private so consumers don't know it's available.
+	/**
+	 * A function to clear the queue of all commands.
+	 *
+	 * **NOTE: Is not thread-safe!**
+	 */
+	private reset(): void {
+		const { u32 } = Memory.views;
+		const queueDataLength = 1 + u32[this.#pointer] * 3;
+		for (
+			let queueOffset = 1;
+			queueOffset < queueDataLength;
+			queueOffset += 3
+		) {
+			u32[this.#pointer + queueOffset] = 0;
+		}
 	}
 }
 
@@ -297,8 +279,8 @@ if (import.meta.vitest) {
 	it('returns unique entity handles', async () => {
 		const world = await createWorld();
 		const { commands } = world;
-		const e1 = commands.getEntityById(0n);
-		const e2 = commands.getEntityById(1n);
+		const e1 = commands.getById(0n);
+		const e2 = commands.getById(1n);
 		expect(e1).not.toBe(e2);
 	});
 
@@ -457,20 +439,17 @@ if (import.meta.vitest) {
 
 	it('throws if trying to add/remove Entity', async () => {
 		const world = await createWorld();
-		const { commands, entities } = world;
-		expect(() => commands.insertTypeInto(0n, Entity)).toThrow();
-
-		expect(() =>
-			commands.insertInto(0n, new Entity(commands, entities)),
-		).toThrow();
-		expect(() => commands.removeFrom(0n, Entity)).toThrow();
+		const { commands } = world;
+		expect(() => commands.spawn().addType(Entity)).toThrow();
+		expect(() => commands.spawn().add(new Entity())).toThrow();
+		expect(() => commands.spawn().remove(Entity)).toThrow();
 	});
 
 	it('reset clears all queues', async () => {
 		const world = await createWorld();
 		const { commands } = world;
 		const ent = commands.spawn().addType(CompA);
-		commands.reset();
+		(commands as any).reset();
 		let iterations = 0;
 		for (const command of commands) {
 			iterations++;
