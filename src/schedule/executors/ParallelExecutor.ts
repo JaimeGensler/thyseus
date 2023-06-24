@@ -35,7 +35,7 @@ export class ParallelExecutor {
 					);
 			  });
 
-		const { buffer } = Memory.views;
+		const { buffer } = Memory;
 		const pointer = world.threads.queue(() =>
 			Memory.alloc(8 + systems.length * 3),
 		);

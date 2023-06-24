@@ -17,14 +17,13 @@ function createPrimativeFieldDecorator(typeName: PrimitiveName) {
 		Object.defineProperty(prototype, propertyKey, {
 			enumerable: true,
 			get() {
-				return Memory.views[typeName][
+				return Memory[typeName][
 					(this.__$$b + offset[propertyKey]) >> shift
 				];
 			},
 			set(value: number) {
-				Memory.views[typeName][
-					(this.__$$b + offset[propertyKey]) >> shift
-				] = value;
+				Memory[typeName][(this.__$$b + offset[propertyKey]) >> shift] =
+					value;
 			},
 		});
 	};
@@ -53,10 +52,10 @@ export const bool = function fieldDecorator(
 	Object.defineProperty(prototype, propertyKey, {
 		enumerable: true,
 		get() {
-			return !!Memory.views.u8[this.__$$b + offset[propertyKey]];
+			return !!Memory.u8[this.__$$b + offset[propertyKey]];
 		},
 		set(value: boolean) {
-			Memory.views.u8[this.__$$b + offset[propertyKey]] = Number(value);
+			Memory.u8[this.__$$b + offset[propertyKey]] = Number(value);
 		},
 	});
 };

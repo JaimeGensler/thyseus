@@ -48,7 +48,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	 * The number of entities that match this query.
 	 */
 	get length(): number {
-		const { u32 } = Memory.views;
+		const { u32 } = Memory;
 		const jump = this.#components.length + 1;
 		let length = 0;
 		for (let i = 0; i < this.#vec.length; i += jump) {
@@ -58,7 +58,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	}
 
 	*[Symbol.iterator](): Iterator<QueryIteration<A>> {
-		const { u32 } = Memory.views;
+		const { u32 } = Memory;
 		const elements = this.#getIteration() as Element[];
 
 		for (let cursor = 0; cursor < this.#vec.length; ) {
@@ -161,13 +161,13 @@ if (import.meta.vitest) {
 	});
 
 	const getColumn = (table: Table, column: Struct) =>
-		Memory.views.u32[table.getColumnPointer(column) >> 2];
+		Memory.u32[table.getColumnPointer(column) >> 2];
 	const spawnIntoTable = (eid: number, targetTable: Table) => {
 		if (targetTable.capacity === targetTable.length) {
 			targetTable.grow(targetTable.capacity * 2 || 8);
 		}
 		const column = getColumn(targetTable, Entity);
-		Memory.views.u64[(column + targetTable.length * 8) >> 3] = BigInt(eid);
+		Memory.u64[(column + targetTable.length * 8) >> 3] = BigInt(eid);
 		targetTable.length++;
 	};
 

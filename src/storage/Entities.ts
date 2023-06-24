@@ -58,7 +58,7 @@ export class Entities {
 		if (cursor >= this.#freed.length) {
 			// If we've already exhausted freed ids,
 			// bump the nextId and return that (generation = 0)
-			return BigInt(Atomics.add(Memory.views.u32, this.#data, 1));
+			return BigInt(Atomics.add(Memory.u32, this.#data, 1));
 		}
 		const index = this.#freed.get(this.#freed.length - 1 - cursor);
 		// generations[index] will exist because we've allocated
@@ -126,7 +126,7 @@ export class Entities {
 	}
 
 	resetCursor(): void {
-		const { u32 } = Memory.views;
+		const { u32 } = Memory;
 		this.#freed.length -= Math.min(this.#freed.length, u32[this.#data + 1]);
 		u32[this.#data + 1] = 0;
 
@@ -173,7 +173,7 @@ export class Entities {
 		// This will move the cursor past the length of the freed Vec - this is
 		// intentional, we check to see if we've moved too far to see if we need
 		// to get fresh (generation = 0) ids.
-		return Atomics.add(Memory.views.u32, this.#data + 1, 1);
+		return Atomics.add(Memory.u32, this.#data + 1, 1);
 	}
 }
 

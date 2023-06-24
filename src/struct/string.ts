@@ -27,24 +27,22 @@ export function string(prototype: object, propertyKey: string | symbol) {
 		alignment: Uint32Array.BYTES_PER_ELEMENT,
 		copy(from, to) {
 			const instanceStart = from + offset[propertyKey];
-			const length = Memory.views.u32[instanceStart >> 2];
+			const length = Memory.u32[instanceStart >> 2];
 			const newPointer = length > 0 ? Memory.alloc(length) : 0;
 			if (newPointer !== 0) {
 				Memory.copy(
-					Memory.views.u32[(instanceStart + 8) >> 2],
+					Memory.u32[(instanceStart + 8) >> 2],
 					length,
 					newPointer,
 				);
 			}
 			const copyStart = to + offset[propertyKey];
-			Memory.views.u32[copyStart >> 2] = length;
-			Memory.views.u32[(copyStart + 4) >> 2] = length;
-			Memory.views.u32[(copyStart + 8) >> 2] = newPointer;
+			Memory.u32[copyStart >> 2] = length;
+			Memory.u32[(copyStart + 4) >> 2] = length;
+			Memory.u32[(copyStart + 8) >> 2] = newPointer;
 		},
 		drop(pointer) {
-			Memory.free(
-				Memory.views.u32[(pointer + offset[propertyKey] + 8) >> 2],
-			);
+			Memory.free(Memory.u32[(pointer + offset[propertyKey] + 8) >> 2]);
 		},
 	});
 
@@ -52,27 +50,27 @@ export function string(prototype: object, propertyKey: string | symbol) {
 		enumerable: true,
 		get() {
 			const start = this.__$$b + offset[propertyKey];
-			const length = Memory.views.u32[start >> 2];
-			const ptr = Memory.views.u32[(start + 8) >> 2];
-			return decoder.decode(Memory.views.u8.subarray(ptr, ptr + length));
+			const length = Memory.u32[start >> 2];
+			const ptr = Memory.u32[(start + 8) >> 2];
+			return decoder.decode(Memory.u8.subarray(ptr, ptr + length));
 		},
 
 		set(value: string) {
 			const byteLength = getByteLength(value);
 			const start = this.__$$b + offset[propertyKey];
-			const capacity = Memory.views.u32[(start + 4) >> 2];
-			let pointer = Memory.views.u32[(start + 8) >> 2];
+			const capacity = Memory.u32[(start + 4) >> 2];
+			let pointer = Memory.u32[(start + 8) >> 2];
 			if (capacity < byteLength) {
 				const newPointer = Memory.realloc(pointer, byteLength);
 				pointer = newPointer;
-				Memory.views.u32[(start + 4) >> 2] = byteLength;
-				Memory.views.u32[(start + 8) >> 2] = newPointer;
+				Memory.u32[(start + 4) >> 2] = byteLength;
+				Memory.u32[(start + 8) >> 2] = newPointer;
 			}
 
-			Memory.views.u32[start >> 2] = byteLength;
+			Memory.u32[start >> 2] = byteLength;
 			encoder.encodeInto(
 				value,
-				Memory.views.u8.subarray(pointer, pointer + byteLength!),
+				Memory.u8.subarray(pointer, pointer + byteLength!),
 			);
 		},
 	});

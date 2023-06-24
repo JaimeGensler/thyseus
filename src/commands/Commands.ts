@@ -60,22 +60,20 @@ export class Commands {
 				Memory.alloc((1 + 3 * world.config.threads) * 4),
 			) >> 2;
 		this.#ownPointer =
-			3 * Atomics.add(Memory.views.u32, this.#pointer, 1) +
-			this.#pointer +
-			1;
+			3 * Atomics.add(Memory.u32, this.#pointer, 1) + this.#pointer + 1;
 	}
 
 	get #size() {
-		return Memory.views.u32[this.#ownPointer];
+		return Memory.u32[this.#ownPointer];
 	}
 	set #size(val: number) {
-		Memory.views.u32[this.#ownPointer] = val;
+		Memory.u32[this.#ownPointer] = val;
 	}
 	get #capacity() {
-		return Memory.views.u32[this.#ownPointer + 1];
+		return Memory.u32[this.#ownPointer + 1];
 	}
 	set #capacity(val: number) {
-		Memory.views.u32[this.#ownPointer + 1] = val;
+		Memory.u32[this.#ownPointer + 1] = val;
 	}
 
 	/**
@@ -88,7 +86,7 @@ export class Commands {
 		const entityId = this.#entities.getId();
 		command.entityId = entityId;
 		command.componentId = 0;
-		Memory.views.u64[command.dataStart >> 3] = entityId;
+		Memory.u64[command.dataStart >> 3] = entityId;
 		return this.getById(entityId, unique);
 	}
 
@@ -151,7 +149,7 @@ export class Commands {
 		commandType: T,
 		additionalSize: number = 0,
 	): InstanceType<T> {
-		const { u32 } = Memory.views;
+		const { u32 } = Memory;
 		const commandId = this.#commands.findIndex(
 			command => command.constructor === commandType,
 		);
@@ -172,7 +170,7 @@ export class Commands {
 	}
 
 	*[Symbol.iterator](): Iterator<object> {
-		const { u32 } = Memory.views;
+		const { u32 } = Memory;
 		const queueDataLength = 1 + u32[this.#pointer] * 3;
 		for (
 			let queueOffset = 1;
@@ -201,7 +199,7 @@ export class Commands {
 	 * **NOTE: Is not thread-safe!**
 	 */
 	private reset(): void {
-		const { u32 } = Memory.views;
+		const { u32 } = Memory;
 		const queueDataLength = 1 + u32[this.#pointer] * 3;
 		for (
 			let queueOffset = 1;
@@ -379,7 +377,7 @@ if (import.meta.vitest) {
 			const { entityId, componentId, dataStart } = command;
 			expect(entityId).toBe(ent.id);
 			expect(componentId).toBe(5);
-			const u32 = Memory.views.u32.subarray(
+			const u32 = Memory.u32.subarray(
 				dataStart >> 2,
 				(dataStart + CompD.size) >> 2,
 			);
@@ -402,7 +400,7 @@ if (import.meta.vitest) {
 
 			expect(entityId).toBe(ent.id);
 			expect(componentId).toBe(5);
-			const u32 = Memory.views.u32.subarray(
+			const u32 = Memory.u32.subarray(
 				dataStart >> 2,
 				(dataStart + CompD.size) >> 2,
 			);
@@ -416,7 +414,7 @@ if (import.meta.vitest) {
 		const commands = new Commands(world);
 		const ent1 = commands.spawn().addType(StringComponent);
 		const ent2 = commands.spawn().addType(StringComponent);
-		const { u32 } = Memory.views;
+		const { u32 } = Memory;
 		let previousPointer = 0;
 		for (const command of commands) {
 			if (!(command instanceof AddComponentCommand)) {
@@ -435,7 +433,7 @@ if (import.meta.vitest) {
 		const commands = new Commands(world);
 		const component = new StringComponent('test');
 		const ent = commands.spawn().add(component);
-		const { u32 } = Memory.views;
+		const { u32 } = Memory;
 
 		for (const command of commands) {
 			if (!(command instanceof AddComponentCommand)) {
@@ -444,7 +442,7 @@ if (import.meta.vitest) {
 			const { componentId, dataStart } = command;
 			if (componentId === 6) {
 				expect(
-					Memory.views.u32[((component as any).__$$b + 8) >> 2],
+					Memory.u32[((component as any).__$$b + 8) >> 2],
 				).not.toBe(u32[(dataStart + 8) >> 2]);
 			}
 		}
