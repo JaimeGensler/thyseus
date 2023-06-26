@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.13.0
+
+### Minor Changes
+
+-   66bdf49: Change signature of get(), getById(), and spawn() methods
+-   745fb57: Define copy/drop functions for structs rather than pointer array
+-   c390f4d: Flatten Memory.views into Memory
+-   66ba4cb: Privatize most fields on WorldBuilder
+-   f5874ba: Rewrite Commands to use structs, add push() method
+-   66bdf49: Remove commands API from Entity
+-   c50508d: Remove implicit dependencies (first, last)
+-   43e0276: Add World.prototype.getComponentId
+-   66bdf49: Remove insertInto(), insertTypeInto(), removeFrom() methods on
+    Commands
+-   ee25756: Remove /types import, setup /global import
+
+### Patch Changes
+
+-   bb74461: Does not add known no-op commands to the command queue
+-   745fb57: Sort components by alignment (largest -> smallest)
+-   ea2af62: Fix free not clearing last couple bytes of block
+
 ## v0.12.0
 
 ### 💥 Breaking Changes
