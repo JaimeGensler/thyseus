@@ -94,7 +94,7 @@ export class Commands {
 	 * Queues the provided entity to be despawned.
 	 * @param entity The Entity to be despawned.
 	 */
-	despawn(entity: Entity): void {
+	despawn(entity: Readonly<Entity>): void {
 		this.despawnById(entity.id);
 	}
 	/**
@@ -116,7 +116,7 @@ export class Commands {
 	 * @param unique (optional) Whether or not the returned `EntityCommands` should be unique. Defaults to false.
 	 * @returns `EntityCommands` for the provided entity.
 	 */
-	get(entity: Entity, unique: boolean = false): EntityCommands {
+	get(entity: Readonly<Entity>, unique: boolean = false): EntityCommands {
 		return this.getById(entity.id, unique);
 	}
 
