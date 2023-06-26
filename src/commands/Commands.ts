@@ -78,16 +78,16 @@ export class Commands {
 
 	/**
 	 * Queues an entity to be spawned.
-	 * @param unique - (optional) Whether or not the returned `EntityCommands` should be unique. Defaults to false.
+	 * @param reuse - (optional) Whether or not the returned `EntityCommands` should be reused. Defaults to false.
 	 * @returns `EntityCommands`, which can add/remove components from an entity.
 	 */
-	spawn(unique: boolean = false): EntityCommands {
+	spawn(reuse: boolean = false): EntityCommands {
 		const command = this.push(AddComponentCommand, Entity.size);
 		const entityId = this.#entities.getId();
 		command.entityId = entityId;
 		command.componentId = 0;
 		Memory.u64[command.dataStart >> 3] = entityId;
-		return this.getById(entityId, unique);
+		return this.getById(entityId, reuse);
 	}
 
 	/**
@@ -113,28 +113,28 @@ export class Commands {
 	/**
 	 * Gets `EntityCommands` for an Entity.
 	 * @param entityId The id of the Entity to get.
-	 * @param unique (optional) Whether or not the returned `EntityCommands` should be unique. Defaults to false.
+	 * @param reuse (optional) Whether or not the returned `EntityCommands` should be reused. Defaults to false.
 	 * @returns `EntityCommands` for the provided entity.
 	 */
-	get(entity: Readonly<Entity>, unique: boolean = false): EntityCommands {
-		return this.getById(entity.id, unique);
+	get(entity: Readonly<Entity>, reuse: boolean = false): EntityCommands {
+		return this.getById(entity.id, reuse);
 	}
 
 	/**
 	 * Gets `EntityCommands` given an Entity's id.
 	 * @param entityId The id of the Entity to get.
-	 * @param unique (optional) Whether or not the returned `EntityCommands` should be unique. Defaults to false.
+	 * @param reuse (optional) Whether or not the returned `EntityCommands` should be reused. Defaults to false.
 	 * @returns `EntityCommands` for the provided entity.
 	 */
-	getById(entityId: bigint, unique: boolean = false): EntityCommands {
-		return unique
-			? new EntityCommands(
+	getById(entityId: bigint, reuse: boolean = false): EntityCommands {
+		return reuse
+			? this.#entityCommands.setId(entityId)
+			: new EntityCommands(
 					this.#world,
 					this,
 					this.#initialValuePointers,
 					entityId,
-			  )
-			: this.#entityCommands.setId(entityId);
+			  );
 	}
 
 	/**
@@ -276,23 +276,25 @@ if (import.meta.vitest) {
 			.registerComponent(StringComponent)
 			.build();
 
-	it('returns identical entity handles if unique is false', async () => {
+	it('returns unique entity handles if reuse is false', async () => {
 		const world = await createWorld();
 		const { commands } = world;
 		const e1 = commands.getById(0n);
-		const e2 = commands.getById(1n);
+		const e2 = commands.getById(1n, false);
 		const e3 = commands.getById(2n, false);
-		expect(e1).toBe(e2);
-		expect(e2).toBe(e3);
+		expect(e1).not.toBe(e2);
+		expect(e2).not.toBe(e3);
+		expect(e1).not.toBe(e3);
 	});
-	it('returns unique entity handles if unique is true', async () => {
+	it('returns unique entity handles if reuse is false', async () => {
 		const world = await createWorld();
 		const { commands } = world;
-		const e1 = commands.getById(0n, true);
-		const e2 = commands.getById(1n);
+		const e1 = commands.getById(0n);
+		const e2 = commands.getById(1n, true);
 		const e3 = commands.getById(2n, true);
-		expect(e1).not.toBe(e2);
-		expect(e1).not.toBe(e3);
+		expect(e1 === e2).toBe(false);
+		expect(e1 === e3).toBe(false);
+		expect(e2 === e3).toBe(true);
 	});
 
 	it('adds Entity component to spawned entities', async () => {
