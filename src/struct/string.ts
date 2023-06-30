@@ -1,25 +1,26 @@
 import { addField } from './addField';
 import { Memory } from '../utils';
 
-// Adapted from https://stackoverflow.com/questions/5515869/string-length-in-bytes-in-javascript
-function getByteLength(val: string) {
-	let byteLength = val.length;
-	for (let i = val.length - 1; i >= 0; i--) {
-		const code = val.charCodeAt(i);
-		if (code > 0x7f && code <= 0x7ff) {
-			byteLength++;
-		} else if (code > 0x7ff && code <= 0xffff) {
-			byteLength += 2;
-		}
-		if (code >= 0xdc00 && code <= 0xdfff) {
-			i--;
-		}
+export function deserializeString(pointer: number): string {
+	const length = Memory.u32[pointer >> 2];
+	const offset = Memory.u32[(pointer + 8) >> 2] >> 1;
+	let result = '';
+	for (let i = 0; i < length; i++) {
+		result += String.fromCharCode(Memory.u16[offset + i]);
 	}
-	return byteLength;
+	return result;
 }
-
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
+export function serializeString(pointer: number, value: string): void {
+	const byteLength = value.length * 2;
+	const capacity = Memory.u32[(pointer + 4) >> 2];
+	if (byteLength > capacity) {
+		Memory.reallocAt(pointer + 8, byteLength);
+	}
+	const offset = Memory.u32[(pointer + 8) >> 2] >> 1;
+	for (let i = 0; i < value.length; i++) {
+		Memory.u16[offset + i] = value.charCodeAt(i);
+	}
+}
 export function string(prototype: object, propertyKey: string | symbol) {
 	const offset = addField({
 		name: propertyKey,
@@ -49,29 +50,11 @@ export function string(prototype: object, propertyKey: string | symbol) {
 	Object.defineProperty(prototype, propertyKey, {
 		enumerable: true,
 		get() {
-			const start = this.__$$b + offset[propertyKey];
-			const length = Memory.u32[start >> 2];
-			const ptr = Memory.u32[(start + 8) >> 2];
-			return decoder.decode(Memory.u8.subarray(ptr, ptr + length));
+			deserializeString(this.__$$b + offset[propertyKey]);
 		},
-
 		set(value: string) {
-			const byteLength = getByteLength(value);
-			const start = this.__$$b + offset[propertyKey];
-			const capacity = Memory.u32[(start + 4) >> 2];
-			let pointer = Memory.u32[(start + 8) >> 2];
-			if (capacity < byteLength) {
-				const newPointer = Memory.realloc(pointer, byteLength);
-				pointer = newPointer;
-				Memory.u32[(start + 4) >> 2] = byteLength;
-				Memory.u32[(start + 8) >> 2] = newPointer;
-			}
-
-			Memory.u32[start >> 2] = byteLength;
-			encoder.encodeInto(
-				value,
-				Memory.u8.subarray(pointer, pointer + byteLength!),
-			);
+			console.log(value);
+			serializeString(this.__$$b + offset[propertyKey], value);
 		},
 	});
 }
