@@ -1,7 +1,7 @@
 import { bits, DEV_ASSERT, Memory } from '../utils';
 import { WorldBuilder } from './WorldBuilder';
 import { Commands } from '../commands';
-import { createManagedStruct, Entities, Table } from '../storage';
+import { Entities, Table } from '../storage';
 import { EventReader, EventWriter } from '../events';
 import { StartSchedule, type ExecutorInstance } from '../schedule';
 import { isStruct, type Class, type Struct } from '../struct';
@@ -99,12 +99,13 @@ export class World {
 
 		for (const resourceType of resourceTypes) {
 			if (isStruct(resourceType)) {
-				const pointer = this.threads.queue(() =>
+				const res = new resourceType();
+				(resourceType as any).__$$b = this.threads.queue(() =>
 					resourceType.size! !== 0
 						? Memory.alloc(resourceType.size!)
 						: 0,
 				);
-				this.resources.push(createManagedStruct(resourceType, pointer));
+				this.resources.push(res);
 			} else if (threads.isMainThread) {
 				this.resources.push(new resourceType());
 			}

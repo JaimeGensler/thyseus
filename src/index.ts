@@ -1,6 +1,6 @@
 export { applyCommands } from './commands';
 export { World } from './world';
-export { Entity, initStruct, dropStruct } from './storage';
+export { Entity } from './storage';
 export { struct } from './struct';
 export { run, DefaultSchedule, StartSchedule } from './schedule';
 export { Memory } from './utils';
@@ -21,6 +21,7 @@ export {
 	// Optional,
 } from './descriptors';
 
+export type { u8, u16, u32, u64, i8, i16, i32, i64, f32, f64 } from './struct';
 export type { Commands, EntityCommands } from './commands';
 export type { EventReader, EventWriter } from './events';
 export type { Query, Optional, OrContent, Accessors, Filter } from './queries';

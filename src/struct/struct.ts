@@ -1,42 +1,24 @@
-import { resetFields, type Copy, type Drop, Initialize } from './addField';
-import {
-	u8,
-	u16,
-	u32,
-	u64,
-	i8,
-	i16,
-	i32,
-	i64,
-	f32,
-	f64,
-	bool,
-} from './primitives';
-import { string } from './string';
-import { array, type ArrayOptions } from './array';
-import { substruct } from './substruct';
-import { initStruct } from '../storage';
-
+type Copy = any;
+type Drop = any;
 export type Class = {
 	new (...args: any[]): object;
 };
 export type Struct = {
-	// NOTE: Types have been loosened to be optional here, as decorators do not provide type info.
+	// NOTE: Types are loosened to optional here as the transformer generates
+	// these fields. `size` and `alignment` are required, copy and drop are not
 
 	/**
-	 * The alignment of this type - equal to the number of bytes of the largest primitive type this struct contains (1, 2, 4, or 8).
+	 * The alignment of this type.
+	 * Equal to the number of bytes of the largest primitive type this struct contains (1, 2, 4, or 8).
 	 */
 	alignment?: number;
 
 	/**
-	 * The size of this struct, including padding. Always a multiple of alignment.
+	 * The size of this struct, including padding.
+	 * May be `0`.
+	 * Always a multiple of alignment.
 	 */
 	size?: number;
-
-	/**
-	 * A function that handles initializing some fields of an instance of a struct.
-	 */
-	initialize?: Initialize;
 
 	/**
 	 * A function that creates a **deep** copy given an instance of a struct.
@@ -51,63 +33,12 @@ export type Struct = {
 	new (): object;
 };
 
-type StructDecorator = {
-	(targetClass: Class): any;
-	bool(prototype: object, propertyKey: string | symbol): void;
-	u8(prototype: object, propertyKey: string | symbol): void;
-	u16(prototype: object, propertyKey: string | symbol): void;
-	u32(prototype: object, propertyKey: string | symbol): void;
-	u64(prototype: object, propertyKey: string | symbol): void;
-	i8(prototype: object, propertyKey: string | symbol): void;
-	i16(prototype: object, propertyKey: string | symbol): void;
-	i32(prototype: object, propertyKey: string | symbol): void;
-	i64(prototype: object, propertyKey: string | symbol): void;
-	f32(prototype: object, propertyKey: string | symbol): void;
-	f64(prototype: object, propertyKey: string | symbol): void;
-
-	string(prototype: object, propertyKey: string | symbol): void;
-
-	array({
-		type,
-		length,
-	}: ArrayOptions): (prototype: object, propertyKey: string | symbol) => void;
-	substruct(
-		struct: Struct,
-	): (prototype: object, propertyKey: string | symbol) => void;
-};
-export const struct: StructDecorator = function struct(targetClass) {
-	const { size, alignment, initialize, copy, drop } = resetFields();
-	return class extends targetClass {
-		static size = size;
-		static alignment = alignment;
-		static initialize = initialize;
-		static copy = copy;
-		static drop = drop;
-
-		declare __$$b: number;
-
-		constructor(...args: any[]) {
-			super(...args);
-			initStruct(this);
-		}
-	};
-};
-
-struct.bool = bool;
-struct.u8 = u8;
-struct.u16 = u16;
-struct.u32 = u32;
-struct.u64 = u64;
-struct.i8 = i8;
-struct.i16 = i16;
-struct.i32 = i32;
-struct.i64 = i64;
-struct.f32 = f32;
-struct.f64 = f64;
-
-struct.string = string;
-struct.array = array;
-struct.substruct = substruct;
+export function struct(targetClass: Class): void;
+export function struct(
+	targetClass: Class,
+	context: ClassDecoratorContext,
+): void;
+export function struct(): any {}
 
 /*---------*\
 |   TESTS   |

@@ -1,5 +1,4 @@
 import { Memory } from '../utils';
-import { dropStruct } from '../storage';
 import { ClearEventQueueCommand, type Commands } from '../commands';
 import type { Struct } from '../struct';
 
@@ -13,12 +12,8 @@ export class EventReader<T extends object> {
 		commands: Commands,
 		struct: Struct & { new (): T },
 		pointer: number,
-		instance?: T,
+		instance: T = new struct() as T,
 	) {
-		if (instance === undefined) {
-			instance = new struct() as T;
-			dropStruct(instance);
-		}
 		this.#commands = commands;
 		this.#instance = instance as any;
 		this.#struct = struct;
@@ -69,7 +64,6 @@ export class EventWriter<T extends object> extends EventReader<T> {
 		pointer: number,
 	) {
 		const instance = new struct() as T & { __$$b: number };
-		dropStruct(instance);
 		super(commands, struct, pointer, instance);
 		this.#instance = instance;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access.
@@ -141,7 +135,6 @@ export class EventWriter<T extends object> extends EventReader<T> {
 if (import.meta.vitest) {
 	const { it, expect, beforeEach, vi } = import.meta.vitest;
 	const { struct } = await import('../struct');
-	const { initStruct } = await import('../storage');
 	const { World } = await import('../world');
 
 	async function setupQueue<T extends Struct, I extends InstanceType<T>>(

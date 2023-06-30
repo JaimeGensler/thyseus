@@ -1,5 +1,8 @@
-import { addField } from './addField';
 import { Memory } from '../utils';
+
+// A string is essentially a Vec<u16> (we assume UTF-16 encoding)
+// size: 12 | alignment: 4
+// Fields are ordered [length, capacity, pointer]
 
 export function deserializeString(pointer: number): string {
 	const length = Memory.u32[pointer >> 2];
@@ -21,36 +24,6 @@ export function serializeString(pointer: number, value: string): void {
 	for (let i = 0; i < value.length; i++) {
 		Memory.u16[offset + i] = value.charCodeAt(i);
 	}
-}
-export function string(prototype: object, propertyKey: string | symbol) {
-	const offset = addField({
-		name: propertyKey,
-		size: Uint32Array.BYTES_PER_ELEMENT * 3,
-		alignment: Uint32Array.BYTES_PER_ELEMENT,
-		copy(from, to) {
-			const fromStart = from + offset[propertyKey];
-			const toStart = to + offset[propertyKey];
-
-			Memory.u32[toStart >> 2] = Memory.u32[fromStart >> 2];
-			Memory.u32[(toStart + 4) >> 2] = Memory.u32[(fromStart + 4) >> 2];
-			Memory.u32[(toStart + 8) >> 2] = Memory.copyPointer(
-				Memory.u32[(fromStart + 8) >> 2],
-			);
-		},
-		drop(pointer) {
-			Memory.free(Memory.u32[(pointer + offset[propertyKey] + 8) >> 2]);
-		},
-	});
-
-	Object.defineProperty(prototype, propertyKey, {
-		enumerable: true,
-		get() {
-			return deserializeString(this.__$$b + offset[propertyKey]);
-		},
-		set(value: string) {
-			serializeString(this.__$$b + offset[propertyKey], value);
-		},
-	});
 }
 
 /*---------*\

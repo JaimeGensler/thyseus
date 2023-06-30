@@ -1,5 +1,4 @@
 import { Memory } from '../utils';
-import { createManagedStruct } from '../storage/initStruct';
 import { isStruct, type Class } from '../struct';
 import type { SystemParameter } from '../systems';
 import type { World, WorldBuilder } from '../world';
@@ -24,18 +23,19 @@ export class SystemResourceDescriptor<T extends object>
 
 	async intoArgument({ threads }: World): Promise<T> {
 		const { resourceType } = this;
-		const instance = isStruct(resourceType)
-			? createManagedStruct(
-					resourceType,
-					resourceType.size! !== 0
-						? threads.queue(() => Memory.alloc(resourceType.size!))
-						: 0,
-			  )
-			: new resourceType();
-		if (threads.isMainThread) {
-			await (instance as any).initialize?.();
+		let res: T = null as any;
+		if (isStruct(resourceType)) {
+			res = new resourceType() as T;
+			(resourceType as any).__$$b = threads.queue(() =>
+				resourceType.size! !== 0 ? Memory.alloc(resourceType.size!) : 0,
+			);
+		} else if (threads.isMainThread) {
+			res = new resourceType() as T;
 		}
-		return instance as T;
+		if (threads.isMainThread) {
+			await (res as any).initialize?.();
+		}
+		return res as T;
 	}
 }
 
