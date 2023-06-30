@@ -1,5 +1,5 @@
 import { Memory } from '../utils';
-import { dropStruct, Vec, type Table } from '../storage';
+import { Vec, type Table } from '../storage';
 import type { Struct } from '../struct';
 import type { World } from '../world';
 import type { Mut, Optional, Filter } from './modifiers';
@@ -101,11 +101,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	#getIteration(): (Element | null)[] {
 		return (
 			this.#elements.pop() ??
-			(this.#components.map(comp => {
-				const instance = new comp() as any;
-				dropStruct(instance);
-				return instance;
-			}) as any)
+			(this.#components.map(comp => new comp()) as any)
 		);
 	}
 
@@ -141,7 +137,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, beforeEach } = import.meta.vitest;
-	const { initStruct, Entity, Table } = await import('../storage');
+	const { Entity, Table } = await import('../storage');
 	const { World } = await import('../world');
 	const { applyCommands } = await import('../commands');
 

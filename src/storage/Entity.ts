@@ -1,17 +1,22 @@
 import { Memory } from '../utils';
-import { initStruct } from './initStruct';
 
 export class Entity {
 	static size = 8;
 	static alignment = 8;
-	static copy(from: number, to: number) {
-		Memory.copy(from, this.size, to);
-	}
 
 	private declare __$$b: number;
 
-	constructor() {
-		initStruct(this);
+	#id: bigint = 0n;
+	#index: number = 0;
+	#generation: number = 0;
+
+	deserialize() {
+		this.#id = Memory.u64[this.__$$b >> 3];
+		this.#index = Memory.u32![this.__$$b >> 2];
+		this.#generation = Memory.u32![(this.__$$b + 4) >> 2];
+	}
+	serialize() {
+		// This is a no-op because Entity is immutable.
 	}
 
 	/**
@@ -19,20 +24,20 @@ export class Entity {
 	 * Composed of an entity's generation & index.
 	 */
 	get id(): bigint {
-		return Memory.u64![this.__$$b >> 3];
+		return this.#id;
 	}
 
 	/**
 	 * The index of this entity (uint32).
 	 */
 	get index(): number {
-		return Memory.u32![this.__$$b >> 2];
+		return this.#index;
 	}
 
 	/**
 	 * The generation of this entity (uint32).
 	 */
 	get generation(): number {
-		return Memory.u32![(this.__$$b >> 2) + 1];
+		return this.#generation;
 	}
 }
