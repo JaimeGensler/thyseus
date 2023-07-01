@@ -8,10 +8,7 @@ const low32 = 0x0000_0000_ffff_ffffn;
 const getIndex = (entityId: bigint) => Number(entityId & low32);
 const getGeneration = (entityId: bigint) => Number(entityId >> 32n);
 const ENTITY_BATCH_SIZE = 256;
-const createSharedVec = (world: World) =>
-	Vec.fromPointer(world.threads.queue(() => Memory.alloc(Vec.size)));
-
-const ENTITIES_POINTER_SIZE = 8; // [u32, u32]
+const ENTITIES_POINTER_SIZE = 8 + Vec.size * 3; // [u32, u32, ...Vecs]
 
 export class Entities {
 	/**
@@ -42,12 +39,13 @@ export class Entities {
 	#freed: Vec;
 	constructor(world: World) {
 		this.#world = world;
-		this.#data = world.threads.queue(
-			() => Memory.alloc(ENTITIES_POINTER_SIZE) >> 2,
+		const ptr = world.threads.queue(() =>
+			Memory.alloc(ENTITIES_POINTER_SIZE),
 		);
-		this.#generations = createSharedVec(world);
-		this.#locations = createSharedVec(world);
-		this.#freed = createSharedVec(world);
+		this.#data = ptr >> 2;
+		this.#generations = Vec.fromPointer(ptr + 8);
+		this.#locations = Vec.fromPointer(ptr + 20);
+		this.#freed = Vec.fromPointer(ptr + 32);
 	}
 
 	/**
