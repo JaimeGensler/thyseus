@@ -29,19 +29,13 @@ export function string(prototype: object, propertyKey: string | symbol) {
 		alignment: Uint32Array.BYTES_PER_ELEMENT,
 		copy(from, to) {
 			const fromStart = from + offset[propertyKey];
-			const length = Memory.u32[fromStart >> 2];
-			const newPointer = length > 0 ? Memory.alloc(length) : 0;
-			if (newPointer !== 0) {
-				Memory.copy(
-					Memory.u32[(fromStart + 8) >> 2],
-					length,
-					newPointer,
-				);
-			}
 			const toStart = to + offset[propertyKey];
-			Memory.u32[toStart >> 2] = length;
-			Memory.u32[(toStart + 4) >> 2] = length;
-			Memory.u32[(toStart + 8) >> 2] = newPointer;
+
+			Memory.u32[toStart >> 2] = Memory.u32[fromStart >> 2];
+			Memory.u32[(toStart + 4) >> 2] = Memory.u32[(fromStart + 4) >> 2];
+			Memory.u32[(toStart + 8) >> 2] = Memory.copyPointer(
+				Memory.u32[(fromStart + 8) >> 2],
+			);
 		},
 		drop(pointer) {
 			Memory.free(Memory.u32[(pointer + offset[propertyKey] + 8) >> 2]);

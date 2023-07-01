@@ -37,7 +37,7 @@ export class Vec {
 			this.grow(newLength);
 		} else if (newLength < this.length) {
 			Memory.set(
-				(this.#rawPointer + newLength) << 2,
+				(this.#pointer + newLength) << 2,
 				this.length - newLength,
 				0,
 			);
