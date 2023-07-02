@@ -48,7 +48,6 @@ export function string(prototype: object, propertyKey: string | symbol) {
 			return deserializeString(this.__$$b + offset[propertyKey]);
 		},
 		set(value: string) {
-			console.log(value);
 			serializeString(this.__$$b + offset[propertyKey], value);
 		},
 	});
