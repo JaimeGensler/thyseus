@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.1
+
+### Patch Changes
+
+-   821d5bb: Fix strings being mainthread-only
+-   821d5bb: Fix Vecs clearing memory incorrectly
+
 ## 0.13.0
 
 ### Minor Changes
