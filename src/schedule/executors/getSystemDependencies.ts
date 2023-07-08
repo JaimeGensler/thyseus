@@ -5,7 +5,7 @@ import type { SystemConfig } from '../run';
 export function getSystemDependencies(
 	systems: (System | SystemConfig)[],
 ): bigint[] {
-	const masks = systems.map(() => 0n);
+	const dependencies = systems.map(() => 0n);
 
 	for (let i = 0; i < systems.length; i++) {
 		const system = systems[i];
@@ -22,7 +22,7 @@ export function getSystemDependencies(
 				dependencyIndex !== -1,
 				`System "${system.system.name}" must run after system "${dependency.name}", but "${dependency.name}" is not in the schedule!`,
 			);
-			masks[i] |= 1n << BigInt(dependencyIndex);
+			dependencies[i] |= 1n << BigInt(dependencyIndex);
 		}
 		for (const dependent of system.dependents) {
 			const dependentIndex = systems.findIndex(s =>
@@ -34,11 +34,11 @@ export function getSystemDependencies(
 				dependentIndex !== -1,
 				`System "${system.system.name}" must run before "${dependent.name}", but "${dependent.name}" is not in the schedule!`,
 			);
-			masks[dependentIndex] |= 1n << BigInt(i);
+			dependencies[dependentIndex] |= 1n << BigInt(i);
 		}
 	}
 
-	const deepDependencies = [...masks];
+	const deepDependencies = [...dependencies];
 	deepDependencies.forEach(function mergeDependencies(mask, i) {
 		for (const bit of bits(mask)) {
 			mergeDependencies(deepDependencies[bit], bit);
@@ -56,7 +56,7 @@ export function getSystemDependencies(
 		);
 	}
 
-	return masks;
+	return dependencies;
 }
 
 /*---------*\

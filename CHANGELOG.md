@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.2
+
+### Patch Changes
+
+-   Fix dependencies not working correctly
+
 ## 0.13.1
 
 ### Patch Changes
