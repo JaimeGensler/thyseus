@@ -92,7 +92,7 @@ export class WorldBuilder {
 				system.parameters?.length ?? 0
 			}. This is likely due to a failed transformation.`,
 		);
-		this.#schedules.get(schedule)!.push(system);
+		this.#schedules.get(schedule)!.push(systemLike);
 		return this;
 	}
 
@@ -230,6 +230,7 @@ if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { initStruct } = await import('../storage');
 	const { Memory } = await import('../utils');
+	const { run } = await import('../schedule');
 
 	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
@@ -318,6 +319,19 @@ if (import.meta.vitest) {
 		expect(initializeTimeSpy).not.toHaveBeenCalled();
 		const world = await builder.build();
 		expect(initializeTimeSpy).toHaveBeenCalledWith(world);
+	});
+
+	it('passes SystemConfig to Executors', async () => {
+		const fromWorldSpy = vi.spyOn(SimpleExecutor, 'fromWorld');
+
+		const a = () => {};
+		const b = () => {};
+		const dep = run(b).after(a);
+		const world = await World.new({ isMainThread: true })
+			.addSystems(a, dep)
+			.build();
+
+		expect(fromWorldSpy).toHaveBeenCalledWith(world, [a, dep], [[], []]);
 	});
 
 	it('adds defaultPlugin', async () => {

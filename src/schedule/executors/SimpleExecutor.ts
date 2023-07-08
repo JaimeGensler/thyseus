@@ -66,7 +66,6 @@ if (import.meta.vitest) {
 			function mySystem() {
 				executionOrder.push(i);
 			}
-			mySystem.parameters = [{ intersectsWith: () => true } as any];
 			return mySystem;
 		});
 		return {
