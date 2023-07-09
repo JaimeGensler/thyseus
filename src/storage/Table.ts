@@ -15,7 +15,7 @@ export class Table {
 	#id: number;
 	constructor(components: Struct[], archetype: bigint, id: number) {
 		this.#components = components.filter(component => component.size! > 0);
-		this.#pointer = Memory.alloc(8 * (2 + this.#components.length));
+		this.#pointer = Memory.alloc(4 * (2 + this.#components.length));
 		this.archetype = archetype;
 		this.#id = id;
 	}
@@ -45,15 +45,15 @@ export class Table {
 
 	delete(row: number): void {
 		this.length--;
-		let i = 2; // Start of pointers
+		let i = 8; // Start of pointers
 		for (const component of this.#components) {
-			const ptr = Memory.u32[(this.#pointer >> 2) + i];
+			const ptr = Memory.u32[(this.#pointer + i) >> 2];
 			Memory.copy(
 				ptr + this.length * component.size!, // From the last element
 				component.size!, // Copy one component
 				ptr + row * component.size!, // To this element
 			);
-			i++;
+			i += 4;
 		}
 	}
 
@@ -81,7 +81,7 @@ export class Table {
 	}
 
 	grow(newCapacity: number): void {
-		Memory.u32[(this.#pointer >> 2) + 1] = newCapacity;
+		Memory.u32[(this.#pointer + 4) >> 2] = newCapacity;
 		let i = 8;
 		for (const component of this.#components) {
 			Memory.reallocAt(

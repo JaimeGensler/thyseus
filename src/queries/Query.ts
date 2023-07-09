@@ -35,9 +35,7 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		components: Struct[],
 		world: World,
 	) {
-		this.#vec = Vec.fromPointer(
-			world.threads.queue(() => Memory.alloc(Vec.size)),
-		);
+		this.#vec = new Vec(world.threads.queue(() => Memory.alloc(Vec.size)));
 		this.#with = withFilters;
 		this.#without = withoutFilters;
 		this.#isIndividual = isIndividual;
