@@ -8,7 +8,6 @@ const low32 = 0x0000_0000_ffff_ffffn;
 const getIndex = (entityId: bigint) => Number(entityId & low32);
 const getGeneration = (entityId: bigint) => Number(entityId >> 32n);
 const ENTITY_BATCH_SIZE = 256;
-const ENTITIES_POINTER_SIZE = 8 + Vec.size * 3; // [u32, u32, ...Vecs]
 
 export class Entities {
 	/**
@@ -34,18 +33,16 @@ export class Entities {
 	 */
 	#locations: Vec;
 	/**
-	 * List of freed entity indexes for reuse
+	 * List of freed entity indexes available for reuse.
 	 */
 	#freed: Vec;
 	constructor(world: World) {
 		this.#world = world;
-		const ptr = world.threads.queue(() =>
-			Memory.alloc(ENTITIES_POINTER_SIZE),
-		);
+		const ptr = world.threads.queue(() => Memory.alloc(8 + Vec.size * 3));
 		this.#data = ptr >> 2;
-		this.#generations = Vec.fromPointer(ptr + 8);
-		this.#locations = Vec.fromPointer(ptr + 20);
-		this.#freed = Vec.fromPointer(ptr + 32);
+		this.#generations = new Vec(ptr + 8);
+		this.#locations = new Vec(ptr + 8 + Vec.size);
+		this.#freed = new Vec(ptr + 8 + Vec.size * 2);
 	}
 
 	/**
@@ -125,7 +122,7 @@ export class Entities {
 
 	resetCursor(): void {
 		const { u32 } = Memory;
-		this.#freed.length -= Math.min(this.#freed.length, u32[this.#data + 1]);
+		this.#freed.remove(u32[this.#data + 1]);
 		u32[this.#data + 1] = 0;
 
 		const entityCount = u32[this.#data];
@@ -133,10 +130,8 @@ export class Entities {
 			const newLength =
 				Math.ceil((entityCount + 1) / ENTITY_BATCH_SIZE) *
 				ENTITY_BATCH_SIZE;
-			// Set the length rather than call grow because we want these
-			// elements to be initialized.
-			this.#generations.length = newLength;
-			this.#locations.length = newLength * 2;
+			this.#generations.grow(newLength).fill(0);
+			this.#locations.grow(newLength * 2).fill(0);
 		}
 	}
 

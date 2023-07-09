@@ -2,19 +2,10 @@ import { Memory } from '../utils';
 
 /**
  * A `Vec<u32>`.
- *
- * Create with `Vec.new()` or `Vec.fromPointer`.
  */
 export class Vec {
 	static size = 12;
 	static alignment = 4;
-
-	static fromPointer(pointer: number) {
-		return new this(pointer >> 2);
-	}
-	static new() {
-		return new this(Memory.alloc(this.size) >> 2);
-	}
 
 	/**
 	 * The raw pointer to this Vecs `[length, capacity, pointer]`.
@@ -22,41 +13,21 @@ export class Vec {
 	 */
 	#rawPointer: number;
 	constructor(pointer: number) {
-		this.#rawPointer = pointer;
+		this.#rawPointer = pointer >> 2;
 	}
 
 	/**
 	 * The length, in elements, of this Vec.
-	 * If set, will grow if needed and initialize new elements to 0.
 	 */
 	get length(): number {
 		return Memory.u32[this.#rawPointer];
 	}
-	set length(newLength: number) {
-		if (newLength > this.capacity) {
-			this.grow(newLength);
-		} else if (newLength < this.length) {
-			Memory.set(
-				(this.#pointer + newLength) << 2,
-				this.length - newLength,
-				0,
-			);
-		}
-		Memory.u32[this.#rawPointer] = newLength;
-	}
 
 	/**
 	 * The capacity, in elements, of this Vec.
-	 * Can be set to resize.
 	 */
 	get capacity(): number {
 		return Memory.u32[this.#rawPointer + 1];
-	}
-	set capacity(newCapacity: number) {
-		if (newCapacity > this.capacity) {
-			this.grow(newCapacity);
-		}
-		Memory.u32[this.#rawPointer + 1] = newCapacity;
 	}
 
 	/**
@@ -103,7 +74,7 @@ export class Vec {
 	 */
 	push(value: number): number {
 		if (this.length === this.capacity) {
-			this.grow(this.length * 2 || 8);
+			this.grow(this.length * 2 || 4);
 		}
 		Memory.u32[this.#pointer + this.length] = value;
 		Memory.u32[this.#rawPointer]++;
@@ -111,26 +82,38 @@ export class Vec {
 	}
 
 	/**
-	 * Removes the last element of this Vec and returns it.
+	 * Removes the specified number of elements from the Vec.
 	 */
-	pop(): number {
-		Memory.u32[this.#rawPointer]--;
-		const value = Memory.u32[this.#pointer + this.length];
-		Memory.u32[this.#pointer + this.length] = 0;
-		return value;
+	remove(count: number): void {
+		Memory.u32[this.#rawPointer] -= Math.min(count, this.length);
 	}
 
 	/**
 	 * Grows the Vec to the specified capacity.
 	 * Length will not be changed.
 	 * @param newCapacity The new capacity - **in elements** - of this Vec.
+	 * @returns `this`
 	 */
-	grow(newCapacity: number): void {
+	grow(newCapacity: number): this {
 		if (this.capacity >= newCapacity) {
-			return;
+			return this;
 		}
 		Memory.reallocAt((this.#rawPointer + 2) << 2, newCapacity * 4);
 		Memory.u32[this.#rawPointer + 1] = newCapacity;
+		return this;
+	}
+
+	/**
+	 * Fills the remaining capacity with the provided value.
+	 * @param value The value to fill all uninitialized spots with.
+	 */
+	fill(value: number): void {
+		Memory.u32.fill(
+			value,
+			this.#pointer + this.length,
+			this.#pointer + this.capacity,
+		);
+		Memory.u32[this.#rawPointer] = Memory.u32[this.#rawPointer + 1];
 	}
 }
 
@@ -147,15 +130,16 @@ if (import.meta.vitest) {
 			vi.clearAllMocks();
 		};
 	});
+	const newVec = () => new Vec(Memory.alloc(Vec.size));
 
 	it('creates a Vec with length/capacity 0', () => {
-		const vec = Vec.new();
+		const vec = newVec();
 		expect(vec).toHaveProperty('length', 0);
 		expect(vec).toHaveProperty('capacity', 0);
 	});
 
 	it('pushes elements', () => {
-		const vec = Vec.new();
+		const vec = newVec();
 		expect(vec.length).toBe(0);
 
 		for (let i = 1; i < 10; i++) {
@@ -167,7 +151,7 @@ if (import.meta.vitest) {
 	});
 
 	it('gets/sets elements', () => {
-		const vec = Vec.new();
+		const vec = newVec();
 
 		for (let i = 0; i < 10; i++) {
 			vec.push(i);
@@ -185,23 +169,8 @@ if (import.meta.vitest) {
 		}
 	});
 
-	it('pops elements', () => {
-		const vec = Vec.new();
-
-		for (let i = 0; i < 10; i++) {
-			vec.push(i);
-		}
-
-		expect(vec.length).toBe(10);
-
-		for (let i = 0; i < 10; i++) {
-			expect(vec.pop()).toBe(9 - i);
-			expect(vec.length).toBe(9 - i);
-		}
-	});
-
 	it('grow() grows to fit elements', () => {
-		const vec = Vec.new();
+		const vec = newVec();
 
 		expect(vec.capacity).toBe(0);
 		vec.grow(10);
@@ -212,14 +181,39 @@ if (import.meta.vitest) {
 		expect(vec.capacity).toBe(1000);
 	});
 
-	it('setting length/capacity works', () => {
-		const vec = Vec.new();
-		expect(vec.length).toBe(0);
-		vec.length = 10;
-		expect(vec.length).toBe(10);
+	it('remove() removes the specified number of elements', () => {
+		const vec = newVec();
+
+		expect(vec.capacity).toBe(0);
+		vec.grow(10);
 		expect(vec.capacity).toBe(10);
-		vec.capacity = 30;
-		expect(vec.length).toBe(10);
-		expect(vec.capacity).toBe(30);
+		expect(vec.length).toBe(0);
+		vec.push(1);
+		vec.push(2);
+		vec.push(3);
+		vec.push(4);
+		expect(vec.length).toBe(4);
+		vec.remove(2);
+		expect(vec.length).toBe(2);
+		vec.remove(1);
+		expect(vec.length).toBe(1);
+		vec.remove(3);
+		expect(vec.length).toBe(0);
+	});
+	it('fill() fills the remaining capacity with the provided value', () => {
+		const vec = newVec();
+
+		expect(vec.capacity).toBe(0);
+		vec.grow(8);
+		expect(vec.capacity).toBe(8);
+		expect(vec.length).toBe(0);
+		expect(vec.fill(3));
+		expect(vec.length).toBe(8);
+		for (let i = 0; i < 8; i++) {
+			expect(vec.get(i)).toBe(3);
+		}
+
+		// Alloc here just to make sure we didn't overwrite the block header
+		Memory.alloc(16);
 	});
 }
