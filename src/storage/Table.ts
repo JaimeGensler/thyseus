@@ -43,8 +43,11 @@ export class Table {
 		this.length++;
 	}
 
-	delete(row: number): void {
+	delete(row: number): bigint {
+		// TODO: Update to just grab entity index - we don't need the full id!
 		this.length--;
+		const ptr = this.#getColumn(Entity);
+		const lastEntity = Memory.u64[(ptr >> 3) + this.length];
 		let i = 8; // Start of pointers
 		for (const component of this.#components) {
 			const ptr = Memory.u32[(this.#pointer + i) >> 2];
@@ -55,29 +58,28 @@ export class Table {
 			);
 			i += 4;
 		}
+		return lastEntity;
 	}
 
 	move(row: number, targetTable: Table): bigint {
 		// We never call move for the empty table, so ptr will be defined.
-		const ptr = this.#getColumn(Entity);
-		const lastEntity = Memory.u64[(ptr >> 3) + this.length - 1];
 		for (const component of this.#components) {
+			const componentSize = component.size!;
 			const componentPointer =
-				this.#getColumn(component) + row * component.size!;
+				this.#getColumn(component) + row * componentSize;
 			if (targetTable.hasColumn(component)) {
 				Memory.copy(
 					componentPointer,
-					component.size!,
+					componentSize,
 					targetTable.#getColumn(component) +
-						targetTable.length * component.size!,
+						targetTable.length * componentSize,
 				);
 			} else {
 				component.drop?.(componentPointer);
 			}
 		}
 		targetTable.length++;
-		this.delete(row);
-		return lastEntity;
+		return this.delete(row);
 	}
 
 	grow(newCapacity: number): void {
