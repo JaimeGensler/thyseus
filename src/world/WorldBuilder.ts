@@ -228,7 +228,6 @@ export class WorldBuilder {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
-	const { initStruct } = await import('../storage');
 	const { Memory } = await import('../utils');
 	const { run } = await import('../schedule');
 
@@ -344,9 +343,6 @@ if (import.meta.vitest) {
 		class StructClass {
 			static size = 1;
 			static alignment = 1;
-			constructor() {
-				initStruct(this);
-			}
 		}
 		const world = await World.new({ isMainThread: true })
 			.registerResource(StructClass)
