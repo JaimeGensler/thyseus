@@ -7,7 +7,7 @@
 	"type": "module",
 	"files": [
 		"dist",
-		"types"
+		"global.d.ts"
 	],
 	"module": "./dist/index.js",
 	"main": "./src/index.umd.cjs",
