@@ -185,7 +185,6 @@ if (import.meta.vitest) {
 	};
 
 	it('add() adds an item', async () => {
-		const world = await createWorld();
 		const table = createTable(Entity);
 		expect(table.length).toBe(0);
 		expect(table.capacity).toBe(0);
@@ -198,13 +197,14 @@ if (import.meta.vitest) {
 
 		const entity = new Entity();
 		(entity as any).__$$b = getColumn(table, Entity);
+		entity.deserialize();
 		expect(entity.id).toBe(id1);
 		(entity as any).__$$b += 8;
+		entity.deserialize();
 		expect(entity.id).toBe(id2);
 	});
 
 	it('adds an element', async () => {
-		const world = await createWorld();
 		const table = createTable(Entity);
 		expect(table.length).toBe(0);
 		expect(table.capacity).toBe(0);
@@ -215,18 +215,20 @@ if (import.meta.vitest) {
 
 		const entity = new Entity();
 		(entity as any).__$$b = getColumn(table, Entity);
+		entity.deserialize();
 		expect(entity.id).toBe(0n);
 
 		spawnIntoTable(3, table);
+		entity.deserialize();
 		expect(entity.id).toBe(0n);
 
 		(entity as any).__$$b += Entity.size;
+		entity.deserialize();
 		expect(entity.id).toBe(3n);
 		expect(table.length).toBe(2);
 	});
 
 	it('moves elements from one table to another', async () => {
-		const world = await createWorld();
 		const fromTable = createTable(Entity, Vec3);
 		const toTable = createTable(Entity, Vec3);
 
@@ -239,20 +241,26 @@ if (import.meta.vitest) {
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
 		(ent as any).__$$b = getColumn(fromTable, Entity);
+		ent.deserialize();
 		expect(ent.id).toBe(3n);
 
 		const from = new Vec3();
 		from.__$$b = getColumn(fromTable, Vec3);
+		from.deserialize();
 		from.x = 1;
 		from.y = 2;
 		from.z = 3;
+		from.serialize();
 		from.__$$b += Vec3.size;
+		from.deserialize();
 		from.x = 7;
 		from.y = 8;
 		from.z = 9;
+		from.serialize();
 
 		const to = new Vec3();
 		to.__$$b = getColumn(toTable, Vec3)!;
+		to.deserialize();
 		expect(to.x).toBe(0);
 		expect(to.y).toBe(0);
 		expect(to.z).toBe(0);
@@ -263,11 +271,14 @@ if (import.meta.vitest) {
 		expect(toTable.length).toBe(2);
 
 		to.__$$b += Vec3.size;
+		to.deserialize();
 		expect(to.x).toBe(1);
 		expect(to.y).toBe(2);
 		expect(to.z).toBe(3);
 
 		from.__$$b = getColumn(fromTable, Vec3);
+		from.deserialize();
+		ent.deserialize();
 		expect(from.x).toBe(7);
 		expect(from.y).toBe(8);
 		expect(from.z).toBe(9);
@@ -275,7 +286,6 @@ if (import.meta.vitest) {
 	});
 
 	it('deletes elements, swaps in last elements', async () => {
-		const world = await createWorld();
 		const table = createTable(Entity, Vec3);
 
 		spawnIntoTable(1, table);
@@ -291,39 +301,53 @@ if (import.meta.vitest) {
 		const ent = new Entity();
 		(ent as any).__$$b = entPtr;
 
+		vec.deserialize();
 		vec.x = 1;
 		vec.y = 2;
 		vec.z = 3;
+		vec.serialize();
 		vec.__$$b += Vec3.size;
+		vec.deserialize();
 		vec.x = 4;
 		vec.y = 5;
 		vec.z = 6;
+		vec.serialize();
 		vec.__$$b += Vec3.size;
+		vec.deserialize();
 		vec.x = 7;
 		vec.y = 8;
 		vec.z = 9;
+		vec.serialize();
 		vec.__$$b += Vec3.size;
+		vec.deserialize();
 		vec.x = 10;
 		vec.y = 11;
 		vec.z = 12;
+		vec.serialize();
 
 		table.delete(1);
 		expect(table.length).toBe(3);
 
 		vec.__$$b = vecPtr;
 		(ent as any).__$$b = entPtr;
+		vec.deserialize();
+		ent.deserialize();
 		expect(ent.id).toBe(1n);
 		expect(vec.x).toBe(1);
 		expect(vec.y).toBe(2);
 		expect(vec.z).toBe(3);
 		vec.__$$b += Vec3.size;
 		(ent as any).__$$b += Entity.size;
+		vec.deserialize();
+		ent.deserialize();
 		expect(ent.id).toBe(4n);
 		expect(vec.x).toBe(10);
 		expect(vec.y).toBe(11);
 		expect(vec.z).toBe(12);
 		vec.__$$b += Vec3.size;
 		(ent as any).__$$b += Entity.size;
+		vec.deserialize();
+		ent.deserialize();
 		expect(ent.id).toBe(3n);
 		expect(vec.x).toBe(7);
 		expect(vec.y).toBe(8);
@@ -347,7 +371,6 @@ if (import.meta.vitest) {
 	});
 
 	it('grows correctly', async () => {
-		const world = await createWorld();
 		const table = createTable(Entity);
 
 		spawnIntoTable(1, table);
@@ -356,17 +379,18 @@ if (import.meta.vitest) {
 
 		const entity = new Entity();
 		(entity as any).__$$b = getColumn(table, Entity);
+		entity.deserialize();
 		expect(entity.id).toBe(1n);
 
 		table.grow(table.capacity * 2 || 8);
 		(entity as any).__$$b = getColumn(table, Entity);
+		entity.deserialize();
 		expect(table.capacity).toBe(16);
 		expect(entity.id).toBe(1n);
 	});
 
 	// v0.6 changelog bugfix
 	it('backfills elements for ALL stores', async () => {
-		const world = await createWorld();
 		const fromTable = createTable(Entity, Vec3);
 		const toTable = createTable(Entity);
 		const ent = new Entity();
@@ -378,25 +402,33 @@ if (import.meta.vitest) {
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
 		(ent as any).__$$b = getColumn(fromTable, Entity);
+		ent.deserialize();
 		expect(ent.id).toBe(3n);
 
 		const from = new Vec3();
 		from.__$$b = getColumn(fromTable, Vec3)!;
+		from.deserialize();
 		from.x = 1;
 		from.y = 2;
 		from.z = 3;
+		from.serialize();
 		from.__$$b += Vec3.size;
+		from.deserialize();
 		from.x = 7;
 		from.y = 8;
 		from.z = 9;
+		from.serialize();
 
 		fromTable.move(0, toTable);
 
 		(ent as any).__$$b = getColumn(toTable, Entity)! + Entity.size!;
+		ent.deserialize();
 		expect(ent.id).toBe(3n);
 
 		from.__$$b = getColumn(fromTable, Vec3);
 		(ent as any).__$$b = getColumn(fromTable, Entity);
+		from.deserialize();
+		ent.deserialize();
 		expect(ent.id).toBe(1n);
 		expect(from.x).toBe(7);
 		expect(from.y).toBe(8);
