@@ -81,10 +81,10 @@ export class World {
 
 		for (const eventType of eventTypes) {
 			const pointer = this.threads.queue(() => {
-				const ptr = Memory.alloc(12 + eventType.size!);
+				const ptr = Memory.alloc(16 + eventType.size!);
 				if (eventType.size !== 0) {
 					const instance = new eventType() as { __$$b: number };
-					Memory.copy(instance.__$$b, eventType.size!, ptr + 12);
+					Memory.copy(instance.__$$b, eventType.size!, ptr + 16);
 					Memory.free(instance.__$$b);
 				}
 				return ptr;

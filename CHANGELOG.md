@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.4
+
+### Patch Changes
+
+-   Correct event copy mechanics
+-   Pad Events for correct alignment
+
 ## 0.13.3
 
 ### Patch Changes
