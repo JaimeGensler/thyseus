@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.3
+
+### Patch Changes
+
+-   Add global.d.ts to included npm files
+-   Correct Table memory footprint
+
 ## 0.13.2
 
 ### Patch Changes
