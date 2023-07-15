@@ -113,7 +113,6 @@ export class QueryDescriptor<
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
-	const { struct } = await import('../struct');
 	const { Memory } = await import('../utils');
 
 	beforeEach(() => {
@@ -122,25 +121,14 @@ if (import.meta.vitest) {
 	});
 
 	class Comp {
-		declare static size: number;
-	}
-	@struct
-	class A extends Comp {
-		@struct.f32 declare value: number;
-	}
-	@struct
-	class B extends Comp {
-		@struct.i64 declare value: bigint;
+		static size = 1;
+		static alignment = 1;
 	}
 
-	@struct
-	class C extends Comp {
-		@struct.u8 declare value: number;
-	}
-	@struct
-	class D extends Comp {
-		@struct.u8 declare value: number;
-	}
+	class A extends Comp {}
+	class B extends Comp {}
+	class C extends Comp {}
+	class D extends Comp {}
 
 	it('throws if trying to access ZSTs', () => {
 		class ZST {

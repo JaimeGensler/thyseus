@@ -45,7 +45,6 @@ export class EventWriterDescriptor<
 if (import.meta.vitest) {
 	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
 	const { Memory } = await import('../utils');
-	const { initStruct } = await import('../storage');
 	const { EventReader, EventWriter } = await import('./Events');
 
 	beforeEach(() => {
@@ -53,16 +52,8 @@ if (import.meta.vitest) {
 		return () => Memory.UNSAFE_CLEAR_ALL();
 	});
 
-	class A {
-		constructor() {
-			initStruct(this);
-		}
-	}
-	class B {
-		constructor() {
-			initStruct(this);
-		}
-	}
+	class A {}
+	class B {}
 	describe('intersectsWith', () => {
 		it('returns true for EventWriters with the same intersection', () => {
 			expect(

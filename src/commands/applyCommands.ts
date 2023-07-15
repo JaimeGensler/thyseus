@@ -83,39 +83,47 @@ applyCommands.parameters = [
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
-	const { initStruct } = await import('../storage');
 	const { World } = await import('../world');
 	const { Memory } = await import('../utils');
 	const { struct } = await import('../struct');
 
 	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
-	@struct
-	class ZST {}
+	class ZST {
+		static size = 0;
+		static alignment = 1;
+	}
 
-	@struct
 	class Struct {
-		@struct.u8 declare x: number;
+		static size = 1;
+		static alignment = 1;
+		__$$b = 0;
+		deserialize() {}
+		serialize() {}
 	}
 	class CompA extends Struct {}
 	class CompB extends Struct {}
 	class CompC extends Struct {}
-	@struct
 	class CompD {
 		static size = 8;
 		static alignment = 4;
+		__$$b = 0;
+		deserialize() {
+			this.x = Memory.u32[this.__$$b >> 2];
+			this.y = Memory.u32[(this.__$$b + 4) >> 2];
+		}
+		serialize() {
+			Memory.u32[this.__$$b >> 2] = this.x;
+			Memory.u32[(this.__$$b + 4) >> 2] = this.y;
+		}
 
-		@struct.u32 declare x: number;
-		@struct.u32 declare y: number;
-		declare __$$b: number;
-
+		x: number;
+		y: number;
 		constructor(x = 23, y = 42) {
-			initStruct(this);
 			this.x = x;
 			this.y = y;
 		}
 	}
-
 	const createWorld = () =>
 		World.new({ isMainThread: true })
 			.registerComponent(ZST)
@@ -155,6 +163,7 @@ if (import.meta.vitest) {
 		const testComp = new CompD();
 
 		testComp.__$$b = Memory.u32[archetypeD.getColumnPointer(CompD) >> 2];
+		testComp.deserialize();
 		expect(archetypeD.length).toBe(1);
 		expect(testComp.y).toBe(2);
 		expect(testComp.x).toBe(1);
