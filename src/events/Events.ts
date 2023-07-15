@@ -7,7 +7,7 @@ export class EventReader<T extends object> {
 	#commands: Commands;
 	#struct: Struct;
 	#instance: T & { __$$b: number };
-	#pointer: number; // [length, capacity, pointerStart, ...defaultData]
+	#pointer: number; // [length, capacity, pointerStart, __, ...defaultData]
 
 	constructor(
 		commands: Commands,
@@ -54,17 +54,14 @@ export class EventReader<T extends object> {
 	 * Sets this event queue to be cleared when commands are next processed.
 	 */
 	clear() {
-		const command = this.#commands.push(
-			ClearEventQueueCommand,
-			ClearEventQueueCommand.size,
-		);
+		const command = this.#commands.push(ClearEventQueueCommand);
 		command.queueLengthPointer = this.#pointer << 2;
 	}
 }
 
 export class EventWriter<T extends object> extends EventReader<T> {
 	#instance: T & { __$$b: number };
-	#pointer: number; // [length, capacity, pointerStart, ...defaultData]
+	#pointer: number; // [length, capacity, pointerStart, __, ...defaultData]
 
 	constructor(
 		commands: Commands,
@@ -87,7 +84,7 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	create(): T {
 		const byteOffset = this.#addEvent();
 		this.#instance.__$$b = byteOffset;
-		Memory.copy((this.#pointer + 3) << 2, this.type.size!, byteOffset);
+		Memory.copy((this.#pointer << 2) + 16, this.type.size!, byteOffset);
 		return this.#instance;
 	}
 
@@ -96,18 +93,20 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	 * @param instance The event to add to the event queue.
 	 */
 	createFrom(instance: T): void {
-		Memory.copy((instance as any).__$$b, this.type.size!, this.#addEvent());
+		const from = (instance as any).__$$b;
+		const to = this.#addEvent();
+		Memory.copy(from, this.type.size!, to);
+		this.type.copy?.(from, to);
 	}
 
 	/**
 	 * Creates an event with the default data for that event.
 	 */
 	createDefault(): void {
-		Memory.copy(
-			(this.#pointer + 3) << 2,
-			this.type.size!,
-			this.#addEvent(),
-		);
+		const from = (this.#pointer << 2) + 16;
+		const to = this.#addEvent();
+		Memory.copy(from, this.type.size!, to);
+		this.type.copy?.(from, to);
 	}
 
 	/**
@@ -132,7 +131,7 @@ export class EventWriter<T extends object> extends EventReader<T> {
 			Memory.u32[this.#pointer + 1] += 8;
 		}
 		Memory.u32[this.#pointer]++;
-		return length * this.type.size! + Memory.u32[this.#pointer + 2];
+		return Memory.u32[this.#pointer + 2] + length * this.type.size!;
 	}
 }
 
@@ -149,9 +148,9 @@ if (import.meta.vitest) {
 		queueType: T,
 	) {
 		const world = await World.new({ isMainThread: true }).build();
-		const pointer = Memory.alloc(12 + queueType.size!);
+		const pointer = Memory.alloc(16 + queueType.size!);
 		const instance = new queueType() as { __$$b: number };
-		Memory.copy(instance.__$$b, queueType.size!, pointer + 12);
+		Memory.copy(instance.__$$b, queueType.size!, pointer + 16);
 		Memory.free(instance.__$$b);
 		return [
 			new EventReader<I>(world.commands, queueType as any, pointer),
@@ -274,17 +273,11 @@ if (import.meta.vitest) {
 
 		expect(reader.clear());
 		expect(pushCommandSpy).toHaveBeenCalledOnce();
-		expect(pushCommandSpy).toHaveBeenCalledWith(
-			ClearEventQueueCommand,
-			ClearEventQueueCommand.size,
-		);
+		expect(pushCommandSpy).toHaveBeenCalledWith(ClearEventQueueCommand);
 
 		expect(writer.clear());
 		expect(pushCommandSpy).toHaveBeenCalledTimes(2);
-		expect(pushCommandSpy).toHaveBeenLastCalledWith(
-			ClearEventQueueCommand,
-			ClearEventQueueCommand.size,
-		);
+		expect(pushCommandSpy).toHaveBeenLastCalledWith(ClearEventQueueCommand);
 	});
 
 	it('never allocates a queue for ZSTs', async () => {
@@ -307,5 +300,25 @@ if (import.meta.vitest) {
 
 		sizedWriter.createDefault();
 		expect(reallocSpy).toHaveBeenCalledTimes(1);
+	});
+
+	it('calls copy if component has copy', async () => {
+		class CopyClass {
+			static copy(from: number, to: number) {}
+			static size = 1;
+			static alignment = 1;
+			constructor() {
+				initStruct(this);
+			}
+		}
+		const copySpy = vi.spyOn(CopyClass, 'copy');
+		const [, writer] = await setupQueue(CopyClass);
+		expect(copySpy).toHaveBeenCalledTimes(0);
+		expect(writer.length).toBe(0);
+		writer.createDefault();
+		expect(copySpy).toHaveBeenCalledTimes(1);
+
+		writer.createFrom(new CopyClass());
+		expect(copySpy).toHaveBeenCalledTimes(2);
 	});
 }
