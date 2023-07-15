@@ -83,9 +83,12 @@ export class World {
 			const pointer = this.threads.queue(() => {
 				const ptr = Memory.alloc(16 + eventType.size!);
 				if (eventType.size !== 0) {
-					const instance = new eventType() as { __$$b: number };
-					Memory.copy(instance.__$$b, eventType.size!, ptr + 16);
-					Memory.free(instance.__$$b);
+					const instance = new eventType() as {
+						__$$b: number;
+						serialize(): void;
+					};
+					instance.__$$b = ptr + 16;
+					instance.serialize();
 				}
 				return ptr;
 			});

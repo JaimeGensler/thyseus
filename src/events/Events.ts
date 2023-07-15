@@ -51,6 +51,7 @@ export class EventReader<T extends object> {
 	clear() {
 		const command = this.#commands.push(ClearEventQueueCommand);
 		command.queueLengthPointer = this.#pointer << 2;
+		command.serialize();
 	}
 }
 
@@ -70,27 +71,14 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	}
 
 	/**
-	 * Creates a new event and returns a mutable instance of that event.
-	 * Returned instance will be reused.
-	 *
-	 * @returns A mutable instance of the event.
-	 */
-	create(): T {
-		const byteOffset = this.#addEvent();
-		this.#instance.__$$b = byteOffset;
-		Memory.copy((this.#pointer << 2) + 16, this.type.size!, byteOffset);
-		return this.#instance;
-	}
-
-	/**
 	 * Creates an event on the queue from a passed instance of a struct.
 	 * @param instance The event to add to the event queue.
 	 */
-	createFrom(instance: T): void {
-		const from = (instance as any).__$$b;
-		const to = this.#addEvent();
-		Memory.copy(from, this.type.size!, to);
-		this.type.copy?.(from, to);
+	create(instance: T): void {
+		const previous = (instance as any).__$$b;
+		(instance as any).__$$b = this.#addEvent();
+		(instance as any).serialize();
+		(instance as any).__$$b = previous;
 	}
 
 	/**
@@ -134,7 +122,6 @@ export class EventWriter<T extends object> extends EventReader<T> {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, beforeEach, vi } = import.meta.vitest;
-	const { struct } = await import('../struct');
 	const { World } = await import('../world');
 
 	async function setupQueue<T extends Struct, I extends InstanceType<T>>(
@@ -142,9 +129,12 @@ if (import.meta.vitest) {
 	) {
 		const world = await World.new({ isMainThread: true }).build();
 		const pointer = Memory.alloc(16 + queueType.size!);
-		const instance = new queueType() as { __$$b: number };
-		Memory.copy(instance.__$$b, queueType.size!, pointer + 16);
-		Memory.free(instance.__$$b);
+		const instance = new queueType() as {
+			__$$b: number;
+			serialize(): void;
+		};
+		instance.__$$b = pointer + 16;
+		instance.serialize();
 		return [
 			new EventReader<I>(world.commands, queueType as any, pointer),
 			new EventWriter<I>(world.commands, queueType as any, pointer),
@@ -152,11 +142,19 @@ if (import.meta.vitest) {
 		] as const;
 	}
 
-	@struct
 	class A {
-		@struct.u32 declare value: number;
+		static size = 4;
+		static alignment = 4;
+		__$$b = 0;
+		deserialize() {
+			this.value = Memory.u32[this.__$$b >> 2];
+		}
+		serialize() {
+			Memory.u32[this.__$$b >> 2] = this.value;
+		}
+
+		value: number;
 		constructor(val = 3) {
-			initStruct(this);
 			this.value = val;
 		}
 	}
@@ -215,38 +213,18 @@ if (import.meta.vitest) {
 		expect(writer.length).toBe(0);
 	});
 
-	it('EventWriter.create() creates an event and returns a handle', async () => {
+	it('EventWriter.create() creates an event from the passed instance', async () => {
 		const [reader, writer] = await setupQueue(A);
 		expect(reader.length).toBe(0);
 		expect(writer.length).toBe(0);
 
-		const writeInstance = writer.create();
-		expect(reader.length).toBe(1);
-		expect(writer.length).toBe(1);
-		expect(writeInstance).toBeInstanceOf(A);
-		expect(writeInstance.value).toBe(3);
-		writeInstance.value = 10;
-
-		let iterations = 0;
-		for (const readInstance of reader) {
-			expect(readInstance).toBeInstanceOf(A);
-			expect(readInstance.value).toBe(10);
-			iterations++;
-		}
-		expect(iterations).toBe(1);
-	});
-
-	it('EventWriter.createFrom() creates an event from the passed instance', async () => {
-		const [reader, writer] = await setupQueue(A);
-		expect(reader.length).toBe(0);
-		expect(writer.length).toBe(0);
-
-		writer.createFrom(new A(16));
+		writer.create(new A(16));
 		expect(reader.length).toBe(1);
 		expect(writer.length).toBe(1);
 
 		let iterations = 0;
 		for (const readInstance of reader) {
+			readInstance.deserialize();
 			expect(readInstance).toBeInstanceOf(A);
 			expect(readInstance.value).toBe(16);
 			iterations++;
@@ -260,7 +238,7 @@ if (import.meta.vitest) {
 		expect(reader.length).toBe(0);
 		expect(writer.length).toBe(0);
 
-		writer.createFrom(new A(16));
+		writer.create(new A(16));
 		expect(reader.length).toBe(1);
 		expect(writer.length).toBe(1);
 
@@ -277,9 +255,8 @@ if (import.meta.vitest) {
 		class ZST {
 			static size = 0;
 			static alignment = 1;
-			constructor() {
-				initStruct(this);
-			}
+			deserialize() {}
+			serialize() {}
 		}
 		const [, zstWriter] = await setupQueue(ZST);
 		const [, sizedWriter] = await setupQueue(A);
@@ -300,9 +277,6 @@ if (import.meta.vitest) {
 			static copy(from: number, to: number) {}
 			static size = 1;
 			static alignment = 1;
-			constructor() {
-				initStruct(this);
-			}
 		}
 		const copySpy = vi.spyOn(CopyClass, 'copy');
 		const [, writer] = await setupQueue(CopyClass);
@@ -311,7 +285,7 @@ if (import.meta.vitest) {
 		writer.createDefault();
 		expect(copySpy).toHaveBeenCalledTimes(1);
 
-		writer.createFrom(new CopyClass());
+		writer.create(new CopyClass());
 		expect(copySpy).toHaveBeenCalledTimes(2);
 	});
 }

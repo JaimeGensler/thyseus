@@ -9,8 +9,13 @@ import { Entity, type Entities } from '../storage';
 import type { Struct } from '../struct';
 import type { World } from '../world';
 
+type CommandInstance = {
+	__$$b: number;
+	deserialize(): void;
+	serialize(): void;
+};
 export class Commands {
-	#commands: { __$$b: number }[] = [];
+	#commands: CommandInstance[] = [];
 
 	#world: World;
 	#entities: Entities;
@@ -39,12 +44,9 @@ export class Commands {
 				if (component.size === 0) {
 					continue;
 				}
-				const instance =
-					component === Entity
-						? new (component as any)(this, world.entities)
-						: (new component() as { __$$b: number });
-				Memory.copy(instance.__$$b, component.size!, pointer);
-				Memory.free(instance.__$$b);
+				const instance = new component() as CommandInstance;
+				instance.__$$b = pointer;
+				instance.serialize();
 				pointer += component.size!;
 			}
 			return componentPointers;
@@ -87,6 +89,7 @@ export class Commands {
 		command.entityId = entityId;
 		command.componentId = 0;
 		Memory.u64[command.dataStart >> 3] = entityId;
+		command.serialize();
 		return this.getById(entityId, reuse);
 	}
 
@@ -108,6 +111,7 @@ export class Commands {
 		const command = this.push(RemoveComponentCommand);
 		command.entityId = entityId;
 		command.componentId = 0; // ID of Entity component is always 0
+		command.serialize();
 	}
 
 	/**
@@ -149,6 +153,9 @@ export class Commands {
 		commandType: T,
 		additionalSize: number = 0,
 	): InstanceType<T> {
+		// TODO: Flip this so that we just accept a command
+		// Leave the responsibility of allocation reduction with consumers
+		// Requires us to box data, probably
 		const { u32 } = Memory;
 		const commandId = this.#commands.findIndex(
 			command => command.constructor === commandType,
@@ -187,6 +194,7 @@ export class Commands {
 				const commandId = u32[(current + 4) >> 2];
 				const command = this.#commands[commandId];
 				command.__$$b = current + 8;
+				command.deserialize();
 				yield command as object;
 			}
 		}
@@ -206,6 +214,7 @@ export class Commands {
 			queueOffset < queueDataLength;
 			queueOffset += 3
 		) {
+			Memory.set(this.#ownPointer, this.#capacity, 0);
 			u32[this.#pointer + queueOffset] = 0;
 		}
 	}
@@ -216,9 +225,7 @@ export class Commands {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, beforeEach } = import.meta.vitest;
-	const { initStruct } = await import('../storage');
 	const { World } = await import('../world');
-	const { struct } = await import('../struct');
 
 	beforeEach(() => {
 		Memory.init(10_000);
@@ -226,43 +233,52 @@ if (import.meta.vitest) {
 	});
 
 	class ZST {
-		static copy() {}
 		static size = 0;
 		static alignment = 1;
+		deserialize() {}
+		serialize() {}
 	}
 	class Struct {
-		static copy() {}
 		static size = 1;
 		static alignment = 1;
-		constructor() {
-			initStruct(this);
-		}
+		deserialize() {}
+		serialize() {}
 	}
 	class CompA extends Struct {}
 	class CompB extends Struct {}
 	class CompC extends Struct {}
-	@struct
 	class CompD {
-		declare static size: number;
-		@struct.u32 declare x: number;
-		@struct.u32 declare y: number;
+		static size = 8;
+		static alignment = 4;
+		__$$b = 0;
+		deserialize() {
+			this.x = Memory.u32[this.__$$b >> 2];
+			this.y = Memory.u32[(this.__$$b + 4) >> 2];
+		}
+		serialize() {
+			Memory.u32[this.__$$b >> 2] = this.x;
+			Memory.u32[(this.__$$b + 4) >> 2] = this.y;
+		}
 
-		declare __$$b: number;
-
+		x: number;
+		y: number;
 		constructor(x = 23, y = 42) {
-			initStruct(this);
 			this.x = x;
 			this.y = y;
 		}
 	}
-	@struct
 	class StringComponent {
-		declare static size: number;
-		declare static alignment: number;
-		@struct.string declare value: string;
-		constructor(str = 'hi') {
-			initStruct(this);
-			this.value = str;
+		static size = 12;
+		static alignment = 4;
+		__$$b = 0;
+		static copy() {}
+		static drop() {}
+		deserialize() {}
+		serialize() {}
+
+		value: string;
+		constructor(val = 'hi') {
+			this.value = val;
 		}
 	}
 

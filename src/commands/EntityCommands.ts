@@ -1,7 +1,7 @@
 import type { Commands } from './Commands';
 import type { Struct } from '../struct';
 import type { World } from '../world';
-import { DEV_ASSERT } from '../utils';
+import { DEV_ASSERT, Memory } from '../utils';
 import { Entity } from '../storage';
 import { AddComponentCommand, RemoveComponentCommand } from './commandTypes';
 
@@ -56,10 +56,14 @@ export class EntityCommands {
 		);
 		command.entityId = this.id;
 		command.componentId = this.#world.getComponentId(componentType);
+		command.serialize();
 		if (componentType.size === 0) {
 			return this;
 		}
-		componentType.copy!((component as any).__$$b, command.dataStart);
+		const previousPointer = (component as any).__$$b;
+		(component as any).__$$b = command.dataStart;
+		(component as any).serialize();
+		(component as any).__$$b = previousPointer;
 		return this;
 	}
 
@@ -82,10 +86,16 @@ export class EntityCommands {
 		);
 		command.entityId = this.id;
 		command.componentId = this.#world.getComponentId(componentType);
+		command.serialize();
 		if (componentType.size === 0) {
 			return this;
 		}
-		componentType.copy!(
+		Memory.copy(
+			this.#initialValuePointers[command.componentId],
+			componentType.size!,
+			command.dataStart,
+		);
+		componentType.copy?.(
 			this.#initialValuePointers[command.componentId],
 			command.dataStart,
 		);
@@ -108,6 +118,7 @@ export class EntityCommands {
 		const command = this.#commands.push(RemoveComponentCommand);
 		command.entityId = this.id;
 		command.componentId = this.#world.getComponentId(componentType);
+		command.serialize();
 		return this;
 	}
 

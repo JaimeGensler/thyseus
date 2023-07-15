@@ -1,17 +1,16 @@
 import { Memory } from '../../utils';
+import type { u32 } from '../../struct';
 
 export class ClearEventQueueCommand {
 	static size = 4;
 	static alignment = 4;
+	__$$b = 0;
+	deserialize() {
+		this.queueLengthPointer = Memory.u32[this.__$$b >> 2];
+	}
+	serialize() {
+		Memory.u32[this.__$$b >> 2] = this.queueLengthPointer;
+	}
 
-	declare __$$b: number;
-	constructor() {
-		this.__$$b = 0;
-	}
-	get queueLengthPointer(): number {
-		return Memory.u32[this.__$$b >> 2];
-	}
-	set queueLengthPointer(value: number) {
-		Memory.u32[this.__$$b >> 2] = value;
-	}
+	queueLengthPointer: u32 = 0;
 }

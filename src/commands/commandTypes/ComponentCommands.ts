@@ -1,26 +1,21 @@
 import { Memory } from '../../utils';
+import type { u64, u32 } from '../../struct';
 
 class BaseComponentCommand {
 	static size = 16; // Size is for struct internals, payload follows
 	static alignment = 8;
-	declare __$$b: number;
-
-	constructor() {
-		this.__$$b = 0;
+	__$$b = 0;
+	deserialize() {
+		this.entityId = Memory.u64[this.__$$b >> 3];
+		this.componentId = Memory.u16[(this.__$$b + 8) >> 1];
+	}
+	serialize() {
+		Memory.u64[this.__$$b >> 3] = this.entityId;
+		Memory.u16[(this.__$$b + 8) >> 1] = this.componentId;
 	}
 
-	get entityId() {
-		return Memory.u64[this.__$$b >> 3];
-	}
-	set entityId(value: bigint) {
-		Memory.u64[this.__$$b >> 3] = value;
-	}
-	get componentId() {
-		return Memory.u16[(this.__$$b + 8) >> 1];
-	}
-	set componentId(value: number) {
-		Memory.u16[(this.__$$b + 8) >> 1] = value;
-	}
+	entityId: u64 = 0n;
+	componentId: u32 = 0;
 }
 
 export class AddComponentCommand extends BaseComponentCommand {
