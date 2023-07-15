@@ -130,29 +130,40 @@ export class Table {
 if (import.meta.vitest) {
 	const { it, expect, beforeEach, vi } = import.meta.vitest;
 	const { World } = await import('../world');
-	const { struct } = await import('../struct');
 
 	beforeEach(() => {
 		Memory.init(10_000);
 		return () => Memory.UNSAFE_CLEAR_ALL();
 	});
 
-	@struct
 	class Vec3 {
-		declare static size: number;
-		declare __$$b: number;
-		@struct.f64 declare x: number;
-		@struct.f64 declare y: number;
-		@struct.f64 declare z: number;
-		constructor() {}
+		static size = 24;
+		static alignment = 8;
+		__$$b = 0;
+		deserialize() {
+			this.x = Memory.f64[this.__$$b >> 3];
+			this.y = Memory.f64[(this.__$$b + 8) >> 3];
+			this.z = Memory.f64[(this.__$$b + 16) >> 3];
+		}
+		serialize() {
+			Memory.f64[this.__$$b >> 3] = this.x;
+			Memory.f64[(this.__$$b + 8) >> 3] = this.y;
+			Memory.f64[(this.__$$b + 16) >> 3] = this.z;
+		}
+		x: number = 0;
+		y: number = 0;
+		z: number = 0;
 	}
 
-	@struct
 	class StringComponent {
-		declare static size: number;
-		declare __$$b: number;
-		@struct.string declare val: number;
-		constructor() {}
+		static drop(offset: number) {
+			Memory.free(Memory.u32[(offset + 8) >> 2]);
+		}
+		static size = 12;
+		static alignment = 4;
+		__$$b = 0;
+
+		val: string = '';
 	}
 
 	const createWorld = () =>
