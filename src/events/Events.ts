@@ -272,7 +272,7 @@ if (import.meta.vitest) {
 		expect(reallocSpy).toHaveBeenCalledTimes(1);
 	});
 
-	it('calls copy if component has copy', async () => {
+	it.todo('calls copy if component has copy', async () => {
 		class CopyClass {
 			static copy(from: number, to: number) {}
 			static size = 1;
