@@ -1,4 +1,4 @@
-import { DEV_ASSERT } from './DEV_ASSERT';
+import { DEV_ASSERT } from './assert';
 import { alignTo8 } from './alignTo8';
 
 type Pointer = number;
@@ -186,7 +186,6 @@ function realloc(pointer: Pointer, newSize: number): Pointer {
 		return pointer;
 	}
 
-	// TODO: Bounds check
 	const next = header + size;
 	const nextSize = u32[next >> 2];
 

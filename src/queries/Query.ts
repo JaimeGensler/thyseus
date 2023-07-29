@@ -80,24 +80,6 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		this.#elements.push(elements);
 	}
 
-	forEach(
-		callback: (
-			...components: A extends any[]
-				? QueryIteration<A>
-				: [QueryIteration<A>]
-		) => void,
-	): void {
-		if (this.#isIndividual) {
-			for (const element of this) {
-				(callback as any)(element);
-			}
-		} else {
-			for (const elements of this) {
-				callback(...(elements as any));
-			}
-		}
-	}
-
 	#getIteration(): (Element | null)[] {
 		return (
 			this.#elements.pop() ??
@@ -108,9 +90,9 @@ export class Query<A extends Accessors, F extends Filter = []> {
 	testAdd(table: Table): void {
 		if (this.#test(table.archetype)) {
 			if (this.#vec.length === this.#vec.capacity) {
-				// Grow for 8 tables at a time
+				// Grow for 4 tables at a time
 				this.#vec.grow(
-					this.#vec.length + 8 * (this.#components.length + 1),
+					this.#vec.length + 4 * (this.#components.length + 1),
 				);
 			}
 			this.#vec.push(table.getTableSizePointer());
@@ -154,6 +136,20 @@ if (import.meta.vitest) {
 		return () => Memory.UNSAFE_CLEAR_ALL();
 	});
 
+	class ZST {
+		static size = 0;
+		static alignment = 1;
+		serialize() {}
+		deserialize() {}
+	}
+	class Vec3 {
+		static size = 24;
+		static alignment = 8;
+		serialize() {}
+		deserialize() {}
+	}
+	class Entity2 extends Entity {}
+
 	const getColumn = (table: Table, column: Struct) =>
 		Memory.u32[table.getColumnPointer(column) >> 2];
 	const spawnIntoTable = (eid: number, targetTable: Table) => {
@@ -166,10 +162,6 @@ if (import.meta.vitest) {
 	};
 
 	it('testAdd adds tables only if a filter passes', async () => {
-		class ZST {
-			static copy() {}
-			static size = 0;
-		}
 		const world = await createWorld(ZST);
 		const entity1 = world.entities.getId();
 		world.entities.resetCursor();
@@ -224,20 +216,7 @@ if (import.meta.vitest) {
 		const createTable = (...components: Struct[]) =>
 			new Table(components, 0n, 0);
 
-		class Vec3 {
-			static size = 24;
-			static copy() {}
-			constructor() {
-				initStruct(this);
-			}
-		}
-		class Entity2 extends Entity {}
-
 		it('yields normal elements for all table members', async () => {
-			class ZST {
-				static copy() {}
-				static size = 0;
-			}
 			const world = await createWorld(Vec3, ZST);
 			const query = new Query<[Vec3, Entity2]>(
 				[0n],
@@ -257,8 +236,10 @@ if (import.meta.vitest) {
 			}
 			applyCommands(world, new Map());
 
+			expect(query.length).toBe(10);
 			let j = 0;
 			for (const [vec, ent] of query) {
+				ent.deserialize();
 				expect(vec).toBeInstanceOf(Vec3);
 				expect(ent).toBeInstanceOf(Entity);
 				expect(ent.id).toBe(BigInt(j));
@@ -348,8 +329,10 @@ if (import.meta.vitest) {
 
 			let i = 0;
 			for (const [vec1, ent1] of query) {
+				ent1.deserialize();
 				let j = 0;
 				for (const [vec2, ent2] of query) {
+					ent2.deserialize();
 					expect(vec1).not.toBe(vec2);
 					expect(ent1).not.toBe(ent2);
 					expect(ent1.id).toBe(BigInt(i));
@@ -360,56 +343,56 @@ if (import.meta.vitest) {
 			}
 		});
 
-		it('forEach works for tuples and individual elements', async () => {
-			class Position extends Vec3 {}
-			class Velocity extends Vec3 {}
-			const world = await createWorld(Position, Velocity);
-			const queryTuple = new Query<[Position, Velocity]>(
-				[0n],
-				[0n],
-				false,
-				[Position, Velocity],
-				world,
-			);
-			const querySolo = new Query<Position>(
-				[0n],
-				[0n],
-				true,
-				[Position],
-				world,
-			);
-			const id = world.entities.getId();
-			world.entities.resetCursor();
-			world.moveEntity(id, 0b111n);
-			const table = world.tables[1];
-			table.archetype = 0n;
+		// it.skip('forEach works for tuples and individual elements', async () => {
+		// 	class Position extends Vec3 {}
+		// 	class Velocity extends Vec3 {}
+		// 	const world = await createWorld(Position, Velocity);
+		// 	const queryTuple = new Query<[Position, Velocity]>(
+		// 		[0n],
+		// 		[0n],
+		// 		false,
+		// 		[Position, Velocity],
+		// 		world,
+		// 	);
+		// 	const querySolo = new Query<Position>(
+		// 		[0n],
+		// 		[0n],
+		// 		true,
+		// 		[Position],
+		// 		world,
+		// 	);
+		// 	const id = world.entities.getId();
+		// 	world.entities.resetCursor();
+		// 	world.moveEntity(id, 0b111n);
+		// 	const table = world.tables[1];
+		// 	table.archetype = 0n;
 
-			expect(queryTuple.length).toBe(0);
-			expect(querySolo.length).toBe(0);
-			queryTuple.testAdd(table);
-			querySolo.testAdd(table);
-			expect(queryTuple.length).toBe(1);
-			expect(querySolo.length).toBe(1);
-			for (let i = 1; i < 8; i++) {
-				world.moveEntity(world.entities.getId(), 0b111n);
-				expect(queryTuple.length).toBe(i + 1);
-				expect(querySolo.length).toBe(i + 1);
-			}
+		// 	expect(queryTuple.length).toBe(0);
+		// 	expect(querySolo.length).toBe(0);
+		// 	queryTuple.testAdd(table);
+		// 	querySolo.testAdd(table);
+		// 	expect(queryTuple.length).toBe(1);
+		// 	expect(querySolo.length).toBe(1);
+		// 	for (let i = 1; i < 8; i++) {
+		// 		world.moveEntity(world.entities.getId(), 0b111n);
+		// 		expect(queryTuple.length).toBe(i + 1);
+		// 		expect(querySolo.length).toBe(i + 1);
+		// 	}
 
-			let tupleIter = 0;
-			queryTuple.forEach((pos, vel) => {
-				expect(pos).toBeInstanceOf(Position);
-				expect(vel).toBeInstanceOf(Velocity);
-				tupleIter++;
-			});
-			let soloIter = 0;
-			querySolo.forEach(pos => {
-				expect(pos).toBeInstanceOf(Position);
-				soloIter++;
-			});
-			expect(tupleIter).toBe(queryTuple.length);
-			expect(soloIter).toBe(querySolo.length);
-		});
+		// 	let tupleIter = 0;
+		// 	queryTuple.forEach((pos, vel) => {
+		// 		expect(pos).toBeInstanceOf(Position);
+		// 		expect(vel).toBeInstanceOf(Velocity);
+		// 		tupleIter++;
+		// 	});
+		// 	let soloIter = 0;
+		// 	querySolo.forEach(pos => {
+		// 		expect(pos).toBeInstanceOf(Position);
+		// 		soloIter++;
+		// 	});
+		// 	expect(tupleIter).toBe(queryTuple.length);
+		// 	expect(soloIter).toBe(querySolo.length);
+		// });
 
 		it('works if early table is empty and later table is not', async () => {
 			const world = await createWorld(Vec3);

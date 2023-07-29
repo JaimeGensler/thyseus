@@ -1,21 +1,20 @@
 import { Memory } from '../utils';
 import { ClearEventQueueCommand, type Commands } from '../commands';
-import type { Struct } from '../struct';
+import type { Struct, StructInstance } from '../struct';
 
+const clearQueue = new ClearEventQueueCommand();
 export class EventReader<T extends object> {
+	static size = 12;
+	static alignment = 4;
+
 	#commands: Commands;
 	#struct: Struct;
-	#instance: T & { __$$b: number };
-	#pointer: number; // [length, capacity, pointerStart, __, ...defaultData]
+	#instance: T & StructInstance;
+	#pointer: number; // [length, capacity, pointer]
 
-	constructor(
-		commands: Commands,
-		struct: Struct & { new (): T },
-		pointer: number,
-		instance: T = new struct() as T,
-	) {
+	constructor(commands: Commands, struct: Struct, pointer: number) {
 		this.#commands = commands;
-		this.#instance = instance as any;
+		this.#instance = new struct() as T & StructInstance;
 		this.#struct = struct;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access
 	}
@@ -49,24 +48,23 @@ export class EventReader<T extends object> {
 	 * Sets this event queue to be cleared when commands are next processed.
 	 */
 	clear() {
-		const command = this.#commands.push(ClearEventQueueCommand);
-		command.queueLengthPointer = this.#pointer << 2;
-		command.serialize();
+		clearQueue.eventVec = this.#pointer << 2;
+		clearQueue.size = this.type.size!;
+		this.#commands.push(clearQueue);
 	}
 }
 
 export class EventWriter<T extends object> extends EventReader<T> {
-	#instance: T & { __$$b: number };
-	#pointer: number; // [length, capacity, pointerStart, __, ...defaultData]
+	#default: T & StructInstance;
+	#pointer: number; // [length, capacity, pointer]
 
 	constructor(
 		commands: Commands,
 		struct: Struct & { new (): T },
 		pointer: number,
 	) {
-		const instance = new struct() as T & { __$$b: number };
-		super(commands, struct, pointer, instance);
-		this.#instance = instance;
+		super(commands, struct, pointer);
+		this.#default = new struct() as T & StructInstance;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access.
 	}
 
@@ -85,16 +83,15 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	 * Creates an event with the default data for that event.
 	 */
 	createDefault(): void {
-		const from = (this.#pointer << 2) + 16;
-		const to = this.#addEvent();
-		Memory.copy(from, this.type.size!, to);
-		this.type.copy?.(from, to);
+		this.#default.__$$b = this.#addEvent();
+		this.#default.serialize();
 	}
 
 	/**
 	 * **Immediately** clears all events in this queue.
 	 */
 	clearImmediate(): void {
+		// TODO: Clear out data
 		Memory.u32[this.#pointer] = 0;
 	}
 
@@ -244,11 +241,16 @@ if (import.meta.vitest) {
 
 		expect(reader.clear());
 		expect(pushCommandSpy).toHaveBeenCalledOnce();
-		expect(pushCommandSpy).toHaveBeenCalledWith(ClearEventQueueCommand);
+		const command = new ClearEventQueueCommand();
+		command.__$$b = 192;
+		command.eventVec = 112;
+		command.size = 4;
+		expect(pushCommandSpy).toHaveBeenCalledWith(command);
 
 		expect(writer.clear());
+		command.__$$b = 208;
 		expect(pushCommandSpy).toHaveBeenCalledTimes(2);
-		expect(pushCommandSpy).toHaveBeenLastCalledWith(ClearEventQueueCommand);
+		expect(pushCommandSpy).toHaveBeenLastCalledWith(command);
 	});
 
 	it('never allocates a queue for ZSTs', async () => {
@@ -270,22 +272,5 @@ if (import.meta.vitest) {
 
 		sizedWriter.createDefault();
 		expect(reallocSpy).toHaveBeenCalledTimes(1);
-	});
-
-	it.todo('calls copy if component has copy', async () => {
-		class CopyClass {
-			static copy(from: number, to: number) {}
-			static size = 1;
-			static alignment = 1;
-		}
-		const copySpy = vi.spyOn(CopyClass, 'copy');
-		const [, writer] = await setupQueue(CopyClass);
-		expect(copySpy).toHaveBeenCalledTimes(0);
-		expect(writer.length).toBe(0);
-		writer.createDefault();
-		expect(copySpy).toHaveBeenCalledTimes(1);
-
-		writer.create(new CopyClass());
-		expect(copySpy).toHaveBeenCalledTimes(2);
 	});
 }

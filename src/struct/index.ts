@@ -1,4 +1,4 @@
-export { struct, type Class, type Struct } from './struct';
+export { struct, type Class, type Struct, type StructInstance } from './struct';
 export { isStruct } from './isStruct';
 export { serializeString, deserializeString } from './string';
 export type {
