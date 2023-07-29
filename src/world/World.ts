@@ -79,25 +79,17 @@ export class World {
 		this.entities = new Entities(this);
 		this.commands = new Commands(this);
 
+		let eventsPointer = this.threads.queue(() =>
+			Memory.alloc(EventReader.size * eventTypes.length),
+		);
 		for (const eventType of eventTypes) {
-			const pointer = this.threads.queue(() => {
-				const ptr = Memory.alloc(16 + eventType.size!);
-				if (eventType.size !== 0) {
-					const instance = new eventType() as {
-						__$$b: number;
-						serialize(): void;
-					};
-					instance.__$$b = ptr + 16;
-					instance.serialize();
-				}
-				return ptr;
-			});
 			this.eventReaders.push(
-				new EventReader(this.commands, eventType, pointer),
+				new EventReader(this.commands, eventType, eventsPointer),
 			);
 			this.eventWriters.push(
-				new EventWriter(this.commands, eventType, pointer),
+				new EventWriter(this.commands, eventType, eventsPointer),
 			);
+			eventsPointer += EventReader.size;
 		}
 
 		for (const resourceType of resourceTypes) {

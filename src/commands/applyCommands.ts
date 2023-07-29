@@ -21,7 +21,7 @@ export function applyCommands(
 	// Main command handling loop
 	for (const command of commands) {
 		if (command instanceof ClearEventQueueCommand) {
-			Memory.u32[command.queueLengthPointer >> 2] = 0;
+			command.clear();
 			continue;
 		}
 		if (
@@ -85,13 +85,14 @@ if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { World } = await import('../world');
 	const { Memory } = await import('../utils');
-	const { struct } = await import('../struct');
 
 	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
 	class ZST {
 		static size = 0;
 		static alignment = 1;
+		deserialize() {}
+		serialize() {}
 	}
 
 	class Struct {

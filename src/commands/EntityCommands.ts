@@ -1,27 +1,29 @@
 import type { Commands } from './Commands';
-import type { Struct } from '../struct';
+import type { Struct, StructInstance } from '../struct';
 import type { World } from '../world';
-import { DEV_ASSERT, Memory } from '../utils';
+import { DEV_ASSERT } from '../utils';
 import { Entity } from '../storage';
 import { AddComponentCommand, RemoveComponentCommand } from './commandTypes';
 
 type NotFunction<T> = T extends Function ? never : T;
 
+export const addComponent = new AddComponentCommand();
+export const removeComponent = new RemoveComponentCommand();
 export class EntityCommands {
 	#world: World;
 	#commands: Commands;
-	#initialValuePointers: number[];
+	#defaultData: StructInstance[];
 	#id: bigint;
 	#isAlive: boolean;
 	constructor(
 		world: World,
 		commands: Commands,
-		initialValuePointers: number[],
+		defaultData: StructInstance[],
 		id: bigint,
 	) {
 		this.#world = world;
 		this.#commands = commands;
-		this.#initialValuePointers = initialValuePointers;
+		this.#defaultData = defaultData;
 		this.#id = id;
 		this.#isAlive = !this.#world.entities.wasDespawned(this.id);
 	}
@@ -49,21 +51,13 @@ export class EntityCommands {
 		if (!this.#isAlive) {
 			return this;
 		}
-
-		const command = this.#commands.push(
-			AddComponentCommand,
+		addComponent.entityId = this.id;
+		addComponent.componentId = this.#world.getComponentId(componentType);
+		addComponent.component = component as StructInstance;
+		this.#commands.push(
+			addComponent,
 			(component.constructor as Struct).size!,
 		);
-		command.entityId = this.id;
-		command.componentId = this.#world.getComponentId(componentType);
-		command.serialize();
-		if (componentType.size === 0) {
-			return this;
-		}
-		const previousPointer = (component as any).__$$b;
-		(component as any).__$$b = command.dataStart;
-		(component as any).serialize();
-		(component as any).__$$b = previousPointer;
 		return this;
 	}
 
@@ -73,33 +67,9 @@ export class EntityCommands {
 	 * @returns `this`, for chaining.
 	 */
 	addType(componentType: Struct): this {
-		DEV_ASSERT(
-			componentType !== Entity,
-			'Tried to add Entity component, which is forbidden.',
+		return this.add(
+			this.#defaultData.find(comp => comp.constructor === componentType)!,
 		);
-		if (!this.#isAlive) {
-			return this;
-		}
-		const command = this.#commands.push(
-			AddComponentCommand,
-			componentType.size!,
-		);
-		command.entityId = this.id;
-		command.componentId = this.#world.getComponentId(componentType);
-		command.serialize();
-		if (componentType.size === 0) {
-			return this;
-		}
-		Memory.copy(
-			this.#initialValuePointers[command.componentId],
-			componentType.size!,
-			command.dataStart,
-		);
-		componentType.copy?.(
-			this.#initialValuePointers[command.componentId],
-			command.dataStart,
-		);
-		return this;
 	}
 
 	/**
@@ -115,10 +85,9 @@ export class EntityCommands {
 		if (!this.#isAlive) {
 			return this;
 		}
-		const command = this.#commands.push(RemoveComponentCommand);
-		command.entityId = this.id;
-		command.componentId = this.#world.getComponentId(componentType);
-		command.serialize();
+		removeComponent.entityId = this.id;
+		removeComponent.componentId = this.#world.getComponentId(componentType);
+		this.#commands.push(removeComponent);
 		return this;
 	}
 

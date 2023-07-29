@@ -1,5 +1,6 @@
 import { Memory } from '../../utils';
-import type { u64, u32 } from '../../struct';
+import type { u64, u32, StructInstance } from '../../struct';
+import { Entity } from '../../storage';
 
 class BaseComponentCommand {
 	static size = 16; // Size is for struct internals, payload follows
@@ -18,7 +19,16 @@ class BaseComponentCommand {
 	componentId: u32 = 0;
 }
 
+const entity = new Entity();
 export class AddComponentCommand extends BaseComponentCommand {
+	component: StructInstance = entity as any;
+	serialize() {
+		super.serialize();
+		const previous = this.component!.__$$b;
+		this.component!.__$$b = this.__$$b + AddComponentCommand.size;
+		this.component!.serialize();
+		this.component!.__$$b = previous;
+	}
 	get dataStart() {
 		return this.__$$b + AddComponentCommand.size;
 	}

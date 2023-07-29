@@ -1,4 +1,3 @@
-type Copy = any;
 type Drop = any;
 
 export type Class = {
@@ -23,16 +22,17 @@ export type Struct = {
 	size?: number;
 
 	/**
-	 * A function that creates a **deep** copy given an instance of a struct.
-	 */
-	copy?: Copy;
-
-	/**
 	 * A function that fully drops an instance of a struct.
 	 */
 	drop?: Drop;
 
 	new (): object;
+};
+
+export type StructInstance = {
+	__$$b: number;
+	serialize(): void;
+	deserialize(): void;
 };
 
 export function struct(targetClass: Class): void;

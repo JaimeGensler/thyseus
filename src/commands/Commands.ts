@@ -1,60 +1,46 @@
 import { alignTo8, Memory } from '../utils';
-import { EntityCommands } from './EntityCommands';
+import {
+	EntityCommands,
+	addComponent,
+	removeComponent,
+} from './EntityCommands';
 import {
 	AddComponentCommand,
 	RemoveComponentCommand,
 	ClearEventQueueCommand,
 } from './commandTypes';
 import { Entity, type Entities } from '../storage';
-import type { Struct } from '../struct';
+import type { Struct, StructInstance } from '../struct';
 import type { World } from '../world';
 
-type CommandInstance = {
-	__$$b: number;
-	deserialize(): void;
-	serialize(): void;
-};
 export class Commands {
-	#commands: CommandInstance[] = [];
-
+	#commands: StructInstance[];
+	#commandTypes: Struct[];
 	#world: World;
 	#entities: Entities;
 	#entityCommands: EntityCommands;
-	#initialValuePointers: number[];
+	#defaultData: StructInstance[];
 	#pointer: number; // [nextId, ...[size, capacity, pointer]]
 	#ownPointer: number;
 	constructor(world: World) {
 		this.#world = world;
 		this.#entities = world.entities;
-		this.#commands = [
-			new AddComponentCommand(),
-			new RemoveComponentCommand(),
-			new ClearEventQueueCommand(),
+		this.#commandTypes = [
+			AddComponentCommand,
+			RemoveComponentCommand,
+			ClearEventQueueCommand,
 		];
 
-		this.#initialValuePointers = world.threads.queue(() => {
-			const size = world.components.reduce(
-				(acc, val) => acc + val.size!,
-				0,
-			);
-			const componentPointers = [];
-			let pointer = Memory.alloc(size);
-			for (const component of world.components) {
-				componentPointers.push(pointer);
-				if (component.size === 0) {
-					continue;
-				}
-				const instance = new component() as CommandInstance;
-				instance.__$$b = pointer;
-				instance.serialize();
-				pointer += component.size!;
-			}
-			return componentPointers;
-		});
+		this.#commands = this.#commandTypes.map(
+			command => new command() as StructInstance,
+		);
+		this.#defaultData = world.components.map(
+			comp => new comp() as StructInstance,
+		);
 		this.#entityCommands = new EntityCommands(
 			world,
 			this,
-			this.#initialValuePointers,
+			this.#defaultData,
 			0n,
 		);
 		this.#pointer =
@@ -84,12 +70,11 @@ export class Commands {
 	 * @returns `EntityCommands`, which can add/remove components from an entity.
 	 */
 	spawn(reuse: boolean = false): EntityCommands {
-		const command = this.push(AddComponentCommand, Entity.size);
 		const entityId = this.#entities.getId();
-		command.entityId = entityId;
-		command.componentId = 0;
-		Memory.u64[command.dataStart >> 3] = entityId;
-		command.serialize();
+		addComponent.entityId = entityId;
+		addComponent.componentId = 0;
+		this.push(addComponent, Entity.size);
+		Memory.u64[(addComponent.__$$b + 16) >> 3] = entityId;
 		return this.getById(entityId, reuse);
 	}
 
@@ -108,10 +93,9 @@ export class Commands {
 		if (this.#entities.wasDespawned(entityId)) {
 			return;
 		}
-		const command = this.push(RemoveComponentCommand);
-		command.entityId = entityId;
-		command.componentId = 0; // ID of Entity component is always 0
-		command.serialize();
+		removeComponent.entityId = entityId;
+		removeComponent.componentId = 0; // ID of Entity component is always 0
+		this.push(removeComponent);
 	}
 
 	/**
@@ -136,35 +120,26 @@ export class Commands {
 			: new EntityCommands(
 					this.#world,
 					this,
-					this.#initialValuePointers,
+					this.#defaultData,
 					entityId,
 			  );
 	}
 
 	/**
-	 * Pushes a command of type `T` to the queue and returns a mutable instance of that command.
+	 * Pushes a command of type `T` to the queue.
 	 *
-	 * Added Commands must have been registered - only useable for internal commands right now.
+	 * Added Commands must have been registered - currently only useable for internal commands.
 	 * @param commandType The type of command to add.
 	 * @param additionalSize The _additional size_ (beyond the size of the commandType) this command will need.
-	 * @returns A mutable instance of the provided command type.
 	 */
-	push<T extends Struct>(
-		commandType: T,
-		additionalSize: number = 0,
-	): InstanceType<T> {
-		// TODO: Flip this so that we just accept a command
-		// Leave the responsibility of allocation reduction with consumers
-		// Requires us to box data, probably
+	push(command: object, additionalSize: number = 0): void {
 		const { u32 } = Memory;
-		const commandId = this.#commands.findIndex(
-			command => command.constructor === commandType,
-		);
-		const command = this.#commands[commandId];
+		const commandType = command.constructor as Struct;
+		const commandId = this.#commandTypes.indexOf(commandType);
 		const addedSize = 8 + alignTo8(commandType.size! + additionalSize);
 		let newSize = this.#size + addedSize;
 		if (this.#capacity < newSize) {
-			newSize <<= 1; // Double new size
+			newSize *= 2;
 			Memory.reallocAt((this.#ownPointer + 2) << 2, newSize);
 			this.#capacity = newSize;
 		}
@@ -172,8 +147,8 @@ export class Commands {
 		u32[queueEnd >> 2] = addedSize;
 		u32[(queueEnd + 4) >> 2] = commandId;
 		this.#size += addedSize;
-		command.__$$b = queueEnd + 8;
-		return command as InstanceType<T>;
+		(command as StructInstance).__$$b = queueEnd + 8;
+		(command as StructInstance).serialize();
 	}
 
 	*[Symbol.iterator](): Iterator<object> {
@@ -214,7 +189,9 @@ export class Commands {
 			queueOffset < queueDataLength;
 			queueOffset += 3
 		) {
-			Memory.set(this.#ownPointer, this.#capacity, 0);
+			const len = u32[this.#pointer + queueOffset];
+			const ptr = u32[this.#pointer + queueOffset + 2];
+			Memory.set(ptr, len, 0);
 			u32[this.#pointer + queueOffset] = 0;
 		}
 	}
