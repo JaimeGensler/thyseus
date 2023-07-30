@@ -234,7 +234,7 @@ if (import.meta.vitest) {
 			for (let i = 0; i < 5; i++) {
 				world.commands.spawn().addType(Vec3).addType(ZST);
 			}
-			applyCommands(world, new Map());
+			applyCommands(world);
 
 			expect(query.length).toBe(10);
 			let j = 0;
@@ -324,7 +324,7 @@ if (import.meta.vitest) {
 			for (let i = 1; i < 8; i++) {
 				world.commands.spawn().addType(Vec3);
 			}
-			applyCommands(world, new Map());
+			applyCommands(world);
 			expect(query.length).toBe(8);
 
 			let i = 0;

@@ -20,7 +20,8 @@ class BaseComponentCommand {
 }
 
 const entity = new Entity();
-export class AddComponentCommand extends BaseComponentCommand {
+export class AddComponentTypeCommand extends BaseComponentCommand {}
+export class AddComponentCommand extends AddComponentTypeCommand {
 	component: StructInstance = entity as any;
 	serialize() {
 		super.serialize();
@@ -33,4 +34,4 @@ export class AddComponentCommand extends BaseComponentCommand {
 		return this.__$$b + AddComponentCommand.size;
 	}
 }
-export class RemoveComponentCommand extends BaseComponentCommand {}
+export class RemoveComponentTypeCommand extends BaseComponentCommand {}

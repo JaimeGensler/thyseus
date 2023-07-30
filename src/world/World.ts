@@ -95,7 +95,7 @@ export class World {
 		for (const resourceType of resourceTypes) {
 			if (isStruct(resourceType)) {
 				const res = new resourceType();
-				(resourceType as any).__$$b = this.threads.queue(() =>
+				(res as any).__$$b = this.threads.queue(() =>
 					resourceType.size! !== 0
 						? Memory.alloc(resourceType.size!)
 						: 0,

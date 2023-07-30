@@ -1,19 +1,17 @@
-import { Memory } from '../utils';
 import { WorldDescriptor } from '../world/WorldDescriptor';
-import { SystemResourceDescriptor } from '../resources';
 import {
 	AddComponentCommand,
-	RemoveComponentCommand,
+	RemoveComponentTypeCommand,
 	ClearEventQueueCommand,
+	AddComponentTypeCommand,
 } from './commandTypes';
 import type { World } from '../world';
-import type { SystemRes } from '../resources';
+import { Struct, StructInstance } from '../struct';
 
+const defaultData = new Map<Struct, StructInstance>();
+const entityDestinations = new Map<bigint, bigint>();
 // @thyseus-ignore
-export function applyCommands(
-	world: World,
-	entityDestinations: SystemRes<Map<bigint, bigint>>,
-) {
+export function applyCommands(world: World) {
 	const { commands, entities, tables, components } = world;
 	entities.resetCursor();
 	entityDestinations.clear();
@@ -26,8 +24,8 @@ export function applyCommands(
 		}
 		if (
 			!(
-				command instanceof AddComponentCommand ||
-				command instanceof RemoveComponentCommand
+				command instanceof AddComponentTypeCommand ||
+				command instanceof RemoveComponentTypeCommand
 			)
 		) {
 			continue;
@@ -40,7 +38,7 @@ export function applyCommands(
 		val ??= entities.getArchetype(entityId);
 		entityDestinations.set(
 			entityId,
-			command instanceof AddComponentCommand
+			command instanceof AddComponentTypeCommand
 				? val | (1n << BigInt(componentId))
 				: componentId === 0
 				? 0n
@@ -55,28 +53,41 @@ export function applyCommands(
 
 	// Handle data insertion from adds
 	for (const command of commands) {
-		if (!(command instanceof AddComponentCommand)) {
+		if (!(command instanceof AddComponentTypeCommand)) {
 			continue;
 		}
-		const { entityId, componentId, dataStart } = command;
+		const { entityId, componentId } = command;
 		const tableId = entities.getTableId(entityId);
+		const componentType = components[componentId];
+		const row = entities.getRow(entityId);
 		if (tableId === 0) {
 			continue;
 		}
-		tables[tableId]!.copyComponentIntoRow(
-			entities.getRow(entityId),
-			components[componentId],
-			dataStart,
-		);
+		if (command instanceof AddComponentCommand) {
+			tables[tableId]!.copyDataIntoRow(
+				row,
+				componentType,
+				command.dataStart,
+			);
+		} else {
+			if (!defaultData.has(componentType)) {
+				defaultData.set(
+					componentType,
+					new componentType() as StructInstance,
+				);
+			}
+			tables[tableId]!.copyComponentIntoRow(
+				row,
+				componentType,
+				defaultData.get(componentType)!,
+			);
+		}
 	}
 
 	// SAFETY: We have ownership of World right now, this is safe.
 	(commands as any).reset();
 }
-applyCommands.parameters = [
-	new WorldDescriptor(),
-	new SystemResourceDescriptor(Map),
-];
+applyCommands.parameters = [new WorldDescriptor()];
 
 /*---------*\
 |   TESTS   |
@@ -149,7 +160,7 @@ if (import.meta.vitest) {
 			(1n << BigInt(world.getComponentId(ZST))) |
 			(1n << BigInt(world.getComponentId(CompD)));
 
-		applyCommands(world, new Map());
+		applyCommands(world);
 		expect(moveEntitySpy).toHaveBeenCalledTimes(2);
 		expect(moveEntitySpy).toHaveBeenCalledWith(0n, archetype1);
 		expect(moveEntitySpy).toHaveBeenCalledWith(1n, archetype2);
@@ -159,7 +170,7 @@ if (import.meta.vitest) {
 		const myWorld = await createWorld();
 		myWorld.commands.spawn().addType(CompA).add(new CompD(1, 2));
 
-		applyCommands(myWorld, new Map());
+		applyCommands(myWorld);
 		const archetypeD = myWorld.tables[1];
 		const testComp = new CompD();
 
@@ -182,7 +193,7 @@ if (import.meta.vitest) {
 		writer.clear();
 		expect(writer.length).toBe(1);
 
-		applyCommands(myWorld, new Map());
+		applyCommands(myWorld);
 		expect(writer.length).toBe(0);
 	});
 }

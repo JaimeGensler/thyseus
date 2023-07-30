@@ -3,27 +3,25 @@ import type { Struct, StructInstance } from '../struct';
 import type { World } from '../world';
 import { DEV_ASSERT } from '../utils';
 import { Entity } from '../storage';
-import { AddComponentCommand, RemoveComponentCommand } from './commandTypes';
+import {
+	AddComponentCommand,
+	AddComponentTypeCommand,
+	RemoveComponentTypeCommand,
+} from './commandTypes';
 
 type NotFunction<T> = T extends Function ? never : T;
 
 export const addComponent = new AddComponentCommand();
-export const removeComponent = new RemoveComponentCommand();
+export const addComponentType = new AddComponentTypeCommand();
+export const removeComponentType = new RemoveComponentTypeCommand();
 export class EntityCommands {
 	#world: World;
 	#commands: Commands;
-	#defaultData: StructInstance[];
 	#id: bigint;
 	#isAlive: boolean;
-	constructor(
-		world: World,
-		commands: Commands,
-		defaultData: StructInstance[],
-		id: bigint,
-	) {
+	constructor(world: World, commands: Commands, id: bigint) {
 		this.#world = world;
 		this.#commands = commands;
-		this.#defaultData = defaultData;
 		this.#id = id;
 		this.#isAlive = !this.#world.entities.wasDespawned(this.id);
 	}
@@ -54,10 +52,7 @@ export class EntityCommands {
 		addComponent.entityId = this.id;
 		addComponent.componentId = this.#world.getComponentId(componentType);
 		addComponent.component = component as StructInstance;
-		this.#commands.push(
-			addComponent,
-			(component.constructor as Struct).size!,
-		);
+		this.#commands.push(addComponent, componentType.size!);
 		return this;
 	}
 
@@ -67,9 +62,15 @@ export class EntityCommands {
 	 * @returns `this`, for chaining.
 	 */
 	addType(componentType: Struct): this {
-		return this.add(
-			this.#defaultData.find(comp => comp.constructor === componentType)!,
+		DEV_ASSERT(
+			componentType !== Entity,
+			'Tried to add Entity component, which is forbidden.',
 		);
+		addComponentType.entityId = this.id;
+		addComponentType.componentId =
+			this.#world.getComponentId(componentType);
+		this.#commands.push(addComponentType);
+		return this;
 	}
 
 	/**
@@ -85,9 +86,10 @@ export class EntityCommands {
 		if (!this.#isAlive) {
 			return this;
 		}
-		removeComponent.entityId = this.id;
-		removeComponent.componentId = this.#world.getComponentId(componentType);
-		this.#commands.push(removeComponent);
+		removeComponentType.entityId = this.id;
+		removeComponentType.componentId =
+			this.#world.getComponentId(componentType);
+		this.#commands.push(removeComponentType);
 		return this;
 	}
 

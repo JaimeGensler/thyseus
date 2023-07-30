@@ -1,6 +1,6 @@
 import { Memory } from '../utils';
 import { Entity } from './Entity';
-import type { Struct } from '../struct';
+import type { Struct, StructInstance } from '../struct';
 
 export class Table {
 	static createEmpty(): Table {
@@ -53,6 +53,7 @@ export class Table {
 				component.size!, // Copy one component
 				ptr + row * component.size!, // To this element
 			);
+			Memory.set(ptr + this.length * component.size!, component.size!, 0);
 			i += 4;
 		}
 	}
@@ -94,7 +95,7 @@ export class Table {
 		}
 	}
 
-	copyComponentIntoRow(
+	copyDataIntoRow(
 		row: number,
 		componentType: Struct,
 		copyFrom: number,
@@ -105,6 +106,17 @@ export class Table {
 				componentType.size!,
 				this.#getColumn(componentType) + row * componentType.size!,
 			);
+		}
+	}
+	copyComponentIntoRow(
+		row: number,
+		componentType: Struct,
+		component: StructInstance,
+	) {
+		if (this.hasColumn(componentType)) {
+			component.__$$b =
+				this.#getColumn(componentType) + row * componentType.size!;
+			component.serialize();
 		}
 	}
 
