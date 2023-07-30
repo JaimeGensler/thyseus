@@ -90,6 +90,10 @@ function alloc(size: number): Pointer {
 		const isBlockAllocated = header !== blockSize;
 
 		if (isBlockAllocated || blockSize < requiredSize) {
+			DEV_ASSERT(
+				blockSize !== 0,
+				'Block size was 0 - this is a symptom of memory corruption, please report a bug.',
+			);
 			pointer += blockSize;
 			continue;
 		}
