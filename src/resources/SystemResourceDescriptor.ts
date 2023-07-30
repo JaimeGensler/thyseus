@@ -26,7 +26,7 @@ export class SystemResourceDescriptor<T extends object>
 		let res: T = null as any;
 		if (isStruct(resourceType)) {
 			res = new resourceType() as T;
-			(resourceType as any).__$$b = threads.queue(() =>
+			(res as any).__$$b = threads.queue(() =>
 				resourceType.size! !== 0 ? Memory.alloc(resourceType.size!) : 0,
 			);
 		} else if (threads.isMainThread) {

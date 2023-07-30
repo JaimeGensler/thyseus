@@ -1,5 +1,6 @@
 export {
+	AddComponentTypeCommand,
 	AddComponentCommand,
-	RemoveComponentCommand,
+	RemoveComponentTypeCommand,
 } from './ComponentCommands';
 export { ClearEventQueueCommand } from './ClearEventQueueCommand';

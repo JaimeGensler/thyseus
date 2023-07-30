@@ -2,11 +2,12 @@ import { alignTo8, Memory } from '../utils';
 import {
 	EntityCommands,
 	addComponent,
-	removeComponent,
+	removeComponentType,
 } from './EntityCommands';
 import {
 	AddComponentCommand,
-	RemoveComponentCommand,
+	AddComponentTypeCommand,
+	RemoveComponentTypeCommand,
 	ClearEventQueueCommand,
 } from './commandTypes';
 import { Entity, type Entities } from '../storage';
@@ -19,7 +20,6 @@ export class Commands {
 	#world: World;
 	#entities: Entities;
 	#entityCommands: EntityCommands;
-	#defaultData: StructInstance[];
 	#pointer: number; // [nextId, ...[size, capacity, pointer]]
 	#ownPointer: number;
 	constructor(world: World) {
@@ -27,22 +27,15 @@ export class Commands {
 		this.#entities = world.entities;
 		this.#commandTypes = [
 			AddComponentCommand,
-			RemoveComponentCommand,
+			AddComponentTypeCommand,
+			RemoveComponentTypeCommand,
 			ClearEventQueueCommand,
 		];
-
 		this.#commands = this.#commandTypes.map(
 			command => new command() as StructInstance,
 		);
-		this.#defaultData = world.components.map(
-			comp => new comp() as StructInstance,
-		);
-		this.#entityCommands = new EntityCommands(
-			world,
-			this,
-			this.#defaultData,
-			0n,
-		);
+
+		this.#entityCommands = new EntityCommands(world, this, 0n);
 		this.#pointer =
 			world.threads.queue(() =>
 				Memory.alloc((1 + 3 * world.config.threads) * 4),
@@ -93,9 +86,9 @@ export class Commands {
 		if (this.#entities.wasDespawned(entityId)) {
 			return;
 		}
-		removeComponent.entityId = entityId;
-		removeComponent.componentId = 0; // ID of Entity component is always 0
-		this.push(removeComponent);
+		removeComponentType.entityId = entityId;
+		removeComponentType.componentId = 0; // ID of Entity component is always 0
+		this.push(removeComponentType);
 	}
 
 	/**
@@ -117,12 +110,7 @@ export class Commands {
 	getById(entityId: bigint, reuse: boolean = false): EntityCommands {
 		return reuse
 			? this.#entityCommands.setId(entityId)
-			: new EntityCommands(
-					this.#world,
-					this,
-					this.#defaultData,
-					entityId,
-			  );
+			: new EntityCommands(this.#world, this, entityId);
 	}
 
 	/**
@@ -308,12 +296,14 @@ if (import.meta.vitest) {
 		const ent = commands.spawn().addType(ZST);
 		let i = 0;
 		for (const command of commands) {
-			expect(command).toBeInstanceOf(AddComponentCommand);
-			expect((command as AddComponentCommand).entityId).toBe(ent.id);
+			expect(command).toBeInstanceOf(AddComponentTypeCommand);
+			expect((command as AddComponentTypeCommand).entityId).toBe(ent.id);
 			if (i === 0) {
-				expect((command as AddComponentCommand).componentId).toBe(0);
+				expect((command as AddComponentTypeCommand).componentId).toBe(
+					0,
+				);
 			} else {
-				expect((command as AddComponentCommand).componentId).toBe(
+				expect((command as AddComponentTypeCommand).componentId).toBe(
 					zstID,
 				);
 			}
@@ -329,13 +319,13 @@ if (import.meta.vitest) {
 		let i = 0;
 		for (const command of commands) {
 			if (i == 2) {
-				expect(command).toBeInstanceOf(RemoveComponentCommand);
-				expect((command as RemoveComponentCommand).entityId).toBe(
+				expect(command).toBeInstanceOf(RemoveComponentTypeCommand);
+				expect((command as RemoveComponentTypeCommand).entityId).toBe(
 					ent.id,
 				);
-				expect((command as RemoveComponentCommand).componentId).toBe(
-					zstID,
-				);
+				expect(
+					(command as RemoveComponentTypeCommand).componentId,
+				).toBe(zstID);
 			}
 			i++;
 		}
@@ -349,11 +339,13 @@ if (import.meta.vitest) {
 		let i = 0;
 		for (const command of commands) {
 			if (i === 2) {
-				expect(command).toBeInstanceOf(RemoveComponentCommand);
-				expect((command as RemoveComponentCommand).entityId).toBe(
+				expect(command).toBeInstanceOf(RemoveComponentTypeCommand);
+				expect((command as RemoveComponentTypeCommand).entityId).toBe(
 					ent.id,
 				);
-				expect((command as RemoveComponentCommand).componentId).toBe(0);
+				expect(
+					(command as RemoveComponentTypeCommand).componentId,
+				).toBe(0);
 			}
 			i++;
 		}
