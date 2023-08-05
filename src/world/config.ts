@@ -21,7 +21,8 @@ const getCompleteConfig = (
 	threads: 1,
 	memorySize: 64 * MB,
 	useSharedMemory: false,
-	isMainThread: typeof document !== 'undefined',
+	isMainThread:
+		typeof document !== 'undefined' || (config?.threads ?? 1) === 1,
 	getNewTableSize: (prev: number) => prev * 2 || 8,
 	...config,
 });
