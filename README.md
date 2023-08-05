@@ -60,24 +60,23 @@ If you're interested in contributing, please have a look at the
 
 ### Components
 
+<!-- prettier-ignore -->
 ```ts
-import { struct, initStruct } from 'thyseus';
+import { struct } from 'thyseus';
 
 @struct
 class Vec2 {
-	@struct.f64 declare x: number;
-	@struct.f64 declare y: number;
+  x: number;
+  y: number;
+  constructor(x = 0, y = 0) {
+    this.x = x;
+    this.y = y;
+  }
 
-	constructor(x = 0, y = 0) {
-		initStruct(this);
-		this.x = x;
-		this.y = y;
-	}
-
-	add(other: Vec2) {
-		this.x += other.x;
-		this.y += other.y;
-	}
+  add(other: Vec2) {
+    this.x += other.x;
+    this.y += other.y;
+  }
 }
 export class Position extends Vec2 {}
 export class Velocity extends Vec2 {}
@@ -85,30 +84,33 @@ export class Velocity extends Vec2 {}
 
 ### Systems
 
+<!-- prettier-ignore -->
 ```ts
 import { Position, Velocity } from './components';
 
 export function spawnEntitiesSystem(commands: Commands) {
-	commands.spawn().addType(Position).add(new Velocity(1, 2));
+  commands.spawn().addType(Position).add(new Velocity(1, 2));
 }
 
 export function moveSystem(query: Query<[Mut<Position>, Velocity]>) {
-	for (const [pos, vel] of query) {
-		pos.add(vel);
-	}
+  for (const [pos, vel] of query) {
+    pos.add(vel);
+  }
 }
 ```
 
 ### Worlds
 
+<!-- prettier-ignore -->
 ```ts
-import { World, CoreSchedule } from 'thyseus';
+import { World } from 'thyseus';
 import { moveSystem, spawnEntitiesSystem } from './systems';
+import { StartupSchedule } from './schedules'
 
 export const myWorld = await World.new()
-	.addSystemsToSchedule(CoreSchedule.Startup, spawnEntitiesSystem)
-	.addSystems(moveSystem)
-	.build();
+  .addSystemsToSchedule(StartupSchedule, spawnEntitiesSystem)
+  .addSystems(moveSystem)
+  .build();
 
 myWorld.start();
 ```
