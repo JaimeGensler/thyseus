@@ -10,3 +10,19 @@ export type i64 = bigint;
 
 export type f32 = number;
 export type f64 = number;
+
+export const numeric = {
+	u8: 0,
+	u16: 1,
+	u32: 2,
+	u64: 3,
+
+	i8: 0,
+	i16: 1,
+	i32: 2,
+	i64: 3,
+
+	f32: 2,
+	f64: 3,
+};
+export type Numeric = keyof typeof numeric;
