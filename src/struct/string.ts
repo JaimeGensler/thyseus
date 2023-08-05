@@ -1,29 +1,24 @@
 import { Memory } from '../utils';
+import { serializeArray, deserializeArray, dropArray } from './array';
 
-// A string is essentially a Vec<u16> (we assume UTF-16 encoding)
+// A string is a wrapper over a u16[] (we assume UTF-16 encoding)
 // size: 12 | alignment: 4
 // Fields are ordered [length, capacity, pointer]
 
+const charArray: number[] = [];
 export function deserializeString(pointer: number): string {
-	const length = Memory.u32[pointer >> 2];
-	const offset = Memory.u32[(pointer + 8) >> 2] >> 1;
-	let result = '';
-	for (let i = 0; i < length; i++) {
-		result += String.fromCharCode(Memory.u16[offset + i]);
-	}
-	return result;
+	deserializeArray(pointer, 'u16', charArray);
+	return String.fromCharCode(...charArray);
 }
 export function serializeString(pointer: number, value: string): void {
-	const byteLength = value.length * 2;
-	const capacity = Memory.u32[(pointer + 4) >> 2];
-	if (byteLength > capacity) {
-		Memory.reallocAt(pointer + 8, byteLength);
-	}
-	Memory.u32[pointer >> 2] = value.length;
-	const offset = Memory.u32[(pointer + 8) >> 2] >> 1;
 	for (let i = 0; i < value.length; i++) {
-		Memory.u16[offset + i] = value.charCodeAt(i);
+		charArray[i] = value.charCodeAt(i);
 	}
+	charArray.length = value.length;
+	serializeArray(pointer, 'u16', charArray);
+}
+export function dropString(pointer: number): void {
+	dropArray(pointer);
 }
 
 /*---------*\

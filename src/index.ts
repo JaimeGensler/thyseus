@@ -1,7 +1,15 @@
 export { applyCommands } from './commands';
 export { World } from './world';
 export { Entity } from './storage';
-export { struct } from './struct';
+export {
+	struct,
+	serializeString,
+	deserializeString,
+	dropString,
+	serializeArray,
+	deserializeArray,
+	dropArray,
+} from './struct';
 export { run, DefaultSchedule, StartSchedule } from './schedule';
 export { Memory } from './utils';
 export { cloneSystem } from './systems';
