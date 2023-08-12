@@ -2,8 +2,8 @@ import { Memory } from '../../utils';
 import type { u32 } from '../../struct';
 
 export class ClearEventQueueCommand {
-	static size = 8;
-	static alignment = 4;
+	static readonly size = 8;
+	static readonly alignment = 4;
 	__$$b = 0;
 	deserialize() {
 		this.eventVec = Memory.u32[this.__$$b >> 2];

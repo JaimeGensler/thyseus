@@ -1,6 +1,6 @@
 export { applyCommands } from './commands';
 export { World } from './world';
-export { Entity } from './storage';
+export { Entity, Entity2 } from './storage';
 export {
 	struct,
 	serializeString,

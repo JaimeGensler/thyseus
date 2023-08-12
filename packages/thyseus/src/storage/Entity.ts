@@ -10,8 +10,8 @@ import type { u32, u64 } from '../struct';
 export class Entity {
 	// Despite Entity consisting of two u32s, we set the alignment to 8 so that
 	// Entity is still guaranteed to be component id 0 even after alignment sort
-	static alignment = 8;
-	static size = 8;
+	static readonly alignment = 8;
+	static readonly size = 8;
 
 	private __$$b: number = 0;
 	#index: u32 = 0;
@@ -58,3 +58,5 @@ export class Entity {
 		return this.#generation;
 	}
 }
+
+export class Entity2 extends Entity {}

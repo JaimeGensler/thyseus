@@ -52,7 +52,7 @@ export class QueryDescriptor<
 
 			DEV_ASSERT(
 				component.size! > 0,
-				'You may not request direct access to ZSTs - use a With filter instead.',
+				`You may not request direct access to ZSTs - use a With filter instead (class ${component.name}).`,
 			);
 
 			this.components.push(component);

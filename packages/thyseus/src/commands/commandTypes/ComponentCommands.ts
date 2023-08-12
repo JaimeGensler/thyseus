@@ -3,8 +3,8 @@ import type { u64, u32, StructInstance } from '../../struct';
 import { Entity } from '../../storage';
 
 class BaseComponentCommand {
-	static size = 16; // Size is for struct internals, payload follows
-	static alignment = 8;
+	static readonly size = 16; // Size is for struct internals, payload follows
+	static readonly alignment = 8;
 	__$$b = 0;
 	deserialize() {
 		this.entityId = Memory.u64[this.__$$b >> 3];
