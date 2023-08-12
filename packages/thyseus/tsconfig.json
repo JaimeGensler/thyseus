@@ -12,9 +12,11 @@
 		"types": ["vitest/importMeta"],
 		"declaration": true,
 		// Needed for dts-bundle-generator to like vitest's chai export
-		"allowSyntheticDefaultImports": true,
-		"experimentalDecorators": true
+		"allowSyntheticDefaultImports": true
 	},
 	"exclude": ["node_modules"],
-	"include": ["src/**/*.d.ts", "src/**/*.ts"]
+	"include": [
+		"packages/thyseus/src/**/*.d.ts",
+		"packages/thyseus/src/**/*.ts"
+	]
 }
