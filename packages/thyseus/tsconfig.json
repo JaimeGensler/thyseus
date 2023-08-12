@@ -15,8 +15,5 @@
 		"allowSyntheticDefaultImports": true
 	},
 	"exclude": ["node_modules"],
-	"include": [
-		"packages/thyseus/src/**/*.d.ts",
-		"packages/thyseus/src/**/*.ts"
-	]
+	"include": ["src/**/*.d.ts", "src/**/*.ts"]
 }
