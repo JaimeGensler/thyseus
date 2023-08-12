@@ -58,5 +58,3 @@ export class Entity {
 		return this.#generation;
 	}
 }
-
-export class Entity2 extends Entity {}
