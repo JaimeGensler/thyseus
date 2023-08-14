@@ -1,0 +1,51 @@
+{
+	"name": "@thyseus/typescript-transformer",
+	"version": "0.14.0-beta.3",
+	"description": "Core of the official Thyseus transformer",
+	"author": "Jaime Gensler",
+	"license": "MIT",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/JaimeGensler/thyseus-transformer"
+	},
+	"keywords": [
+		"thyseus",
+		"typescript",
+		"transformer",
+		"transpiler",
+		"compiler"
+	],
+	"files": [
+		"dist"
+	],
+	"module": "./dist/index.js",
+	"main": "./dist/index.umd.cjs",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		"./package.json": "./package.json",
+		"./src/*": "./src/*",
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.umd.cjs"
+		}
+	},
+	"scripts": {
+		"dev": "pnpm test",
+		"test": "vitest",
+		"build": "vite build && tsup src/index.ts --dts-only"
+	},
+	"dependencies": {
+		"typescript": "^5.1.6",
+		"vite-tsconfig-paths": "^4.2.0"
+	},
+	"devDependencies": {
+		"@types/prettier": "^2.7.3",
+		"prettier": "^2.8.8",
+		"thyseus": "0.14.0-beta.0",
+		"tsup": "^6.7.0",
+		"vite": "^4.3.9",
+		"vitest": "^0.29.8"
+	}
+}
