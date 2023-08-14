@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		"module": "esnext",
+		"target": "esnext",
+		"moduleResolution": "node",
+		"lib": ["dom", "DOM.Iterable", "ESNext"],
+		"strict": true,
+		"noImplicitAny": true,
+		"forceConsistentCasingInFileNames": true,
+		"isolatedModules": true,
+		"outDir": "build",
+		"types": ["vite/client"],
+		"declaration": true,
+		// Needed for dts-bundle-generator to like vitest's chai export
+		"allowSyntheticDefaultImports": true,
+		"paths": {
+			":rule-engine": ["./src/ruleEngine.ts"],
+			":context": ["./src/context.ts"],
+			":utils": ["./src/utils"],
+			":transform-utils": ["./src/transform-utils"]
+		}
+	},
+	"exclude": ["node_modules"],
+	"include": ["src/**/*.d.ts", "src/**/*.ts"]
+}
