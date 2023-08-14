@@ -7,8 +7,8 @@ import { Numeric, numeric } from './primitives';
 
 export function deserializeArray(
 	pointer: number,
-	type: Numeric,
 	array: (number | bigint)[],
+	type: Numeric,
 ): void {
 	const length = Memory.u32[pointer >> 2];
 	const offset = Memory.u32[(pointer + 8) >> 2] >> numeric[type];
@@ -19,18 +19,18 @@ export function deserializeArray(
 }
 export function serializeArray(
 	pointer: number,
+	array: (number | bigint)[],
 	type: Numeric,
-	value: (number | bigint)[],
 ): void {
-	const newLength = value.length;
+	const newLength = array.length;
 	const currentCapacity = Memory.u32[(pointer + 4) >> 2];
 	const shift = numeric[type];
 	if (newLength > currentCapacity) {
 		Memory.reallocAt(pointer + 8, newLength << shift);
 		Memory.u32[(pointer + 4) >> 2] = newLength;
 	}
-	Memory.u32[pointer >> 2] = value.length;
-	Memory[type].set(value as any, Memory.u32[(pointer + 8) >> 2] >> shift);
+	Memory.u32[pointer >> 2] = array.length;
+	Memory[type].set(array as any, Memory.u32[(pointer + 8) >> 2] >> shift);
 }
 export function dropArray(pointer: number): void {
 	Memory.free(Memory.u32[(pointer + 8) >> 2]);
@@ -50,10 +50,10 @@ if (import.meta.vitest) {
 	it('serializes u8 arrays', () => {
 		const ptr = Memory.alloc(12);
 		const myArray = [1, 2, 3, 4];
-		serializeArray(ptr, 'u8', myArray);
+		serializeArray(ptr, myArray, 'u8');
 		myArray.length = 0;
 		expect(myArray).toStrictEqual([]);
-		deserializeArray(ptr, 'u8', myArray);
+		deserializeArray(ptr, myArray, 'u8');
 		expect(myArray).toStrictEqual([1, 2, 3, 4]);
 	});
 
@@ -61,20 +61,20 @@ if (import.meta.vitest) {
 		const ptr = Memory.alloc(12);
 		const myArray = [Math.PI, Math.E, Math.SQRT2];
 
-		serializeArray(ptr, 'f64', myArray);
+		serializeArray(ptr, myArray, 'f64');
 		myArray.length = 0;
 		expect(myArray).toStrictEqual([]);
 
-		deserializeArray(ptr, 'f64', myArray);
+		deserializeArray(ptr, myArray, 'f64');
 		expect(myArray).toStrictEqual([Math.PI, Math.E, Math.SQRT2]);
 
 		myArray.push(4, 8, 15, 16, 23, 42);
 
-		serializeArray(ptr, 'f64', myArray);
+		serializeArray(ptr, myArray, 'f64');
 		myArray.length = 0;
 		expect(myArray).toStrictEqual([]);
 
-		deserializeArray(ptr, 'f64', myArray);
+		deserializeArray(ptr, myArray, 'f64');
 		expect(myArray).toStrictEqual([
 			Math.PI,
 			Math.E,
