@@ -7,7 +7,7 @@ import { serializeArray, deserializeArray, dropArray } from './array';
 
 const charArray: number[] = [];
 export function deserializeString(pointer: number): string {
-	deserializeArray(pointer, 'u16', charArray);
+	deserializeArray(pointer, charArray, 'u16');
 	return String.fromCharCode(...charArray);
 }
 export function serializeString(pointer: number, value: string): void {
@@ -15,7 +15,7 @@ export function serializeString(pointer: number, value: string): void {
 		charArray[i] = value.charCodeAt(i);
 	}
 	charArray.length = value.length;
-	serializeArray(pointer, 'u16', charArray);
+	serializeArray(pointer, charArray, 'u16');
 }
 export function dropString(pointer: number): void {
 	dropArray(pointer);
