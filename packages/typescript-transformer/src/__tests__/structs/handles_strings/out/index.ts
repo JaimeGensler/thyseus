@@ -33,7 +33,7 @@ class OffsetString {
 		serializeString(this.__$$b + 8, this.val);
 	}
 	static drop(offset: number) {
-		dropString(offset);
+		dropString(offset + 8);
 	}
 	first: number;
 	val: string;

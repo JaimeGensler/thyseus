@@ -11,6 +11,10 @@ class ArrayStruct {
 		serializeArray(this.__$$b, this.a, 'i16');
 		serializeArray(this.__$$b + 12, this.b, 'f64');
 	}
+	static drop(offset: number) {
+		dropArray(offset);
+		dropArray(offset + 12);
+	}
 	a: i16[];
 	b: Array<number>;
 }
