@@ -61,4 +61,22 @@ export class ArrayTypeDescription extends TypeDescription {
 			),
 		);
 	}
+
+	drop(offset: number) {
+		const offsetExpression =
+			offset > 0
+				? ts.factory.createBinaryExpression(
+						ts.factory.createIdentifier('offset'),
+						ts.SyntaxKind.PlusToken,
+						ts.factory.createNumericLiteral(offset),
+				  )
+				: ts.factory.createIdentifier('offset');
+		return ts.factory.createExpressionStatement(
+			ts.factory.createCallExpression(
+				ts.factory.createIdentifier('dropArray'),
+				undefined,
+				[offsetExpression],
+			),
+		);
+	}
 }

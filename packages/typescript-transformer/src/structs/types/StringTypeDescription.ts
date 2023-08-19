@@ -40,11 +40,19 @@ export class StringTypeDescription extends TypeDescription {
 	}
 
 	drop(offset: number) {
+		const offsetExpression =
+			offset > 0
+				? ts.factory.createBinaryExpression(
+						ts.factory.createIdentifier('offset'),
+						ts.SyntaxKind.PlusToken,
+						ts.factory.createNumericLiteral(offset),
+				  )
+				: ts.factory.createIdentifier('offset');
 		return ts.factory.createExpressionStatement(
 			ts.factory.createCallExpression(
 				ts.factory.createIdentifier('dropString'),
 				undefined,
-				[ts.factory.createIdentifier('offset')],
+				[offsetExpression],
 			),
 		);
 	}
