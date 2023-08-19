@@ -10,7 +10,6 @@ import { Struct, StructInstance } from '../struct';
 
 const defaultData = new Map<Struct, StructInstance>();
 const entityDestinations = new Map<bigint, bigint>();
-// @thyseus-ignore
 export function applyCommands(world: World) {
 	const { commands, entities, tables, components } = world;
 	entities.resetCursor();
