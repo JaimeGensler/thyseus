@@ -17,7 +17,6 @@
 		"ecs"
 	],
 	"devDependencies": {
-		"thyseus": "^0.11.0",
 		"vite": "^4.3.9",
 		"vitest": "^0.29.8"
 	}
