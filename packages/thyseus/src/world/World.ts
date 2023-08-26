@@ -202,6 +202,17 @@ export class World {
 		return this.components.indexOf(componentType);
 	}
 
+	/**
+	 * Returns the matching archetype (bigint) for a set of components.
+	 */
+	getArchetype(...componentTypes: Struct[]) {
+		let result = 0n;
+		for (const componentType of componentTypes) {
+			result |= 1n << BigInt(this.getComponentId(componentType));
+		}
+		return result;
+	}
+
 	#getTable(archetype: bigint): Table {
 		let table = this.#archetypeToTable.get(archetype);
 		if (table) {

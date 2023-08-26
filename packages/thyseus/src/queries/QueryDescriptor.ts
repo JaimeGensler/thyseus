@@ -1,63 +1,41 @@
 import { DEV_ASSERT } from '../utils';
 import { Query } from './Query';
-import { Mut, Optional, Filter, With, Without, Or } from './modifiers';
-import { registerFilters, createFilterBitfields } from './createRegisterFilter';
+import { Mut } from './modifiers';
+import { registerFilters, createArchetypeFilter, type Filter } from './filters';
 import type { World, WorldBuilder } from '../world';
 import type { SystemParameter } from '../systems';
 import type { Class, Struct } from '../struct';
 
-export type AccessDescriptor =
-	| Struct
-	| Mut<object>
-	| Optional<object>
-	| Optional<Mut<object>>;
+export type AccessDescriptor = Struct | Mut<object>;
 type UnwrapElement<E extends any> = E extends Class ? InstanceType<E> : E;
 
 export class QueryDescriptor<
 	A extends AccessDescriptor | AccessDescriptor[],
-	F extends Filter = [],
+	F extends Filter = Filter,
 > implements SystemParameter
 {
 	components: Struct[] = [];
 	writes: boolean[] = [];
-	optionals: boolean[] = [];
-	filters: F;
-
+	filter: F | null;
 	isIndividual: boolean;
-	constructor(
-		accessors: A | [...(A extends any[] ? A : never)],
-		filters: F = [] as any,
-	) {
+
+	constructor(accessors: A | [...(A extends any[] ? A : never)], filter?: F) {
 		this.isIndividual = !Array.isArray(accessors);
 		const iter: AccessDescriptor[] = Array.isArray(accessors)
 			? accessors
 			: [accessors];
 
 		for (const accessor of iter) {
-			const isMut =
-				accessor instanceof Mut ||
-				(accessor instanceof Optional && accessor.value instanceof Mut);
+			const isMut = accessor instanceof Mut;
 			this.writes.push(isMut);
-
-			this.optionals.push(accessor instanceof Optional);
-
-			const component: Struct =
-				accessor instanceof Mut
-					? accessor.value
-					: accessor instanceof Optional
-					? accessor.value instanceof Mut
-						? accessor.value.value
-						: accessor.value
-					: accessor;
-
+			const component = isMut ? accessor.value : accessor;
+			this.components.push(component);
 			DEV_ASSERT(
 				component.size! > 0,
 				`You may not request direct access to ZSTs - use a With filter instead (class ${component.name}).`,
 			);
-
-			this.components.push(component);
 		}
-		this.filters = filters;
+		this.filter = filter ?? null;
 	}
 
 	isLocalToThread(): boolean {
@@ -78,7 +56,11 @@ export class QueryDescriptor<
 
 	onAddSystem(builder: WorldBuilder): void {
 		this.components.forEach(comp => builder.registerComponent(comp));
-		registerFilters(builder, this.filters);
+		if (this.filter) {
+			registerFilters(this.filter, comp =>
+				builder.registerComponent(comp),
+			);
+		}
 	}
 
 	intoArgument(world: World): Query<
@@ -87,18 +69,17 @@ export class QueryDescriptor<
 					[Index in keyof A]: UnwrapElement<A[Index]>;
 			  }
 			: UnwrapElement<A>,
-		F
+		any
 	> {
-		const { withs, withouts } = createFilterBitfields(
-			world.components,
-			this.components,
-			this.optionals,
-			this.filters,
-		);
-
+		const initial = world.getArchetype(...this.components);
 		const query = new Query(
-			withs,
-			withouts,
+			this.filter
+				? createArchetypeFilter(
+						this.filter,
+						[initial, 0n],
+						(...components) => world.getArchetype(...components),
+				  )
+				: [initial, 0n],
 			this.isIndividual,
 			this.components,
 			world,
@@ -114,6 +95,7 @@ export class QueryDescriptor<
 if (import.meta.vitest) {
 	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
 	const { Memory } = await import('../utils');
+	const { With, Without, Or } = await import('./filters');
 
 	beforeEach(() => {
 		Memory.init(1_000);
