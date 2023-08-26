@@ -2,7 +2,8 @@ import { Memory } from '../utils';
 import { Vec, type Table } from '../storage';
 import type { Struct } from '../struct';
 import type { World } from '../world';
-import type { Mut, Optional, Filter } from './modifiers';
+import type { Mut } from './modifiers';
+import type { Filter } from './filters';
 
 export type Accessors = object | object[];
 type QueryIteration<A extends Accessors> = A extends any[]
@@ -10,34 +11,25 @@ type QueryIteration<A extends Accessors> = A extends any[]
 			[Index in keyof A]: IteratorItem<A[Index]>;
 	  }
 	: IteratorItem<A>;
-type IteratorItem<I> = I extends Optional<infer X>
-	? X extends Mut<infer Y>
-		? Y | null
-		: Readonly<X> | null
-	: I extends Mut<infer X>
-	? X
-	: Readonly<I>;
+type IteratorItem<I> = I extends Mut<infer X> ? X : Readonly<I>;
 type Element = { __$$b: number; constructor: Struct };
 
-export class Query<A extends Accessors, F extends Filter = []> {
+export class Query<A extends Accessors, F extends Filter = Filter> {
 	#elements: Element[][] = [];
 
 	#vec: Vec;
 
-	#with: bigint[];
-	#without: bigint[];
-	#components: Struct[];
+	#filters: bigint[];
 	#isIndividual: boolean;
+	#components: Struct[];
 	constructor(
-		withFilters: bigint[],
-		withoutFilters: bigint[],
+		filters: bigint[],
 		isIndividual: boolean,
 		components: Struct[],
 		world: World,
 	) {
+		this.#filters = filters;
 		this.#vec = new Vec(world.threads.queue(() => Memory.alloc(Vec.size)));
-		this.#with = withFilters;
-		this.#without = withoutFilters;
 		this.#isIndividual = isIndividual;
 		this.#components = components;
 	}
@@ -102,10 +94,11 @@ export class Query<A extends Accessors, F extends Filter = []> {
 		}
 	}
 	#test(n: bigint) {
-		for (let i = 0; i < this.#with.length; i++) {
+		for (let i = 0; i < this.#filters.length; i++) {
+			const withFilter = this.#filters[i];
 			if (
-				(this.#with[i] & n) === this.#with[i] &&
-				(this.#without[i] & n) === 0n
+				(withFilter & n) === withFilter &&
+				(this.#filters[i + 1] & n) === 0n
 			) {
 				return true;
 			}
@@ -168,7 +161,7 @@ if (import.meta.vitest) {
 		world.moveEntity(entity1, 0b0001n);
 		const table = world.tables[1];
 
-		const query1 = new Query([0b0001n], [0b0000n], false, [], world);
+		const query1 = new Query([0b0001n, 0n], false, [], world);
 		expect(query1.length).toBe(0);
 		query1.testAdd(table);
 		expect(query1.length).toBe(1);
@@ -177,7 +170,7 @@ if (import.meta.vitest) {
 		query1.testAdd(table);
 		expect(query1.length).toBe(1);
 
-		const query2 = new Query([0b0100n], [0b1011n], false, [], world);
+		const query2 = new Query([0b0100n, 0b1011n], false, [], world);
 		expect(query2.length).toBe(0);
 		table.archetype = 0b0110n;
 		query2.testAdd(table);
@@ -188,8 +181,10 @@ if (import.meta.vitest) {
 		expect(query2.length).toBe(1);
 
 		const query3 = new Query(
-			[0b0001n, 0b0010n, 0b0100n],
-			[0b1000n, 0b0100n, 0b0010n],
+			//prettier-ignore
+			[0b0001n, 0b1000n, 
+			 0b0010n, 0b0100n,
+			 0b0100n, 0b0010n],
 			false,
 			[],
 			world,
@@ -219,8 +214,7 @@ if (import.meta.vitest) {
 		it('yields normal elements for all table members', async () => {
 			const world = await createWorld(Vec3, ZST);
 			const query = new Query<[Vec3, Entity2]>(
-				[0n],
-				[0n],
+				[0n, 0n],
 				false,
 				[Vec3, Entity],
 				world,
@@ -251,8 +245,7 @@ if (import.meta.vitest) {
 		it.skip('yields null for optional members', async () => {
 			const world = await createWorld(Vec3);
 			const query = new Query<[Vec3, Entity2]>(
-				[0n],
-				[0n],
+				[0n, 0n],
 				false,
 				[Vec3, Entity],
 				world,
@@ -283,7 +276,7 @@ if (import.meta.vitest) {
 
 		it('yields individual elements for non-tuple iterators', async () => {
 			const world = await createWorld(Vec3);
-			const query = new Query<Vec3>([0n], [0n], true, [Vec3], world);
+			const query = new Query<Vec3>([0n, 0n], true, [Vec3], world);
 
 			for (let i = 0; i < 10; i++) {
 				const id = world.entities.getId();
@@ -306,8 +299,7 @@ if (import.meta.vitest) {
 		it('yields unique elements for nested iteration', async () => {
 			const world = await createWorld(Vec3);
 			const query = new Query<[Vec3, Entity2]>(
-				[0n],
-				[0n],
+				[0n, 0n],
 				false,
 				[Vec3, Entity],
 				world,
@@ -396,7 +388,7 @@ if (import.meta.vitest) {
 
 		it('works if early table is empty and later table is not', async () => {
 			const world = await createWorld(Vec3);
-			const query = new Query<any>([0n], [0n], true, [Entity], world);
+			const query = new Query<any>([0n, 0n], true, [Entity], world);
 
 			// Move one entity into an `Entity` table, and then move it out.
 			// Query will match that table, but it will be empty.
