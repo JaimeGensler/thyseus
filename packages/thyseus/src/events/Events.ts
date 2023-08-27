@@ -11,16 +11,23 @@ export class EventReader<T extends object> {
 	#struct: Struct;
 	#instance: T & StructInstance;
 	#pointer: number; // [length, capacity, pointer]
+	#id: number;
 
-	constructor(commands: Commands, struct: Struct, pointer: number) {
+	constructor(
+		commands: Commands,
+		struct: Struct,
+		pointer: number,
+		id: number,
+	) {
 		this.#commands = commands;
 		this.#instance = new struct() as T & StructInstance;
 		this.#struct = struct;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access
+		this.#id = id;
 	}
 
 	/**
-	 * The event type (struct) for this queue.
+	 * The event type for this queue.
 	 */
 	get type(): Struct {
 		return this.#struct;
@@ -48,8 +55,7 @@ export class EventReader<T extends object> {
 	 * Sets this event queue to be cleared when commands are next processed.
 	 */
 	clear() {
-		clearQueue.eventVec = this.#pointer << 2;
-		clearQueue.size = this.type.size!;
+		clearQueue.eventId = this.#id;
 		this.#commands.push(clearQueue);
 	}
 }
@@ -62,8 +68,9 @@ export class EventWriter<T extends object> extends EventReader<T> {
 		commands: Commands,
 		struct: Struct & { new (): T },
 		pointer: number,
+		id: number,
 	) {
-		super(commands, struct, pointer);
+		super(commands, struct, pointer, id);
 		this.#default = new struct() as T & StructInstance;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access.
 	}
@@ -91,7 +98,16 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	 * **Immediately** clears all events in this queue.
 	 */
 	clearImmediate(): void {
-		// TODO: Clear out data
+		const { size, drop } = this.type;
+		const byteLength = this.length * size!;
+		const dataStart = Memory.u32[this.#pointer + 2];
+		const dataEnd = dataStart + byteLength;
+		if (drop) {
+			for (let i = dataStart; i < dataEnd; i += size!) {
+				drop(i);
+			}
+		}
+		Memory.set(dataStart, byteLength, 0);
 		Memory.u32[this.#pointer] = 0;
 	}
 
@@ -126,15 +142,9 @@ if (import.meta.vitest) {
 	) {
 		const world = await World.new({ isMainThread: true }).build();
 		const pointer = Memory.alloc(16 + queueType.size!);
-		const instance = new queueType() as {
-			__$$b: number;
-			serialize(): void;
-		};
-		instance.__$$b = pointer + 16;
-		instance.serialize();
 		return [
-			new EventReader<I>(world.commands, queueType as any, pointer),
-			new EventWriter<I>(world.commands, queueType as any, pointer),
+			new EventReader<I>(world.commands, queueType as any, pointer, 0),
+			new EventWriter<I>(world.commands, queueType as any, pointer, 0),
 			world,
 		] as const;
 	}
@@ -195,8 +205,16 @@ if (import.meta.vitest) {
 		expect(iterations).toBe(3);
 	});
 
-	it('EventWriter.clearAll() clears events immediately', async () => {
-		const [reader, writer] = await setupQueue(A);
+	it('EventWriter.clearImmediate() clears events immediately', async () => {
+		const dropSpy = vi.fn();
+		class StructWithDrop {
+			static size = 1;
+			static alignment = 1;
+			static drop = dropSpy;
+			serialize() {}
+			deserialize() {}
+		}
+		const [reader, writer] = await setupQueue(StructWithDrop);
 		expect(reader.length).toBe(0);
 		expect(writer.length).toBe(0);
 
@@ -206,6 +224,7 @@ if (import.meta.vitest) {
 		expect(writer.length).toBe(2);
 
 		writer.clearImmediate();
+		expect(dropSpy).toHaveBeenCalledTimes(2);
 		expect(reader.length).toBe(0);
 		expect(writer.length).toBe(0);
 	});
@@ -243,8 +262,7 @@ if (import.meta.vitest) {
 		expect(pushCommandSpy).toHaveBeenCalledOnce();
 		const command = new ClearEventQueueCommand();
 		command.__$$b = 192;
-		command.eventVec = 112;
-		command.size = 4;
+		command.eventId = 0;
 		expect(pushCommandSpy).toHaveBeenCalledWith(command);
 
 		expect(writer.clear());

@@ -21,7 +21,7 @@ export class Commands {
 	#entities: Entities;
 	#entityCommands: EntityCommands;
 	#pointer: number; // [nextId, ...[size, capacity, pointer]]
-	#ownPointer: number;
+	#queuePointer: number; // [size, capacity, pointer]
 	constructor(world: World) {
 		this.#world = world;
 		this.#entities = world.entities;
@@ -40,21 +40,21 @@ export class Commands {
 			world.threads.queue(() =>
 				Memory.alloc((1 + 3 * world.config.threads) * 4),
 			) >> 2;
-		this.#ownPointer =
-			3 * Atomics.add(Memory.u32, this.#pointer, 1) + this.#pointer + 1;
+		this.#queuePointer =
+			this.#pointer + 1 + 3 * Atomics.add(Memory.u32, this.#pointer, 1);
 	}
 
 	get #size() {
-		return Memory.u32[this.#ownPointer];
+		return Memory.u32[this.#queuePointer];
 	}
 	set #size(val: number) {
-		Memory.u32[this.#ownPointer] = val;
+		Memory.u32[this.#queuePointer] = val;
 	}
 	get #capacity() {
-		return Memory.u32[this.#ownPointer + 1];
+		return Memory.u32[this.#queuePointer + 1];
 	}
 	set #capacity(val: number) {
-		Memory.u32[this.#ownPointer + 1] = val;
+		Memory.u32[this.#queuePointer + 1] = val;
 	}
 
 	/**
@@ -67,7 +67,8 @@ export class Commands {
 		addComponent.entityId = entityId;
 		addComponent.componentId = 0;
 		this.push(addComponent, Entity.size);
-		Memory.u64[(addComponent.__$$b + 16) >> 3] = entityId;
+		Memory.u64[(addComponent.__$$b + AddComponentCommand.size) >> 3] =
+			entityId;
 		return this.getById(entityId, reuse);
 	}
 
@@ -93,7 +94,7 @@ export class Commands {
 
 	/**
 	 * Gets `EntityCommands` for an Entity.
-	 * @param entityId The id of the Entity to get.
+	 * @param entity An `Entity` component for the Entity to get.
 	 * @param reuse (optional) Whether or not the returned `EntityCommands` should be reused. Defaults to false.
 	 * @returns `EntityCommands` for the provided entity.
 	 */
@@ -114,26 +115,25 @@ export class Commands {
 	}
 
 	/**
-	 * Pushes a command of type `T` to the queue.
+	 * Pushes a command to the queue.
 	 *
 	 * Added Commands must have been registered - currently only useable for internal commands.
-	 * @param commandType The type of command to add.
+	 * @param command The command to add.
 	 * @param additionalSize The _additional size_ (beyond the size of the commandType) this command will need.
 	 */
 	push(command: object, additionalSize: number = 0): void {
 		const { u32 } = Memory;
 		const commandType = command.constructor as Struct;
-		const commandId = this.#commandTypes.indexOf(commandType);
 		const addedSize = 8 + alignTo8(commandType.size! + additionalSize);
 		let newSize = this.#size + addedSize;
 		if (this.#capacity < newSize) {
 			newSize *= 2;
-			Memory.reallocAt((this.#ownPointer + 2) << 2, newSize);
+			Memory.reallocAt((this.#queuePointer + 2) << 2, newSize);
 			this.#capacity = newSize;
 		}
-		const queueEnd = u32[this.#ownPointer + 2] + this.#size;
+		const queueEnd = u32[this.#queuePointer + 2] + this.#size;
 		u32[queueEnd >> 2] = addedSize;
-		u32[(queueEnd + 4) >> 2] = commandId;
+		u32[(queueEnd + 4) >> 2] = this.#commandTypes.indexOf(commandType);
 		this.#size += addedSize;
 		(command as StructInstance).__$$b = queueEnd + 8;
 		(command as StructInstance).serialize();
@@ -167,7 +167,8 @@ export class Commands {
 	/**
 	 * A function to clear the queue of all commands.
 	 *
-	 * **NOTE: Is not thread-safe!**
+	 * **NOTE: This method is not thread-safe!**
+	 * You must have exclusive access to the world to call this.
 	 */
 	private reset(): void {
 		const { u32 } = Memory;

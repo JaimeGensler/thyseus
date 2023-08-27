@@ -11,14 +11,14 @@ import { Struct, StructInstance } from '../struct';
 const defaultData = new Map<Struct, StructInstance>();
 const entityDestinations = new Map<bigint, bigint>();
 export function applyCommands(world: World) {
-	const { commands, entities, tables, components } = world;
+	const { commands, entities, tables, components, eventWriters } = world;
 	entities.resetCursor();
 	entityDestinations.clear();
 
 	// Main command handling loop
 	for (const command of commands) {
 		if (command instanceof ClearEventQueueCommand) {
-			command.clear();
+			eventWriters[command.eventId].clearImmediate();
 			continue;
 		}
 		if (

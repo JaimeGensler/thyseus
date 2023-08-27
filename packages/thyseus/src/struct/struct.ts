@@ -1,4 +1,4 @@
-type Drop = any;
+type Drop = (pointer: number) => void;
 
 export type Class = {
 	new (...args: any[]): object;
