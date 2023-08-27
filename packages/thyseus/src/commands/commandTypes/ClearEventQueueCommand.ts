@@ -2,23 +2,15 @@ import { Memory } from '../../utils';
 import type { u32 } from '../../struct';
 
 export class ClearEventQueueCommand {
-	static readonly size = 8;
+	static readonly size = 4;
 	static readonly alignment = 4;
 	__$$b = 0;
 	deserialize() {
-		this.eventVec = Memory.u32[this.__$$b >> 2];
+		this.eventId = Memory.u32[this.__$$b >> 2];
 	}
 	serialize() {
-		Memory.u32[this.__$$b >> 2] = this.eventVec;
+		Memory.u32[this.__$$b >> 2] = this.eventId;
 	}
 
-	eventVec: u32 = 0;
-	size: u32 = 0;
-
-	clear() {
-		const length = Memory.u32[this.eventVec >> 2];
-		const data = Memory.u32[(this.eventVec + 8) >> 2];
-		Memory.set(data, length * this.size, 0);
-		Memory.u32[this.eventVec >> 2] = 0;
-	}
+	eventId: u32 = 0;
 }

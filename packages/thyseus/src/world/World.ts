@@ -83,11 +83,12 @@ export class World {
 			Memory.alloc(EventReader.size * eventTypes.length),
 		);
 		for (const eventType of eventTypes) {
+			const id = this.eventReaders.length;
 			this.eventReaders.push(
-				new EventReader(this.commands, eventType, eventsPointer),
+				new EventReader(this.commands, eventType, eventsPointer, id),
 			);
 			this.eventWriters.push(
-				new EventWriter(this.commands, eventType, eventsPointer),
+				new EventWriter(this.commands, eventType, eventsPointer, id),
 			);
 			eventsPointer += EventReader.size;
 		}
