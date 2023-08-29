@@ -2,6 +2,7 @@ import ts from 'typescript';
 import {
 	ArrayTypeDescription,
 	BooleanTypeDescription,
+	EnumTypeDescription,
 	NumericTypeDescription,
 	StringTypeDescription,
 	StructTypeDescription,
@@ -9,18 +10,18 @@ import {
 	type TypeDescription,
 } from './types';
 
-const recognizedTypes = [
-	NumericTypeDescription,
+const recognizedTypes: (typeof TypeDescription)[] = [
 	BooleanTypeDescription,
-	TupleTypeDescription,
+	NumericTypeDescription,
 	StringTypeDescription,
+	TupleTypeDescription,
 	ArrayTypeDescription,
+	EnumTypeDescription,
 	StructTypeDescription,
 ];
 export function getType(node: ts.PropertyDeclaration): TypeDescription | null {
 	for (const typeDescription of recognizedTypes) {
-		const result = typeDescription.test(node.type!);
-		if (result) {
+		if (typeDescription.test(node.type!)) {
 			return new typeDescription(node);
 		}
 	}
