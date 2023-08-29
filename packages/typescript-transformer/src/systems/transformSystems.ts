@@ -8,7 +8,7 @@ import {
 import { isSystem } from './rules';
 import { getSignatureDeclaration } from './getSignatureDeclaration';
 import { getTypeNameFromNode } from './getTypeNameFromNode';
-import { transformStructs } from '../structs';
+import { registerHandwrittenStructs, transformStructs } from '../structs';
 import { isInRegistry } from '../structs/registry';
 import { getName } from './getName';
 import { createSerializationCall } from '../iterators';
@@ -83,6 +83,7 @@ function createDescriptorFromTypeNode(
 				const dec = getOriginalDeclaration(node);
 				if (dec) {
 					transformStructs(dec);
+					registerHandwrittenStructs(dec);
 					if (isInRegistry(dec as any)) {
 						sers.push(param.name.getText());
 					}

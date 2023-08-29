@@ -1,4 +1,5 @@
 export { ArrayTypeDescription } from './ArrayTypeDescription';
+export { EnumTypeDescription } from './EnumTypeDescription';
 export {
 	NumericTypeDescription,
 	BooleanTypeDescription,
