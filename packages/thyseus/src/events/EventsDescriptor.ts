@@ -118,12 +118,12 @@ if (import.meta.vitest) {
 			const p2 = Memory.alloc(8);
 			const world = {
 				eventReaders: [
-					new EventReader(commands, A, p1),
-					new EventReader(commands, B, p1),
+					new EventReader(commands, A, p1, 0),
+					new EventReader(commands, B, p1, 0),
 				],
 				eventWriters: [
-					new EventWriter(commands, A, p2),
-					new EventWriter(commands, B, p2),
+					new EventWriter(commands, A, p2, 0),
+					new EventWriter(commands, B, p2, 0),
 				],
 			} as any;
 			const rdResult = new EventReaderDescriptor(A).intoArgument(world);
