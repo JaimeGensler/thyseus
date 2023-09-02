@@ -1,9 +1,24 @@
 import { Memory } from '../utils';
-import { Numeric, numeric } from './primitives';
 
 // For arrays of dynamic lengths - essentially Vec<T>
 // size: 12 | alignment: 4
 // Fields are ordered [length, capacity, pointer]
+
+const numeric = {
+	u8: 0,
+	u16: 1,
+	u32: 2,
+	u64: 3,
+
+	i8: 0,
+	i16: 1,
+	i32: 2,
+	i64: 3,
+
+	f32: 2,
+	f64: 3,
+};
+type Numeric = keyof typeof numeric;
 
 export function deserializeArray(
 	pointer: number,

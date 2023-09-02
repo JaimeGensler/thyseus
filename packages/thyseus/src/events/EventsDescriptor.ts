@@ -1,4 +1,4 @@
-import { EventReader, EventWriter } from './Events';
+import type { EventReader, EventWriter } from './Events';
 import type { World, WorldBuilder } from '../world';
 import type { SystemParameter } from '../systems';
 import type { Struct } from '../struct';

@@ -1,5 +1,3 @@
-type Drop = (pointer: number) => void;
-
 export type Class = {
 	new (...args: any[]): object;
 };
@@ -24,7 +22,7 @@ export type Struct = {
 	/**
 	 * A function that fully drops an instance of a struct.
 	 */
-	drop?: Drop;
+	drop?(pointer: number): void;
 
 	new (): object;
 };
