@@ -28,9 +28,8 @@ export function getSystemIntersections(systems: System[]): bigint[] {
 \*---------*/
 if (import.meta.vitest) {
 	const { describe, it, expect, vi } = import.meta.vitest;
-	const { QueryDescriptor, Mut, ResourceDescriptor } = await import(
-		'../../descriptors'
-	);
+	const { QueryDescriptor, Mut } = await import('../../queries');
+	const { ResourceDescriptor } = await import('../../resources');
 
 	class AnyComponent {
 		static size = 1;
