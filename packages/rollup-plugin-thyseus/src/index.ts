@@ -26,7 +26,7 @@ export function thyseus({
 
 	return {
 		name: '@thyseus/transformer-rollup',
-		version: '0.14.0-beta.8',
+		version: '0.14.0-beta.9',
 		enforce: 'pre',
 		transform(code, id) {
 			if (!filter(id)) {
