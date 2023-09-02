@@ -44,7 +44,7 @@ export function serializeArray(
 		Memory.reallocAt(pointer + 8, newLength << shift);
 		Memory.u32[(pointer + 4) >> 2] = newLength;
 	}
-	Memory.u32[pointer >> 2] = array.length;
+	Memory.u32[pointer >> 2] = newLength;
 	Memory[type].set(array as any, Memory.u32[(pointer + 8) >> 2] >> shift);
 }
 export function dropArray(pointer: number): void {
