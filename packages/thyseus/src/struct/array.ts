@@ -25,10 +25,11 @@ export function deserializeArray(
 	array: (number | bigint)[],
 	type: Numeric,
 ): void {
+	const data = Memory[type];
 	const length = Memory.u32[pointer >> 2];
 	const offset = Memory.u32[(pointer + 8) >> 2] >> numeric[type];
 	for (let i = 0; i < length; i++) {
-		array[i] = Memory[type][offset + i];
+		array[i] = data[offset + i];
 	}
 	array.length = length;
 }
