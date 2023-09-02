@@ -9,6 +9,7 @@ import {
 	AddComponentTypeCommand,
 	RemoveComponentTypeCommand,
 	ClearEventQueueCommand,
+	plainEntity,
 } from './commandTypes';
 import { Entity, type Entities } from '../storage';
 import type { Struct, StructInstance } from '../struct';
@@ -64,6 +65,7 @@ export class Commands {
 	 */
 	spawn(reuse: boolean = false): EntityCommands {
 		const entityId = this.#entities.getId();
+		addComponent.component = plainEntity as any;
 		addComponent.entityId = entityId;
 		addComponent.componentId = 0;
 		this.push(addComponent, Entity.size);

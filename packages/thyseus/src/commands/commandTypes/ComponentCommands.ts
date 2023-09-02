@@ -19,10 +19,10 @@ class BaseComponentCommand {
 	componentId: u32 = 0;
 }
 
-const entity = new Entity();
+export const plainEntity = new Entity();
 export class AddComponentTypeCommand extends BaseComponentCommand {}
 export class AddComponentCommand extends AddComponentTypeCommand {
-	component: StructInstance = entity as any;
+	component: StructInstance = plainEntity as any;
 	serialize() {
 		super.serialize();
 		const previous = this.component!.__$$b;
