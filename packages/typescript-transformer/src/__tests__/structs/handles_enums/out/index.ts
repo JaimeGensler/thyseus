@@ -4,15 +4,29 @@ enum Status {
 	Resolved,
 	Rejected,
 }
-class Temp {
-	static readonly size = 1;
-	static readonly alignment = 1;
+enum SortOrder {
+	Ascending = -200,
+	Descending = 200,
+}
+enum MathConstants {
+	Pi = 3.14159,
+	E = 2.71828,
+}
+class SomeStruct {
+	static readonly size = 16;
+	static readonly alignment = 8;
 	__$$b = 0;
 	deserialize() {
-		this.status = Memory.u8[this.__$$b];
+		this.math = Memory.f64[this.__$$b >> 3];
+		this.order = Memory.i16[(this.__$$b + 8) >> 1];
+		this.status = Memory.u8[this.__$$b + 10];
 	}
 	serialize() {
-		Memory.u8[this.__$$b] = this.status;
+		Memory.f64[this.__$$b >> 3] = this.math;
+		Memory.i16[(this.__$$b + 8) >> 1] = this.order;
+		Memory.u8[this.__$$b + 10] = this.status;
 	}
 	status: Status = Status.Pending;
+	order: SortOrder = SortOrder.Ascending;
+	math: MathConstants = MathConstants.E;
 }
