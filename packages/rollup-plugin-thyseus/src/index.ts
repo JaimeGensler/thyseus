@@ -25,7 +25,7 @@ export function thyseus({
 	let transformer: ts.TransformerFactory<any>;
 
 	return {
-		name: '@thyseus/transformer-rollup',
+		name: '@thyseus/rollup-plugin-thyseus',
 		version: '0.14.0-beta.9',
 		enforce: 'pre',
 		transform(code, id) {
