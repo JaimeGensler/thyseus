@@ -96,6 +96,7 @@ if (import.meta.vitest) {
 	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
 	const { Memory } = await import('../utils');
 	const { With, Without, Or } = await import('./filters');
+	const { World } = await import('../world');
 
 	beforeEach(() => {
 		Memory.init(1_000);
@@ -153,7 +154,7 @@ if (import.meta.vitest) {
 	});
 
 	describe('onAddSystem', () => {
-		it('registers all components and the query', () => {
+		it('registers all components in the query', () => {
 			const registerComponent = vi.fn();
 			const builder: WorldBuilder = {
 				registerComponent,
@@ -208,15 +209,12 @@ if (import.meta.vitest) {
 	});
 
 	describe('intoArgument', () => {
-		it('returns a query', () => {
+		it('returns a query', async () => {
 			const descriptor = new QueryDescriptor([A, B]);
-			const world: any = {
-				components: [A, B],
-				queries: [],
-				threads: {
-					queue: (f: any) => f(),
-				},
-			};
+			const world: any = await World.new()
+				.registerComponent(A)
+				.registerComponent(B)
+				.build();
 
 			const result = descriptor.intoArgument(world);
 			expect(result).toBeInstanceOf(Query);
