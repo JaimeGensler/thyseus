@@ -40,4 +40,15 @@ declare global {
 		L extends Thyseus.OrContent,
 		R extends Thyseus.OrContent,
 	> = Thyseus.Or<L, R>;
+
+	type u8 = Thyseus.u8;
+	type u16 = Thyseus.u16;
+	type u32 = Thyseus.u32;
+	type u64 = Thyseus.u64;
+	type i8 = Thyseus.i8;
+	type i16 = Thyseus.i16;
+	type i32 = Thyseus.i32;
+	type i64 = Thyseus.i64;
+	type f32 = Thyseus.f32;
+	type f64 = Thyseus.f64;
 }
