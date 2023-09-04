@@ -17,6 +17,7 @@
 		"ecs"
 	],
 	"devDependencies": {
+		"@changesets/cli": "^2.26.2",
 		"vite": "^4.3.9",
 		"vitest": "^0.29.8"
 	}
