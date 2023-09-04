@@ -2,13 +2,13 @@ import type { Struct } from '../struct';
 
 export type Filter = Predicate | Connective;
 export class Predicate {
-	declare children: Struct[];
+	children: Struct[];
 	constructor(...children: Struct[]) {
 		this.children = children;
 	}
 }
 export class Connective {
-	declare children: Filter[];
+	children: Filter[];
 	constructor(...children: Filter[]) {
 		this.children = children;
 	}
