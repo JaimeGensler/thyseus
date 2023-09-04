@@ -1,0 +1,27 @@
+{
+	"name": "create-thyseus",
+	"version": "1.0.0",
+	"description": "",
+	"main": "src/index.ts",
+	"type": "module",
+	"scripts": {
+		"dev": "pnpm build && clear && node dist/index.cjs",
+		"build": "tsup src/index.ts"
+	},
+	"keywords": [
+		"thyseus",
+		"ecs"
+	],
+	"author": "Jaime Gensler",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/inquirer": "^9.0.3",
+		"inquirer": "^9.2.10",
+		"tsup": "^6.7.0"
+	},
+	"dependencies": {
+		"axios": "^1.4.0",
+		"commander": "^11.0.0",
+		"node": "^20.5.0"
+	}
+}
