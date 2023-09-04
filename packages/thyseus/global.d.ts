@@ -25,7 +25,7 @@ declare global {
 	type EventWriter<T extends object> = Thyseus.EventWriter<T>;
 	type Query<
 		A extends Thyseus.Accessors,
-		F extends Thyseus.Filter = [],
+		F extends Thyseus.Filter = Thyseus.Filter,
 	> = Thyseus.Query<A, F>;
 	type Res<T extends object> = Thyseus.Res<T>;
 	type SystemRes<T extends object> = Thyseus.SystemRes<T>;
@@ -33,13 +33,33 @@ declare global {
 
 	// Modifiers
 	type Mut<T extends object> = Thyseus.Mut<T>;
-	type Optional<T extends object> = Thyseus.Optional<T>;
-	type With<T extends object | object[]> = Thyseus.With<T>;
-	type Without<T extends object | object[]> = Thyseus.Without<T>;
+
+	// Filters
+	type Filter = Thyseus.Filter;
+	type With<
+		A extends object,
+		B extends object = object,
+		C extends object = object,
+		D extends object = object,
+	> = Thyseus.With<A, B, C, D>;
+	type Without<
+		A extends object,
+		B extends object = object,
+		C extends object = object,
+		D extends object = object,
+	> = Thyseus.Without<A, B, C, D>;
 	type Or<
-		L extends Thyseus.OrContent,
-		R extends Thyseus.OrContent,
-	> = Thyseus.Or<L, R>;
+		A extends Filter,
+		B extends Filter,
+		C extends Filter = Filter,
+		D extends Filter = Filter,
+	> = Thyseus.Or<A, B, C, D>;
+	type And<
+		A extends Filter,
+		B extends Filter,
+		C extends Filter = Filter,
+		D extends Filter = Filter,
+	> = Thyseus.And<A, B, C, D>;
 
 	type u8 = Thyseus.u8;
 	type u16 = Thyseus.u16;
