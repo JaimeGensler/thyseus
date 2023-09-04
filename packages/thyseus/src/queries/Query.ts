@@ -94,7 +94,7 @@ export class Query<A extends Accessors, F extends Filter = Filter> {
 		}
 	}
 	#test(n: bigint) {
-		for (let i = 0; i < this.#filters.length; i++) {
+		for (let i = 0; i < this.#filters.length; i += 2) {
 			const withFilter = this.#filters[i];
 			if (
 				(withFilter & n) === withFilter &&
@@ -334,57 +334,6 @@ if (import.meta.vitest) {
 				i++;
 			}
 		});
-
-		// it.skip('forEach works for tuples and individual elements', async () => {
-		// 	class Position extends Vec3 {}
-		// 	class Velocity extends Vec3 {}
-		// 	const world = await createWorld(Position, Velocity);
-		// 	const queryTuple = new Query<[Position, Velocity]>(
-		// 		[0n],
-		// 		[0n],
-		// 		false,
-		// 		[Position, Velocity],
-		// 		world,
-		// 	);
-		// 	const querySolo = new Query<Position>(
-		// 		[0n],
-		// 		[0n],
-		// 		true,
-		// 		[Position],
-		// 		world,
-		// 	);
-		// 	const id = world.entities.getId();
-		// 	world.entities.resetCursor();
-		// 	world.moveEntity(id, 0b111n);
-		// 	const table = world.tables[1];
-		// 	table.archetype = 0n;
-
-		// 	expect(queryTuple.length).toBe(0);
-		// 	expect(querySolo.length).toBe(0);
-		// 	queryTuple.testAdd(table);
-		// 	querySolo.testAdd(table);
-		// 	expect(queryTuple.length).toBe(1);
-		// 	expect(querySolo.length).toBe(1);
-		// 	for (let i = 1; i < 8; i++) {
-		// 		world.moveEntity(world.entities.getId(), 0b111n);
-		// 		expect(queryTuple.length).toBe(i + 1);
-		// 		expect(querySolo.length).toBe(i + 1);
-		// 	}
-
-		// 	let tupleIter = 0;
-		// 	queryTuple.forEach((pos, vel) => {
-		// 		expect(pos).toBeInstanceOf(Position);
-		// 		expect(vel).toBeInstanceOf(Velocity);
-		// 		tupleIter++;
-		// 	});
-		// 	let soloIter = 0;
-		// 	querySolo.forEach(pos => {
-		// 		expect(pos).toBeInstanceOf(Position);
-		// 		soloIter++;
-		// 	});
-		// 	expect(tupleIter).toBe(queryTuple.length);
-		// 	expect(soloIter).toBe(querySolo.length);
-		// });
 
 		it('works if early table is empty and later table is not', async () => {
 			const world = await createWorld(Vec3);
