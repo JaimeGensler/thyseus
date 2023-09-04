@@ -28,6 +28,7 @@
 		"type": "git",
 		"url": "https://github.com/JaimeGensler/thyseus"
 	},
+	"homepage": "https://thyseus.dev",
 	"scripts": {
 		"start": "vite",
 		"build": "vite build && tsup src/index.ts --dts-only",
