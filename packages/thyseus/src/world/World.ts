@@ -9,12 +9,12 @@ import {
 	ResourceRegistryKey,
 } from './registryKeys';
 import { StartSchedule, type ExecutorInstance } from '../schedule';
-import { isStruct, type Class, type Struct } from '../struct';
 import {
 	validateAndCompleteConfig,
 	type WorldConfig,
 	type SingleThreadedWorldConfig,
 } from './config';
+import type { Class, Struct } from '../struct';
 import type { ThreadGroup } from '../threads';
 import type { Query } from '../queries';
 
@@ -95,21 +95,10 @@ export class World {
 			);
 			eventsPointer += EventReader.size;
 		}
+	}
 
-		const resourceTypes = registry.get(ResourceRegistryKey)! as Set<Class>;
-		for (const resourceType of resourceTypes) {
-			if (isStruct(resourceType)) {
-				const res = new resourceType();
-				(res as any).__$$b = this.threads.queue(() =>
-					resourceType.size! !== 0
-						? Memory.alloc(resourceType.size!)
-						: 0,
-				);
-				this.resources.push(res);
-			} else if (threads.isMainThread) {
-				this.resources.push(new resourceType());
-			}
-		}
+	get isMainThread(): boolean {
+		return this.threads.isMainThread;
 	}
 
 	/**

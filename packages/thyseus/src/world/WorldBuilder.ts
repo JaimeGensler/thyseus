@@ -1,4 +1,4 @@
-import { DEV_ASSERT } from '../utils';
+import { DEV_ASSERT, Memory } from '../utils';
 import { World } from './World';
 import { ThreadGroup } from '../threads';
 import { Entity } from '../storage';
@@ -12,7 +12,7 @@ import {
 } from '../schedule';
 import type { Plugin } from './Plugin';
 import type { System } from '../systems';
-import type { Class, Struct } from '../struct';
+import { isStruct, type Class, type Struct } from '../struct';
 import type { WorldConfig } from './config';
 import {
 	ComponentRegistryKey,
@@ -220,15 +220,29 @@ export class WorldBuilder {
 						),
 					);
 			}
+			for (const resourceType of this.#registry.get(
+				ResourceRegistryKey,
+			) ?? []) {
+				let res: object | null = null;
+				const isResourceStruct = isStruct(resourceType);
+				if (isResourceStruct || world.isMainThread) {
+					res = (resourceType as any).fromWorld
+						? await (resourceType as any).fromWorld(world)
+						: new resourceType();
+				}
+				if (isResourceStruct) {
+					(res as any).__$$b = world.threads.queue(() =>
+						resourceType.size! !== 0
+							? Memory.alloc(resourceType.size!)
+							: 0,
+					);
+				}
+				if (res !== null) {
+					world.resources.push(res);
+				}
+			}
 			return world;
 		});
-
-		if (threads.isMainThread) {
-			await Promise.all(
-				//@ts-ignore
-				world.resources.map(resource => resource.initialize?.(world)),
-			);
-		}
 
 		return world;
 	}
