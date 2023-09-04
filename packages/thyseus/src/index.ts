@@ -18,14 +18,14 @@ export { World } from './world';
 // Descriptors
 export { CommandsDescriptor } from './commands';
 export { EventReaderDescriptor, EventWriterDescriptor } from './events';
-export { QueryDescriptor, Mut, With, Without, Or } from './queries';
+export { QueryDescriptor, Mut, With, Without, Or, And } from './queries';
 export { ResourceDescriptor, SystemResourceDescriptor } from './resources';
 export { WorldDescriptor } from './world';
 
 // Types
 export type { Commands, EntityCommands } from './commands';
 export type { EventReader, EventWriter } from './events';
-export type { Query, Optional, OrContent, Accessors, Filter } from './queries';
+export type { Query, Accessors, Filter } from './queries';
 export type { Res, SystemRes } from './resources';
 export type { ExecutorType, ExecutorInstance, SystemConfig } from './schedule';
 export type { Table, Entities } from './storage';
