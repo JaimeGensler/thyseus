@@ -1,7 +1,7 @@
 import type { Struct } from '../struct';
 
-export type Filter = Condition | Connective;
-export class Condition {
+export type Filter = Predicate | Connective;
+export class Predicate {
 	declare children: Struct[];
 	constructor(...children: Struct[]) {
 		this.children = children;
@@ -18,7 +18,7 @@ export class With<
 	B extends object = object,
 	C extends object = object,
 	D extends object = object,
-> extends Condition {
+> extends Predicate {
 	#_: [A, B, C, D] = true as any;
 }
 export class Without<
@@ -26,7 +26,7 @@ export class Without<
 	B extends object = object,
 	C extends object = object,
 	D extends object = object,
-> extends Condition {
+> extends Predicate {
 	#_: [A, B, C, D] = true as any;
 }
 
@@ -74,7 +74,7 @@ export function createArchetypeFilter(
 		);
 	} else {
 		const remainder = filter instanceof With ? 0 : 1;
-		const archetype = getArchetype(...(filter as Condition).children);
+		const archetype = getArchetype(...(filter as Predicate).children);
 		return current.map((val, i) =>
 			i % 2 === remainder ? val | archetype : val,
 		);
