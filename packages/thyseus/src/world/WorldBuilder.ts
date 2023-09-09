@@ -14,14 +14,18 @@ import type { Plugin } from './Plugin';
 import type { System } from '../systems';
 import type { Class, Struct } from '../struct';
 import type { WorldConfig } from './config';
+import {
+	ComponentRegistryKey,
+	EventRegistryKey,
+	ResourceRegistryKey,
+} from './registryKeys';
 
 type SystemListArray = SystemList[];
+export type Registry = Map<symbol, Set<any>>;
 export class WorldBuilder {
 	#schedules: Map<symbol, (System | SystemConfig)[]> = new Map();
 
-	#components: Set<Struct> = new Set([Entity]);
-	#resources: Set<Class> = new Set();
-	#events: Set<Struct> = new Set();
+	#registry: Registry = new Map();
 
 	#systems: Set<System> = new Set();
 	#defaultExecutor: ExecutorType;
@@ -34,6 +38,7 @@ export class WorldBuilder {
 		this.url = url;
 		this.#defaultExecutor =
 			config.threads > 1 ? ParallelExecutor : SimpleExecutor;
+		this.registerComponent(Entity);
 	}
 
 	/**
@@ -107,14 +112,28 @@ export class WorldBuilder {
 	}
 
 	/**
+	 * Adds an item (_of any type_) to the registry under a specific collection.
+	 * Identical items are deduplicated.
+	 * @param symbol The key of the collection to register the provided item to.
+	 * @param item The item to register.
+	 * @returns `this`, for chaining.
+	 */
+	register(registryKey: symbol, item: any): this {
+		if (!this.#registry.has(registryKey)) {
+			this.#registry.set(registryKey, new Set());
+		}
+		this.#registry.get(registryKey)!.add(item);
+		return this;
+	}
+
+	/**
 	 * Registers a component type in the world.
 	 * Called automatically for all queried components when a system is added.
 	 * @param componentType The componentType (`Struct`) to register.
 	 * @returns `this`, for chaining.
 	 */
 	registerComponent(componentType: Struct): this {
-		this.#components.add(componentType);
-		return this;
+		return this.register(ComponentRegistryKey, componentType);
 	}
 
 	/**
@@ -124,8 +143,7 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	registerResource(resourceType: Class): this {
-		this.#resources.add(resourceType);
-		return this;
+		return this.register(ResourceRegistryKey, resourceType);
 	}
 
 	/**
@@ -135,8 +153,7 @@ export class WorldBuilder {
 	 * @returns `this`, for chaining.
 	 */
 	registerEvent(eventType: Struct): this {
-		this.#events.add(eventType);
-		return this;
+		return this.register(EventRegistryKey, eventType);
 	}
 
 	/**
@@ -178,13 +195,7 @@ export class WorldBuilder {
 		});
 
 		const world = await threads.wrapInQueue(async () => {
-			const world = new World(
-				this.config,
-				threads,
-				[...this.#components],
-				[...this.#resources],
-				[...this.#events],
-			);
+			const world = new World(this.config, threads, this.#registry);
 			const systemArguments = new Map();
 			for (const system of this.#systems) {
 				systemArguments.set(
