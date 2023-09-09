@@ -1,5 +1,5 @@
 export const viteConfig = `
-import { thyseus } from '@thyseus/transformer-rollup';
+import { thyseus } from '@thyseus/rollup-plugin-thyseus';
 import { defineConfig } from 'vite';
 
 export default defineConfig({

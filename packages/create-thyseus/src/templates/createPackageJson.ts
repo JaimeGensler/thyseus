@@ -22,6 +22,8 @@ export async function createPackageJson(projectName: string) {
 	"name": "${projectName}",
 	"version": "0.1.0",
 	"description": "",
+	"author": "",
+	"license": "MIT",
 	"main": "src/index.ts",
 	"type": "module",
 	"scripts": {
@@ -29,16 +31,15 @@ export async function createPackageJson(projectName: string) {
 		"build": "vite build"
 	},
 	"keywords": [],
-	"author": "",
-	"license": "MIT",
 	"dependencies": {
 		"thyseus": "^${await getLatest('thyseus')}"
 	},
 	"devDependencies": {
-		"@thyseus/transformer-rollup": "^${await getLatest(
-			'@thyseus/transformer-rollup',
+		"@thyseus/rollup-plugin-thyseus": "^${await getLatest(
+			'@thyseus/rollup-plugin-thyseus',
 		)}",
-		"typescript": "^${await getLatest('typescript')}"
+		"typescript": "^${await getLatest('typescript')}",
+		"vite": "^${await getLatest('vite')}"
 	}
 }
 `.trim();
