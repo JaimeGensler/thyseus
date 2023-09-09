@@ -1,8 +1,13 @@
 import { bits, DEV_ASSERT, Memory } from '../utils';
-import { WorldBuilder } from './WorldBuilder';
+import { WorldBuilder, type Registry } from './WorldBuilder';
 import { Commands } from '../commands';
 import { Entities, Table } from '../storage';
 import { EventReader, EventWriter } from '../events';
+import {
+	ComponentRegistryKey,
+	EventRegistryKey,
+	ResourceRegistryKey,
+} from './registryKeys';
 import { StartSchedule, type ExecutorInstance } from '../schedule';
 import { isStruct, type Class, type Struct } from '../struct';
 import {
@@ -35,7 +40,7 @@ export class World {
 	}
 
 	tables: Table[] = [];
-	#archetypeToTable = new Map<bigint, Table>();
+	#archetypeToTable: Map<bigint, Table> = new Map<bigint, Table>();
 	queries: Query<any, any>[] = [];
 	resources: object[] = [];
 	eventReaders: EventReader<any>[] = [];
@@ -43,23 +48,20 @@ export class World {
 
 	schedules: Record<symbol, ExecutorInstance> = {};
 
+	registry: Registry;
 	commands: Commands;
 	entities: Entities;
 	config: Readonly<WorldConfig>;
 	threads: ThreadGroup;
 	components: Struct[];
-	constructor(
-		config: WorldConfig,
-		threads: ThreadGroup,
-		components: Struct[],
-		resourceTypes: Class[],
-		eventTypes: Struct[],
-	) {
+	constructor(config: WorldConfig, threads: ThreadGroup, registry: Registry) {
 		this.config = config;
 		this.threads = threads;
+		this.registry = registry;
+
 		// Components are sorted by alignment (largest -> smallest) so we can
 		// create "default" data for all of them without needing to pad any.
-		this.components = components.sort(
+		this.components = [...registry.get(ComponentRegistryKey)!].sort(
 			(a, z) => z.alignment! - a.alignment!,
 		);
 
@@ -79,8 +81,9 @@ export class World {
 		this.entities = new Entities(this);
 		this.commands = new Commands(this);
 
+		const eventTypes = registry.get(EventRegistryKey)! as Set<Struct>;
 		let eventsPointer = this.threads.queue(() =>
-			Memory.alloc(EventReader.size * eventTypes.length),
+			Memory.alloc(EventReader.size * eventTypes.size),
 		);
 		for (const eventType of eventTypes) {
 			const id = this.eventReaders.length;
@@ -93,6 +96,7 @@ export class World {
 			eventsPointer += EventReader.size;
 		}
 
+		const resourceTypes = registry.get(ResourceRegistryKey)! as Set<Class>;
 		for (const resourceType of resourceTypes) {
 			if (isStruct(resourceType)) {
 				const res = new resourceType();
