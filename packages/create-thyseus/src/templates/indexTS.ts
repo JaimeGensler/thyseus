@@ -8,10 +8,13 @@ function start(world: World) {
 	}
 	loop();
 }
+function helloWorld() {
+	console.log('Hello, world!');
+}
 
 const world = await World.new()
 	.addSystemsToSchedule(StartSchedule, start)
-	.addSystems(/* Your systems here! */)
+	.addSystems(helloWorld, /* Your systems here! */)
 	.build();
 
 world.start();

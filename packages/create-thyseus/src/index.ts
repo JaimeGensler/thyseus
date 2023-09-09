@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import inquirer from 'inquirer';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import {
@@ -23,7 +24,7 @@ inquirer
 			name: 'projectName',
 			message: "What's your project's name?",
 			type: 'string',
-			validate: (projectName: string) => {
+			validate(projectName: string) {
 				if (existsSync(projectName)) {
 					return 'A project of that name already exists!';
 				}
@@ -37,7 +38,7 @@ inquirer
 			name: 'useGlobalTypes',
 			message: "Use Thyseus's global type injection?",
 			type: 'confirm',
-			default: true,
+			default: false,
 		},
 	])
 	.then(async function ({ projectName, useGlobalTypes }: Answers) {
