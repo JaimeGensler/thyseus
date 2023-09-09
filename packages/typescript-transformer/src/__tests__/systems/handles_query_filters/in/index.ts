@@ -1,0 +1,1 @@
+function temp(query: Query<Entity, And<With<A>, Without<B>>) {}

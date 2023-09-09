@@ -3,20 +3,20 @@ export type SystemParameterMap = Record<string, SystemParameterDescriptor>;
 
 export const defaultSystemParameters: SystemParameterMap = {
 	// Parameters
-	Query: {
-		descriptorName: 'QueryDescriptor',
-		importPath: 'thyseus',
-	},
-	Res: {
-		descriptorName: 'ResourceDescriptor',
+	World: {
+		descriptorName: 'WorldDescriptor',
 		importPath: 'thyseus',
 	},
 	Commands: {
 		descriptorName: 'CommandsDescriptor',
 		importPath: 'thyseus',
 	},
-	World: {
-		descriptorName: 'WorldDescriptor',
+	Query: {
+		descriptorName: 'QueryDescriptor',
+		importPath: 'thyseus',
+	},
+	Res: {
+		descriptorName: 'ResourceDescriptor',
 		importPath: 'thyseus',
 	},
 	SystemRes: {
@@ -49,8 +49,8 @@ export const defaultSystemParameters: SystemParameterMap = {
 		descriptorName: 'Or',
 		importPath: 'thyseus',
 	},
-	// Optional: {
-	// 	descriptorName: 'Optional',
-	// 	importPath: 'thyseus',
-	// },
+	And: {
+		descriptorName: 'And',
+		importPath: 'thyseus',
+	},
 };
