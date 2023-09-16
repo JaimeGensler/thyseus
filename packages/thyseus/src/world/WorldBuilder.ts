@@ -182,6 +182,28 @@ export class WorldBuilder {
 
 		const world = await threads.wrapInQueue(async () => {
 			const world = new World(this.config, threads, this.#registry);
+			for (const resourceType of this.#registry.get(
+				ResourceRegistryKey,
+			) ?? []) {
+				let res: object | null = null;
+				const isResourceStruct = isStruct(resourceType);
+				if (isResourceStruct || world.isMainThread) {
+					res = (resourceType as any).fromWorld
+						? await (resourceType as any).fromWorld(world)
+						: new resourceType();
+				}
+				if (isResourceStruct) {
+					(res as any).__$$b = world.threads.queue(() =>
+						resourceType.size! !== 0
+							? Memory.alloc(resourceType.size!)
+							: 0,
+					);
+					(res as any).serialize();
+				}
+				if (res !== null) {
+					world.resources.push(res);
+				}
+			}
 			const systemArguments = new Map();
 			for (const system of this.#systems) {
 				systemArguments.set(
@@ -206,28 +228,7 @@ export class WorldBuilder {
 						),
 					);
 			}
-			for (const resourceType of this.#registry.get(
-				ResourceRegistryKey,
-			) ?? []) {
-				let res: object | null = null;
-				const isResourceStruct = isStruct(resourceType);
-				if (isResourceStruct || world.isMainThread) {
-					res = (resourceType as any).fromWorld
-						? await (resourceType as any).fromWorld(world)
-						: new resourceType();
-				}
-				if (isResourceStruct) {
-					(res as any).__$$b = world.threads.queue(() =>
-						resourceType.size! !== 0
-							? Memory.alloc(resourceType.size!)
-							: 0,
-					);
-					(res as any).serialize();
-				}
-				if (res !== null) {
-					world.resources.push(res);
-				}
-			}
+
 			return world;
 		});
 
