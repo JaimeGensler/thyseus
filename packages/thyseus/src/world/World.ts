@@ -3,11 +3,7 @@ import { WorldBuilder, type Registry } from './WorldBuilder';
 import { Commands } from '../commands';
 import { Entities, Table } from '../storage';
 import { EventReader, EventWriter } from '../events';
-import {
-	ComponentRegistryKey,
-	EventRegistryKey,
-	ResourceRegistryKey,
-} from './registryKeys';
+import { ComponentRegistryKey, EventRegistryKey } from './registryKeys';
 import { StartSchedule, type ExecutorInstance } from '../schedule';
 import {
 	validateAndCompleteConfig,
@@ -81,19 +77,33 @@ export class World {
 		this.entities = new Entities(this);
 		this.commands = new Commands(this);
 
-		const eventTypes = registry.get(EventRegistryKey)! as Set<Struct>;
-		let eventsPointer = this.threads.queue(() =>
-			Memory.alloc(EventReader.size * eventTypes.size),
-		);
-		for (const eventType of eventTypes) {
-			const id = this.eventReaders.length;
-			this.eventReaders.push(
-				new EventReader(this.commands, eventType, eventsPointer, id),
+		const eventTypes = registry.get(EventRegistryKey) as
+			| Set<Struct>
+			| undefined;
+		if (eventTypes) {
+			let eventsPointer = this.threads.queue(() =>
+				Memory.alloc(EventReader.size * eventTypes.size),
 			);
-			this.eventWriters.push(
-				new EventWriter(this.commands, eventType, eventsPointer, id),
-			);
-			eventsPointer += EventReader.size;
+			for (const eventType of eventTypes) {
+				const id = this.eventReaders.length;
+				this.eventReaders.push(
+					new EventReader(
+						this.commands,
+						eventType,
+						eventsPointer,
+						id,
+					),
+				);
+				this.eventWriters.push(
+					new EventWriter(
+						this.commands,
+						eventType,
+						eventsPointer,
+						id,
+					),
+				);
+				eventsPointer += EventReader.size;
+			}
 		}
 	}
 

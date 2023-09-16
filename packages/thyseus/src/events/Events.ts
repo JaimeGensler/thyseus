@@ -261,12 +261,12 @@ if (import.meta.vitest) {
 		expect(reader.clear());
 		expect(pushCommandSpy).toHaveBeenCalledOnce();
 		const command = new ClearEventQueueCommand();
-		command.__$$b = 192;
+		command.__$$b = 184;
 		command.eventId = 0;
 		expect(pushCommandSpy).toHaveBeenCalledWith(command);
 
 		expect(writer.clear());
-		command.__$$b = 208;
+		command.__$$b = 200;
 		expect(pushCommandSpy).toHaveBeenCalledTimes(2);
 		expect(pushCommandSpy).toHaveBeenLastCalledWith(command);
 	});

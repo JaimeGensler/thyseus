@@ -311,10 +311,10 @@ if (import.meta.vitest) {
 		},
 	});
 
-	const initializeTimeSpy = vi.fn();
+	const fromWorldSpy = vi.fn();
 	class Time {
 		static size = 8;
-		initialize = initializeTimeSpy;
+		static fromWorld = fromWorldSpy;
 	}
 
 	it('calls onAddSystem for all parameters', () => {
@@ -336,13 +336,13 @@ if (import.meta.vitest) {
 		builder.addSystems(mockSystem1, mockSystem2);
 	});
 
-	it('initializes resources', async () => {
+	it('uses fromWorld to construct resources if it exists', async () => {
 		const builder = World.new({ isMainThread: true }).registerResource(
 			Time,
 		);
-		expect(initializeTimeSpy).not.toHaveBeenCalled();
+		expect(fromWorldSpy).not.toHaveBeenCalled();
 		const world = await builder.build();
-		expect(initializeTimeSpy).toHaveBeenCalledWith(world);
+		expect(fromWorldSpy).toHaveBeenCalledWith(world);
 	});
 
 	it('passes SystemConfig to Executors', async () => {
