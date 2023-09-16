@@ -14,11 +14,7 @@ import { isStruct, type Class, type Struct } from '../struct';
 import type { Plugin } from './Plugin';
 import type { System } from '../systems';
 import type { WorldConfig } from './config';
-import {
-	ComponentRegistryKey,
-	EventRegistryKey,
-	ResourceRegistryKey,
-} from './registryKeys';
+import { ComponentRegistryKey, ResourceRegistryKey } from './registryKeys';
 
 type SystemListArray = SystemList[];
 export type Registry = Map<symbol, Set<any>>;
@@ -144,16 +140,6 @@ export class WorldBuilder {
 	 */
 	registerResource(resourceType: Class): this {
 		return this.register(ResourceRegistryKey, resourceType);
-	}
-
-	/**
-	 * Registers an event type in the world.
-	 * Called automatically for all event readers/writers when a system is added.
-	 * @param resourceType The Event type (`Struct`) to register.
-	 * @returns `this`, for chaining.
-	 */
-	registerEvent(eventType: Struct): this {
-		return this.register(EventRegistryKey, eventType);
 	}
 
 	/**
