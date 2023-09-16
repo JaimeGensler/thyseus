@@ -6,14 +6,22 @@ labels: bug
 assignees: JaimeGensler
 ---
 
-<!-- Please provide all of the info requested below. Failure to provide this info will likely result in your report being closed, as it is not feasible to diagnose and resolve bugs without this info -->
+<!-- Please provide all of the info requested below - it's not feasible to diagnose and resolve bugs without it! -->
 
 ## Bug Description
 
-### Thyseus Version (e.g. v0.9.0)\*\*
+<!-- What's going wrong? -->
 
-### Bundler / Build Tool (e.g. Vite, Webpack)\*\*
+### Thyseus Version
 
-### Environment & Version (e.g. \<browser\> \<version\>, Node \<version\>)\*\*
+<!-- e.g. 0.14.0 -->
 
-### Reproduction URL (optional)\*\*
+### Bundler / Build Tool
+
+<!-- Vite, Webpack, Bun, ... -->
+
+### Environment & Version
+
+<!-- e.g. browser, node -->
+
+### Reproduction Repo (optional)

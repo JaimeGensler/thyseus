@@ -5,12 +5,16 @@ title: '[HELP]'
 assignees: JaimeGensler
 ---
 
-<!-- Please provide all of the info requested below! -->
-
 ## What do you need help with?
 
-### Thyseus Version (e.g. v0.9.0)
+### Thyseus Version
 
-### Bundler / Build Tool (e.g. Vite, Webpack)
+<!-- e.g. 0.14.0 -->
 
-### Target Environment (e.g. Browser, Node)
+### Bundler / Build Tool
+
+<!-- Vite, Webpack, Bun, ... -->
+
+### Target Environment
+
+<!-- Browser, Node, Bun, ... -->
