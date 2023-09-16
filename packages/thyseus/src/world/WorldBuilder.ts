@@ -236,6 +236,7 @@ export class WorldBuilder {
 							? Memory.alloc(resourceType.size!)
 							: 0,
 					);
+					(res as any).serialize();
 				}
 				if (res !== null) {
 					world.resources.push(res);
@@ -313,7 +314,6 @@ if (import.meta.vitest) {
 
 	const fromWorldSpy = vi.fn();
 	class Time {
-		static size = 8;
 		static fromWorld = fromWorldSpy;
 	}
 
@@ -361,18 +361,22 @@ if (import.meta.vitest) {
 	it('adds defaultPlugin', async () => {
 		const world = await World.new({ isMainThread: true }).build();
 		expect(world.components).toStrictEqual([Entity]);
-		// expect(world.systems[0]).toBe(applyCommands);
 	});
 
 	it('constructs struct resources correctly', async () => {
+		const serializeSpy = vi.fn();
 		class StructClass {
 			static size = 1;
 			static alignment = 1;
+			deserialize() {}
+			serialize = serializeSpy;
 		}
+		expect(serializeSpy).not.toHaveBeenCalled();
 		const world = await World.new({ isMainThread: true })
 			.registerResource(StructClass)
 			.build();
 		expect(world.resources[0]).toBeInstanceOf(StructClass);
 		expect((world.resources[0] as any).__$$b).not.toBe(0);
+		expect(serializeSpy).toHaveBeenCalledOnce();
 	});
 }
