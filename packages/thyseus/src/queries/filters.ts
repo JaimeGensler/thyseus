@@ -1,15 +1,8 @@
 import type { Struct } from '../struct';
 
-export type Filter = Predicate | Connective;
 export class Predicate {
 	children: Struct[];
 	constructor(...children: Struct[]) {
-		this.children = children;
-	}
-}
-export class Connective {
-	children: Filter[];
-	constructor(...children: Filter[]) {
 		this.children = children;
 	}
 }
@@ -30,6 +23,12 @@ export class Without<
 	#_: [A, B, C, D] = true as any;
 }
 
+export class Connective {
+	children: Filter[];
+	constructor(...children: Filter[]) {
+		this.children = children;
+	}
+}
 export class Or<
 	A extends Filter,
 	B extends Filter,
@@ -46,6 +45,7 @@ export class And<
 > extends Connective {
 	#_: [A, B, C, D] = true as any;
 }
+export type Filter = Predicate | Connective;
 
 export function registerFilters(
 	filter: Filter,
