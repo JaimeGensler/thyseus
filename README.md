@@ -17,7 +17,7 @@ Thyseus is a DX-focused and highly performant
 [archetypal](https://github.com/SanderMertens/ecs-faq#archetypes-aka-dense-ecs-or-table-based-ecs)
 [Entity Component System](https://en.wikipedia.org/wiki/Entity_component_system)
 ([ECS](https://github.com/SanderMertens/ecs-faq)) for Typescript. It provides an
-expressive, type-driven API, and includes many features out of the box,
+expressive, type-driven API and includes many features out of the box,
 including:
 
 -   Hassle-free multithreading. Don't worry about scheduling, Mutexes, or
