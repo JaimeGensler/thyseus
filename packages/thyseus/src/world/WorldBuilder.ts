@@ -10,9 +10,9 @@ import {
 	type SystemConfig,
 	type SystemList,
 } from '../schedule';
+import { isStruct, type Class, type Struct } from '../struct';
 import type { Plugin } from './Plugin';
 import type { System } from '../systems';
-import { isStruct, type Class, type Struct } from '../struct';
 import type { WorldConfig } from './config';
 import {
 	ComponentRegistryKey,
