@@ -1,4 +1,4 @@
-export { EventReader, EventWriter } from './Events';
+export { EventReader, EventWriter } from './EventQueues';
 export {
 	EventReaderDescriptor,
 	EventWriterDescriptor,

@@ -1,7 +1,9 @@
-import type { EventReader, EventWriter } from './Events';
+import type { EventReader, EventWriter } from './EventQueues';
 import type { World, WorldBuilder } from '../world';
 import type { SystemParameter } from '../systems';
 import type { Struct } from '../struct';
+import { Events } from './Events';
+import { EventRegistryKey } from './EventRegistryKey';
 
 export class EventReaderDescriptor<T extends Struct>
 	implements SystemParameter
@@ -25,17 +27,18 @@ export class EventReaderDescriptor<T extends Struct>
 		return false;
 	}
 	onAddSystem(builder: WorldBuilder): void {
-		builder.registerEvent(this.eventType);
+		builder.registerResource(Events);
+		builder.register(EventRegistryKey, this.eventType);
 	}
 	intoArgument(world: World): EventReader<InstanceType<T>> {
-		return world.eventReaders.find(rd => rd.type === this.eventType)!;
+		return world.getResource(Events).getReaderOfType(this.eventType)!;
 	}
 }
 export class EventWriterDescriptor<
 	T extends Struct,
 > extends EventReaderDescriptor<T> {
 	intoArgument(world: World): EventWriter<InstanceType<T>> {
-		return world.eventWriters.find(wr => wr.type === this.eventType)!;
+		return world.getResource(Events).getWriterOfType(this.eventType)!;
 	}
 }
 
@@ -45,7 +48,7 @@ export class EventWriterDescriptor<
 if (import.meta.vitest) {
 	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
 	const { Memory } = await import('../utils');
-	const { EventReader, EventWriter } = await import('./Events');
+	const { EventReader, EventWriter } = await import('./EventQueues');
 
 	beforeEach(() => {
 		Memory.init(10_000);
@@ -93,14 +96,19 @@ if (import.meta.vitest) {
 	describe('onAddSystem', () => {
 		it('registers the events', () => {
 			const builder: WorldBuilder = {
-				registerEvent: vi.fn(),
+				register: vi.fn(),
+				registerResource: vi.fn(),
 			} as any;
 			new EventReaderDescriptor(A).onAddSystem(builder);
-			expect(builder.registerEvent).toHaveBeenCalledOnce();
-			expect(builder.registerEvent).toHaveBeenCalledWith(A);
+			expect(builder.register).toHaveBeenCalledOnce();
+			expect(builder.registerResource).toHaveBeenLastCalledWith(Events);
+			expect(builder.register).toHaveBeenCalledWith(EventRegistryKey, A);
 			new EventWriterDescriptor(B).onAddSystem(builder);
-			expect(builder.registerEvent).toHaveBeenCalledTimes(2);
-			expect(builder.registerEvent).toHaveBeenLastCalledWith(B);
+			expect(builder.register).toHaveBeenCalledTimes(2);
+			expect(builder.register).toHaveBeenLastCalledWith(
+				EventRegistryKey,
+				B,
+			);
 		});
 	});
 
@@ -117,14 +125,26 @@ if (import.meta.vitest) {
 			const p1 = Memory.alloc(8);
 			const p2 = Memory.alloc(8);
 			const world = {
-				eventReaders: [
-					new EventReader(commands, A, p1, 0),
-					new EventReader(commands, B, p1, 0),
-				],
-				eventWriters: [
-					new EventWriter(commands, A, p2, 0),
-					new EventWriter(commands, B, p2, 0),
-				],
+				getResource: () => ({
+					eventReaders: [
+						new EventReader(commands, A, p1, 0),
+						new EventReader(commands, B, p1, 0),
+					],
+					eventWriters: [
+						new EventWriter(commands, A, p2, 0),
+						new EventWriter(commands, B, p2, 0),
+					],
+					getReaderOfType(type: any) {
+						return this.eventReaders.find(
+							reader => reader.type === type,
+						);
+					},
+					getWriterOfType(type: any) {
+						return this.eventWriters.find(
+							reader => reader.type === type,
+						);
+					},
+				}),
 			} as any;
 			const rdResult = new EventReaderDescriptor(A).intoArgument(world);
 			const wrResult = new EventWriterDescriptor(B).intoArgument(world);
