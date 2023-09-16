@@ -12,18 +12,21 @@ export class EventReader<T extends object> {
 	#instance: T & StructInstance;
 	#pointer: number; // [length, capacity, pointer]
 	#id: number;
+	#resourceId: number;
 
 	constructor(
 		commands: Commands,
 		struct: Struct,
 		pointer: number,
 		id: number,
+		resourceId: number,
 	) {
 		this.#commands = commands;
 		this.#instance = new struct() as T & StructInstance;
 		this.#struct = struct;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access
 		this.#id = id;
+		this.#resourceId = resourceId;
 	}
 
 	/**
@@ -55,6 +58,7 @@ export class EventReader<T extends object> {
 	 * Sets this event queue to be cleared when commands are next processed.
 	 */
 	clear() {
+		clearQueue.resourceId = this.#resourceId;
 		clearQueue.eventId = this.#id;
 		this.#commands.push(clearQueue);
 	}
@@ -69,8 +73,9 @@ export class EventWriter<T extends object> extends EventReader<T> {
 		struct: Struct & { new (): T },
 		pointer: number,
 		id: number,
+		resourceId: number,
 	) {
-		super(commands, struct, pointer, id);
+		super(commands, struct, pointer, id, resourceId);
 		this.#default = new struct() as T & StructInstance;
 		this.#pointer = pointer >> 2; // Shifted for u32-only access.
 	}
@@ -143,8 +148,8 @@ if (import.meta.vitest) {
 		const world = await World.new({ isMainThread: true }).build();
 		const pointer = Memory.alloc(16 + queueType.size!);
 		return [
-			new EventReader<I>(world.commands, queueType as any, pointer, 0),
-			new EventWriter<I>(world.commands, queueType as any, pointer, 0),
+			new EventReader<I>(world.commands, queueType as any, pointer, 0, 0),
+			new EventWriter<I>(world.commands, queueType as any, pointer, 0, 0),
 			world,
 		] as const;
 	}

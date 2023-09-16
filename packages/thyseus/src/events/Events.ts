@@ -1,9 +1,8 @@
 import { EventReader, EventWriter } from './EventQueues';
 import { Memory } from '../utils';
-import type { World } from '../world';
 import { Struct } from '../struct';
-
-const EVENT_TYPES = Symbol('EventTypes');
+import { EventRegistryKey } from './EventRegistryKey';
+import type { World } from '../world';
 
 export class Events {
 	static size = 0;
@@ -21,17 +20,29 @@ export class Events {
 	constructor(world: World) {
 		// SAFETY: We know this is non-null, as the EventsRes only gets added
 		// if an event queue has been registered!
-		const eventTypes = world.registry.get(EVENT_TYPES)!;
+		const eventTypes = world.registry.get(EventRegistryKey)!;
 		let eventsPointer = world.threads.queue(() =>
 			Memory.alloc(EventReader.size * eventTypes.size),
 		);
 		for (const eventType of eventTypes) {
 			const id = this.readers.length;
 			this.readers.push(
-				new EventReader(world.commands, eventType, eventsPointer, id),
+				new EventReader(
+					world.commands,
+					eventType,
+					eventsPointer,
+					world.resources.length,
+					id,
+				),
 			);
 			this.writers.push(
-				new EventWriter(world.commands, eventType, eventsPointer, id),
+				new EventWriter(
+					world.commands,
+					eventType,
+					eventsPointer,
+					world.resources.length,
+					id,
+				),
 			);
 			eventsPointer += EventReader.size;
 		}
