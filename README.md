@@ -13,7 +13,7 @@
 [![pull requests: welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/JaimeGensler/thyseus/pulls)
 [![code style: prettier](https://img.shields.io/badge/code%20style-prettier-ff69b4)](https://github.com/prettier/prettier)
 
-Thyseus is a DX-focused, and highly performant
+Thyseus is a DX-focused and highly performant
 [archetypal](https://github.com/SanderMertens/ecs-faq#archetypes-aka-dense-ecs-or-table-based-ecs)
 [Entity Component System](https://en.wikipedia.org/wiki/Entity_component_system)
 ([ECS](https://github.com/SanderMertens/ecs-faq)) for Typescript. It provides an
@@ -33,9 +33,6 @@ including:
 
 Get started with [the docs](https://thyseus.dev/docs), or join us on the
 [Web-ECS Discord](https://discord.gg/T3g8U89qqZ)!
-
-**Please note: Thyseus is pre-1.0 - releases may have frequent breaking
-changes.**
 
 ## Installation
 
