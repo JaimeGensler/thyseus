@@ -242,38 +242,6 @@ if (import.meta.vitest) {
 			expect(j).toBe(10);
 		});
 
-		it.skip('yields null for optional members', async () => {
-			const world = await createWorld(Vec3);
-			const query = new Query<[Vec3, Entity2]>(
-				[0n, 0n],
-				false,
-				[Vec3, Entity],
-				world,
-			);
-			const vecTable = createTable(Entity, Vec3);
-			const noVecTable = createTable(Entity);
-
-			query.testAdd({ ...noVecTable, archetype: 0n } as any);
-			query.testAdd({ ...vecTable, archetype: 0n } as any);
-			expect(query.length).toBe(0);
-			for (let i = 0; i < 10; i++) {
-				spawnIntoTable(i, i < 5 ? noVecTable : vecTable);
-				expect(query.length).toBe(i + 1);
-			}
-			let j = 0;
-			for (const [vec, ent] of query) {
-				if (j < 5) {
-					expect(vec).toBeNull();
-				} else {
-					expect(vec).toBeInstanceOf(Vec3);
-				}
-				expect(ent).toBeInstanceOf(Entity);
-				expect(ent.id).toBe(BigInt(j));
-				j++;
-			}
-			expect(j).toBe(10);
-		});
-
 		it('yields individual elements for non-tuple iterators', async () => {
 			const world = await createWorld(Vec3);
 			const query = new Query<Vec3>([0n, 0n], true, [Vec3], world);
