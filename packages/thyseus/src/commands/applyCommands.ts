@@ -11,14 +11,17 @@ import { Struct, StructInstance } from '../struct';
 const defaultData = new Map<Struct, StructInstance>();
 const entityDestinations = new Map<bigint, bigint>();
 export function applyCommands(world: World) {
-	const { commands, entities, tables, components, eventWriters } = world;
+	const { commands, entities, tables, components, resources } = world;
 	entities.resetCursor();
 	entityDestinations.clear();
 
 	// Main command handling loop
 	for (const command of commands) {
 		if (command instanceof ClearEventQueueCommand) {
-			eventWriters[command.eventId].clearImmediate();
+			// Look up events by resource ID to avoid pulling in Events class
+			(resources[command.resourceId] as any).writers[
+				command.eventId
+			].clearImmediate();
 			continue;
 		}
 		if (
@@ -83,7 +86,7 @@ export function applyCommands(world: World) {
 		}
 	}
 
-	// SAFETY: We have ownership of World right now, this is safe.
+	// SAFETY: We have ownership of World right now.
 	(commands as any).reset();
 }
 applyCommands.parameters = [new WorldDescriptor()];
@@ -95,6 +98,7 @@ if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
 	const { World } = await import('../world');
 	const { Memory } = await import('../utils');
+	const { EventWriterDescriptor } = await import('../events');
 
 	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
@@ -181,11 +185,13 @@ if (import.meta.vitest) {
 	});
 
 	it('clears event queues', async () => {
+		function mySystem() {}
+		mySystem.parameters = [new EventWriterDescriptor(CompA)];
 		const myWorld = await World.new({ isMainThread: true })
-			.registerEvent(CompA)
+			.addSystems(mySystem)
 			.build();
 
-		const writer = myWorld.eventWriters[0];
+		const writer = (myWorld.resources[0] as any).writers[0];
 		expect(writer.length).toBe(0);
 		writer.createDefault();
 		expect(writer.length).toBe(1);
