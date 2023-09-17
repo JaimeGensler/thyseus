@@ -1,9 +1,28 @@
 {
 	"name": "thyseus",
-	"version": "0.14.0",
+	"version": "0.15.0",
 	"description": "An archetypal Entity Component System for the modern web",
 	"author": "Jaime Gensler",
 	"license": "MIT",
+	"homepage": "https://thyseus.dev",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/JaimeGensler/thyseus"
+	},
+	"keywords": [
+		"ecs",
+		"entity component system",
+		"typescript",
+		"game engine",
+		"game dev",
+		"thread",
+		"threading",
+		"multithreaded",
+		"multithreading",
+		"archetype",
+		"archetypal",
+		"table"
+	],
 	"type": "module",
 	"files": [
 		"dist",
@@ -24,11 +43,6 @@
 			"types": "./global.d.ts"
 		}
 	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/JaimeGensler/thyseus"
-	},
-	"homepage": "https://thyseus.dev",
 	"scripts": {
 		"start": "vite",
 		"build": "vite build && tsup src/index.ts --dts-only",
@@ -37,20 +51,6 @@
 		"typecheck": "tsc --noEmit",
 		"bump": "pnpm build && changeset version"
 	},
-	"keywords": [
-		"ecs",
-		"entity component system",
-		"typescript",
-		"game engine",
-		"game dev",
-		"thread",
-		"threading",
-		"multithreaded",
-		"multithreading",
-		"archetype",
-		"archetypal",
-		"table"
-	],
 	"dependencies": {
 		"esm-env": "^1.0.0"
 	},

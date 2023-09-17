@@ -1,13 +1,13 @@
 {
 	"name": "@thyseus/typescript-transformer",
-	"version": "0.14.0",
+	"version": "0.15.0",
 	"description": "Core of the official Thyseus transformer",
 	"author": "Jaime Gensler",
 	"license": "MIT",
-	"type": "module",
+	"homepage": "https://thyseus.dev",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/JaimeGensler/thyseus-transformer"
+		"url": "https://github.com/JaimeGensler/thyseus"
 	},
 	"keywords": [
 		"thyseus",
@@ -16,6 +16,7 @@
 		"transpiler",
 		"compiler"
 	],
+	"type": "module",
 	"files": [
 		"dist"
 	],
