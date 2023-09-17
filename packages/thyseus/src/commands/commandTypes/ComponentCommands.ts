@@ -20,7 +20,11 @@ class BaseComponentCommand {
 }
 
 export class AddComponentTypeCommand extends BaseComponentCommand {
-	static with(entityId: u64, componentId: u32, _?: any) {
+	static with(
+		entityId: u64,
+		componentId: u32,
+		_?: any,
+	): AddComponentTypeCommand {
 		addComponentType.entityId = entityId;
 		addComponentType.componentId = componentId;
 		return addComponentType;
@@ -41,17 +45,21 @@ export class AddComponentCommand extends AddComponentTypeCommand {
 	get dataStart() {
 		return this.__$$b + AddComponentCommand.size;
 	}
-	static with(entityId: u64, componentId: u32, component: StructInstance) {
-		addComponentType.entityId = entityId;
-		addComponentType.componentId = componentId;
+	static with(
+		entityId: u64,
+		componentId: u32,
+		component: StructInstance,
+	): AddComponentCommand {
+		addComponent.entityId = entityId;
+		addComponent.componentId = componentId;
 		addComponent.component = component;
-		return addComponentType;
+		return addComponent;
 	}
 }
 const addComponent = new AddComponentCommand();
 
 export class RemoveComponentTypeCommand extends BaseComponentCommand {
-	static with(entityId: u64, componentId: u32) {
+	static with(entityId: u64, componentId: u32): RemoveComponentTypeCommand {
 		removeComponent.entityId = entityId;
 		removeComponent.componentId = componentId;
 		return removeComponent;
