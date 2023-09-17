@@ -16,4 +16,10 @@ export class ClearEventQueueCommand {
 
 	resourceId: u32 = 0;
 	eventId: u32 = 0;
+	static with(resourceId: u32, eventId: u32) {
+		clearQueueCommand.resourceId = resourceId;
+		clearQueueCommand.eventId = eventId;
+		return clearQueueCommand;
+	}
 }
+const clearQueueCommand = new ClearEventQueueCommand();

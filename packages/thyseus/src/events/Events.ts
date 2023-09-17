@@ -4,6 +4,9 @@ import { Struct } from '../struct';
 import { EventRegistryKey } from './EventRegistryKey';
 import type { World } from '../world';
 
+/**
+ * A resource responsible for creating & holding all event queues in a world.
+ */
 export class Events {
 	static size = 0;
 	static alignment = 1;
@@ -20,19 +23,20 @@ export class Events {
 	constructor(world: World) {
 		// SAFETY: We know this is non-null, as the EventsRes only gets added
 		// if an event queue has been registered!
-		const eventTypes = world.registry.get(EventRegistryKey)!;
+		const eventTypes = world.registry.get(EventRegistryKey)! as Set<Struct>;
 		let eventsPointer = world.threads.queue(() =>
 			Memory.alloc(EventReader.size * eventTypes.size),
 		);
+		const resourceId = world.resources.length;
 		for (const eventType of eventTypes) {
-			const id = this.readers.length;
+			const queueId = this.readers.length;
 			this.readers.push(
 				new EventReader(
 					world.commands,
 					eventType,
 					eventsPointer,
-					world.resources.length,
-					id,
+					queueId,
+					resourceId,
 				),
 			);
 			this.writers.push(
@@ -40,8 +44,8 @@ export class Events {
 					world.commands,
 					eventType,
 					eventsPointer,
-					world.resources.length,
-					id,
+					queueId,
+					resourceId,
 				),
 			);
 			eventsPointer += EventReader.size;
@@ -50,12 +54,12 @@ export class Events {
 
 	getReaderOfType<T extends Struct>(
 		eventType: T,
-	): EventReader<InstanceType<T>> | null {
-		return this.readers.find(reader => reader.type === eventType) ?? null;
+	): EventReader<InstanceType<T>> | undefined {
+		return this.readers.find(reader => reader.type === eventType);
 	}
 	getWriterOfType<T extends Struct>(
 		eventType: T,
-	): EventWriter<InstanceType<T>> | null {
-		return this.writers.find(reader => reader.type === eventType) ?? null;
+	): EventWriter<InstanceType<T>> | undefined {
+		return this.writers.find(writer => writer.type === eventType);
 	}
 }

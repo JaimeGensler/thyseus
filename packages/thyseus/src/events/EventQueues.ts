@@ -2,7 +2,6 @@ import { Memory } from '../utils';
 import { ClearEventQueueCommand, type Commands } from '../commands';
 import type { Struct, StructInstance } from '../struct';
 
-const clearQueue = new ClearEventQueueCommand();
 export class EventReader<T extends object> {
 	static size = 12;
 	static alignment = 4;
@@ -58,9 +57,9 @@ export class EventReader<T extends object> {
 	 * Sets this event queue to be cleared when commands are next processed.
 	 */
 	clear() {
-		clearQueue.resourceId = this.#resourceId;
-		clearQueue.eventId = this.#id;
-		this.#commands.push(clearQueue);
+		this.#commands.push(
+			ClearEventQueueCommand.with(this.#resourceId, this.#id),
+		);
 	}
 }
 
