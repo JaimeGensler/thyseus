@@ -14,6 +14,7 @@ export {
 export { cloneSystem } from './systems';
 export { Memory } from './utils';
 export { World } from './world';
+export { Events } from './events';
 
 // Descriptors
 export { CommandsDescriptor } from './commands';

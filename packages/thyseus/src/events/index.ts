@@ -3,3 +3,4 @@ export {
 	EventReaderDescriptor,
 	EventWriterDescriptor,
 } from './EventsDescriptor';
+export { Events } from './Events';
