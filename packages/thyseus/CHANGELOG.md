@@ -1,4 +1,22 @@
-# thyseus
+# Thyseus Changelog
+
+## 0.15.0
+
+### Minor Changes
+
+-   Removed `eventReaders` from World
+-   Removed `eventWriters` from World
+-   Removed `registerEvent()` on Worldbuilder
+-   Added `register()` to WorldBuilder
+-   `async initialize()` on resources will no longer be called
+-   Added `And` filter
+-   Query Filters no longer accept tuples as arguments; must use explicit `And`
+    instead
+-   `Or`, `And`, `With`, `Without` may accept up to four generic arguments.
+
+### Patch Changes
+
+-   Fixed bug preventing struct resources initializers from working correctly
 
 ## 0.14.0
 
