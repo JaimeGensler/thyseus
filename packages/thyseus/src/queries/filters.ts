@@ -1,4 +1,5 @@
 import type { Struct } from '../struct';
+import { DEV_ASSERT } from '../utils';
 
 export class Predicate {
 	children: Struct[];
@@ -80,7 +81,12 @@ export function createArchetypeFilter(
 		);
 	}
 }
-export function DEV_ASSERT_FILTER_VALID(filters: bigint[]) {}
+export function DEV_ASSERT_FILTER_VALID(filters: bigint[]) {
+	DEV_ASSERT(
+		filters.some((f, i) => i % 2 === 0 && (f & filters[i + 1]) === 0n),
+		'Impossible query - cannot match any entities.',
+	);
+}
 
 /*---------*\
 |   TESTS   |
@@ -192,9 +198,21 @@ if (import.meta.vitest) {
 		});
 	});
 
-	it.todo('throws if filters are impossible', () => {
+	it('throws if filters are impossible', () => {
 		expect(() =>
-			createPlainFilter(new And(new With(A), new Without(A))),
+			DEV_ASSERT_FILTER_VALID(
+				createPlainFilter(new And(new With(A), new Without(B))),
+			),
+		).not.toThrow();
+		expect(() =>
+			DEV_ASSERT_FILTER_VALID(
+				createPlainFilter(new Or(new With(A), new Without(A))),
+			),
+		).not.toThrow(/cannot match any entities/);
+		expect(() =>
+			DEV_ASSERT_FILTER_VALID(
+				createPlainFilter(new And(new With(A), new Without(A))),
+			),
 		).toThrow(/cannot match any entities/);
 	});
 }

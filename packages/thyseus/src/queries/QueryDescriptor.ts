@@ -72,14 +72,15 @@ export class QueryDescriptor<
 		any
 	> {
 		const initial = world.getArchetype(...this.components);
+		const filters = this.filter
+			? createArchetypeFilter(
+					this.filter,
+					[initial, 0n],
+					(...components) => world.getArchetype(...components),
+			  )
+			: [initial, 0n];
 		const query = new Query(
-			this.filter
-				? createArchetypeFilter(
-						this.filter,
-						[initial, 0n],
-						(...components) => world.getArchetype(...components),
-				  )
-				: [initial, 0n],
+			filters,
 			this.isIndividual,
 			this.components,
 			world,
