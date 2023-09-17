@@ -1,9 +1,5 @@
 import { alignTo8, Memory } from '../utils';
-import {
-	EntityCommands,
-	addComponent,
-	removeComponentType,
-} from './EntityCommands';
+import { EntityCommands } from './EntityCommands';
 import {
 	AddComponentCommand,
 	AddComponentTypeCommand,
@@ -65,12 +61,9 @@ export class Commands {
 	 */
 	spawn(reuse: boolean = false): EntityCommands {
 		const entityId = this.#entities.getId();
-		addComponent.component = plainEntity as any;
-		addComponent.entityId = entityId;
-		addComponent.componentId = 0;
-		this.push(addComponent, Entity.size);
-		Memory.u64[(addComponent.__$$b + AddComponentCommand.size) >> 3] =
-			entityId;
+		const cmd = AddComponentCommand.with(entityId, 0, plainEntity as any);
+		this.push(cmd, Entity.size);
+		Memory.u64[(cmd.__$$b + AddComponentCommand.size) >> 3] = entityId;
 		return this.getById(entityId, reuse);
 	}
 
@@ -89,9 +82,7 @@ export class Commands {
 		if (this.#entities.wasDespawned(entityId)) {
 			return;
 		}
-		removeComponentType.entityId = entityId;
-		removeComponentType.componentId = 0; // ID of Entity component is always 0
-		this.push(removeComponentType);
+		this.push(RemoveComponentTypeCommand.with(entityId, 0));
 	}
 
 	/**

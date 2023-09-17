@@ -19,8 +19,16 @@ class BaseComponentCommand {
 	componentId: u32 = 0;
 }
 
+export class AddComponentTypeCommand extends BaseComponentCommand {
+	static with(entityId: u64, componentId: u32, _?: any) {
+		addComponentType.entityId = entityId;
+		addComponentType.componentId = componentId;
+		return addComponentType;
+	}
+}
+const addComponentType = new AddComponentTypeCommand();
+
 export const plainEntity = new Entity();
-export class AddComponentTypeCommand extends BaseComponentCommand {}
 export class AddComponentCommand extends AddComponentTypeCommand {
 	component: StructInstance = plainEntity as any;
 	serialize() {
@@ -33,5 +41,20 @@ export class AddComponentCommand extends AddComponentTypeCommand {
 	get dataStart() {
 		return this.__$$b + AddComponentCommand.size;
 	}
+	static with(entityId: u64, componentId: u32, component: StructInstance) {
+		addComponentType.entityId = entityId;
+		addComponentType.componentId = componentId;
+		addComponent.component = component;
+		return addComponentType;
+	}
 }
-export class RemoveComponentTypeCommand extends BaseComponentCommand {}
+const addComponent = new AddComponentCommand();
+
+export class RemoveComponentTypeCommand extends BaseComponentCommand {
+	static with(entityId: u64, componentId: u32) {
+		removeComponent.entityId = entityId;
+		removeComponent.componentId = componentId;
+		return removeComponent;
+	}
+}
+const removeComponent = new RemoveComponentTypeCommand();
