@@ -7,8 +7,8 @@ import ts from 'typescript';
 import type { Plugin } from 'vite';
 
 type ThyseusPluginConfig = {
-	include?: string;
-	exclude?: string;
+	include?: string | string[];
+	exclude?: string | string[];
 } & TransformerConfig;
 
 export function thyseus({
