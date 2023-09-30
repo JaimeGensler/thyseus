@@ -1,13 +1,12 @@
-import { alignTo8, Memory } from '../utils';
+import { alignTo8 } from '../utils';
 import { EntityCommands } from './EntityCommands';
 import {
 	AddComponentCommand,
 	AddComponentTypeCommand,
 	RemoveComponentTypeCommand,
 	ClearEventQueueCommand,
-	plainEntity,
 } from './commandTypes';
-import { Entity, type Entities } from '../storage';
+import { Entity, type Entities, Store } from '../storage';
 import type { Struct, StructInstance } from '../struct';
 import type { World } from '../world';
 
@@ -17,9 +16,10 @@ export class Commands {
 	#world: World;
 	#entities: Entities;
 	#entityCommands: EntityCommands;
-	#pointer: number; // [nextId, ...[size, capacity, pointer]]
-	#queuePointer: number; // [size, capacity, pointer]
+	#store: Store;
+	#length: number;
 	constructor(world: World) {
+		this.#length = 0;
 		this.#world = world;
 		this.#entities = world.entities;
 		this.#commandTypes = [
@@ -33,25 +33,7 @@ export class Commands {
 		);
 
 		this.#entityCommands = new EntityCommands(world, this, 0n);
-		this.#pointer =
-			world.threads.queue(() =>
-				Memory.alloc((1 + 3 * world.config.threads) * 4),
-			) >> 2;
-		this.#queuePointer =
-			this.#pointer + 1 + 3 * Atomics.add(Memory.u32, this.#pointer, 1);
-	}
-
-	get #size() {
-		return Memory.u32[this.#queuePointer];
-	}
-	set #size(val: number) {
-		Memory.u32[this.#queuePointer] = val;
-	}
-	get #capacity() {
-		return Memory.u32[this.#queuePointer + 1];
-	}
-	set #capacity(val: number) {
-		Memory.u32[this.#queuePointer + 1] = val;
+		this.#store = new Store(0);
 	}
 
 	/**
@@ -61,9 +43,12 @@ export class Commands {
 	 */
 	spawn(reuse: boolean = false): EntityCommands {
 		const entityId = this.#entities.getId();
-		const cmd = AddComponentCommand.with(entityId, 0, plainEntity as any);
+		const cmd = AddComponentCommand.with(
+			entityId,
+			0,
+			new Entity(entityId) as any,
+		);
 		this.push(cmd, Entity.size);
-		Memory.u64[(cmd.__$$b + AddComponentCommand.size) >> 3] = entityId;
 		return this.getById(entityId, reuse);
 	}
 
@@ -114,45 +99,29 @@ export class Commands {
 	 * @param command The command to add.
 	 * @param additionalSize The _additional size_ (beyond the size of the commandType) this command will need.
 	 */
-	push(command: object, additionalSize: number = 0): void {
-		const { u32 } = Memory;
+	push(command: StructInstance, additionalSize: number = 0): void {
 		const commandType = command.constructor as Struct;
 		const addedSize = 8 + alignTo8(commandType.size! + additionalSize);
-		let newSize = this.#size + addedSize;
-		if (this.#capacity < newSize) {
-			newSize *= 2;
-			Memory.reallocAt((this.#queuePointer + 2) << 2, newSize);
-			this.#capacity = newSize;
+		let newLength = this.#length + addedSize;
+		if (this.#store.byteLength < newLength) {
+			newLength *= 2;
+			this.#store.resize(newLength);
 		}
-		const queueEnd = u32[this.#queuePointer + 2] + this.#size;
-		u32[queueEnd >> 2] = addedSize;
-		u32[(queueEnd + 4) >> 2] = this.#commandTypes.indexOf(commandType);
-		this.#size += addedSize;
-		(command as StructInstance).__$$b = queueEnd + 8;
-		(command as StructInstance).serialize();
+		this.#store.offset = this.#length;
+		this.#store.writeU32(addedSize);
+		this.#store.writeU32(this.#commandTypes.indexOf(commandType));
+		this.#length += addedSize;
+		command.serialize!(this.#store);
 	}
 
 	*[Symbol.iterator](): Iterator<object> {
-		const { u32 } = Memory;
-		const queueDataLength = 1 + u32[this.#pointer] * 3;
-		for (
-			let queueOffset = 1;
-			queueOffset < queueDataLength;
-			queueOffset += 3
-		) {
-			const start = u32[this.#pointer + queueOffset + 2];
-			const end = start + u32[this.#pointer + queueOffset];
-			for (
-				let current = start;
-				current < end;
-				current += u32[current >> 2]
-			) {
-				const commandId = u32[(current + 4) >> 2];
-				const command = this.#commands[commandId];
-				command.__$$b = current + 8;
-				command.deserialize();
-				yield command as object;
-			}
+		this.#store.offset = 0;
+		while (this.#store.offset < this.#length) {
+			const nextOffset = this.#store.offset + this.#store.readU32();
+			const command = this.#commands[this.#store.readU32()];
+			command.deserialize!(this.#store);
+			yield command;
+			this.#store.offset = nextOffset;
 		}
 	}
 
@@ -164,18 +133,7 @@ export class Commands {
 	 * You must have exclusive access to the world to call this.
 	 */
 	private reset(): void {
-		const { u32 } = Memory;
-		const queueDataLength = 1 + u32[this.#pointer] * 3;
-		for (
-			let queueOffset = 1;
-			queueOffset < queueDataLength;
-			queueOffset += 3
-		) {
-			const len = u32[this.#pointer + queueOffset];
-			const ptr = u32[this.#pointer + queueOffset + 2];
-			Memory.set(ptr, len, 0);
-			u32[this.#pointer + queueOffset] = 0;
-		}
+		this.#length = 0;
 	}
 }
 
@@ -183,13 +141,8 @@ export class Commands {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, beforeEach } = import.meta.vitest;
+	const { it, expect } = import.meta.vitest;
 	const { World } = await import('../world');
-
-	beforeEach(() => {
-		Memory.init(10_000);
-		return () => Memory.UNSAFE_CLEAR_ALL();
-	});
 
 	class ZST {
 		static size = 0;
@@ -209,14 +162,13 @@ if (import.meta.vitest) {
 	class CompD {
 		static size = 8;
 		static alignment = 4;
-		__$$b = 0;
-		deserialize() {
-			this.x = Memory.u32[this.__$$b >> 2];
-			this.y = Memory.u32[(this.__$$b + 4) >> 2];
+		deserialize(store: Store) {
+			this.x = store.readU32();
+			this.y = store.readU32();
 		}
-		serialize() {
-			Memory.u32[this.__$$b >> 2] = this.x;
-			Memory.u32[(this.__$$b + 4) >> 2] = this.y;
+		serialize(store: Store) {
+			store.writeU32(this.x);
+			store.writeU32(this.y);
 		}
 
 		x: number;
@@ -226,29 +178,14 @@ if (import.meta.vitest) {
 			this.y = y;
 		}
 	}
-	class StringComponent {
-		static size = 12;
-		static alignment = 4;
-		__$$b = 0;
-		static copy() {}
-		static drop() {}
-		deserialize() {}
-		serialize() {}
-
-		value: string;
-		constructor(val = 'hi') {
-			this.value = val;
-		}
-	}
 
 	const createWorld = () =>
-		World.new({ isMainThread: true })
+		World.new()
 			.registerComponent(ZST)
 			.registerComponent(CompA)
 			.registerComponent(CompB)
 			.registerComponent(CompC)
 			.registerComponent(CompD)
-			.registerComponent(StringComponent)
 			.build();
 
 	it('returns unique entity handles if reuse is false', async () => {
@@ -355,20 +292,13 @@ if (import.meta.vitest) {
 				continue;
 			}
 
-			const { entityId, componentId, dataStart } = command;
+			const { entityId, componentId } = command;
 			expect(entityId).toBe(ent.id);
 			expect(componentId).toBe(5);
-			const u32 = Memory.u32.subarray(
-				dataStart >> 2,
-				(dataStart + CompD.size) >> 2,
-			);
-			expect(u32[0]).toBe(23);
-			expect(u32[1]).toBe(42);
-			i++;
 		}
 	});
 
-	it('inserts sized types with specified data', async () => {
+	it('inserts types with specified data', async () => {
 		const world = await createWorld();
 		const { commands } = world;
 		const ent = commands.spawn().add(new CompD(15, 16));
@@ -377,55 +307,12 @@ if (import.meta.vitest) {
 			if (!(command instanceof AddComponentCommand) || i === 0) {
 				continue;
 			}
-			const { dataStart, entityId, componentId } = command;
+			const { store, entityId, componentId } = command;
 
 			expect(entityId).toBe(ent.id);
 			expect(componentId).toBe(5);
-			const u32 = Memory.u32.subarray(
-				dataStart >> 2,
-				(dataStart + CompD.size) >> 2,
-			);
-			expect(u32[0]).toBe(15);
-			expect(u32[1]).toBe(16);
-		}
-	});
-
-	it('copies pointers for default values', async () => {
-		const world = await createWorld();
-		const commands = new Commands(world);
-		const ent1 = commands.spawn().addType(StringComponent);
-		const ent2 = commands.spawn().addType(StringComponent);
-		const { u32 } = Memory;
-		let previousPointer = 0;
-		for (const command of commands) {
-			if (!(command instanceof AddComponentCommand)) {
-				continue;
-			}
-			const { componentId, dataStart } = command;
-			if (componentId === 6) {
-				expect(u32[(dataStart + 8) >> 2]).not.toBe(previousPointer);
-				previousPointer = u32[(dataStart + 8) >> 2];
-			}
-		}
-	});
-
-	it('copies pointers for passed values', async () => {
-		const world = await createWorld();
-		const commands = new Commands(world);
-		const component = new StringComponent('test');
-		const ent = commands.spawn().add(component);
-		const { u32 } = Memory;
-
-		for (const command of commands) {
-			if (!(command instanceof AddComponentCommand)) {
-				continue;
-			}
-			const { componentId, dataStart } = command;
-			if (componentId === 6) {
-				expect(
-					Memory.u32[((component as any).__$$b + 8) >> 2],
-				).not.toBe(u32[(dataStart + 8) >> 2]);
-			}
+			expect(store?.readU32()).toBe(15);
+			expect(store?.readU32()).toBe(16);
 		}
 	});
 

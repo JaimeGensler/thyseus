@@ -6,7 +6,8 @@ import {
 	AddComponentTypeCommand,
 } from './commandTypes';
 import type { World } from '../world';
-import { Struct, StructInstance } from '../struct';
+import type { Struct, StructInstance } from '../struct';
+import type { Store } from '../storage';
 
 const defaultData = new Map<Struct, StructInstance>();
 const entityDestinations = new Map<bigint, bigint>();
@@ -59,18 +60,14 @@ export function applyCommands(world: World) {
 			continue;
 		}
 		const { entityId, componentId } = command;
-		const tableId = entities.getTableId(entityId);
+		const { row, tableId } = entities.getLocation(entityId);
 		const componentType = components[componentId];
-		const row = entities.getRow(entityId);
 		if (tableId === 0) {
 			continue;
 		}
+		const table = tables[tableId];
 		if (command instanceof AddComponentCommand) {
-			tables[tableId]!.copyDataIntoRow(
-				row,
-				componentType,
-				command.dataStart,
-			);
+			table.copyDataIntoRow(row, componentType, command.store!);
 		} else {
 			if (!defaultData.has(componentType)) {
 				defaultData.set(
@@ -78,7 +75,7 @@ export function applyCommands(world: World) {
 					new componentType() as StructInstance,
 				);
 			}
-			tables[tableId]!.copyComponentIntoRow(
+			table.copyComponentIntoRow(
 				row,
 				componentType,
 				defaultData.get(componentType)!,
@@ -95,12 +92,9 @@ applyCommands.parameters = [new WorldDescriptor()];
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi, beforeEach } = import.meta.vitest;
+	const { it, expect, vi } = import.meta.vitest;
 	const { World } = await import('../world');
-	const { Memory } = await import('../utils');
 	const { EventWriterDescriptor } = await import('../events');
-
-	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
 	class ZST {
 		static size = 0;
@@ -112,7 +106,6 @@ if (import.meta.vitest) {
 	class Struct {
 		static size = 1;
 		static alignment = 1;
-		__$$b = 0;
 		deserialize() {}
 		serialize() {}
 	}
@@ -122,14 +115,13 @@ if (import.meta.vitest) {
 	class CompD {
 		static size = 8;
 		static alignment = 4;
-		__$$b = 0;
-		deserialize() {
-			this.x = Memory.u32[this.__$$b >> 2];
-			this.y = Memory.u32[(this.__$$b + 4) >> 2];
+		deserialize(store: Store) {
+			this.x = store.readU32();
+			this.y = store.readU32();
 		}
-		serialize() {
-			Memory.u32[this.__$$b >> 2] = this.x;
-			Memory.u32[(this.__$$b + 4) >> 2] = this.y;
+		serialize(store: Store) {
+			store.writeU32(this.x);
+			store.writeU32(this.y);
 		}
 
 		x: number;
@@ -140,7 +132,7 @@ if (import.meta.vitest) {
 		}
 	}
 	const createWorld = () =>
-		World.new({ isMainThread: true })
+		World.new()
 			.registerComponent(ZST)
 			.registerComponent(CompA)
 			.registerComponent(CompB)
@@ -174,22 +166,21 @@ if (import.meta.vitest) {
 		myWorld.commands.spawn().addType(CompA).add(new CompD(1, 2));
 
 		applyCommands(myWorld);
-		const archetypeD = myWorld.tables[1];
+		const tableD = myWorld.tables[1];
 		const testComp = new CompD();
 
-		testComp.__$$b = Memory.u32[archetypeD.getColumnPointer(CompD) >> 2];
-		testComp.deserialize();
-		expect(archetypeD.length).toBe(1);
-		expect(testComp.y).toBe(2);
+		const column = tableD.getColumn(CompD);
+		column.offset = 0;
+		testComp.deserialize(column);
+		expect(tableD.length).toBe(1);
 		expect(testComp.x).toBe(1);
+		expect(testComp.y).toBe(2);
 	});
 
 	it('clears event queues', async () => {
 		function mySystem() {}
 		mySystem.parameters = [new EventWriterDescriptor(CompA)];
-		const myWorld = await World.new({ isMainThread: true })
-			.addSystems(mySystem)
-			.build();
+		const myWorld = await World.new().addSystems(mySystem).build();
 
 		const writer = (myWorld.resources[0] as any).writers[0];
 		expect(writer.length).toBe(0);

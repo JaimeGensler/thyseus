@@ -1,3 +1,5 @@
+import { Store } from '../storage';
+
 export type Class = {
 	new (...args: any[]): object;
 };
@@ -28,9 +30,8 @@ export type Struct = {
 };
 
 export type StructInstance = {
-	__$$b: number;
-	serialize(): void;
-	deserialize(): void;
+	serialize?(store: Store): void;
+	deserialize?(store: Store): void;
 };
 
 export function struct(targetClass: Class): void;

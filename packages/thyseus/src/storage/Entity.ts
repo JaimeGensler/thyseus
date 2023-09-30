@@ -1,5 +1,5 @@
-import { Memory } from '../utils';
 import type { u32, u64 } from '../struct';
+import type { Store } from './Store';
 
 /**
  * A component that can be used to get the id, index, and generation of an Entity.
@@ -8,22 +8,33 @@ import type { u32, u64 } from '../struct';
  * Should always be accessed readonly.
  */
 export class Entity {
-	// Despite Entity consisting of two u32s, we set the alignment to 8 so that
-	// Entity is still guaranteed to be component id 0 even after alignment sort
+	// TODO: Remove u64 access of id and lower alignment to 4.
 	static readonly alignment = 8;
 	static readonly size = 8;
-
-	private __$$b: number = 0;
 	#index: u32 = 0;
 	#generation: u32 = 0;
 
-	deserialize() {
-		this.#index = Memory.u32![this.__$$b >> 2];
-		this.#generation = Memory.u32![(this.__$$b + 4) >> 2];
+	deserialize(store: Store) {
+		this.#index = store.readU32();
+		this.#generation = store.readU32();
+	}
+	serialize(store: Store) {
+		store.writeU32(this.#index);
+		store.writeU32(this.#generation);
 	}
 
-	// This is a no-op because Entity is immutable.
-	serialize() {}
+	constructor();
+	constructor(id: bigint);
+	constructor(index: number, generation: number);
+	constructor(indexOrId: number | bigint = 0, generation: number = 0) {
+		if (typeof indexOrId === 'number') {
+			this.#index = indexOrId;
+			this.#generation = generation!;
+		} else {
+			this.#index = Number(indexOrId & 0xffff_ffffn);
+			this.#generation = Number(indexOrId >> 32n);
+		}
+	}
 
 	/**
 	 * Determines if this entity is the same as another entity.
@@ -37,22 +48,21 @@ export class Entity {
 	}
 
 	/**
-	 * The entity's world-unique integer id (u64).
-	 * Composed of an entity's generation & index.
+	 * The entity's world-unique `u64` integer id, composed of its generation and index.
 	 */
 	get id(): u64 {
 		return (BigInt(this.#generation) << 32n) | BigInt(this.#index);
 	}
 
 	/**
-	 * The index of this entity (u32).
+	 * The `u32` index of this entity.
 	 */
 	get index(): u32 {
 		return this.#index;
 	}
 
 	/**
-	 * The generation of this entity (u32).
+	 * The `u32` generation of this entity.
 	 */
 	get generation(): u32 {
 		return this.#generation;

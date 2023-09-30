@@ -1,1 +1,2 @@
-export { ThreadGroup } from './ThreadGroup';
+export { Thread } from './Thread';
+export { ThreadDescriptor } from './ThreadDescriptor';

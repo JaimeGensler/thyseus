@@ -1,18 +1,9 @@
 // Top-level API
 export { applyCommands } from './commands';
 export { run, DefaultSchedule, StartSchedule } from './schedule';
-export { Entity } from './storage';
-export {
-	struct,
-	serializeString,
-	deserializeString,
-	dropString,
-	serializeArray,
-	deserializeArray,
-	dropArray,
-} from './struct';
+export { Entity, Store } from './storage';
+export { struct } from './struct';
 export { cloneSystem } from './systems';
-export { Memory } from './utils';
 export { World } from './world';
 export { Events } from './events';
 
@@ -26,7 +17,7 @@ export { WorldDescriptor } from './world';
 // Types
 export type { Commands, EntityCommands } from './commands';
 export type { EventReader, EventWriter } from './events';
-export type { Query, Accessors, Filter } from './queries';
+export type { Query, Filter } from './queries';
 export type { Res, SystemRes } from './resources';
 export type { ExecutorType, ExecutorInstance, SystemConfig } from './schedule';
 export type { Table, Entities } from './storage';
@@ -44,5 +35,4 @@ export type {
 	f64,
 } from './struct';
 export type { System, SystemParameter } from './systems';
-export type { ThreadGroup } from './threads';
 export type { WorldBuilder, Plugin, WorldConfig } from './world';

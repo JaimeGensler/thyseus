@@ -1,6 +1,6 @@
 import type { System } from '../systems';
 
-class SystemConfig {
+export class SystemConfig {
 	dependents: System[] = [];
 	dependencies: System[] = [];
 
@@ -29,7 +29,6 @@ class SystemConfig {
 		return this;
 	}
 }
-export { SystemConfig };
 
 type SystemList = System | System[] | SystemConfig | SystemConfig[];
 

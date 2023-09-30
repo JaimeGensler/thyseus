@@ -79,12 +79,7 @@ export class QueryDescriptor<
 					(...components) => world.getArchetype(...components),
 			  )
 			: [initial, 0n];
-		const query = new Query(
-			filters,
-			this.isIndividual,
-			this.components,
-			world,
-		);
+		const query = new Query(filters, this.isIndividual, this.components);
 		world.queries.push(query);
 		return query as any;
 	}
@@ -95,14 +90,8 @@ export class QueryDescriptor<
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
-	const { Memory } = await import('../utils');
 	const { With, Without, Or } = await import('./filters');
 	const { World } = await import('../world');
-
-	beforeEach(() => {
-		Memory.init(1_000);
-		return () => Memory.UNSAFE_CLEAR_ALL();
-	});
 
 	class Comp {
 		static size = 1;
