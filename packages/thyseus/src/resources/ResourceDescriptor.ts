@@ -1,15 +1,13 @@
 import { Mut } from '../queries';
-import { isStruct, type Class } from '../struct';
+import { isStruct, type Class, Struct } from '../struct';
 import type { SystemParameter } from '../systems';
 import type { World, WorldBuilder } from '../world';
 
-export class ResourceDescriptor<T extends Class | Mut<Class>>
-	implements SystemParameter
-{
+export class ResourceDescriptor implements SystemParameter {
 	resourceType: Class;
 	canWrite: boolean;
 
-	constructor(resource: T) {
+	constructor(resource: Struct | Mut<any>) {
 		const isMut = resource instanceof Mut;
 		this.resourceType = isMut ? resource.value : resource;
 		this.canWrite = isMut;
@@ -30,14 +28,7 @@ export class ResourceDescriptor<T extends Class | Mut<Class>>
 		builder.registerResource(this.resourceType);
 	}
 
-	intoArgument(
-		world: World,
-	): T extends Mut<infer X>
-		? X
-		: Readonly<InstanceType<T extends Class ? T : never>> {
-		if (!world.threads.isMainThread && !isStruct(this.resourceType)) {
-			return null as any;
-		}
+	intoArgument(world: World): object {
 		return world.getResource(this.resourceType) as any;
 	}
 }

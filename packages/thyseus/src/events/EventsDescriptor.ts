@@ -1,9 +1,10 @@
-import type { EventReader, EventWriter } from './EventQueues';
 import type { World, WorldBuilder } from '../world';
 import type { SystemParameter } from '../systems';
 import type { Struct } from '../struct';
+
 import { Events } from './Events';
 import { EventRegistryKey } from './EventRegistryKey';
+import type { EventReader, EventWriter } from './EventQueues';
 
 export class EventReaderDescriptor<T extends Struct>
 	implements SystemParameter
@@ -46,14 +47,9 @@ export class EventWriterDescriptor<
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
-	const { Memory } = await import('../utils');
+	const { it, expect, describe, vi } = import.meta.vitest;
 	const { EventReader, EventWriter } = await import('./EventQueues');
-
-	beforeEach(() => {
-		Memory.init(10_000);
-		return () => Memory.UNSAFE_CLEAR_ALL();
-	});
+	const { Store } = await import('../storage');
 
 	class A {}
 	class B {}
@@ -122,8 +118,8 @@ if (import.meta.vitest) {
 	describe('intoArgument', () => {
 		it('returns an event reader/writer', () => {
 			const commands = {} as any;
-			const p1 = Memory.alloc(8);
-			const p2 = Memory.alloc(8);
+			const p1 = new Store(0);
+			const p2 = new Store(0);
 			const world = {
 				getResource: () => ({
 					eventReaders: [

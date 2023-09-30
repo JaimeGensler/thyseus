@@ -1,18 +1,16 @@
-import { Memory } from '../../utils';
 import type { u64, u32, StructInstance } from '../../struct';
-import { Entity } from '../../storage';
+import { Entity, type Store } from '../../storage';
 
 class BaseComponentCommand {
 	static readonly size = 16; // Size is for struct internals, payload follows
 	static readonly alignment = 8;
-	__$$b = 0;
-	deserialize() {
-		this.entityId = Memory.u64[this.__$$b >> 3];
-		this.componentId = Memory.u16[(this.__$$b + 8) >> 1];
+	deserialize(store: Store) {
+		this.entityId = store.readU64();
+		this.componentId = store.readU32();
 	}
-	serialize() {
-		Memory.u64[this.__$$b >> 3] = this.entityId;
-		Memory.u16[(this.__$$b + 8) >> 1] = this.componentId;
+	serialize(store: Store) {
+		store.writeU64(this.entityId);
+		store.writeU32(this.componentId);
 	}
 
 	entityId: u64 = 0n;
@@ -35,16 +33,16 @@ const addComponentType = new AddComponentTypeCommand();
 export const plainEntity = new Entity();
 export class AddComponentCommand extends AddComponentTypeCommand {
 	component: StructInstance = plainEntity as any;
-	serialize() {
-		super.serialize();
-		const previous = this.component!.__$$b;
-		this.component!.__$$b = this.__$$b + AddComponentCommand.size;
-		this.component!.serialize();
-		this.component!.__$$b = previous;
+	serialize(store: Store) {
+		super.serialize(store);
+		this.component.serialize!(store);
 	}
-	get dataStart() {
-		return this.__$$b + AddComponentCommand.size;
+	deserialize(store: Store) {
+		super.deserialize(store);
+		this.store = store;
 	}
+	store: Store | null = null;
+
 	static with(
 		entityId: u64,
 		componentId: u32,

@@ -1,6 +1,7 @@
-import { DEV_ASSERT, Memory } from '../utils';
+import { DEV_ASSERT } from '../utils';
 import { Entity } from './Entity';
-import { Vec } from './Vec';
+import { Store } from './Store';
+import { EntityLocation } from './EntityLocation';
 import type { World } from '../world';
 import type { Struct } from '../struct';
 
@@ -14,51 +15,49 @@ export class Entities {
 	 * The world this `Entities` instance belongs to.
 	 */
 	#world: World;
+
 	/**
-	 * Pointer to [nextId: u32, cursor: u32].
-	 * **Already shifted for u32 access.**
+	 * A store containing `[nextId: u32, cursor: u32, freeCount: u32]`.
 	 */
-	#data: number;
+	#data: Store;
 	/**
-	 * Generations of all spawned entities.
-	 *
-	 * `entityGeneration = generations[entityIndex]`
+	 * Generations (`u32`) of all spawned entities.
 	 */
-	#generations: Vec;
+	#generations: Store;
 	/**
-	 * Locations of all spawned entities [table, row]
-	 *
-	 * `entityTable = locations[entityIndex * 2]`
-	 * `entityRow = locations[(entityIndex * 2) + 1]`
+	 * Locations (`EntityLocation`) of all spawned entities [table, row]
 	 */
-	#locations: Vec;
+	#locations: Store;
 	/**
-	 * List of freed entity indexes available for reuse.
+	 * List of freed entity indexes (`u32`) available for reuse.
 	 */
-	#freed: Vec;
+	#freed: Store;
+	/**
+	 * A reuseable `EntityLocation` to track where an entity lives.
+	 */
+	#location: EntityLocation;
 	constructor(world: World) {
 		this.#world = world;
-		const ptr = world.threads.queue(() => Memory.alloc(8 + Vec.size * 3));
-		this.#data = ptr >> 2;
-		this.#generations = new Vec(ptr + 8);
-		this.#locations = new Vec(ptr + 8 + Vec.size);
-		this.#freed = new Vec(ptr + 8 + Vec.size * 2);
+		this.#location = new EntityLocation();
+		this.#data = new Store(12);
+		this.#generations = new Store(ENTITY_BATCH_SIZE * 4);
+		this.#locations = new Store(ENTITY_BATCH_SIZE * EntityLocation.size);
+		this.#freed = new Store(64 * 4);
 	}
 
 	/**
 	 * A **lockfree** method to obtain a new Entity ID.
 	 */
 	getId(): bigint {
-		const cursor = this.#moveCursor();
-		if (cursor >= this.#freed.length) {
+		const cursor = Atomics.add(this.#data.u32, 1, 1);
+		const freeCount = this.#data.u32[2];
+		if (cursor >= freeCount) {
 			// If we've already exhausted freed ids,
 			// bump the nextId and return that (generation = 0)
-			return BigInt(Atomics.add(Memory.u32, this.#data, 1));
+			return BigInt(Atomics.add(this.#data.u32, 0, 1));
 		}
-		const index = this.#freed.get(this.#freed.length - 1 - cursor);
-		// generations[index] will exist because we've allocated
-		// generation lookups for all freed entities.
-		const generation = this.#generations.get(index);
+		const index = this.#freed.u32[freeCount - 1 - cursor];
+		const generation = this.#generations.u32[index];
 		return (BigInt(generation) << 32n) | BigInt(index);
 	}
 
@@ -71,14 +70,15 @@ export class Entities {
 	 */
 	freeId(entityId: bigint): void {
 		const index = getIndex(entityId);
-		const newGeneration = this.#generations.get(index) + 1;
-		this.#generations.set(index, newGeneration);
-		this.#freed.push(getIndex(entityId));
-		this.#locations.set(getIndex(entityId) << 1, 0);
+		this.#generations.u32[index]++;
+		this.#freed.u32[this.#data.u32[2]] = index;
+		this.#data.u32[2]++;
+		this.setLocation(entityId, this.#location.set(0, 0));
 	}
 
 	/**
-	 * Checks if this entity is currently alive
+	 * Checks if this entity is currently alive.
+	 * Entities that have been queued for despawn are still alive until commands are processed.
 	 * @param entityId The id of the entity to check.
 	 * @returns A `boolean`, true if the entity is alive and false if it is not.
 	 */
@@ -86,21 +86,15 @@ export class Entities {
 		// If generations mismatch, it was despawned.
 		return (
 			getGeneration(entityId) ===
-			this.#generations.get(getIndex(entityId))
+			this.#generations.u32[getIndex(entityId)]
 		);
 	}
-
 	/**
-	 * Checks if the provided entity id was despawned.
-	 * @param entityId The id of the entity to check.
-	 * @returns A `boolean`, true if the entity is alive and false if it is not.
+	 * Checks if the entity with the provided id has been despawned.
+	 * @param entityId
 	 */
 	wasDespawned(entityId: bigint): boolean {
-		const index = getIndex(entityId);
-		return (
-			this.#generations.length > index &&
-			this.#generations.get(index) !== getGeneration(entityId)
-		);
+		return true;
 	}
 
 	/**
@@ -121,32 +115,25 @@ export class Entities {
 	}
 
 	resetCursor(): void {
-		const { u32 } = Memory;
-		this.#freed.remove(u32[this.#data + 1]);
-		u32[this.#data + 1] = 0;
-
-		const entityCount = u32[this.#data];
-		if (entityCount >= this.#generations.length) {
+		this.#data.u32[1] = 0;
+		const entityCount = this.#data.u32[0];
+		if (entityCount >= this.#generations.u32.length) {
 			const newLength =
 				Math.ceil((entityCount + 1) / ENTITY_BATCH_SIZE) *
 				ENTITY_BATCH_SIZE;
-			this.#generations.grow(newLength).fill(0);
-			this.#locations.grow(newLength * 2).fill(0);
+			this.#generations.resize(newLength * 4);
+			this.#locations.resize(newLength * EntityLocation.size);
 		}
 	}
 
-	getTableId(entityId: bigint): number {
-		return this.#locations.get(getIndex(entityId) << 1);
+	getLocation(entityId: bigint): EntityLocation {
+		this.#locations.offset = getIndex(entityId) * EntityLocation.size;
+		this.#location.deserialize(this.#locations);
+		return this.#location;
 	}
-	setTableId(entityId: bigint, tableIndex: number): void {
-		this.#locations.set(getIndex(entityId) << 1, tableIndex);
-	}
-
-	getRow(entityId: bigint): number {
-		return this.#locations.get((getIndex(entityId) << 1) + 1);
-	}
-	setRow(entityId: bigint, row: number): void {
-		this.#locations.set((getIndex(entityId) << 1) + 1, row);
+	setLocation(entityId: bigint, location: EntityLocation): void {
+		this.#locations.offset = getIndex(entityId) * EntityLocation.size;
+		location.serialize(this.#locations);
 	}
 
 	/**
@@ -155,18 +142,8 @@ export class Entities {
 	 * @returns `bigint`, the archetype of the entity.
 	 */
 	getArchetype(entityId: bigint): bigint {
-		return this.#world.tables[this.getTableId(entityId)]?.archetype ?? 0n;
-	}
-
-	/**
-	 * Atomically moves the cursor by one.
-	 * @returns
-	 */
-	#moveCursor() {
-		// This will move the cursor past the length of the freed Vec - this is
-		// intentional, we check to see if we've moved too far to see if we need
-		// to get fresh (generation = 0) ids.
-		return Atomics.add(Memory.u32, this.#data + 1, 1);
+		const { tableId } = this.getLocation(entityId);
+		return this.#world.tables[tableId]?.archetype ?? 0n;
 	}
 }
 
@@ -174,19 +151,17 @@ export class Entities {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, beforeEach } = import.meta.vitest;
+	const { it, expect } = import.meta.vitest;
 	const { World } = await import('../world');
 
 	const ONE_GENERATION = 1n << 32n;
 	async function createWorld(...components: Struct[]) {
-		const builder = World.new({ isMainThread: true });
+		const builder = World.new();
 		for (const comp of components) {
 			builder.registerComponent(comp);
 		}
 		return builder.build();
 	}
-
-	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
 	it('returns incrementing generational integers', async () => {
 		const world = await createWorld();

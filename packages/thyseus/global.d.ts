@@ -13,8 +13,6 @@ declare global {
 	type System = Thyseus.System;
 	type SystemParameter = Thyseus.SystemParameter;
 	type SystemConfig = Thyseus.SystemConfig;
-	type ThreadGroup = Thyseus.ThreadGroup;
-	type Memory = Thyseus.Memory;
 	type WorldBuilder = Thyseus.WorldBuilder;
 	type ThyseusPlugin = Thyseus.Plugin;
 	type WorldConfig = Thyseus.WorldConfig;
@@ -24,7 +22,7 @@ declare global {
 	type EventReader<T extends object> = Thyseus.EventReader<T>;
 	type EventWriter<T extends object> = Thyseus.EventWriter<T>;
 	type Query<
-		A extends Thyseus.Accessors,
+		A extends object | object[],
 		F extends Thyseus.Filter = Thyseus.Filter,
 	> = Thyseus.Query<A, F>;
 	type Res<T extends object> = Thyseus.Res<T>;

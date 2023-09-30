@@ -1,16 +1,11 @@
-import { bits, DEV_ASSERT, Memory } from '../utils';
+import { bits, DEV_ASSERT } from '../utils';
 import { WorldBuilder, type Registry } from './WorldBuilder';
 import { Commands } from '../commands';
 import { Entities, Table } from '../storage';
 import { ComponentRegistryKey } from './registryKeys';
 import { StartSchedule, type ExecutorInstance } from '../schedule';
-import {
-	validateAndCompleteConfig,
-	type WorldConfig,
-	type SingleThreadedWorldConfig,
-} from './config';
+import { validateAndCompleteConfig, type WorldConfig } from './config';
 import type { Class, Struct } from '../struct';
-import type { ThreadGroup } from '../threads';
 import type { Query } from '../queries';
 
 export class World {
@@ -19,19 +14,8 @@ export class World {
 	 * @param config The config of the world.
 	 * @returns A `WorldBuilder`.
 	 */
-	static new(config?: Partial<SingleThreadedWorldConfig>): WorldBuilder;
-	/**
-	 * Constructs and returns a new `WorldBuilder`.
-	 * @param config The config of the world.
-	 * @param url The url to provide to workers. **This should always be `import.meta.url`.**
-	 * @returns A `WorldBuilder`.
-	 */
-	static new(config: Partial<WorldConfig>, url: string | URL): WorldBuilder;
-	static new(
-		config?: Partial<WorldConfig>,
-		url?: string | URL,
-	): WorldBuilder {
-		return new WorldBuilder(validateAndCompleteConfig(config, url), url);
+	static new(config?: Partial<WorldConfig>): WorldBuilder {
+		return new WorldBuilder(validateAndCompleteConfig(config));
 	}
 
 	tables: Table[] = [];
@@ -45,38 +29,18 @@ export class World {
 	commands: Commands;
 	entities: Entities;
 	config: Readonly<WorldConfig>;
-	threads: ThreadGroup;
 	components: Struct[];
-	constructor(config: WorldConfig, threads: ThreadGroup, registry: Registry) {
+	constructor(config: WorldConfig, registry: Registry) {
 		this.config = config;
-		this.threads = threads;
 		this.registry = registry;
 
-		// Components are sorted by alignment (largest -> smallest) so we can
-		// create "default" data for all of them without needing to pad any.
-		this.components = [...registry.get(ComponentRegistryKey)!].sort(
-			(a, z) => z.alignment! - a.alignment!,
-		);
+		this.components = Array.from(registry.get(ComponentRegistryKey)!);
 
-		Memory.init(
-			this.threads.queue(() =>
-				Memory.init(
-					config.memorySize,
-					config.useSharedMemory || config.threads > 1,
-				),
-			),
-		);
-
-		const emptyTable = Table.createEmpty();
-		this.tables.push(emptyTable);
-		this.#archetypeToTable.set(0n, emptyTable);
+		this.tables.push(Table.createEmpty());
+		this.#archetypeToTable.set(0n, this.tables[0]);
 
 		this.entities = new Entities(this);
 		this.commands = new Commands(this);
-	}
-
-	get isMainThread(): boolean {
-		return this.threads.isMainThread;
 	}
 
 	/**
@@ -87,10 +51,7 @@ export class World {
 			StartSchedule in this.schedules,
 			'Systems must be added to the StartSchedule to use world.start()!',
 		);
-		// Allow start() to be safely called from any thread
-		if (this.threads.isMainThread) {
-			this.schedules[StartSchedule].start();
-		}
+		this.schedules[StartSchedule].start();
 	}
 
 	/**
@@ -128,17 +89,20 @@ export class World {
 			return;
 		}
 
-		const currentTable = this.tables[this.entities.getTableId(entityId)];
+		const location = this.entities.getLocation(entityId);
+		const { row, tableId } = location;
+		const currentTable = this.tables[tableId];
 		if (currentTable.archetype === targetArchetype) {
 			// No need to move, we're already there!
 			return;
 		}
 		const targetTable = this.#getTable(targetArchetype);
 		if (targetTable.length === targetTable.capacity) {
-			targetTable.grow(this.config.getNewTableSize(targetTable.capacity));
+			targetTable.resize(
+				this.config.getNewTableSize(targetTable.capacity),
+			);
 		}
 
-		const row = this.entities.getRow(entityId);
 		if (currentTable.archetype === 0n) {
 			targetTable.add(entityId);
 		} else {
@@ -146,14 +110,19 @@ export class World {
 			// of the entity that's moving tables. This means we set row for
 			// that entity twice, but the last set will be correct.
 			const backfilledEntity = currentTable.move(row, targetTable);
-			this.entities.setRow(backfilledEntity, row);
+			this.entities.setLocation(
+				backfilledEntity,
+				location.set(currentTable.id, row),
+			);
 		}
 		if (targetArchetype === 0n) {
 			this.entities.freeId(entityId);
 		}
 
-		this.entities.setTableId(entityId, targetTable.id);
-		this.entities.setRow(entityId, targetTable.length - 1);
+		this.entities.setLocation(
+			entityId,
+			location.set(targetTable.id, targetTable.length - 1),
+		);
 	}
 
 	/**
@@ -181,6 +150,11 @@ export class World {
 		return result;
 	}
 
+	/**
+	 *
+	 * @param archetype The archetype of the table to get.
+	 * @returns
+	 */
 	#getTable(archetype: bigint): Table {
 		let table = this.#archetypeToTable.get(archetype);
 		if (table) {

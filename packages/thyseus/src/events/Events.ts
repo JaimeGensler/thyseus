@@ -1,7 +1,7 @@
 import { EventReader, EventWriter } from './EventQueues';
-import { Memory } from '../utils';
 import { Struct } from '../struct';
 import { EventRegistryKey } from './EventRegistryKey';
+import { Store } from '../storage';
 import type { World } from '../world';
 
 /**
@@ -10,7 +10,6 @@ import type { World } from '../world';
 export class Events {
 	static size = 0;
 	static alignment = 1;
-	__$$b = 0;
 	deserialize() {}
 	serialize() {}
 
@@ -24,17 +23,15 @@ export class Events {
 		// SAFETY: We know this is non-null, as the EventsRes only gets added
 		// if an event queue has been registered!
 		const eventTypes = world.registry.get(EventRegistryKey)! as Set<Struct>;
-		let eventsPointer = world.threads.queue(() =>
-			Memory.alloc(EventReader.size * eventTypes.size),
-		);
 		const resourceId = world.resources.length;
 		for (const eventType of eventTypes) {
 			const queueId = this.readers.length;
+			const store = new Store(0);
 			this.readers.push(
 				new EventReader(
 					world.commands,
 					eventType,
-					eventsPointer,
+					store,
 					queueId,
 					resourceId,
 				),
@@ -43,12 +40,11 @@ export class Events {
 				new EventWriter(
 					world.commands,
 					eventType,
-					eventsPointer,
+					store,
 					queueId,
 					resourceId,
 				),
 			);
-			eventsPointer += EventReader.size;
 		}
 	}
 

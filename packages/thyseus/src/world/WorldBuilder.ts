@@ -1,16 +1,14 @@
-import { DEV_ASSERT, Memory } from '../utils';
+import { DEV_ASSERT } from '../utils';
 import { World } from './World';
-import { ThreadGroup } from '../threads';
 import { Entity } from '../storage';
 import {
 	DefaultSchedule,
-	ParallelExecutor,
 	SimpleExecutor,
 	type ExecutorType,
 	type SystemConfig,
 	type SystemList,
 } from '../schedule';
-import { isStruct, type Class, type Struct } from '../struct';
+import { type Class, type Struct } from '../struct';
 import type { Plugin } from './Plugin';
 import type { System } from '../systems';
 import type { WorldConfig } from './config';
@@ -28,12 +26,9 @@ export class WorldBuilder {
 	#executors: Map<symbol, ExecutorType> = new Map();
 
 	config: Readonly<WorldConfig>;
-	url: Readonly<string | URL | undefined>;
-	constructor(config: WorldConfig, url: string | URL | undefined) {
+	constructor(config: WorldConfig) {
 		this.config = config;
-		this.url = url;
-		this.#defaultExecutor =
-			config.threads > 1 ? ParallelExecutor : SimpleExecutor;
+		this.#defaultExecutor = SimpleExecutor;
 		this.registerComponent(Entity);
 	}
 
@@ -174,63 +169,39 @@ export class WorldBuilder {
 				this.#executors.set(scheduleSymbol, this.#defaultExecutor);
 			}
 		}
-		const threads = ThreadGroup.new({
-			count: this.config.threads - 1,
-			url: this.url,
-			isMainThread: this.config.isMainThread,
-		});
 
-		const world = await threads.wrapInQueue(async () => {
-			const world = new World(this.config, threads, this.#registry);
-			for (const resourceType of this.#registry.get(
-				ResourceRegistryKey,
-			) ?? []) {
-				let res: object | null = null;
-				const isResourceStruct = isStruct(resourceType);
-				if (isResourceStruct || world.isMainThread) {
-					res = (resourceType as any).fromWorld
-						? await (resourceType as any).fromWorld(world)
-						: new resourceType();
-				}
-				if (isResourceStruct) {
-					(res as any).__$$b = world.threads.queue(() =>
-						resourceType.size! !== 0
-							? Memory.alloc(resourceType.size!)
-							: 0,
-					);
-					(res as any).serialize();
-				}
-				if (res !== null) {
-					world.resources.push(res);
-				}
-			}
-			const systemArguments = new Map();
-			for (const system of this.#systems) {
-				systemArguments.set(
-					system,
-					await Promise.all(
-						system.parameters?.map(parameter =>
-							parameter.intoArgument(world),
-						) ?? [],
+		const world = new World(this.config, this.#registry);
+		for (const resourceType of this.#registry.get(ResourceRegistryKey) ??
+			[]) {
+			const res = (resourceType as any).fromWorld
+				? await (resourceType as any).fromWorld(world)
+				: new resourceType();
+			world.resources.push(res);
+		}
+		const systemArguments = new Map();
+		for (const system of this.#systems) {
+			systemArguments.set(
+				system,
+				await Promise.all(
+					system.parameters?.map(parameter =>
+						parameter.intoArgument(world),
+					) ?? [],
+				),
+			);
+		}
+		for (const [scheduleSymbol, systems] of this.#schedules) {
+			world.schedules[scheduleSymbol] = this.#executors
+				.get(scheduleSymbol)!
+				.fromWorld(
+					world,
+					systems,
+					systems.map(s =>
+						systemArguments.get(
+							typeof s === 'function' ? s : s.system,
+						),
 					),
 				);
-			}
-			for (const [scheduleSymbol, systems] of this.#schedules) {
-				world.schedules[scheduleSymbol] = this.#executors
-					.get(scheduleSymbol)!
-					.fromWorld(
-						world,
-						systems,
-						systems.map(s =>
-							systemArguments.get(
-								typeof s === 'function' ? s : s.system,
-							),
-						),
-					);
-			}
-
-			return world;
-		});
+		}
 
 		return world;
 	}
@@ -241,10 +212,7 @@ export class WorldBuilder {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, vi, beforeEach } = import.meta.vitest;
-	const { Memory } = await import('../utils');
 	const { run } = await import('../schedule');
-
-	beforeEach(() => Memory.UNSAFE_CLEAR_ALL());
 
 	class MockChannel {
 		static channel: MockChannel;
@@ -305,7 +273,7 @@ if (import.meta.vitest) {
 	}
 
 	it('calls onAddSystem for all parameters', () => {
-		const builder = World.new({ isMainThread: true });
+		const builder = World.new();
 		const spy1 = vi.fn();
 		const spy2 = vi.fn();
 		const spy3 = vi.fn();
@@ -324,9 +292,7 @@ if (import.meta.vitest) {
 	});
 
 	it('uses fromWorld to construct resources if it exists', async () => {
-		const builder = World.new({ isMainThread: true }).registerResource(
-			Time,
-		);
+		const builder = World.new().registerResource(Time);
 		expect(fromWorldSpy).not.toHaveBeenCalled();
 		const world = await builder.build();
 		expect(fromWorldSpy).toHaveBeenCalledWith(world);
@@ -338,19 +304,17 @@ if (import.meta.vitest) {
 		const a = () => {};
 		const b = () => {};
 		const dep = run(b).after(a);
-		const world = await World.new({ isMainThread: true })
-			.addSystems(a, dep)
-			.build();
+		const world = await World.new().addSystems(a, dep).build();
 
 		expect(fromWorldSpy).toHaveBeenCalledWith(world, [a, dep], [[], []]);
 	});
 
 	it('adds defaultPlugin', async () => {
-		const world = await World.new({ isMainThread: true }).build();
+		const world = await World.new().build();
 		expect(world.components).toStrictEqual([Entity]);
 	});
 
-	it('constructs struct resources correctly', async () => {
+	it.todo('constructs struct resources correctly', async () => {
 		const serializeSpy = vi.fn();
 		class StructClass {
 			static size = 1;
@@ -359,11 +323,8 @@ if (import.meta.vitest) {
 			serialize = serializeSpy;
 		}
 		expect(serializeSpy).not.toHaveBeenCalled();
-		const world = await World.new({ isMainThread: true })
-			.registerResource(StructClass)
-			.build();
+		const world = await World.new().registerResource(StructClass).build();
 		expect(world.resources[0]).toBeInstanceOf(StructClass);
-		expect((world.resources[0] as any).__$$b).not.toBe(0);
 		expect(serializeSpy).toHaveBeenCalledOnce();
 	});
 }

@@ -1,4 +1,3 @@
-import { Memory } from '../utils';
 import { isStruct, type Class } from '../struct';
 import type { SystemParameter } from '../systems';
 import type { World, WorldBuilder } from '../world';
@@ -21,21 +20,11 @@ export class SystemResourceDescriptor<T extends object>
 
 	onAddSystem(builder: WorldBuilder): void {}
 
-	async intoArgument({ threads }: World): Promise<T> {
+	async intoArgument(world: World): Promise<T> {
 		const { resourceType } = this;
-		let res: T = null as any;
-		if (isStruct(resourceType)) {
-			res = new resourceType() as T;
-			(res as any).__$$b = threads.queue(() =>
-				resourceType.size! !== 0 ? Memory.alloc(resourceType.size!) : 0,
-			);
-		} else if (threads.isMainThread) {
-			res = new resourceType() as T;
-		}
-		if (threads.isMainThread) {
-			await (res as any).initialize?.();
-		}
-		return res as T;
+		return (resourceType as any).fromWorld
+			? (resourceType as any).fromWorld(world)
+			: new resourceType();
 	}
 }
 
@@ -92,34 +81,22 @@ if (import.meta.vitest) {
 		} as any;
 
 		it("returns the instance of the descriptor's ResourceType", async () => {
-			const allocSpy = vi.spyOn(Memory, 'alloc');
 			expect(
 				await new SystemResourceDescriptor(A).intoArgument(world),
 			).toBeInstanceOf(A);
-			expect(allocSpy).not.toHaveBeenCalled();
 		});
 
-		it('allocates a pointer if struct', async () => {
-			Memory.init(256);
-			const allocSpy = vi.spyOn(Memory, 'alloc');
-			expect(
-				await new SystemResourceDescriptor(C).intoArgument(world),
-			).toBeInstanceOf(C);
-			expect(allocSpy).toHaveBeenCalledOnce();
-			expect(allocSpy).toHaveBeenCalledWith(1);
-		});
-
-		it('initializes resources', async () => {
-			const initializeSpy = vi.fn();
+		it('uses fromWorld', async () => {
+			const fromWorldSpy = vi.fn(() => new MyResource());
 			class MyResource {
-				initialize = initializeSpy;
+				static fromWorld = fromWorldSpy;
 			}
 			expect(
 				await new SystemResourceDescriptor(MyResource).intoArgument(
 					world,
 				),
 			).toBeInstanceOf(MyResource);
-			expect(initializeSpy).toHaveBeenCalled();
+			expect(fromWorldSpy).toHaveBeenCalled();
 		});
 	});
 }

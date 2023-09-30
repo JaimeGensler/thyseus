@@ -1,7 +1,5 @@
 export { struct, type Class, type Struct, type StructInstance } from './struct';
 export { isStruct } from './isStruct';
-export { serializeString, deserializeString, dropString } from './string';
-export { serializeArray, deserializeArray, dropArray } from './array';
 export type {
 	u8,
 	u16,
