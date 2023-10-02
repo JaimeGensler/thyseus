@@ -1,11 +1,12 @@
 // Top-level API
 export { applyCommands } from './commands';
+export { Entity } from './entities';
+export { Events } from './events';
 export { run, DefaultSchedule, StartSchedule } from './schedule';
-export { Entity, Store } from './storage';
+export { Store } from './storage';
 export { struct } from './struct';
 export { cloneSystem } from './systems';
 export { World } from './world';
-export { Events } from './events';
 
 // Descriptors
 export { CommandsDescriptor } from './commands';
@@ -20,7 +21,8 @@ export type { EventReader, EventWriter } from './events';
 export type { Query, Filter } from './queries';
 export type { Res, SystemRes } from './resources';
 export type { ExecutorType, ExecutorInstance, SystemConfig } from './schedule';
-export type { Table, Entities } from './storage';
+export type { Table } from './storage';
+export type { Entities } from './entities';
 export type {
 	Struct,
 	u8,

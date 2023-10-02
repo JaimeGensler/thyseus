@@ -1,4 +1,4 @@
-import { Entity } from './Entity';
+import { Entity } from '../entities/Entity';
 import { Store } from './Store';
 import type { Struct, StructInstance, u64 } from '../struct';
 

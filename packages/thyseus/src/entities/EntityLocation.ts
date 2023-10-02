@@ -1,5 +1,5 @@
 import { u32 } from '../struct';
-import { Store } from './Store';
+import { Store } from '../storage/Store';
 
 export class EntityLocation {
 	static size = 8;

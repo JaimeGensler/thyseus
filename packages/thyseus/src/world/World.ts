@@ -1,12 +1,13 @@
 import { bits, DEV_ASSERT } from '../utils';
 import { WorldBuilder, type Registry } from './WorldBuilder';
 import { Commands } from '../commands';
-import { Entities, Table } from '../storage';
+import { Table } from '../storage';
 import { ComponentRegistryKey } from './registryKeys';
 import { StartSchedule, type ExecutorInstance } from '../schedule';
 import { validateAndCompleteConfig, type WorldConfig } from './config';
 import type { Class, Struct } from '../struct';
 import type { Query } from '../queries';
+import { Entities } from '../entities';
 
 export class World {
 	/**

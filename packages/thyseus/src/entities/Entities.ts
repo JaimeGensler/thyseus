@@ -1,6 +1,6 @@
 import { DEV_ASSERT } from '../utils';
 import { Entity } from './Entity';
-import { Store } from './Store';
+import { Store } from '../storage/Store';
 import { EntityLocation } from './EntityLocation';
 import type { World } from '../world';
 import type { Struct } from '../struct';

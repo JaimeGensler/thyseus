@@ -1,4 +1,5 @@
-import { Entity, type Store } from '../storage';
+import { Entity } from '../entities';
+import type { Store } from '../storage';
 import type { u64, u32, StructInstance } from '../struct';
 import { alignTo8 } from '../utils';
 

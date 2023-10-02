@@ -3,10 +3,11 @@ import {
 	AddComponentCommand,
 	RemoveComponentCommand,
 } from './ComponentCommands';
-import { Entity, type Entities, Store } from '../storage';
+import { Entity, type Entities } from '../entities';
 import type { Struct, StructInstance } from '../struct';
 import type { World } from '../world';
 import { alignTo8 } from '../utils';
+import { Store } from '../storage';
 
 export class Commands {
 	#world: World;

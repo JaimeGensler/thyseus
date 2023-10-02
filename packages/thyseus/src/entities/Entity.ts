@@ -1,5 +1,5 @@
 import type { u32, u64 } from '../struct';
-import type { Store } from './Store';
+import type { Store } from '../storage/Store';
 
 /**
  * A component that can be used to get the id, index, and generation of an Entity.
