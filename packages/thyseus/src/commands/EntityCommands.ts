@@ -5,9 +5,8 @@ import { DEV_ASSERT } from '../utils';
 import { Entity } from '../storage';
 import {
 	AddComponentCommand,
-	AddComponentTypeCommand,
-	RemoveComponentTypeCommand,
-} from './commandTypes';
+	RemoveComponentCommand,
+} from './ComponentCommands';
 
 type NotFunction<T> = T extends Function ? never : T;
 
@@ -63,20 +62,8 @@ export class EntityCommands {
 	 * @returns `this`, for chaining.
 	 */
 	addType(componentType: Struct): this {
-		DEV_ASSERT(
-			componentType !== Entity,
-			'Tried to add Entity component, which is forbidden.',
-		);
-		if (!this.#isAlive) {
-			return this;
-		}
-		this.#commands.push(
-			AddComponentTypeCommand.with(
-				this.id,
-				this.#world.getComponentId(componentType),
-			),
-		);
-		return this;
+		// TODO: Re-use!
+		return this.add(new componentType());
 	}
 
 	/**
@@ -93,7 +80,7 @@ export class EntityCommands {
 			return this;
 		}
 		this.#commands.push(
-			RemoveComponentTypeCommand.with(
+			RemoveComponentCommand.with(
 				this.id,
 				this.#world.getComponentId(componentType),
 			),

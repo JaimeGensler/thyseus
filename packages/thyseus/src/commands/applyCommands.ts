@@ -1,39 +1,32 @@
 import { WorldDescriptor } from '../world/WorldDescriptor';
 import {
 	AddComponentCommand,
-	RemoveComponentTypeCommand,
-	ClearEventQueueCommand,
-	AddComponentTypeCommand,
-} from './commandTypes';
+	RemoveComponentCommand,
+} from './ComponentCommands';
 import type { World } from '../world';
-import type { Struct, StructInstance } from '../struct';
 import type { Store } from '../storage';
 
-const defaultData = new Map<Struct, StructInstance>();
 const entityDestinations = new Map<bigint, bigint>();
-export function applyCommands(world: World) {
-	const { commands, entities, tables, components, resources } = world;
-	entities.resetCursor();
-	entityDestinations.clear();
 
-	// Main command handling loop
-	for (const command of commands) {
-		if (command instanceof ClearEventQueueCommand) {
-			// Look up events by resource ID to avoid pulling in Events class
-			(resources[command.resourceId] as any).writers[
-				command.eventId
-			].clearImmediate();
+export function applyCommands(world: World) {
+	const { commands, entities, tables, components } = world;
+	entities.resetCursor();
+
+	// Find where entities will end up
+	entityDestinations.clear();
+	for (const { entityId, componentId } of commands.iterate(
+		AddComponentCommand,
+	)) {
+		let val = entityDestinations.get(entityId);
+		if (val === 0n) {
 			continue;
 		}
-		if (
-			!(
-				command instanceof AddComponentTypeCommand ||
-				command instanceof RemoveComponentTypeCommand
-			)
-		) {
-			continue;
-		}
-		const { entityId, componentId } = command;
+		val ??= entities.getArchetype(entityId);
+		entityDestinations.set(entityId, val | (1n << BigInt(componentId)));
+	}
+	for (const { entityId, componentId } of commands.iterate(
+		RemoveComponentCommand,
+	)) {
 		let val = entityDestinations.get(entityId);
 		if (val === 0n) {
 			continue;
@@ -41,11 +34,7 @@ export function applyCommands(world: World) {
 		val ??= entities.getArchetype(entityId);
 		entityDestinations.set(
 			entityId,
-			command instanceof AddComponentTypeCommand
-				? val | (1n << BigInt(componentId))
-				: componentId === 0
-				? 0n
-				: val ^ (1n << BigInt(componentId)),
+			val | (val ^ (1n << BigInt(componentId))),
 		);
 	}
 
@@ -55,33 +44,17 @@ export function applyCommands(world: World) {
 	}
 
 	// Handle data insertion from adds
-	for (const command of commands) {
-		if (!(command instanceof AddComponentTypeCommand)) {
-			continue;
-		}
+	for (const command of commands.iterate(AddComponentCommand)) {
 		const { entityId, componentId } = command;
 		const { row, tableId } = entities.getLocation(entityId);
 		const componentType = components[componentId];
 		if (tableId === 0) {
 			continue;
 		}
-		const table = tables[tableId];
-		if (command instanceof AddComponentCommand) {
-			table.copyDataIntoRow(row, componentType, command.store!);
-		} else {
-			if (!defaultData.has(componentType)) {
-				defaultData.set(
-					componentType,
-					new componentType() as StructInstance,
-				);
-			}
-			table.copyComponentIntoRow(
-				row,
-				componentType,
-				defaultData.get(componentType)!,
-			);
-		}
+		tables[tableId].copyDataIntoRow(row, componentType, command.store!);
 	}
+
+	// TODO: Execute custom commands (events)
 
 	// SAFETY: We have ownership of World right now.
 	(commands as any).reset();

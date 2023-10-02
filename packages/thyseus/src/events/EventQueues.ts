@@ -1,13 +1,13 @@
-import { ClearEventQueueCommand, type Commands } from '../commands';
+import type { Commands } from '../commands';
 import type { Struct, StructInstance } from '../struct';
 import type { Store } from '../storage';
+import { ClearEventQueueCommand } from './ClearEventQueCommand';
 
 export class EventReader<T extends StructInstance> {
 	#commands: Commands;
 	#struct: Struct;
 	#instance: T;
 	#id: number;
-	#resourceId: number;
 	#store: Store;
 
 	constructor(
@@ -15,14 +15,12 @@ export class EventReader<T extends StructInstance> {
 		struct: Struct & { new (): T },
 		store: Store,
 		id: number,
-		resourceId: number,
 	) {
 		this.#commands = commands;
 		this.#instance = new struct() as T;
 		this.#struct = struct;
 		this.#store = store;
 		this.#id = id;
-		this.#resourceId = resourceId;
 	}
 
 	/**
@@ -51,9 +49,7 @@ export class EventReader<T extends StructInstance> {
 	 * Sets this event queue to be cleared when commands are next processed.
 	 */
 	clear() {
-		this.#commands.push(
-			ClearEventQueueCommand.with(this.#resourceId, this.#id),
-		);
+		this.#commands.push(ClearEventQueueCommand.with(this.#id));
 	}
 }
 
@@ -66,9 +62,8 @@ export class EventWriter<T extends StructInstance> extends EventReader<T> {
 		struct: Struct & { new (): T },
 		store: Store,
 		id: number,
-		resourceId: number,
 	) {
-		super(commands, struct, store, id, resourceId);
+		super(commands, struct, store, id);
 		this.#default = new struct() as T;
 		this.#store = store;
 	}
@@ -125,8 +120,8 @@ if (import.meta.vitest) {
 		const world = await World.new().build();
 		const store = new Store(4 * queueType.size!);
 		return [
-			new EventReader<I>(world.commands, queueType as any, store, 0, 0),
-			new EventWriter<I>(world.commands, queueType as any, store, 0, 0),
+			new EventReader<I>(world.commands, queueType as any, store, 0),
+			new EventWriter<I>(world.commands, queueType as any, store, 0),
 			world,
 		] as const;
 	}

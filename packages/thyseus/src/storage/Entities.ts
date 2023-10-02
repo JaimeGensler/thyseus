@@ -94,7 +94,11 @@ export class Entities {
 	 * @param entityId
 	 */
 	wasDespawned(entityId: bigint): boolean {
-		return true;
+		const index = getIndex(entityId);
+		return (
+			this.#generations.length > index &&
+			this.#generations.u32[index] !== getGeneration(entityId)
+		);
 	}
 
 	/**
