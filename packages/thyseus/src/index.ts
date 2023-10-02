@@ -2,7 +2,7 @@
 export { applyCommands } from './commands';
 export { Entity } from './entities';
 export { Events } from './events';
-export { run, DefaultSchedule, StartSchedule } from './schedule';
+export { DefaultSchedule, StartSchedule } from './schedules';
 export { Store } from './storage';
 export { struct } from './struct';
 export { cloneSystem } from './systems';
@@ -20,7 +20,6 @@ export type { Commands, EntityCommands } from './commands';
 export type { EventReader, EventWriter } from './events';
 export type { Query, Filter } from './queries';
 export type { Res, SystemRes } from './resources';
-export type { ExecutorType, ExecutorInstance, SystemConfig } from './schedule';
 export type { Table } from './storage';
 export type { Entities } from './entities';
 export type {
