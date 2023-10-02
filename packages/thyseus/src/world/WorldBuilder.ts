@@ -1,34 +1,24 @@
 import { DEV_ASSERT } from '../utils';
 import { World } from './World';
 import { Entity } from '../entities';
-import {
-	DefaultSchedule,
-	SimpleExecutor,
-	type ExecutorType,
-	type SystemConfig,
-	type SystemList,
-} from '../schedule';
-import { type Class, type Struct } from '../struct';
+import { DefaultSchedule } from '../schedules';
+import { ComponentRegistryKey, ResourceRegistryKey } from './registryKeys';
+import type { Class, Struct } from '../struct';
 import type { Plugin } from './Plugin';
 import type { System } from '../systems';
 import type { WorldConfig } from './config';
-import { ComponentRegistryKey, ResourceRegistryKey } from './registryKeys';
 
-type SystemListArray = SystemList[];
 export type Registry = Map<symbol, Set<any>>;
 export class WorldBuilder {
-	#schedules: Map<symbol, (System | SystemConfig)[]> = new Map();
+	#schedules: Map<symbol, System[]> = new Map();
 
 	#registry: Registry = new Map();
 
 	#systems: Set<System> = new Set();
-	#defaultExecutor: ExecutorType;
-	#executors: Map<symbol, ExecutorType> = new Map();
 
 	config: Readonly<WorldConfig>;
 	constructor(config: WorldConfig) {
 		this.config = config;
-		this.#defaultExecutor = SimpleExecutor;
 		this.registerComponent(Entity);
 	}
 
@@ -37,7 +27,7 @@ export class WorldBuilder {
 	 * @param systems The systems to add.
 	 * @returns `this`, for chaining.
 	 */
-	addSystems(...systems: SystemListArray): this {
+	addSystems(...systems: System[]): this {
 		this.addSystemsToSchedule(DefaultSchedule, ...systems);
 		return this;
 	}
@@ -48,7 +38,7 @@ export class WorldBuilder {
 	 * @param systems The systems to add.
 	 * @returns `this`, for chaining.
 	 */
-	addSystemsToSchedule(schedule: symbol, ...systems: SystemListArray): this {
+	addSystemsToSchedule(schedule: symbol, ...systems: System[]): this {
 		for (const system of systems.flat()) {
 			this.#addSystemToSchedule(schedule, system);
 		}
@@ -61,15 +51,10 @@ export class WorldBuilder {
 	 * @param systemLike The system to add.
 	 * @returns `this`, for chaining.
 	 */
-	#addSystemToSchedule(
-		schedule: symbol,
-		systemLike: System | SystemConfig,
-	): this {
+	#addSystemToSchedule(schedule: symbol, system: System): this {
 		if (!this.#schedules.has(schedule)) {
 			this.#schedules.set(schedule, []);
 		}
-		const system =
-			typeof systemLike === 'function' ? systemLike : systemLike.system;
 		this.#systems.add(system);
 		if (system.parameters) {
 			for (const descriptor of system.parameters) {
@@ -88,7 +73,7 @@ export class WorldBuilder {
 				system.parameters?.length ?? 0
 			}. This is likely due to a failed transformation.`,
 		);
-		this.#schedules.get(schedule)!.push(systemLike);
+		this.#schedules.get(schedule)!.push(system);
 		return this;
 	}
 
@@ -138,38 +123,10 @@ export class WorldBuilder {
 	}
 
 	/**
-	 * Sets the executor that schedules will use by default.
-	 * Individual schedules can specify their own executor; if they do not, this executor will be used.
-	 * @param executor The executor type to use by default.
-	 * @returns `this`, for chaining.
-	 */
-	setDefaultExecutor(executor: ExecutorType): this {
-		this.#defaultExecutor = executor;
-		return this;
-	}
-
-	/**
-	 * Sets the executor to use for a specific schedule.
-	 * @param schedule The schedule.
-	 * @param executor The executor type for this schedule.
-	 * @returns `this`, for chaining.
-	 */
-	setExecutorForSchedule(schedule: symbol, executor: ExecutorType): this {
-		this.#executors.set(schedule, executor);
-		return this;
-	}
-
-	/**
 	 * Builds the world.
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
-		for (const [scheduleSymbol] of this.#schedules) {
-			if (!this.#executors.has(scheduleSymbol)) {
-				this.#executors.set(scheduleSymbol, this.#defaultExecutor);
-			}
-		}
-
 		const world = new World(this.config, this.#registry);
 		for (const resourceType of this.#registry.get(ResourceRegistryKey) ??
 			[]) {
@@ -190,17 +147,10 @@ export class WorldBuilder {
 			);
 		}
 		for (const [scheduleSymbol, systems] of this.#schedules) {
-			world.schedules[scheduleSymbol] = this.#executors
-				.get(scheduleSymbol)!
-				.fromWorld(
-					world,
-					systems,
-					systems.map(s =>
-						systemArguments.get(
-							typeof s === 'function' ? s : s.system,
-						),
-					),
-				);
+			world.schedules[scheduleSymbol] = {
+				systems,
+				args: systems.map(s => systemArguments.get(s)),
+			};
 		}
 
 		return world;
@@ -211,61 +161,7 @@ export class WorldBuilder {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi, beforeEach } = import.meta.vitest;
-	const { run } = await import('../schedule');
-
-	class MockChannel {
-		static channel: MockChannel;
-		listeners = new Set<Function>();
-		constructor() {
-			if (!MockChannel.channel) {
-				MockChannel.channel = this;
-			}
-			return MockChannel.channel;
-		}
-		addEventListener(_: any, l: any) {
-			this.listeners.add(l);
-		}
-		removeEventListener(_: any, l: any) {
-			this.listeners.delete(l);
-		}
-		postMessage(data: any) {
-			setTimeout(
-				() =>
-					this.listeners.forEach(l =>
-						l({ currentTarget: this, data }),
-					),
-				10,
-			);
-		}
-	}
-	vi.stubGlobal('BroadcastChannel', MockChannel);
-	vi.stubGlobal(
-		'Worker',
-		class MockWorker {
-			target?: MockWorker;
-
-			handler: any;
-			addEventListener(_: 'message', handler: any): this {
-				this.handler = handler;
-				return this;
-			}
-			removeEventListener(): void {}
-			postMessage(data: any) {
-				setTimeout(() => {
-					this.target!.handler({ currentTarget: this.target, data });
-				}, 10);
-			}
-		},
-	);
-	vi.stubGlobal('navigator', {
-		locks: {
-			async request(_: any, cb: () => void) {
-				await Promise.resolve();
-				cb();
-			},
-		},
-	});
+	const { it, expect, vi } = import.meta.vitest;
 
 	const fromWorldSpy = vi.fn();
 	class Time {
@@ -298,18 +194,7 @@ if (import.meta.vitest) {
 		expect(fromWorldSpy).toHaveBeenCalledWith(world);
 	});
 
-	it('passes SystemConfig to Executors', async () => {
-		const fromWorldSpy = vi.spyOn(SimpleExecutor, 'fromWorld');
-
-		const a = () => {};
-		const b = () => {};
-		const dep = run(b).after(a);
-		const world = await World.new().addSystems(a, dep).build();
-
-		expect(fromWorldSpy).toHaveBeenCalledWith(world, [a, dep], [[], []]);
-	});
-
-	it('adds defaultPlugin', async () => {
+	it('adds Entity component to systems', async () => {
 		const world = await World.new().build();
 		expect(world.components).toStrictEqual([Entity]);
 	});

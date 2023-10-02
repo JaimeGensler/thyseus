@@ -3,11 +3,12 @@ import { WorldBuilder, type Registry } from './WorldBuilder';
 import { Commands } from '../commands';
 import { Table } from '../storage';
 import { ComponentRegistryKey } from './registryKeys';
-import { StartSchedule, type ExecutorInstance } from '../schedule';
+import { StartSchedule } from '../schedules';
 import { validateAndCompleteConfig, type WorldConfig } from './config';
 import type { Class, Struct } from '../struct';
 import type { Query } from '../queries';
 import { Entities } from '../entities';
+import { System } from '../systems';
 
 export class World {
 	/**
@@ -24,7 +25,7 @@ export class World {
 	queries: Query<any, any>[] = [];
 	resources: object[] = [];
 
-	schedules: Record<symbol, ExecutorInstance> = {};
+	schedules: Record<symbol, { systems: System[]; args: any[][] }> = {};
 
 	registry: Registry;
 	commands: Commands;
@@ -48,11 +49,7 @@ export class World {
 	 * Starts execution of the world.
 	 */
 	start(): void {
-		DEV_ASSERT(
-			StartSchedule in this.schedules,
-			'Systems must be added to the StartSchedule to use world.start()!',
-		);
-		this.schedules[StartSchedule].start();
+		this.runSchedule(StartSchedule);
 	}
 
 	/**
@@ -61,12 +58,15 @@ export class World {
 	 * @param schedule The schedule to run.
 	 * @returns A promise that resolves when the schedule has completed
 	 */
-	async runSchedule(schedule: symbol) {
+	async runSchedule(schedule: symbol): Promise<void> {
 		DEV_ASSERT(
 			schedule in this.schedules,
 			`Could not find schedule (${String(schedule)}) in the world!`,
 		);
-		return this.schedules[schedule].start();
+		const { systems, args } = this.schedules[schedule];
+		for (let i = 0; i < systems.length; i++) {
+			await systems[i](...args[i]);
+		}
 	}
 
 	/**
