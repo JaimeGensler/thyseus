@@ -8,43 +8,21 @@ import type { World } from '../world';
  * A resource responsible for creating & holding all event queues in a world.
  */
 export class Events {
-	static size = 0;
-	static alignment = 1;
-	deserialize() {}
-	serialize() {}
-
 	readers: EventReader<any>[] = [];
 	writers: EventWriter<any>[] = [];
 
 	static fromWorld(world: World) {
 		return new this(world);
 	}
-	constructor(world: World) {
+	constructor({ registry, commands }: World) {
 		// SAFETY: We know this is non-null, as the EventsRes only gets added
 		// if an event queue has been registered!
-		const eventTypes = world.registry.get(EventRegistryKey)! as Set<Struct>;
-		const resourceId = world.resources.length;
-		for (const eventType of eventTypes) {
+		const eventTypes = registry.get(EventRegistryKey)! as Set<Struct>;
+		for (const type of eventTypes) {
 			const queueId = this.readers.length;
 			const store = new Store(0);
-			this.readers.push(
-				new EventReader(
-					world.commands,
-					eventType,
-					store,
-					queueId,
-					resourceId,
-				),
-			);
-			this.writers.push(
-				new EventWriter(
-					world.commands,
-					eventType,
-					store,
-					queueId,
-					resourceId,
-				),
-			);
+			this.readers.push(new EventReader(commands, type, store, queueId));
+			this.writers.push(new EventWriter(commands, type, store, queueId));
 		}
 	}
 

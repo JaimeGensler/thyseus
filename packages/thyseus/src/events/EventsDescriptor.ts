@@ -123,12 +123,12 @@ if (import.meta.vitest) {
 			const world = {
 				getResource: () => ({
 					eventReaders: [
-						new EventReader(commands, A, p1, 0, 0),
-						new EventReader(commands, B, p1, 0, 0),
+						new EventReader(commands, A, p1, 0),
+						new EventReader(commands, B, p1, 0),
 					],
 					eventWriters: [
-						new EventWriter(commands, A, p2, 0, 0),
-						new EventWriter(commands, B, p2, 0, 0),
+						new EventWriter(commands, A, p2, 0),
+						new EventWriter(commands, B, p2, 0),
 					],
 					getReaderOfType(type: any) {
 						return this.eventReaders.find(

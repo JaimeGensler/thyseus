@@ -99,17 +99,6 @@ export class Table {
 			column.copyFrom(store, size, store.offset, row * size);
 		}
 	}
-	copyComponentIntoRow(
-		row: number,
-		componentType: Struct,
-		component: StructInstance,
-	) {
-		if (this.hasColumn(componentType)) {
-			const column = this.getColumn(componentType);
-			column.offset = row * componentType.size!;
-			component.serialize!(column);
-		}
-	}
 
 	getColumn(componentType: Struct): Store {
 		return this.#columns[this.#components.indexOf(componentType)];

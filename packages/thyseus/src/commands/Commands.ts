@@ -1,39 +1,29 @@
-import { alignTo8 } from '../utils';
 import { EntityCommands } from './EntityCommands';
 import {
 	AddComponentCommand,
-	AddComponentTypeCommand,
-	RemoveComponentTypeCommand,
-	ClearEventQueueCommand,
-} from './commandTypes';
+	RemoveComponentCommand,
+} from './ComponentCommands';
 import { Entity, type Entities, Store } from '../storage';
 import type { Struct, StructInstance } from '../struct';
 import type { World } from '../world';
+import { alignTo8 } from '../utils';
 
 export class Commands {
-	#commands: StructInstance[];
-	#commandTypes: Struct[];
 	#world: World;
 	#entities: Entities;
+	#commandTypes: Struct[];
+	#commands: StructInstance[];
+	#queues: Store[];
+
 	#entityCommands: EntityCommands;
-	#store: Store;
-	#length: number;
 	constructor(world: World) {
-		this.#length = 0;
 		this.#world = world;
 		this.#entities = world.entities;
-		this.#commandTypes = [
-			AddComponentCommand,
-			AddComponentTypeCommand,
-			RemoveComponentTypeCommand,
-			ClearEventQueueCommand,
-		];
-		this.#commands = this.#commandTypes.map(
-			command => new command() as StructInstance,
-		);
-
+		// TODO: Receive commandTypes from registry
+		this.#commandTypes = [AddComponentCommand, RemoveComponentCommand];
+		this.#commands = this.#commandTypes.map(command => new command());
+		this.#queues = this.#commandTypes.map(() => new Store(0));
 		this.#entityCommands = new EntityCommands(world, this, 0n);
-		this.#store = new Store(0);
 	}
 
 	/**
@@ -43,12 +33,7 @@ export class Commands {
 	 */
 	spawn(reuse: boolean = false): EntityCommands {
 		const entityId = this.#entities.getId();
-		const cmd = AddComponentCommand.with(
-			entityId,
-			0,
-			new Entity(entityId) as any,
-		);
-		this.push(cmd, Entity.size);
+		this.push(AddComponentCommand.with(entityId, 0, new Entity(entityId)));
 		return this.getById(entityId, reuse);
 	}
 
@@ -67,7 +52,7 @@ export class Commands {
 		if (this.#entities.wasDespawned(entityId)) {
 			return;
 		}
-		this.push(RemoveComponentTypeCommand.with(entityId, 0));
+		this.push(RemoveComponentCommand.with(entityId, 0));
 	}
 
 	/**
@@ -101,27 +86,26 @@ export class Commands {
 	 */
 	push(command: StructInstance, additionalSize: number = 0): void {
 		const commandType = command.constructor as Struct;
-		const addedSize = 8 + alignTo8(commandType.size! + additionalSize);
-		let newLength = this.#length + addedSize;
-		if (this.#store.byteLength < newLength) {
+		const store = this.#queues[this.#commandTypes.indexOf(commandType)];
+		const addedSize = commandType.size! + alignTo8(additionalSize);
+		let newLength = store.length + addedSize;
+		if (store.byteLength < newLength) {
 			newLength *= 2;
-			this.#store.resize(newLength);
+			store.resize(newLength);
 		}
-		this.#store.offset = this.#length;
-		this.#store.writeU32(addedSize);
-		this.#store.writeU32(this.#commandTypes.indexOf(commandType));
-		this.#length += addedSize;
-		command.serialize!(this.#store);
+		store.offset = store.length;
+		store.length += addedSize;
+		command.serialize!(store);
 	}
 
-	*[Symbol.iterator](): Iterator<object> {
-		this.#store.offset = 0;
-		while (this.#store.offset < this.#length) {
-			const nextOffset = this.#store.offset + this.#store.readU32();
-			const command = this.#commands[this.#store.readU32()];
-			command.deserialize!(this.#store);
-			yield command;
-			this.#store.offset = nextOffset;
+	*iterate<T extends Struct>(type: T): Generator<Readonly<InstanceType<T>>> {
+		const id = this.#commandTypes.indexOf(type);
+		const store = this.#queues[id];
+		const command = this.#commands[id];
+		store.offset = 0;
+		while (store.offset < store.length) {
+			command.deserialize!(store);
+			yield command as InstanceType<T>;
 		}
 	}
 
@@ -133,7 +117,9 @@ export class Commands {
 	 * You must have exclusive access to the world to call this.
 	 */
 	private reset(): void {
-		this.#length = 0;
+		for (const queue of this.#queues) {
+			queue.length = 0;
+		}
 	}
 }
 
@@ -213,10 +199,10 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const { commands } = world;
 		const ent = commands.spawn();
-		for (const command of commands) {
+		for (const command of commands.iterate(AddComponentCommand)) {
 			expect(command).toBeInstanceOf(AddComponentCommand);
-			expect((command as AddComponentCommand).entityId).toBe(ent.id);
-			expect((command as AddComponentCommand).componentId).toBe(0);
+			expect(command.entityId).toBe(ent.id);
+			expect(command.componentId).toBe(0);
 		}
 	});
 
@@ -226,17 +212,13 @@ if (import.meta.vitest) {
 		const { commands } = world;
 		const ent = commands.spawn().addType(ZST);
 		let i = 0;
-		for (const command of commands) {
-			expect(command).toBeInstanceOf(AddComponentTypeCommand);
-			expect((command as AddComponentTypeCommand).entityId).toBe(ent.id);
+		for (const command of commands.iterate(AddComponentCommand)) {
 			if (i === 0) {
-				expect((command as AddComponentTypeCommand).componentId).toBe(
-					0,
-				);
+				expect(command.entityId).toBe(ent.id);
+				expect(command.componentId).toBe(0);
 			} else {
-				expect((command as AddComponentTypeCommand).componentId).toBe(
-					zstID,
-				);
+				expect(command.entityId).toBe(ent.id);
+				expect(command.componentId).toBe(zstID);
 			}
 			i++;
 		}
@@ -247,18 +229,10 @@ if (import.meta.vitest) {
 		const { commands } = world;
 		const ent = commands.spawn().addType(ZST).remove(ZST);
 		const zstID = world.getComponentId(ZST);
-		let i = 0;
-		for (const command of commands) {
-			if (i == 2) {
-				expect(command).toBeInstanceOf(RemoveComponentTypeCommand);
-				expect((command as RemoveComponentTypeCommand).entityId).toBe(
-					ent.id,
-				);
-				expect(
-					(command as RemoveComponentTypeCommand).componentId,
-				).toBe(zstID);
-			}
-			i++;
+		for (const command of commands.iterate(RemoveComponentCommand)) {
+			expect(command).toBeInstanceOf(RemoveComponentCommand);
+			expect(command.entityId).toBe(ent.id);
+			expect(command.componentId).toBe(zstID);
 		}
 	});
 
@@ -267,18 +241,10 @@ if (import.meta.vitest) {
 		const { commands } = world;
 		const ent = commands.spawn().addType(ZST);
 		ent.despawn();
-		let i = 0;
-		for (const command of commands) {
-			if (i === 2) {
-				expect(command).toBeInstanceOf(RemoveComponentTypeCommand);
-				expect((command as RemoveComponentTypeCommand).entityId).toBe(
-					ent.id,
-				);
-				expect(
-					(command as RemoveComponentTypeCommand).componentId,
-				).toBe(0);
-			}
-			i++;
+		for (const command of commands.iterate(RemoveComponentCommand)) {
+			expect(command).toBeInstanceOf(RemoveComponentCommand);
+			expect(command.entityId).toBe(ent.id);
+			expect(command.componentId).toBe(0);
 		}
 	});
 
@@ -287,11 +253,10 @@ if (import.meta.vitest) {
 		const { commands } = world;
 		const ent = commands.spawn().addType(CompD);
 		let i = 0;
-		for (const command of commands) {
-			if (!(command instanceof AddComponentCommand) || i === 0) {
+		for (const command of commands.iterate(AddComponentCommand)) {
+			if (i === 0) {
 				continue;
 			}
-
 			const { entityId, componentId } = command;
 			expect(entityId).toBe(ent.id);
 			expect(componentId).toBe(5);
@@ -303,12 +268,11 @@ if (import.meta.vitest) {
 		const { commands } = world;
 		const ent = commands.spawn().add(new CompD(15, 16));
 		let i = 0;
-		for (const command of commands) {
-			if (!(command instanceof AddComponentCommand) || i === 0) {
+		for (const command of commands.iterate(AddComponentCommand)) {
+			if (i === 0) {
 				continue;
 			}
 			const { store, entityId, componentId } = command;
-
 			expect(entityId).toBe(ent.id);
 			expect(componentId).toBe(5);
 			expect(store?.readU32()).toBe(15);
@@ -330,7 +294,10 @@ if (import.meta.vitest) {
 		const ent = commands.spawn().addType(CompA);
 		(commands as any).reset();
 		let iterations = 0;
-		for (const command of commands) {
+		for (const command of commands.iterate(AddComponentCommand)) {
+			iterations++;
+		}
+		for (const command of commands.iterate(RemoveComponentCommand)) {
 			iterations++;
 		}
 		expect(iterations).toBe(0);
