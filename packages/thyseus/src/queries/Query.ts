@@ -103,7 +103,7 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe } = import.meta.vitest;
-	const { Entity } = await import('../storage');
+	const { Entity } = await import('../entities');
 	const { World } = await import('../world');
 	const { applyCommands } = await import('../commands');
 

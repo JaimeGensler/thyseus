@@ -2,7 +2,7 @@ import type { Commands } from './Commands';
 import type { Struct, StructInstance } from '../struct';
 import type { World } from '../world';
 import { DEV_ASSERT } from '../utils';
-import { Entity } from '../storage';
+import { Entity } from '../entities';
 import {
 	AddComponentCommand,
 	RemoveComponentCommand,

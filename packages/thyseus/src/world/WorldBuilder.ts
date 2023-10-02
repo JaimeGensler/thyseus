@@ -1,6 +1,6 @@
 import { DEV_ASSERT } from '../utils';
 import { World } from './World';
-import { Entity } from '../storage';
+import { Entity } from '../entities';
 import {
 	DefaultSchedule,
 	SimpleExecutor,
