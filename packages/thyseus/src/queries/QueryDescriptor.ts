@@ -41,7 +41,7 @@ export class QueryDescriptor implements SystemParameter {
 					other.components.some(
 						(compB, iB) =>
 							compA === compB &&
-							(this.reads[iA] || other.reads[iB]),
+							(!this.reads[iA] || !other.reads[iB]),
 					),
 			  )
 			: false;
@@ -110,8 +110,14 @@ if (import.meta.vitest) {
 		});
 
 		it('returns false for queries that readonly overlap', () => {
-			const queryAB1 = new QueryDescriptor([A, B]);
-			const queryAB2 = new QueryDescriptor([A, B]);
+			const queryAB1 = new QueryDescriptor([
+				new ReadModifier(A),
+				new ReadModifier(B),
+			]);
+			const queryAB2 = new QueryDescriptor([
+				new ReadModifier(A),
+				new ReadModifier(B),
+			]);
 
 			expect(queryAB1.intersectsWith(queryAB2)).toBe(false);
 		});

@@ -90,13 +90,17 @@ if (import.meta.vitest) {
 	describe('onAddSystem', () => {
 		it('registers the events', () => {
 			const builder: WorldBuilder = {
-				register: vi.fn(),
-				registerResource: vi.fn(),
+				register: vi.fn(() => builder),
+				registerResource: vi.fn(() => builder),
+				registerCommand: vi.fn(() => builder),
 			} as any;
 			new EventReaderDescriptor(A).onAddSystem(builder);
 			expect(builder.register).toHaveBeenCalledOnce();
 			expect(builder.registerResource).toHaveBeenLastCalledWith(Events);
 			expect(builder.register).toHaveBeenCalledWith(Events.key, A);
+			expect(builder.registerCommand).toHaveBeenCalledWith(
+				ClearEventQueueCommand,
+			);
 			new EventWriterDescriptor(B).onAddSystem(builder);
 			expect(builder.register).toHaveBeenCalledTimes(2);
 			expect(builder.register).toHaveBeenLastCalledWith(Events.key, B);
