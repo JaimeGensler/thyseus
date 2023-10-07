@@ -20,7 +20,7 @@ export class ResourceDescriptor implements SystemParameter {
 	intersectsWith(other: unknown): boolean {
 		return other instanceof ResourceDescriptor
 			? this.resourceType === other.resourceType &&
-					(this.isReadonly || other.isReadonly)
+					(!this.isReadonly || !other.isReadonly)
 			: false;
 	}
 
@@ -54,8 +54,8 @@ if (import.meta.vitest) {
 		});
 
 		it('returns false for resources that are both readonly', () => {
-			const res1 = new ResourceDescriptor(A);
-			const res2 = new ResourceDescriptor(A);
+			const res1 = new ResourceDescriptor(new ReadModifier(A));
+			const res2 = new ResourceDescriptor(new ReadModifier(A));
 
 			expect(res1.intersectsWith(res2)).toBe(false);
 		});

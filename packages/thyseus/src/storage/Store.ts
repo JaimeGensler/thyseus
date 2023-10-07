@@ -17,7 +17,7 @@ export class Store {
 	 * A mutable offset used by `readBoxed()`/`writeBoxed()` when accessing boxed data.
 	 * Moves whenever box data is read or written.
 	 */
-	boxOffset: number;
+	boxedOffset: number;
 
 	/**
 	 * The number of elements or bytes currently used by the store.
@@ -74,7 +74,7 @@ export class Store {
 
 	constructor(byteLength: number) {
 		this.offset = 0;
-		this.boxOffset = 0;
+		this.boxedOffset = 0;
 		this.length = 0;
 
 		this.buffer = new ArrayBuffer(alignTo8(byteLength));
@@ -303,14 +303,14 @@ export class Store {
 	 * @returns The boxed value.
 	 */
 	readBoxed<T = any>(): T {
-		return this.boxed[(this.boxOffset += 1) - 1];
+		return this.boxed[(this.boxedOffset += 1) - 1];
 	}
 
 	/**
 	 * Writes a boxed value (object) at the current box offset, moving the box offset.
 	 */
 	writeBoxed(value: any): void {
-		this.boxed[(this.boxOffset += 1) - 1] = value;
+		this.boxed[(this.boxedOffset += 1) - 1] = value;
 	}
 }
 

@@ -41,7 +41,7 @@ if (import.meta.vitest) {
 		it('throws if isSecureContext is false', () => {
 			vi.stubGlobal('isSecureContext', false);
 			vi.stubGlobal('SharedArrayBuffer', ArrayBuffer);
-			expect(getCompleteConfig({ useSharedMemory: true })).toThrow(
+			expect(() => getCompleteConfig({ useSharedMemory: true })).toThrow(
 				/secure context/,
 			);
 		});
@@ -49,7 +49,7 @@ if (import.meta.vitest) {
 		it('throws if SharedArrayBuffer is undefined', () => {
 			vi.stubGlobal('isSecureContext', true);
 			vi.stubGlobal('SharedArrayBuffer', undefined);
-			expect(getCompleteConfig({ useSharedMemory: true })).toThrow(
+			expect(() => getCompleteConfig({ useSharedMemory: true })).toThrow(
 				/SharedArrayBuffer/,
 			);
 		});
@@ -57,9 +57,9 @@ if (import.meta.vitest) {
 		it('does not throw if in a secure context & SAB is defined', () => {
 			vi.stubGlobal('isSecureContext', true);
 			vi.stubGlobal('SharedArrayBuffer', ArrayBuffer);
-			expect(getCompleteConfig({ useSharedMemory: true })).toThrow(
-				/SharedArrayBuffer/,
-			);
+			expect(() =>
+				getCompleteConfig({ useSharedMemory: true }),
+			).not.toThrow();
 		});
 	});
 
