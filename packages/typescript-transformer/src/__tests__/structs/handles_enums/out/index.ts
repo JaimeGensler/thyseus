@@ -1,4 +1,4 @@
-import { struct, Memory } from 'thyseus';
+import { struct, type Store } from 'thyseus';
 enum Status {
 	Pending,
 	Resolved,
@@ -15,16 +15,16 @@ enum MathConstants {
 class SomeStruct {
 	static readonly size = 16;
 	static readonly alignment = 8;
-	__$$b = 0;
-	deserialize() {
-		this.math = Memory.f64[this.__$$b >> 3];
-		this.order = Memory.i16[(this.__$$b + 8) >> 1];
-		this.status = Memory.u8[this.__$$b + 10];
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.math = store.readF64();
+		this.order = store.readI16();
+		this.status = store.readU8();
 	}
-	serialize() {
-		Memory.f64[this.__$$b >> 3] = this.math;
-		Memory.i16[(this.__$$b + 8) >> 1] = this.order;
-		Memory.u8[this.__$$b + 10] = this.status;
+	serialize(store: Store) {
+		store.writeF64(this.math);
+		store.writeI16(this.order);
+		store.writeU8(this.status);
 	}
 	status: Status = Status.Pending;
 	order: SortOrder = SortOrder.Ascending;

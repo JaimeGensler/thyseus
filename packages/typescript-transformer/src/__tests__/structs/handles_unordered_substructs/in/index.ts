@@ -2,10 +2,10 @@ import { struct } from 'thyseus';
 
 @struct
 class Parent {
-	inner: Child;
+	inner: Child = new Child();
 }
 
 @struct
 class Child {
-	isInner: boolean;
+	isInner: boolean = true;
 }

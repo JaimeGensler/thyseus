@@ -1,87 +1,115 @@
 import ts from 'typescript';
 
-const importsToAdd = new Map<string, Set<string>>();
+type ImportGroup = {
+	js: Set<string>;
+	type: Set<string>;
+};
+const importsToAdd = new Map<string, ImportGroup>();
 
-export function addImport(path: string, name: string): void {
-	if (!importsToAdd.has(path)) {
-		importsToAdd.set(path, new Set());
+export function addImport(
+	path: string,
+	name: string,
+	isTypeOnly: boolean = false,
+): void {
+	const quotePath = `'${path}'`;
+	if (!importsToAdd.has(quotePath)) {
+		importsToAdd.set(quotePath, { js: new Set(), type: new Set() });
 	}
-	importsToAdd.get(path)!.add(name);
+	const field = isTypeOnly ? 'type' : 'js';
+	importsToAdd.get(quotePath)![field].add(name);
 }
+
 export function consumeImports(sourceFile: ts.SourceFile): ts.SourceFile {
-	const statements: ts.Statement[] = [];
-	const existingImports: Set<string> = new Set();
-
-	// Traverse through the statements of the source file and collect the existing import statements
-	for (const statement of sourceFile.statements) {
-		if (ts.isImportDeclaration(statement)) {
-			existingImports.add(statement.moduleSpecifier.getText(sourceFile));
-			statements.push(statement);
-		} else {
-			statements.push(statement);
+	let didUpdateStatements = false;
+	const updatedStatements = sourceFile.statements.map(statement => {
+		if (!ts.isImportDeclaration(statement)) {
+			return statement;
 		}
-	}
+		const path = statement.moduleSpecifier.getText();
+		if (!importsToAdd.has(path)) {
+			return statement;
+		}
+		const { js, type } = importsToAdd.get(path)!;
 
-	// Add new import statements for each set of named imports
-	for (const [importPath, namedImports] of importsToAdd) {
-		const newNamedImportSpecifiers = Array.from(namedImports, name =>
-			ts.factory.createImportSpecifier(
+		const namedBindings = statement.importClause?.namedBindings;
+		if (namedBindings) {
+			if (ts.isNamedImports(namedBindings)) {
+				for (const element of namedBindings.elements) {
+					js.delete(element.name.getText());
+					type.delete(element.name.getText());
+				}
+			}
+		}
+		if (js.size === 0 && type.size === 0) {
+			return statement;
+		}
+		importsToAdd.delete(path);
+		didUpdateStatements = true;
+		return ts.factory.updateImportDeclaration(
+			statement,
+			statement.modifiers,
+			ts.factory.updateImportClause(
+				statement.importClause!,
 				false,
+				statement.importClause!.name,
+				ts.factory.updateNamedImports(
+					(statement as any).importClause.namedBindings,
+					[
+						...(statement as any).importClause.namedBindings
+							.elements,
+						...Array.from(js, item =>
+							ts.factory.createImportSpecifier(
+								false,
+								undefined,
+								ts.factory.createIdentifier(item),
+							),
+						),
+						...Array.from(type, item =>
+							ts.factory.createImportSpecifier(
+								true,
+								undefined,
+								ts.factory.createIdentifier(item),
+							),
+						),
+					],
+				),
+			),
+			statement.moduleSpecifier,
+			statement.assertClause,
+		);
+	});
+	for (const [path, { js, type }] of importsToAdd) {
+		updatedStatements.unshift(
+			ts.factory.createImportDeclaration(
 				undefined,
-				ts.factory.createIdentifier(name),
+				ts.factory.createImportClause(
+					false,
+					undefined,
+					ts.factory.createNamedImports([
+						...Array.from(js, item =>
+							ts.factory.createImportSpecifier(
+								false,
+								undefined,
+								ts.factory.createIdentifier(item),
+							),
+						),
+						...Array.from(type, item =>
+							ts.factory.createImportSpecifier(
+								true,
+								undefined,
+								ts.factory.createIdentifier(item),
+							),
+						),
+					]),
+				),
+				ts.factory.createStringLiteral(path),
 			),
 		);
-
-		if (!existingImports.has(`'${importPath}'`)) {
-			statements.unshift(
-				ts.factory.createImportDeclaration(
-					undefined,
-					ts.factory.createImportClause(
-						false,
-						undefined,
-						ts.factory.createNamedImports(newNamedImportSpecifiers),
-					),
-					ts.factory.createStringLiteral(importPath, true),
-				),
-			);
-		} else {
-			const importIndex = statements.findIndex(
-				statement =>
-					ts.isImportDeclaration(statement) &&
-					statement.moduleSpecifier.getText(sourceFile) ===
-						`'${importPath}'`,
-			);
-			const existingImport = statements[
-				importIndex
-			] as ts.ImportDeclaration;
-
-			const existingNamedImports =
-				(existingImport.importClause?.namedBindings as ts.NamedImports)
-					.elements ?? [];
-
-			const allNamedImports = [
-				...existingNamedImports.filter(
-					existing => !namedImports.has(existing.name.getText()),
-				),
-				...newNamedImportSpecifiers,
-			];
-
-			const updatedImportClause = ts.factory.updateImportClause(
-				existingImport.importClause!,
-				false,
-				undefined,
-				ts.factory.createNamedImports(allNamedImports),
-			);
-			statements[importIndex] = ts.factory.updateImportDeclaration(
-				existingImport,
-				existingImport.modifiers,
-				updatedImportClause,
-				existingImport.moduleSpecifier,
-				existingImport.assertClause,
-			);
-		}
 	}
-	importsToAdd.clear();
 
-	return ts.factory.updateSourceFile(sourceFile, statements);
+	importsToAdd.clear();
+	if (didUpdateStatements) {
+		return ts.factory.updateSourceFile(sourceFile, updatedStatements);
+	}
+	return sourceFile;
 }

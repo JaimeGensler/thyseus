@@ -2,8 +2,8 @@ import ts from 'typescript';
 import { TypeDescription } from './TypeDescription';
 import { numerics, type Numeric, getNumericFromType } from './numerics';
 import { AND } from ':rule-engine';
+import { createRead, createWrite } from './createReadWrite';
 
-const IMPORTS = ['Memory thyseus'];
 export class TupleTypeDescription extends TypeDescription {
 	static test = AND(ts.isTupleTypeNode, node => {
 		const elementType = node.elements[0].getText();
@@ -14,8 +14,6 @@ export class TupleTypeDescription extends TypeDescription {
 			node.elements.every(element => element.getText() === elementType)
 		);
 	});
-
-	imports = IMPORTS;
 
 	#type: Numeric;
 	#length: number;
@@ -28,43 +26,24 @@ export class TupleTypeDescription extends TypeDescription {
 		this.alignment = 1 << numerics[this.#type];
 		this.size = this.alignment * elements.length;
 	}
-	serialize(offset: number) {
-		return ts.factory.createExpressionStatement(
-			ts.factory.createCallExpression(
-				ts.factory.createPropertyAccessExpression(
-					ts.factory.createPropertyAccessExpression(
-						ts.factory.createIdentifier('Memory'),
-						ts.factory.createIdentifier(this.#type),
-					),
-					ts.factory.createIdentifier('set'),
-				),
-				undefined,
-				[
+	serialize() {
+		return Array.from({ length: this.#length }, (_, i) =>
+			createWrite(
+				this.#type,
+				ts.factory.createElementAccessExpression(
 					this.createThisPropertyAccess(),
-					this.createByteOffsetAccess(offset, numerics[this.#type]),
-				],
+					ts.factory.createNumericLiteral(i),
+				),
 			),
 		);
 	}
-	deserialize(offset: number) {
+	deserialize() {
 		return Array.from({ length: this.#length }, (_, i) =>
-			ts.factory.createExpressionStatement(
-				ts.factory.createBinaryExpression(
-					ts.factory.createElementAccessExpression(
-						this.createThisPropertyAccess(),
-						ts.factory.createNumericLiteral(i),
-					),
-					ts.SyntaxKind.EqualsToken,
-					ts.factory.createElementAccessExpression(
-						ts.factory.createPropertyAccessExpression(
-							ts.factory.createIdentifier('Memory'),
-							ts.factory.createIdentifier(this.#type),
-						),
-						this.createByteOffsetAccess(
-							offset + i * this.alignment,
-							numerics[this.#type],
-						),
-					),
+			createRead(
+				this.#type,
+				ts.factory.createElementAccessExpression(
+					this.createThisPropertyAccess(),
+					ts.factory.createNumericLiteral(i),
 				),
 			),
 		);

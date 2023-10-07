@@ -1,13 +1,13 @@
-import { struct, Memory } from 'thyseus';
+import { struct, type Store } from 'thyseus';
 class MyClass {
 	static readonly size = 1;
 	static readonly alignment = 1;
-	__$$b = 0;
-	deserialize() {
-		this.a = Boolean(Memory.u8[this.__$$b]);
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.a = Boolean(store.readU8());
 	}
-	serialize() {
-		Memory.u8[this.__$$b] = Number(this.a);
+	serialize(store: Store) {
+		store.writeU8(Number(this.a));
 	}
-	a: boolean;
+	a: boolean = false;
 }

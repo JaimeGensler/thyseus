@@ -1,40 +1,40 @@
-import { struct, Memory } from 'thyseus';
+import { struct, type Store } from 'thyseus';
 class AllNumerics {
 	static readonly size = 48;
 	static readonly alignment = 8;
-	__$$b = 0;
-	deserialize() {
-		this.u64 = Memory.u64[this.__$$b >> 3];
-		this.i64 = Memory.i64[(this.__$$b + 8) >> 3];
-		this.f64 = Memory.f64[(this.__$$b + 16) >> 3];
-		this.u32 = Memory.u32[(this.__$$b + 24) >> 2];
-		this.i32 = Memory.i32[(this.__$$b + 28) >> 2];
-		this.f32 = Memory.f32[(this.__$$b + 32) >> 2];
-		this.u16 = Memory.u16[(this.__$$b + 36) >> 1];
-		this.i16 = Memory.i16[(this.__$$b + 38) >> 1];
-		this.u8 = Memory.u8[this.__$$b + 40];
-		this.i8 = Memory.i8[this.__$$b + 41];
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.u64 = store.readU64();
+		this.i64 = store.readI64();
+		this.f64 = store.readF64();
+		this.u32 = store.readU32();
+		this.i32 = store.readI32();
+		this.f32 = store.readF32();
+		this.u16 = store.readU16();
+		this.i16 = store.readI16();
+		this.u8 = store.readU8();
+		this.i8 = store.readI8();
 	}
-	serialize() {
-		Memory.u64[this.__$$b >> 3] = this.u64;
-		Memory.i64[(this.__$$b + 8) >> 3] = this.i64;
-		Memory.f64[(this.__$$b + 16) >> 3] = this.f64;
-		Memory.u32[(this.__$$b + 24) >> 2] = this.u32;
-		Memory.i32[(this.__$$b + 28) >> 2] = this.i32;
-		Memory.f32[(this.__$$b + 32) >> 2] = this.f32;
-		Memory.u16[(this.__$$b + 36) >> 1] = this.u16;
-		Memory.i16[(this.__$$b + 38) >> 1] = this.i16;
-		Memory.u8[this.__$$b + 40] = this.u8;
-		Memory.i8[this.__$$b + 41] = this.i8;
+	serialize(store: Store) {
+		store.writeU64(this.u64);
+		store.writeI64(this.i64);
+		store.writeF64(this.f64);
+		store.writeU32(this.u32);
+		store.writeI32(this.i32);
+		store.writeF32(this.f32);
+		store.writeU16(this.u16);
+		store.writeI16(this.i16);
+		store.writeU8(this.u8);
+		store.writeI8(this.i8);
 	}
-	u8: u8;
-	u16: u16;
-	u32: u32;
-	u64: u64;
-	i8: i8;
-	i16: i16;
-	i32: i32;
-	i64: i64;
-	f32: f32;
-	f64: f64;
+	u8: u8 = 0;
+	u16: u16 = 0;
+	u32: u32 = 0;
+	u64: u64 = 0n;
+	i8: i8 = 0;
+	i16: i16 = 0;
+	i32: i32 = 0;
+	i64: i64 = 0n;
+	f32: f32 = 0;
+	f64: f64 = 0;
 }

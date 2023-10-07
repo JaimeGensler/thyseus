@@ -2,5 +2,5 @@ import { struct } from 'thyseus';
 
 @struct
 class MyClass {
-	a: number;
+	a: number = 0;
 }

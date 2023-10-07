@@ -1,13 +1,13 @@
-import { struct, Memory } from 'thyseus';
+import { struct, type Store } from 'thyseus';
 class MyClass {
 	static readonly size = 8;
 	static readonly alignment = 8;
-	__$$b = 0;
-	deserialize() {
-		this.a = Memory.f64[this.__$$b >> 3];
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.a = store.readF64();
 	}
-	serialize() {
-		Memory.f64[this.__$$b >> 3] = this.a;
+	serialize(store: Store) {
+		store.writeF64(this.a);
 	}
-	a: number;
+	a: number = 0;
 }

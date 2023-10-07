@@ -1,33 +1,31 @@
-import { struct, type u16, type u32, Memory } from 'thyseus';
+import { struct, type u16, type u32, type Store } from 'thyseus';
 class Inner {
 	static readonly size = 4;
 	static readonly alignment = 2;
-	__$$b = 0;
-	deserialize() {
-		this.someData = Memory.u16[this.__$$b >> 1];
-		this.isInner = Boolean(Memory.u8[this.__$$b + 2]);
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.someData = store.readU16();
+		this.isInner = Boolean(store.readU8());
 	}
-	serialize() {
-		Memory.u16[this.__$$b >> 1] = this.someData;
-		Memory.u8[this.__$$b + 2] = Number(this.isInner);
+	serialize(store: Store) {
+		store.writeU16(this.someData);
+		store.writeU8(Number(this.isInner));
 	}
-	someData: u16;
-	isInner: boolean;
+	someData: u16 = 0;
+	isInner: boolean = true;
 }
 class Wrapper {
 	static readonly size = 8;
 	static readonly alignment = 4;
-	__$$b = 0;
-	deserialize() {
-		this.initial = Memory.u32[this.__$$b >> 2];
-		this.inner.__$$b = this.__$$b + 4;
-		this.inner.deserialize();
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.initial = store.readU32();
+		this.inner.deserialize(store);
 	}
-	serialize() {
-		Memory.u32[this.__$$b >> 2] = this.initial;
-		this.inner.__$$b = this.__$$b + 4;
-		this.inner.serialize();
+	serialize(store: Store) {
+		store.writeU32(this.initial);
+		this.inner.serialize(store);
 	}
-	initial: u32;
-	inner: Inner;
+	initial: u32 = 0;
+	inner: Inner = new Inner();
 }

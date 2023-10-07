@@ -3,9 +3,9 @@ import { TypeDescription } from './TypeDescription';
 import { useTypeChecker } from ':context';
 import { Numeric, numerics } from './numerics';
 import { NOT } from ':rule-engine';
+import { createRead, createWrite } from './createReadWrite';
 
 let currentType: Numeric | null;
-const IMPORTS = ['Memory thyseus'];
 
 export class EnumTypeDescription extends TypeDescription {
 	static test(node: ts.TypeNode): boolean {
@@ -14,7 +14,7 @@ export class EnumTypeDescription extends TypeDescription {
 		}
 		const checker = useTypeChecker();
 		const symbol = checker.getTypeAtLocation(node).symbol;
-		const declaration = symbol.declarations?.[0] as any;
+		const declaration = symbol?.declarations?.[0] as any;
 		if (!declaration || !ts.isEnumDeclaration(declaration)) {
 			return false;
 		}
@@ -22,7 +22,6 @@ export class EnumTypeDescription extends TypeDescription {
 		return currentType !== null;
 	}
 
-	imports = IMPORTS;
 	#type: Numeric;
 
 	constructor(node: ts.PropertyDeclaration) {
@@ -34,33 +33,11 @@ export class EnumTypeDescription extends TypeDescription {
 		this.alignment = this.size;
 	}
 
-	serialize(offset: number) {
-		return ts.factory.createExpressionStatement(
-			ts.factory.createBinaryExpression(
-				this.memoryLocation(offset),
-				ts.SyntaxKind.EqualsToken,
-				this.createThisPropertyAccess(),
-			),
-		);
+	serialize() {
+		return createWrite(this.#type, this.createThisPropertyAccess());
 	}
-	deserialize(offset: number) {
-		return ts.factory.createExpressionStatement(
-			ts.factory.createBinaryExpression(
-				this.createThisPropertyAccess(),
-				ts.SyntaxKind.EqualsToken,
-				this.memoryLocation(offset),
-			),
-		);
-	}
-
-	memoryLocation(offset: number) {
-		return ts.factory.createElementAccessExpression(
-			ts.factory.createPropertyAccessExpression(
-				ts.factory.createIdentifier('Memory'),
-				ts.factory.createIdentifier(this.#type),
-			),
-			this.createByteOffsetAccess(offset, numerics[this.#type]),
-		);
+	deserialize() {
+		return createRead(this.#type, this.createThisPropertyAccess());
 	}
 }
 
