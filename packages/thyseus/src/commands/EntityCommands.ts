@@ -15,11 +15,13 @@ export class EntityCommands {
 	#commands: Commands;
 	#id: bigint;
 	#isAlive: boolean;
+	#reused: Map<Struct, StructInstance>;
 	constructor(world: World, commands: Commands, id: bigint) {
 		this.#world = world;
 		this.#commands = commands;
 		this.#id = id;
 		this.#isAlive = !this.#world.entities.wasDespawned(this.id);
+		this.#reused = new Map();
 	}
 
 	get id() {
@@ -62,7 +64,14 @@ export class EntityCommands {
 	 * @returns `this`, for chaining.
 	 */
 	addType(componentType: Struct): this {
-		// TODO: Re-use!
+		if (componentType.boxedSize! === 0) {
+			if (this.#reused.has(componentType)) {
+				this.#reused.set(componentType, new componentType());
+			}
+			return this.add(this.#reused.get(componentType)!);
+		}
+		// Structs with boxed types can't be recycled as we would end up
+		// assigning the same object to multiple structs.
 		return this.add(new componentType());
 	}
 

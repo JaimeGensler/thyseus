@@ -80,6 +80,9 @@ export class EventWriter<T extends StructInstance> extends EventReader<T> {
 	 * Creates an event with the default data for that event.
 	 */
 	createDefault(): void {
+		if (this.type.boxedSize !== 0) {
+			new this.type().serialize!(this.#addEvent());
+		}
 		this.#default.serialize!(this.#addEvent());
 	}
 
