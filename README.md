@@ -20,14 +20,16 @@ Thyseus is a DX-focused and highly performant
 expressive, type-driven API and includes many features out of the box,
 including:
 
--   Hassle-free multithreading. Don't worry about scheduling, Mutexes, or
-    workers - just write your systems and let Thyseus take care of the rest.
+-   Boilerplate-free multithreading. Don't worry about setting up event
+    listeners - just export some functions and let Thyseus take care of the
+    rest.
 -   A **safety-first** approach. No `eval`, `new Function()`, or creating
     workers from blobs - Thyseus leverages recent additions to the language and
     a little bit of ✨ magic ✨ to do what it needs to, and **_will never use
     unsafe code_**.
 -   Archetypal storage for lean memory use and cache-friendly iteration.
--   Complex queries with `Optional`, `With`, `Without`, `And`, and `Or` filters.
+-   Complex queries with `And`, `Or`, `With`, `Without` filters.
+-   First class support for Resources (singletons) and Events.
 -   Deeply customizable execution logic for easy handling of patterns like fixed
     updates.
 
