@@ -1,4 +1,3 @@
-import { DEV_ASSERT } from '../utils';
 import { Query } from './Query';
 import { registerFilters, createArchetypeFilter, type Filter } from './filters';
 import type { World, WorldBuilder } from '../world';
@@ -23,10 +22,6 @@ export class QueryDescriptor implements SystemParameter {
 			this.reads.push(isReadonly);
 			const component: Struct = isReadonly ? accessor.value : accessor;
 			this.components.push(component);
-			DEV_ASSERT(
-				component.size! > 0,
-				`You may not request direct access to ZSTs - use a With filter instead (class ${component.name}).`,
-			);
 		}
 		this.filter = filter;
 	}
