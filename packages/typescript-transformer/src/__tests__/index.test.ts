@@ -10,9 +10,16 @@ import { getTransformer } from '../index';
 // 		as: 'raw',
 // 	}),
 // );
+// createSuite(
+// 	'structs',
+// 	import.meta.glob('./structs/**/*.ts', {
+// 		eager: true,
+// 		as: 'raw',
+// 	}),
+// );
 createSuite(
-	'structs',
-	import.meta.glob('./structs/**/*.ts', {
+	'threads',
+	import.meta.glob('./threads/**/*.ts', {
 		eager: true,
 		as: 'raw',
 	}),

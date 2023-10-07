@@ -5,6 +5,7 @@ import { useConfig, useProgram, type TransformerConfig } from ':context';
 import { transformSystems } from './systems';
 import { registerHandwrittenStructs, transformStructs } from './structs';
 import { transformIterators } from './iterators';
+import { transformThreads } from './threads/transformThreads';
 
 const visitors = pipe(
 	// registerHandwrittenStructs needs to run before transformStructs
@@ -13,6 +14,7 @@ const visitors = pipe(
 	transformStructs,
 	transformSystems,
 	transformIterators,
+	transformThreads,
 );
 
 export function getTransformer(config?: TransformerConfig) {
