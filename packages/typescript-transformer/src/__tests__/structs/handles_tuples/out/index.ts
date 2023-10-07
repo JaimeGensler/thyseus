@@ -1,28 +1,34 @@
-import { struct, Memory } from 'thyseus';
+import { struct, type Store } from 'thyseus';
 class Tuples {
 	static readonly size = 56;
 	static readonly alignment = 8;
-	__$$b = 0;
-	deserialize() {
-		this.nums[0] = Memory.f64[this.__$$b >> 3];
-		this.nums[1] = Memory.f64[(this.__$$b + 8) >> 3];
-		this.nums[2] = Memory.f64[(this.__$$b + 16) >> 3];
-		this.nums[3] = Memory.f64[(this.__$$b + 24) >> 3];
-		this.f32s[0] = Memory.f32[(this.__$$b + 32) >> 2];
-		this.f32s[1] = Memory.f32[(this.__$$b + 36) >> 2];
-		this.f32s[2] = Memory.f32[(this.__$$b + 40) >> 2];
-		this.i16s[0] = Memory.i16[(this.__$$b + 44) >> 1];
-		this.i16s[1] = Memory.i16[(this.__$$b + 46) >> 1];
-		this.u8s[0] = Memory.u8[this.__$$b + 48];
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.nums[0] = store.readF64();
+		this.nums[1] = store.readF64();
+		this.nums[2] = store.readF64();
+		this.nums[3] = store.readF64();
+		this.f32s[0] = store.readF32();
+		this.f32s[1] = store.readF32();
+		this.f32s[2] = store.readF32();
+		this.i16s[0] = store.readI16();
+		this.i16s[1] = store.readI16();
+		this.u8s[0] = store.readU8();
 	}
-	serialize() {
-		Memory.f64.set(this.nums, this.__$$b >> 3);
-		Memory.f32.set(this.f32s, (this.__$$b + 32) >> 2);
-		Memory.i16.set(this.i16s, (this.__$$b + 44) >> 1);
-		Memory.u8.set(this.u8s, this.__$$b + 48);
+	serialize(store: Store) {
+		store.writeF64(this.nums[0]);
+		store.writeF64(this.nums[1]);
+		store.writeF64(this.nums[2]);
+		store.writeF64(this.nums[3]);
+		store.writeF32(this.f32s[0]);
+		store.writeF32(this.f32s[1]);
+		store.writeF32(this.f32s[2]);
+		store.writeI16(this.i16s[0]);
+		store.writeI16(this.i16s[1]);
+		store.writeU8(this.u8s[0]);
 	}
-	u8s: [u8];
-	i16s: [i16, i16];
-	f32s: [f32, f32, f32];
-	nums: [number, number, number, number];
+	u8s: [u8] = [0];
+	i16s: [i16, i16] = [0, 0];
+	f32s: [f32, f32, f32] = [0, 0, 0];
+	nums: [number, number, number, number] = [0, 0, 0, 0];
 }

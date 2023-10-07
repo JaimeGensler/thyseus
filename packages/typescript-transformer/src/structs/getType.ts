@@ -1,10 +1,9 @@
 import ts from 'typescript';
 import {
-	ArrayTypeDescription,
 	BooleanTypeDescription,
+	BoxedTypeDescription,
 	EnumTypeDescription,
 	NumericTypeDescription,
-	StringTypeDescription,
 	StructTypeDescription,
 	TupleTypeDescription,
 	type TypeDescription,
@@ -13,11 +12,10 @@ import {
 const recognizedTypes: (typeof TypeDescription)[] = [
 	BooleanTypeDescription,
 	NumericTypeDescription,
-	StringTypeDescription,
 	TupleTypeDescription,
-	ArrayTypeDescription,
 	EnumTypeDescription,
 	StructTypeDescription,
+	BoxedTypeDescription,
 ];
 export function getType(node: ts.PropertyDeclaration): TypeDescription | null {
 	for (const typeDescription of recognizedTypes) {

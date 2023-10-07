@@ -1,25 +1,32 @@
-import { struct, Memory } from 'thyseus';
+import {
+	struct,
+	type u8,
+	type i16,
+	type f32,
+	type u64,
+	type Store,
+} from 'thyseus';
 class MyClass {
 	static readonly size = 16;
 	static readonly alignment = 8;
-	__$$b = 0;
-	deserialize() {
-		this.d = Memory.u64[this.__$$b >> 3];
-		this.c = Memory.f32[(this.__$$b + 8) >> 2];
-		this.b = Memory.i16[(this.__$$b + 12) >> 1];
-		this.a = Memory.u8[this.__$$b + 14];
-		this.e = Boolean(Memory.u8[this.__$$b + 15]);
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.d = store.readU64();
+		this.c = store.readF32();
+		this.b = store.readI16();
+		this.a = store.readU8();
+		this.e = Boolean(store.readU8());
 	}
-	serialize() {
-		Memory.u64[this.__$$b >> 3] = this.d;
-		Memory.f32[(this.__$$b + 8) >> 2] = this.c;
-		Memory.i16[(this.__$$b + 12) >> 1] = this.b;
-		Memory.u8[this.__$$b + 14] = this.a;
-		Memory.u8[this.__$$b + 15] = Number(this.e);
+	serialize(store: Store) {
+		store.writeU64(this.d);
+		store.writeF32(this.c);
+		store.writeI16(this.b);
+		store.writeU8(this.a);
+		store.writeU8(Number(this.e));
 	}
-	a: u8;
-	b: i16;
-	c: f32;
-	d: u64;
-	e: boolean;
+	a: u8 = 0;
+	b: i16 = 0;
+	c: f32 = 0;
+	d: u64 = 0n;
+	e: boolean = false;
 }

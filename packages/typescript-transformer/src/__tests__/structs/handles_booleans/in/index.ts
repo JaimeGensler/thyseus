@@ -2,5 +2,5 @@ import { struct } from 'thyseus';
 
 @struct
 class MyClass {
-	a: boolean;
+	a: boolean = false;
 }

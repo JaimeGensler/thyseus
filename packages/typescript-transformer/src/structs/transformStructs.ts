@@ -1,6 +1,6 @@
 import ts from 'typescript';
 import { NOT } from ':rule-engine';
-import { addImport, createVisitor } from ':transform-utils';
+import { createVisitor } from ':transform-utils';
 import { assert } from ':utils';
 import {
 	isTransformableMember,
@@ -30,20 +30,14 @@ export const transformStructs = createVisitor(
 					typeDescription,
 					`Unrecognized type in @struct class - structs can only contain properties of specific types (class ${node.name?.getText()}, property ${member.name?.getText()})`,
 				);
-
-				for (const importDescription of typeDescription.imports) {
-					const [importName, importFrom] =
-						importDescription.split(' ');
-					addImport(importFrom, importName);
-				}
 				properties.push(typeDescription);
 			}
 		}
 
-		const { size, alignment, structProperties, hasDrop } =
+		const { size, alignment, structProperties } =
 			createStructProperties(properties);
 
-		addToRegistry(node, { size, alignment, hasDrop });
+		addToRegistry(node, { size, alignment });
 		return ts.factory.updateClassDeclaration(
 			node,
 			node.modifiers?.filter(NOT(isStructDecorator)),

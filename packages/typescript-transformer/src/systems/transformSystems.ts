@@ -1,23 +1,12 @@
 import ts from 'typescript';
 import { useConfig } from ':context';
-import {
-	createVisitor,
-	getOriginalDeclaration,
-	addImport,
-} from ':transform-utils';
+import { createVisitor, addImport } from ':transform-utils';
 import { isSystem } from './rules';
 import { getSignatureDeclaration } from './getSignatureDeclaration';
 import { getTypeNameFromNode } from './getTypeNameFromNode';
-import { registerHandwrittenStructs, transformStructs } from '../structs';
-import { isInRegistry } from '../structs/registry';
 import { getName } from './getName';
-import { createSerializationCall } from '../iterators';
 
-let isInRes = false;
-const sers: string[] = [];
 export const transformSystems = createVisitor(isSystem, node => {
-	sers.length = 0;
-
 	const descriptors = ts.factory.createExpressionStatement(
 		ts.factory.createAssignment(
 			ts.factory.createPropertyAccessExpression(
@@ -32,28 +21,7 @@ export const transformSystems = createVisitor(isSystem, node => {
 		),
 	);
 
-	if (sers.length === 0 || !ts.isFunctionDeclaration(node)) {
-		return [node, descriptors];
-	}
-	return [
-		ts.factory.updateFunctionDeclaration(
-			node,
-			node.modifiers,
-			node.asteriskToken,
-			node.name,
-			node.typeParameters,
-			node.parameters,
-			node.type,
-			ts.factory.createBlock([
-				...sers.map(name =>
-					createSerializationCall(name, 'deserialize'),
-				),
-				...(node.body?.statements ?? []),
-				...sers.map(name => createSerializationCall(name, 'serialize')),
-			]),
-		),
-		descriptors,
-	];
+	return [node, descriptors];
 });
 
 function createDescriptorFromTypeNode(
@@ -65,9 +33,6 @@ function createDescriptorFromTypeNode(
 		const typeName = getTypeNameFromNode(node);
 		const descriptor = systemParameters[typeName];
 
-		if (typeName === 'Res' || typeName === 'SystemRes') {
-			isInRes = true;
-		}
 		if (descriptor) {
 			addImport(descriptor.importPath, descriptor.descriptorName);
 			return ts.factory.createNewExpression(
@@ -78,17 +43,6 @@ function createDescriptorFromTypeNode(
 				) ?? [],
 			);
 		} else {
-			if (isInRes) {
-				isInRes = false;
-				const dec = getOriginalDeclaration(node);
-				if (dec) {
-					transformStructs(dec);
-					registerHandwrittenStructs(dec);
-					if (isInRegistry(dec as any)) {
-						sers.push(param.name.getText());
-					}
-				}
-			}
 			return ts.factory.createIdentifier(typeName);
 		}
 	} else if (ts.isTupleTypeNode(node)) {
@@ -98,10 +52,6 @@ function createDescriptorFromTypeNode(
 			),
 		);
 	} else {
-		if (isInRes) {
-			isInRes = false;
-			sers.push(param.name.getText());
-		}
 		return ts.factory.createIdentifier(node.getText());
 	}
 }

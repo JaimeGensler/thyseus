@@ -8,5 +8,4 @@ abstract class Abstract {
 class Concrete {
 	declare declaredProp: number;
 	static staticProp: number;
-	readonly prop: number;
 }

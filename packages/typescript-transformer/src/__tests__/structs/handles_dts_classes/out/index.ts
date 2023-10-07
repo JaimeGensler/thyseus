@@ -1,16 +1,14 @@
 import { Point } from './type';
-import { struct } from 'thyseus';
+import { struct, type Store } from 'thyseus';
 class Location {
 	static readonly size = 24;
 	static readonly alignment = 8;
-	__$$b = 0;
-	deserialize() {
-		this.point.__$$b = this.__$$b;
-		this.point.deserialize();
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.point.deserialize(store);
 	}
-	serialize() {
-		this.point.__$$b = this.__$$b;
-		this.point.serialize();
+	serialize(store: Store) {
+		this.point.serialize(store);
 	}
 	point: Point = new Point();
 }

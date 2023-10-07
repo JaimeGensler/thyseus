@@ -3,7 +3,6 @@ import ts from 'typescript';
 export type StructClassData = {
 	size: number;
 	alignment: number;
-	hasDrop: boolean;
 };
 
 const REGISTRY = new Map<string, StructClassData>();

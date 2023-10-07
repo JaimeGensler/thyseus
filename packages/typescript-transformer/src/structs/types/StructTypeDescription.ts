@@ -9,6 +9,9 @@ import { registerHandwrittenStructs } from '../registerHandwrittenStructs';
 export class StructTypeDescription extends TypeDescription {
 	static test = AND(ts.isTypeReferenceNode, node => {
 		const def = getOriginalDeclaration(node);
+		if (!def) {
+			return false;
+		}
 		let data = getRegistryData(def as ts.ClassDeclaration);
 		if (!data && def && ts.isClassDeclaration(def)) {
 			transformStructs(def);
@@ -28,40 +31,27 @@ export class StructTypeDescription extends TypeDescription {
 		this.alignment = alignment;
 	}
 
-	serialize(offset: number): ts.Statement[] {
-		return [
-			this.assignSubstructOffset(offset),
-			this.callMethod('serialize'),
-		];
-	}
-	deserialize(offset: number): ts.Statement[] {
-		return [
-			this.assignSubstructOffset(offset),
-			this.callMethod('deserialize'),
-		];
-	}
-
-	assignSubstructOffset(offset: number): ts.ExpressionStatement {
-		return ts.factory.createExpressionStatement(
-			ts.factory.createBinaryExpression(
-				ts.factory.createPropertyAccessExpression(
-					this.createThisPropertyAccess(),
-					ts.factory.createIdentifier('__$$b'),
-				),
-				ts.SyntaxKind.EqualsToken,
-				this.createByteOffsetAccess(offset, 0),
-			),
-		);
-	}
-	callMethod(methodName: string) {
+	deserialize() {
 		return ts.factory.createExpressionStatement(
 			ts.factory.createCallExpression(
 				ts.factory.createPropertyAccessExpression(
 					this.createThisPropertyAccess(),
-					ts.factory.createIdentifier(methodName),
+					ts.factory.createIdentifier('deserialize'),
 				),
 				undefined,
+				[ts.factory.createIdentifier('store')],
+			),
+		);
+	}
+	serialize() {
+		return ts.factory.createExpressionStatement(
+			ts.factory.createCallExpression(
+				ts.factory.createPropertyAccessExpression(
+					this.createThisPropertyAccess(),
+					ts.factory.createIdentifier('serialize'),
+				),
 				undefined,
+				[ts.factory.createIdentifier('store')],
 			),
 		);
 	}

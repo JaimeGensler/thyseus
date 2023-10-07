@@ -1,15 +1,15 @@
-import { struct, Memory } from 'thyseus';
+import { struct, type Store } from 'thyseus';
 class Vec2 {
 	static readonly size = 16;
 	static readonly alignment = 8;
-	__$$b = 0;
-	deserialize() {
-		this.x = Memory.f64[this.__$$b >> 3];
-		this.y = Memory.f64[(this.__$$b + 8) >> 3];
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.x = store.readF64();
+		this.y = store.readF64();
 	}
-	serialize() {
-		Memory.f64[this.__$$b >> 3] = this.x;
-		Memory.f64[(this.__$$b + 8) >> 3] = this.y;
+	serialize(store: Store) {
+		store.writeF64(this.x);
+		store.writeF64(this.y);
 	}
 	x: number = 0;
 	y: number = 0;
@@ -17,14 +17,14 @@ class Vec2 {
 class Vec3 extends Vec2 {
 	static readonly size = 24;
 	static readonly alignment = 8;
-	__$$b = 0;
-	deserialize() {
-		super.deserialize();
-		this.z = Memory.f64[(this.__$$b + 16) >> 3];
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		super.deserialize(store);
+		this.z = store.readF64();
 	}
-	serialize() {
-		super.serialize();
-		Memory.f64[(this.__$$b + 16) >> 3] = this.z;
+	serialize(store: Store) {
+		super.serialize(store);
+		store.writeF64(this.z);
 	}
 	z: number = 0;
 }

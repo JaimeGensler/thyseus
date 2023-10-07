@@ -1,102 +1,60 @@
 import ts from 'typescript';
 import { StructClassData, getRegistryData, isInRegistry } from '../registry';
-import { getOriginalDeclaration } from '../../transform-utils/getOriginalDeclaration';
 import { getParentDeclaration } from '../../transform-utils/getParentDeclaration';
+import { assert } from ':utils';
 
 let heldClassData: StructClassData | null = null;
 function isDirectParentStruct(node: ts.ClassDeclaration): boolean {
 	const declaration = getParentDeclaration(node);
 
-	if (declaration && isInRegistry(declaration as any)) {
+	if (declaration) {
+		assert(
+			isInRegistry(declaration as any),
+			`Structs may not extend non-struct classes (${node.name?.getText()})`,
+		);
 		heldClassData = getRegistryData(declaration as any)!;
 		return true;
 	}
 	return false;
 }
 
-const IMPORTS: string[] = [];
 export class SuperTypeDescription {
 	static test = isDirectParentStruct;
 
 	size: number;
 	alignment: number;
 	name = 'super' as any;
-	imports = IMPORTS;
-
-	#hasDrop: boolean;
 	constructor(node: ts.ClassDeclaration) {
 		this.size = heldClassData!.size;
 		this.alignment = heldClassData!.alignment;
-		this.#hasDrop = heldClassData!.hasDrop;
 		heldClassData = null;
 	}
 
-	serialize(offset: number): ts.Statement | ts.Statement[] {
-		return offset === 0
-			? this.callMethod('serialize')
-			: [
-					this.moveSelfOffset(offset, 'add'),
-					this.callMethod('serialize'),
-					this.moveSelfOffset(offset, 'subtract'),
-			  ];
-	}
-	deserialize(offset: number): ts.Statement | ts.Statement[] {
-		return offset === 0
-			? this.callMethod('deserialize')
-			: [
-					this.moveSelfOffset(offset, 'add'),
-					this.callMethod('deserialize'),
-					this.moveSelfOffset(offset, 'subtract'),
-			  ];
-	}
-	drop(offset: number): ts.Statement | null {
-		return this.#hasDrop
-			? ts.factory.createExpressionStatement(
-					ts.factory.createCallExpression(
-						ts.factory.createPropertyAccessExpression(
-							ts.factory.createSuper(),
-							ts.factory.createIdentifier('drop'),
-						),
-						undefined,
-						[
-							ts.factory.createBinaryExpression(
-								ts.factory.createIdentifier('offset'),
-								ts.SyntaxKind.PlusToken,
-								ts.factory.createNumericLiteral(offset),
-							),
-						],
-					),
-			  )
-			: null;
-	}
-
-	moveSelfOffset(offset: number, type: string) {
-		return ts.factory.createExpressionStatement(
-			ts.factory.createBinaryExpression(
-				ts.factory.createPropertyAccessExpression(
-					ts.factory.createThis(),
-					'__$$b',
-				),
-				type === 'add'
-					? ts.SyntaxKind.PlusEqualsToken
-					: ts.SyntaxKind.MinusEqualsToken,
-				ts.factory.createNumericLiteral(offset),
-			),
-		);
-	}
-	callMethod(methodName: string) {
+	deserialize() {
 		return ts.factory.createExpressionStatement(
 			ts.factory.createCallExpression(
 				ts.factory.createPropertyAccessExpression(
 					ts.factory.createSuper(),
-					ts.factory.createIdentifier(methodName),
+					ts.factory.createIdentifier('deserialize'),
 				),
-				undefined,
-				undefined,
+				undefined, // Type arguments, if any
+				[ts.factory.createIdentifier('store')], // Arguments passed to the method (empty in this case)
+			),
+		);
+	}
+	serialize() {
+		return ts.factory.createExpressionStatement(
+			ts.factory.createCallExpression(
+				ts.factory.createPropertyAccessExpression(
+					ts.factory.createSuper(),
+					ts.factory.createIdentifier('serialize'),
+				),
+				undefined, // Type arguments, if any
+				[ts.factory.createIdentifier('store')], // Arguments passed to the method (empty in this case)
 			),
 		);
 	}
 
+	boxedSize = 0;
 	createThisPropertyAccess(): any {}
-	createByteOffsetAccess(offset: number, shift: number): any {}
 }

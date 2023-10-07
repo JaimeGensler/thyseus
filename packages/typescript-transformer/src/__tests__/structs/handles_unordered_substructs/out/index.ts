@@ -1,27 +1,25 @@
-import { struct, Memory } from 'thyseus';
+import { struct, type Store } from 'thyseus';
 class Parent {
 	static readonly size = 1;
 	static readonly alignment = 1;
-	__$$b = 0;
-	deserialize() {
-		this.inner.__$$b = this.__$$b;
-		this.inner.deserialize();
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.inner.deserialize(store);
 	}
-	serialize() {
-		this.inner.__$$b = this.__$$b;
-		this.inner.serialize();
+	serialize(store: Store) {
+		this.inner.serialize(store);
 	}
-	inner: Child;
+	inner: Child = new Child();
 }
 class Child {
 	static readonly size = 1;
 	static readonly alignment = 1;
-	__$$b = 0;
-	deserialize() {
-		this.isInner = Boolean(Memory.u8[this.__$$b]);
+	static readonly boxedSize = 0;
+	deserialize(store: Store) {
+		this.isInner = Boolean(store.readU8());
 	}
-	serialize() {
-		Memory.u8[this.__$$b] = Number(this.isInner);
+	serialize(store: Store) {
+		store.writeU8(Number(this.isInner));
 	}
-	isInner: boolean;
+	isInner: boolean = true;
 }
