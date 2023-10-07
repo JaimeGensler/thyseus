@@ -1,41 +1,34 @@
 import { DEV_ASSERT } from '../utils';
 import { Query } from './Query';
-import { Mut } from './modifiers';
 import { registerFilters, createArchetypeFilter, type Filter } from './filters';
 import type { World, WorldBuilder } from '../world';
 import type { SystemParameter } from '../systems';
-import type { Class, Struct } from '../struct';
+import type { Struct } from '../struct';
+import { ReadModifier } from './modifiers';
 
-export type AccessDescriptor = Struct | Mut<object>;
-type UnwrapElement<E extends any> = E extends Class ? InstanceType<E> : E;
-
-export class QueryDescriptor<
-	A extends AccessDescriptor | AccessDescriptor[],
-	F extends Filter = Filter,
-> implements SystemParameter
-{
+export class QueryDescriptor implements SystemParameter {
 	components: Struct[] = [];
-	writes: boolean[] = [];
-	filter: F | null;
+	reads: boolean[] = [];
+	filter: Filter | undefined;
 	isIndividual: boolean;
 
-	constructor(accessors: A | [...(A extends any[] ? A : never)], filter?: F) {
+	constructor(accessors: (Struct | ReadModifier)[], filter?: Filter) {
 		this.isIndividual = !Array.isArray(accessors);
-		const iter: AccessDescriptor[] = Array.isArray(accessors)
+		const iter: (Struct | ReadModifier)[] = Array.isArray(accessors)
 			? accessors
 			: [accessors];
 
 		for (const accessor of iter) {
-			const isMut = accessor instanceof Mut;
-			this.writes.push(isMut);
-			const component = isMut ? accessor.value : accessor;
+			const isReadonly = accessor instanceof ReadModifier;
+			this.reads.push(isReadonly);
+			const component: Struct = isReadonly ? accessor.value : accessor;
 			this.components.push(component);
 			DEV_ASSERT(
 				component.size! > 0,
 				`You may not request direct access to ZSTs - use a With filter instead (class ${component.name}).`,
 			);
 		}
-		this.filter = filter ?? null;
+		this.filter = filter;
 	}
 
 	isLocalToThread(): boolean {
@@ -48,7 +41,7 @@ export class QueryDescriptor<
 					other.components.some(
 						(compB, iB) =>
 							compA === compB &&
-							(this.writes[iA] || other.writes[iB]),
+							(this.reads[iA] || other.reads[iB]),
 					),
 			  )
 			: false;
@@ -63,14 +56,7 @@ export class QueryDescriptor<
 		}
 	}
 
-	intoArgument(world: World): Query<
-		A extends any[]
-			? {
-					[Index in keyof A]: UnwrapElement<A[Index]>;
-			  }
-			: UnwrapElement<A>,
-		any
-	> {
+	intoArgument(world: World): Query<any, any> {
 		const initial = world.getArchetype(...this.components);
 		const filters = this.filter
 			? createArchetypeFilter(
@@ -89,7 +75,7 @@ export class QueryDescriptor<
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, describe, vi, beforeEach } = import.meta.vitest;
+	const { it, expect, describe, vi } = import.meta.vitest;
 	const { With, Without, Or } = await import('./filters');
 	const { World } = await import('../world');
 
@@ -118,8 +104,8 @@ if (import.meta.vitest) {
 			const queryCD = new QueryDescriptor([C, D]);
 			expect(queryAB.intersectsWith(queryCD)).toBe(false);
 
-			const queryABMut = new QueryDescriptor([new Mut(A), new Mut(B)]);
-			const queryCDMut = new QueryDescriptor([new Mut(C), new Mut(D)]);
+			const queryABMut = new QueryDescriptor([A, B]);
+			const queryCDMut = new QueryDescriptor([C, D]);
 			expect(queryABMut.intersectsWith(queryCDMut)).toBe(false);
 		});
 
@@ -131,9 +117,9 @@ if (import.meta.vitest) {
 		});
 
 		it('returns true for queries that read/write overlap', () => {
-			const query1 = new QueryDescriptor([new Mut(A), B]);
+			const query1 = new QueryDescriptor([A, B]);
 			const query2 = new QueryDescriptor([A, D]);
-			const query3 = new QueryDescriptor([C, new Mut(B)]);
+			const query3 = new QueryDescriptor([C, B]);
 			expect(query1.intersectsWith(query2)).toBe(true);
 			expect(query1.intersectsWith(query3)).toBe(true);
 		});
@@ -150,12 +136,7 @@ if (import.meta.vitest) {
 				registerComponent,
 			} as any;
 
-			const descriptor = new QueryDescriptor([
-				A,
-				new Mut(B),
-				new Mut(C),
-				D,
-			]);
+			const descriptor = new QueryDescriptor([A, B, C, D]);
 			descriptor.onAddSystem(builder);
 
 			expect(registerComponent).toHaveBeenCalledTimes(4);
@@ -188,13 +169,9 @@ if (import.meta.vitest) {
 			expect(new QueryDescriptor([A, B, C]).isLocalToThread()).toBe(
 				false,
 			);
-			expect(
-				new QueryDescriptor([
-					new Mut(A),
-					new Mut(B),
-					new Mut(C),
-				]).isLocalToThread(),
-			).toBe(false);
+			expect(new QueryDescriptor([A, B, C]).isLocalToThread()).toBe(
+				false,
+			);
 		});
 	});
 

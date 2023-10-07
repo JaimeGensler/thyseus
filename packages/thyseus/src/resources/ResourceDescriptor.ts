@@ -1,16 +1,16 @@
-import { Mut } from '../queries';
+import { ReadModifier } from '../queries';
 import { isStruct, type Class, Struct } from '../struct';
 import type { SystemParameter } from '../systems';
 import type { World, WorldBuilder } from '../world';
 
 export class ResourceDescriptor implements SystemParameter {
 	resourceType: Class;
-	canWrite: boolean;
+	isReadonly: boolean;
 
-	constructor(resource: Struct | Mut<any>) {
-		const isMut = resource instanceof Mut;
-		this.resourceType = isMut ? resource.value : resource;
-		this.canWrite = isMut;
+	constructor(resource: Struct | ReadModifier) {
+		const isReadonly = resource instanceof ReadModifier;
+		this.resourceType = isReadonly ? resource.value : resource;
+		this.isReadonly = isReadonly;
 	}
 
 	isLocalToThread(): boolean {
@@ -20,7 +20,7 @@ export class ResourceDescriptor implements SystemParameter {
 	intersectsWith(other: unknown): boolean {
 		return other instanceof ResourceDescriptor
 			? this.resourceType === other.resourceType &&
-					(this.canWrite || other.canWrite)
+					(this.isReadonly || other.isReadonly)
 			: false;
 	}
 
@@ -62,8 +62,8 @@ if (import.meta.vitest) {
 
 		it('returns true for resources that read/write overlap', () => {
 			const res1 = new ResourceDescriptor(A);
-			const res2 = new ResourceDescriptor(new Mut(A));
-			const res3 = new ResourceDescriptor(new Mut(A));
+			const res2 = new ResourceDescriptor(A);
+			const res3 = new ResourceDescriptor(A);
 
 			expect(res1.intersectsWith(res2)).toBe(true);
 			expect(res2.intersectsWith(res3)).toBe(true);
@@ -86,7 +86,7 @@ if (import.meta.vitest) {
 			new ResourceDescriptor(A).onAddSystem(builder);
 			expect(builder.registerResource).toHaveBeenCalledTimes(1);
 			expect(builder.registerResource).toHaveBeenCalledWith(A);
-			new ResourceDescriptor(new Mut(B)).onAddSystem(builder);
+			new ResourceDescriptor(B).onAddSystem(builder);
 			expect(builder.registerResource).toHaveBeenCalledWith(B);
 		});
 	});
@@ -94,15 +94,11 @@ if (import.meta.vitest) {
 	describe('isLocalToThread', () => {
 		it('returns true if resource does not have struct static fields', () => {
 			expect(new ResourceDescriptor(A).isLocalToThread()).toBe(true);
-			expect(new ResourceDescriptor(new Mut(B)).isLocalToThread()).toBe(
-				true,
-			);
+			expect(new ResourceDescriptor(B).isLocalToThread()).toBe(true);
 		});
 		it('returns false if resource has struct static fields', () => {
 			expect(new ResourceDescriptor(C).isLocalToThread()).toBe(false);
-			expect(new ResourceDescriptor(new Mut(C)).isLocalToThread()).toBe(
-				false,
-			);
+			expect(new ResourceDescriptor(C).isLocalToThread()).toBe(false);
 		});
 	});
 
@@ -122,7 +118,7 @@ if (import.meta.vitest) {
 				new ResourceDescriptor(A).intoArgument(world),
 			).toBeInstanceOf(A);
 			expect(
-				new ResourceDescriptor(new Mut(C)).intoArgument(world),
+				new ResourceDescriptor(C).intoArgument(world),
 			).toBeInstanceOf(C);
 		});
 	});

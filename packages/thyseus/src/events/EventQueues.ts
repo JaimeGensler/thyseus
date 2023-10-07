@@ -1,7 +1,7 @@
 import type { Commands } from '../commands';
 import type { Struct, StructInstance } from '../struct';
 import type { Store } from '../storage';
-import { ClearEventQueueCommand } from './ClearEventQueCommand';
+import { ClearEventQueueCommand } from './ClearEventQueueCommand';
 
 export class EventReader<T extends StructInstance> {
 	#commands: Commands;

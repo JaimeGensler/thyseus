@@ -7,12 +7,9 @@ declare global {
 	type EntityCommands = Thyseus.EntityCommands;
 	type Table = Thyseus.Table;
 	type Entities = Thyseus.Entities;
-	type ExecutorType = Thyseus.ExecutorType;
-	type ExecutorInstance = Thyseus.ExecutorInstance;
 	type Struct = Thyseus.Struct;
 	type System = Thyseus.System;
 	type SystemParameter = Thyseus.SystemParameter;
-	type SystemConfig = Thyseus.SystemConfig;
 	type WorldBuilder = Thyseus.WorldBuilder;
 	type ThyseusPlugin = Thyseus.Plugin;
 	type WorldConfig = Thyseus.WorldConfig;
@@ -30,7 +27,7 @@ declare global {
 	type World = Thyseus.World;
 
 	// Modifiers
-	type Mut<T extends object> = Thyseus.Mut<T>;
+	type Read<T extends object> = Thyseus.Read<T>;
 
 	// Filters
 	type Filter = Thyseus.Filter;

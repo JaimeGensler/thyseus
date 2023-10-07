@@ -9,21 +9,23 @@ import type { World } from '../world';
 import { alignTo8 } from '../utils';
 import { Store } from '../storage';
 
+export type Command = Struct & {
+	iterate(commands: Commands, world: World): any;
+};
 export class Commands {
 	#world: World;
 	#entities: Entities;
-	#commandTypes: Struct[];
+	commandTypes: Command[];
 	#commands: StructInstance[];
 	#queues: Store[];
 
 	#entityCommands: EntityCommands;
-	constructor(world: World) {
+	constructor(world: World, commandTypes: Command[]) {
 		this.#world = world;
 		this.#entities = world.entities;
-		// TODO: Receive commandTypes from registry
-		this.#commandTypes = [AddComponentCommand, RemoveComponentCommand];
-		this.#commands = this.#commandTypes.map(command => new command());
-		this.#queues = this.#commandTypes.map(() => new Store(0));
+		this.commandTypes = commandTypes;
+		this.#commands = this.commandTypes.map(command => new command());
+		this.#queues = this.commandTypes.map(() => new Store(0));
 		this.#entityCommands = new EntityCommands(world, this, 0n);
 	}
 
@@ -86,8 +88,8 @@ export class Commands {
 	 * @param additionalSize The _additional size_ (beyond the size of the commandType) this command will need.
 	 */
 	push(command: StructInstance, additionalSize: number = 0): void {
-		const commandType = command.constructor as Struct;
-		const store = this.#queues[this.#commandTypes.indexOf(commandType)];
+		const commandType = command.constructor as Command;
+		const store = this.#queues[this.commandTypes.indexOf(commandType)];
 		const addedSize = commandType.size! + alignTo8(additionalSize);
 		let newLength = store.length + addedSize;
 		if (store.byteLength < newLength) {
@@ -99,8 +101,8 @@ export class Commands {
 		command.serialize!(store);
 	}
 
-	*iterate<T extends Struct>(type: T): Generator<Readonly<InstanceType<T>>> {
-		const id = this.#commandTypes.indexOf(type);
+	*iterate<T extends Command>(type: T): Generator<Readonly<InstanceType<T>>> {
+		const id = this.commandTypes.indexOf(type);
 		const store = this.#queues[id];
 		const command = this.#commands[id];
 		store.offset = 0;

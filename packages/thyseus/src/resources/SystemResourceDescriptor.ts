@@ -2,12 +2,10 @@ import { isStruct, type Class } from '../struct';
 import type { SystemParameter } from '../systems';
 import type { World, WorldBuilder } from '../world';
 
-export class SystemResourceDescriptor<T extends object>
-	implements SystemParameter
-{
+export class SystemResourceDescriptor implements SystemParameter {
 	resourceType: Class;
 
-	constructor(resource: { new (): T }) {
+	constructor(resource: Class) {
 		this.resourceType = resource;
 	}
 
@@ -20,7 +18,7 @@ export class SystemResourceDescriptor<T extends object>
 
 	onAddSystem(builder: WorldBuilder): void {}
 
-	async intoArgument(world: World): Promise<T> {
+	async intoArgument(world: World): Promise<object> {
 		const { resourceType } = this;
 		return (resourceType as any).fromWorld
 			? (resourceType as any).fromWorld(world)

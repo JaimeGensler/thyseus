@@ -2,9 +2,9 @@ import { bits, DEV_ASSERT } from '../utils';
 import { WorldBuilder, type Registry } from './WorldBuilder';
 import { Commands } from '../commands';
 import { Table } from '../storage';
-import { ComponentRegistryKey } from './registryKeys';
+import { CommandRegistryKey, ComponentRegistryKey } from './registryKeys';
 import { StartSchedule } from '../schedules';
-import { validateAndCompleteConfig, type WorldConfig } from './config';
+import { getCompleteConfig, type WorldConfig } from './config';
 import type { Class, Struct } from '../struct';
 import type { Query } from '../queries';
 import { Entities } from '../entities';
@@ -17,7 +17,7 @@ export class World {
 	 * @returns A `WorldBuilder`.
 	 */
 	static new(config?: Partial<WorldConfig>): WorldBuilder {
-		return new WorldBuilder(validateAndCompleteConfig(config));
+		return new WorldBuilder(getCompleteConfig(config));
 	}
 
 	tables: Table[] = [];
@@ -42,7 +42,9 @@ export class World {
 		this.#archetypeToTable.set(0n, this.tables[0]);
 
 		this.entities = new Entities(this);
-		this.commands = new Commands(this);
+		this.commands = new Commands(this, [
+			...registry.get(CommandRegistryKey)!,
+		] as any);
 	}
 
 	/**

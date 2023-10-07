@@ -14,6 +14,12 @@ export class Store {
 	offset: number;
 
 	/**
+	 * A mutable offset used by `readBoxed()`/`writeBoxed()` when accessing boxed data.
+	 * Moves whenever box data is read or written.
+	 */
+	boxOffset: number;
+
+	/**
 	 * The number of elements or bytes currently used by the store.
 	 * Must be managed externally.
 	 */
@@ -64,10 +70,11 @@ export class Store {
 	 */
 	f64: Float64Array;
 
-	misc: any[];
+	boxed: any[];
 
 	constructor(byteLength: number) {
 		this.offset = 0;
+		this.boxOffset = 0;
 		this.length = 0;
 
 		this.buffer = new ArrayBuffer(alignTo8(byteLength));
@@ -82,7 +89,7 @@ export class Store {
 		this.f32 = new Float32Array(this.buffer);
 		this.f64 = new Float64Array(this.buffer);
 
-		this.misc = [];
+		this.boxed = [];
 	}
 	/**
 	 * The total byte length of the store's underlying ArrayBuffer.
@@ -290,12 +297,20 @@ export class Store {
 	writeF64(value: f64): void {
 		this.f64[((this.offset += 8) - 8) >> 3] = value;
 	}
-	readMisc<T = any>(): T {
-		// TODO
-		return {} as T;
+
+	/**
+	 * Reads the boxed value (object) at the current box offset, moving the box offset.
+	 * @returns The boxed value.
+	 */
+	readBoxed<T = any>(): T {
+		return this.boxed[(this.boxOffset += 1) - 1];
 	}
-	writeMisc(value: any): void {
-		// TODO
+
+	/**
+	 * Writes a boxed value (object) at the current box offset, moving the box offset.
+	 */
+	writeBoxed(value: any): void {
+		this.boxed[(this.boxOffset += 1) - 1] = value;
 	}
 }
 
