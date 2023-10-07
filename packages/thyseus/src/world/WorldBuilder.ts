@@ -2,24 +2,33 @@ import { DEV_ASSERT } from '../utils';
 import { World } from './World';
 import { Entity } from '../entities';
 import { DefaultSchedule } from '../schedules';
-import { ComponentRegistryKey, ResourceRegistryKey } from './registryKeys';
+import {
+	CommandRegistryKey,
+	ComponentRegistryKey,
+	ResourceRegistryKey,
+} from './registryKeys';
 import type { Class, Struct } from '../struct';
 import type { Plugin } from './Plugin';
 import type { System } from '../systems';
 import type { WorldConfig } from './config';
+import {
+	AddComponentCommand,
+	RemoveComponentCommand,
+	type Command,
+} from '../commands';
 
 export type Registry = Map<symbol, Set<any>>;
 export class WorldBuilder {
 	#schedules: Map<symbol, System[]> = new Map();
-
 	#registry: Registry = new Map();
-
 	#systems: Set<System> = new Set();
 
 	config: Readonly<WorldConfig>;
 	constructor(config: WorldConfig) {
 		this.config = config;
-		this.registerComponent(Entity);
+		this.registerComponent(Entity)
+			.registerCommand(AddComponentCommand)
+			.registerCommand(RemoveComponentCommand);
 	}
 
 	/**
@@ -40,40 +49,26 @@ export class WorldBuilder {
 	 */
 	addSystemsToSchedule(schedule: symbol, ...systems: System[]): this {
 		for (const system of systems.flat()) {
-			this.#addSystemToSchedule(schedule, system);
-		}
-		return this;
-	}
-
-	/**
-	 * Adds a system to the specified schedule.
-	 * @param schedule The schedule to add the system to.
-	 * @param systemLike The system to add.
-	 * @returns `this`, for chaining.
-	 */
-	#addSystemToSchedule(schedule: symbol, system: System): this {
-		if (!this.#schedules.has(schedule)) {
-			this.#schedules.set(schedule, []);
-		}
-		this.#systems.add(system);
-		if (system.parameters) {
-			for (const descriptor of system.parameters) {
-				descriptor.onAddSystem(this);
+			if (!this.#schedules.has(schedule)) {
+				this.#schedules.set(schedule, []);
 			}
+			this.#systems.add(system);
+			if (system.parameters) {
+				for (const descriptor of system.parameters) {
+					descriptor.onAddSystem(this);
+				}
+			}
+			const receivedParameters = system.parameters?.length ?? 0;
+			const expectedParameters = system.length;
+			DEV_ASSERT(
+				// A system should receive at least as many parameters as its
+				// length. Fewer is probably the result of bad transformation,
+				// more could just be the result of handwritten params.
+				receivedParameters >= expectedParameters,
+				`System "${system.name}" expects ${expectedParameters} parameters, but will receive ${receivedParameters}. This is likely due to a failed transformation.`,
+			);
+			this.#schedules.get(schedule)!.push(system);
 		}
-		DEV_ASSERT(
-			// We allow a mismatch here so long as systems receive at least
-			// as many parameters as its length. Fewer than the length is
-			// probably the result of a failed transformation, but more than
-			// the length could just be the result of handwritten params.
-			(system.parameters?.length ?? 0) >= system.length,
-			`System "${system.name}" expects ${
-				system.length
-			} parameters, but will receive ${
-				system.parameters?.length ?? 0
-			}. This is likely due to a failed transformation.`,
-		);
-		this.#schedules.get(schedule)!.push(system);
 		return this;
 	}
 
@@ -123,13 +118,22 @@ export class WorldBuilder {
 	}
 
 	/**
+	 * Registers a command type in the world.
+	 * @param commandType The Command type (`Class`) to register.
+	 * @returns `this`, for chaining.
+	 */
+	registerCommand(commandType: Command): this {
+		return this.register(CommandRegistryKey, commandType);
+	}
+
+	/**
 	 * Builds the world.
 	 * @returns `Promise<World>`
 	 */
 	async build(): Promise<World> {
 		const world = new World(this.config, this.#registry);
-		for (const resourceType of this.#registry.get(ResourceRegistryKey) ??
-			[]) {
+		const resourceTypes = this.#registry.get(ResourceRegistryKey) ?? [];
+		for (const resourceType of resourceTypes) {
 			const res = (resourceType as any).fromWorld
 				? await (resourceType as any).fromWorld(world)
 				: new resourceType();
@@ -152,7 +156,6 @@ export class WorldBuilder {
 				args: systems.map(s => systemArguments.get(s)),
 			};
 		}
-
 		return world;
 	}
 }

@@ -1,60 +1,15 @@
 import { WorldDescriptor } from '../world/WorldDescriptor';
-import {
-	AddComponentCommand,
-	RemoveComponentCommand,
-} from './ComponentCommands';
+
 import type { World } from '../world';
 import type { Store } from '../storage';
 
-const entityDestinations = new Map<bigint, bigint>();
-
 export function applyCommands(world: World) {
-	const { commands, entities, tables, components } = world;
+	const { commands, entities } = world;
 	entities.resetCursor();
 
-	// Find where entities will end up
-	entityDestinations.clear();
-	for (const { entityId, componentId } of commands.iterate(
-		AddComponentCommand,
-	)) {
-		let val = entityDestinations.get(entityId);
-		if (val === 0n) {
-			continue;
-		}
-		val ??= entities.getArchetype(entityId);
-		entityDestinations.set(entityId, val | (1n << BigInt(componentId)));
+	for (const commandType of commands.commandTypes) {
+		commandType.iterate(commands, world);
 	}
-	for (const { entityId, componentId } of commands.iterate(
-		RemoveComponentCommand,
-	)) {
-		let val = entityDestinations.get(entityId);
-		if (val === 0n) {
-			continue;
-		}
-		val ??= entities.getArchetype(entityId);
-		entityDestinations.set(
-			entityId,
-			val | (val ^ (1n << BigInt(componentId))),
-		);
-	}
-
-	// Move entities to their final destination
-	for (const [entityId, archetype] of entityDestinations) {
-		world.moveEntity(entityId, archetype);
-	}
-
-	// Handle data insertion from adds
-	for (const command of commands.iterate(AddComponentCommand)) {
-		const { entityId, componentId } = command;
-		const { row, tableId } = entities.getLocation(entityId);
-		const componentType = components[componentId];
-		if (tableId === 0) {
-			continue;
-		}
-		tables[tableId].copyDataIntoRow(row, componentType, command.store!);
-	}
-
-	// TODO: Execute custom commands (events)
 
 	// SAFETY: We have ownership of World right now.
 	(commands as any).reset();

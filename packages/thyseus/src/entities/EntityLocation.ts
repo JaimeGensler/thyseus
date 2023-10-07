@@ -2,8 +2,8 @@ import { u32 } from '../struct';
 import { Store } from '../storage/Store';
 
 export class EntityLocation {
-	static size = 8;
-	static alignment = 4;
+	static readonly size = 8;
+	static readonly alignment = 4;
 	tableId: u32 = 0;
 	row: u32 = 0;
 	deserialize(store: Store): void {

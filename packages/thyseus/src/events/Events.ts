@@ -1,6 +1,5 @@
 import { EventReader, EventWriter } from './EventQueues';
 import { Struct } from '../struct';
-import { EventRegistryKey } from './EventRegistryKey';
 import { Store } from '../storage';
 import type { World } from '../world';
 
@@ -8,6 +7,8 @@ import type { World } from '../world';
  * A resource responsible for creating & holding all event queues in a world.
  */
 export class Events {
+	static readonly key = Symbol('EventRegistryKey');
+
 	readers: EventReader<any>[] = [];
 	writers: EventWriter<any>[] = [];
 
@@ -17,7 +18,7 @@ export class Events {
 	constructor({ registry, commands }: World) {
 		// SAFETY: We know this is non-null, as the EventsRes only gets added
 		// if an event queue has been registered!
-		const eventTypes = registry.get(EventRegistryKey)! as Set<Struct>;
+		const eventTypes = registry.get(Events.key)! as Set<Struct>;
 		for (const type of eventTypes) {
 			const queueId = this.readers.length;
 			const store = new Store(0);

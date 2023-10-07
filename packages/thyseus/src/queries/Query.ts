@@ -1,14 +1,6 @@
 import type { Table, Store } from '../storage';
 import type { Struct, StructInstance } from '../struct';
-import type { Mut } from './modifiers';
 import type { Filter } from './filters';
-
-type QueryIteration<A extends object | object[]> = A extends any[]
-	? {
-			[Index in keyof A]: IteratorItem<A[Index]>;
-	  }
-	: IteratorItem<A>;
-type IteratorItem<I> = I extends Mut<infer X> ? X : Readonly<I>;
 
 export class Query<A extends object | object[], F extends Filter = Filter> {
 	#elements: StructInstance[][];
@@ -42,7 +34,7 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 		return result;
 	}
 
-	*[Symbol.iterator](): Iterator<QueryIteration<A>> {
+	*[Symbol.iterator](): Iterator<A> {
 		const elements = this.#getIteration();
 		const componentCount = this.#components.length;
 		for (const column of this.#columns) {

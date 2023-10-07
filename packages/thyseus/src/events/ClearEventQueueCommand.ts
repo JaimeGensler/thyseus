@@ -7,24 +7,22 @@ import { Events } from './Events';
 export class ClearEventQueueCommand {
 	static readonly size = 8;
 	static readonly alignment = 4;
-	deserialize(store: Store) {
+	deserialize(store: Store): void {
 		this.eventId = store.readU32();
 	}
-	serialize(store: Store) {
+	serialize(store: Store): void {
 		store.writeU32(this.eventId);
 	}
+	eventId: u32 = 0;
 
-	static iterate(world: World, commands: Commands) {
+	static iterate(commands: Commands, world: World): void {
 		const events = world.getResource(Events);
-		for (const command of commands.iterate(this)) {
+		for (const command of commands.iterate(ClearEventQueueCommand)) {
 			events.writers[command.eventId].clearImmediate();
-			continue;
 		}
 	}
 
-	eventId: u32 = 0;
-
-	static with(eventId: u32) {
+	static with(eventId: u32): ClearEventQueueCommand {
 		clearQueueCommand.eventId = eventId;
 		return clearQueueCommand;
 	}

@@ -11,14 +11,22 @@ export { World } from './world';
 // Descriptors
 export { CommandsDescriptor } from './commands';
 export { EventReaderDescriptor, EventWriterDescriptor } from './events';
-export { QueryDescriptor, Mut, With, Without, Or, And } from './queries';
+export {
+	QueryDescriptor,
+	ReadModifier,
+	With,
+	Without,
+	Or,
+	And,
+} from './queries';
 export { ResourceDescriptor, SystemResourceDescriptor } from './resources';
+export { ThreadDescriptor } from './threads';
 export { WorldDescriptor } from './world';
 
 // Types
 export type { Commands, EntityCommands } from './commands';
 export type { EventReader, EventWriter } from './events';
-export type { Query, Filter } from './queries';
+export type { Query, Filter, Read } from './queries';
 export type { Res, SystemRes } from './resources';
 export type { Table } from './storage';
 export type { Entities } from './entities';
@@ -36,4 +44,5 @@ export type {
 	f64,
 } from './struct';
 export type { System, SystemParameter } from './systems';
+export type { Thread, StructuredCloneable } from './threads';
 export type { WorldBuilder, Plugin, WorldConfig } from './world';

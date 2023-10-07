@@ -1,43 +1,92 @@
-// Adapted from https://stackoverflow.com/questions/54520676/in-typescript-how-to-get-the-keys-of-an-object-type-whose-values-are-of-a-given
-type MethodKeys<T extends object> = {
-	[K in keyof T]: T[K] extends Function ? K : never;
+import type { StructuredCloneable } from './StructuredCloneable';
+
+type PureFunction = <T extends StructuredCloneable>(...args: T[]) => T;
+type PureFunctionKeys<T extends object> = {
+	[Key in keyof T]: PureFunction extends T[Key] ? Key : never;
+}[keyof T];
+type KeysWith<T extends object, U extends any> = {
+	[Key in keyof T]: T[Key] extends U ? Key : never;
 }[keyof T];
 type ArgumentsType<T> = T extends (...args: infer R) => any ? R : never;
 type ReturnType<T> = T extends (...args: any[]) => infer R ? R : any;
 
 export class Thread<T extends object> {
 	#worker: Worker;
+	#id: number;
+	#resolvers: Map<number, (args: any) => void>;
 
-	constructor(url: string) {
-		this.#worker = new Worker(url);
+	constructor(worker: Worker) {
+		this.#worker = worker;
+		this.#resolvers = new Map();
+		this.#id = 0;
+		this.#worker.addEventListener('message', message => {
+			const { id, result } = message.data;
+			const resolver = this.#resolvers.get(id)!;
+			resolver(result);
+			this.#resolvers.delete(id);
+		});
 	}
 
-	run<K extends MethodKeys<T>>(
-		methodName: K,
+	/**
+	 * Runs the exposed function on the thread with the provided arguments.
+	 * @param key The name of the exposed function to be called in the thread.
+	 * @param ...args The arguments
+	 * @returns A promise
+	 */
+	run<K extends PureFunctionKeys<T>>(
+		key: K,
 		...args: ArgumentsType<T[K]>
 	): Promise<ReturnType<T[K]>> {
-		return new Promise(r => r(0 as any));
+		const id = this.#id++;
+		this.#worker.postMessage({ key, value: args, id });
+		return new Promise(r => this.#resolvers.set(id, r));
 	}
 
-	runSystem(system: any): Promise<void> {
-		return new Promise(r => r(0 as any));
+	/**
+	 * Sends a value to the thread, setting the specified variable in that thread.
+	 * Note that `SharedArrayBuffer` instances are **shared, not copied**.
+	 * You are responsible for managing safe access of `SharedArrayBuffer`s.
+	 * @param key The name of the exposed variable to be set in the thread.
+	 * @param value The value to set it to.
+	 * @returns A promise that resolves when the variable has been successfully set.
+	 */
+	send<
+		K extends KeysWith<T, StructuredCloneable>,
+		V extends T[K] & StructuredCloneable,
+	>(key: K, value: V): Promise<void> {
+		const id = this.#id++;
+		this.#worker.postMessage({ key, value, id });
+		return new Promise(r => this.#resolvers.set(id, r));
 	}
-	runSchedule(schedule: any) {}
+
+	/**
+	 * Transfers a value to the thread, setting the specified variable in that thread.
+	 * Only accepts [transferable objects](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Transferable_objects).
+	 * @param key The name of the exposed variable to be set in the thread.
+	 * @param transfer The object to transfer
+	 * @returns A promise that resolves when the variable has been successfully transferred.
+	 */
+	transfer<
+		K extends KeysWith<T, Transferable | undefined | null>,
+		V extends T[K] & Transferable,
+	>(key: K, value: V): Promise<void> {
+		const id = this.#id++;
+		this.#worker.postMessage({ key, value, id });
+		return new Promise(r => this.#resolvers.set(id, r));
+	}
+
+	/**
+	 * Stops the worker.
+	 * The worker will not have an opportunity to finish any ongoing operations; it will be terminated at once.
+	 */
+	terminate() {
+		this.#worker.terminate();
+	}
 }
 
-class Calc {
-	otherValue: number = 0;
-	fibonacci(n: number): number {
-		// this is right sometimes at least
-		return 1;
-	}
-	cubeRoot(a: string, b: string): string {
-		return '';
-	}
-}
-
-function mySystem() {}
-async function whatever(thread: Thread<Calc>) {
-	const x = await thread.run('fibonacci', 0);
-	const y = await thread.run('cubeRoot', '', '');
+// type X = PureFunction extends typeof import('./ThreadInterface').adder
+// 	? true
+// 	: false;
+function temp(thread: Thread<typeof import('./ThreadInterface')>) {
+	thread.transfer('canvas', new OffscreenCanvas(0, 0));
 }

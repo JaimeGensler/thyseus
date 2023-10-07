@@ -1,16 +1,14 @@
 import type { World, WorldBuilder } from '../world';
 import type { SystemParameter } from '../systems';
-import type { Struct } from '../struct';
+import type { Struct, StructInstance } from '../struct';
 
 import { Events } from './Events';
-import { EventRegistryKey } from './EventRegistryKey';
 import type { EventReader, EventWriter } from './EventQueues';
+import { ClearEventQueueCommand } from './ClearEventQueueCommand';
 
-export class EventReaderDescriptor<T extends Struct>
-	implements SystemParameter
-{
-	eventType: T;
-	constructor(eventType: T) {
+export class EventReaderDescriptor implements SystemParameter {
+	eventType: Struct;
+	constructor(eventType: Struct) {
 		this.eventType = eventType;
 	}
 	isLocalToThread(): boolean {
@@ -28,17 +26,17 @@ export class EventReaderDescriptor<T extends Struct>
 		return false;
 	}
 	onAddSystem(builder: WorldBuilder): void {
-		builder.registerResource(Events);
-		builder.register(EventRegistryKey, this.eventType);
+		builder
+			.registerResource(Events)
+			.registerCommand(ClearEventQueueCommand)
+			.register(Events.key, this.eventType);
 	}
-	intoArgument(world: World): EventReader<InstanceType<T>> {
+	intoArgument(world: World): EventReader<StructInstance> {
 		return world.getResource(Events).getReaderOfType(this.eventType)!;
 	}
 }
-export class EventWriterDescriptor<
-	T extends Struct,
-> extends EventReaderDescriptor<T> {
-	intoArgument(world: World): EventWriter<InstanceType<T>> {
+export class EventWriterDescriptor extends EventReaderDescriptor {
+	intoArgument(world: World): EventWriter<StructInstance> {
 		return world.getResource(Events).getWriterOfType(this.eventType)!;
 	}
 }
@@ -98,13 +96,10 @@ if (import.meta.vitest) {
 			new EventReaderDescriptor(A).onAddSystem(builder);
 			expect(builder.register).toHaveBeenCalledOnce();
 			expect(builder.registerResource).toHaveBeenLastCalledWith(Events);
-			expect(builder.register).toHaveBeenCalledWith(EventRegistryKey, A);
+			expect(builder.register).toHaveBeenCalledWith(Events.key, A);
 			new EventWriterDescriptor(B).onAddSystem(builder);
 			expect(builder.register).toHaveBeenCalledTimes(2);
-			expect(builder.register).toHaveBeenLastCalledWith(
-				EventRegistryKey,
-				B,
-			);
+			expect(builder.register).toHaveBeenLastCalledWith(Events.key, B);
 		});
 	});
 
