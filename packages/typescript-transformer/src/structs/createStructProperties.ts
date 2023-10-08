@@ -1,6 +1,7 @@
 import ts from 'typescript';
 import type { TypeDescription } from './types';
 import { addImport } from ':transform-utils';
+import { moveOffset } from './moveOffset';
 
 export function createStructProperties(propertyTypes: TypeDescription[]) {
 	addImport('thyseus', 'Store', true);
@@ -19,6 +20,11 @@ export function createStructProperties(propertyTypes: TypeDescription[]) {
 		boxedSize += propertyType.boxedSize;
 	}
 	const size = Math.ceil(offset / alignment) * alignment;
+	const padding = size - offset;
+	if (padding > 0) {
+		ser.push(moveOffset(padding));
+		deser.push(moveOffset(padding));
+	}
 
 	const structProperties = [
 		createNumericProperty('size', size, [

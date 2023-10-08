@@ -6,10 +6,12 @@ class Inner {
 	deserialize(store: Store) {
 		this.someData = store.readU16();
 		this.isInner = Boolean(store.readU8());
+		store.offset += 1;
 	}
 	serialize(store: Store) {
 		store.writeU16(this.someData);
 		store.writeU8(Number(this.isInner));
+		store.offset += 1;
 	}
 	someData: u16 = 0;
 	isInner: boolean = true;

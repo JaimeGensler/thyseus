@@ -10,13 +10,13 @@ import { getTransformer } from '../index';
 // 		as: 'raw',
 // 	}),
 // );
-// createSuite(
-// 	'structs',
-// 	import.meta.glob('./structs/**/*.ts', {
-// 		eager: true,
-// 		as: 'raw',
-// 	}),
-// );
+createSuite(
+	'structs',
+	import.meta.glob('./structs/**/*.ts', {
+		eager: true,
+		as: 'raw',
+	}),
+);
 createSuite(
 	'threads',
 	import.meta.glob('./threads/**/*.ts', {
@@ -101,11 +101,6 @@ function createTestSuite(files: Record<string, string>) {
 				content,
 			};
 			test[`${inOrOut as 'in' | 'out'}Files`].push(file);
-			// if (inOrOut === 'in' && fileName === 'index.ts') {
-			// 	test.inFiles.unshift(file);
-			// } else {
-			// 	test[`${inOrOut as 'in' | 'out'}Files`].push(file);
-			// }
 			return testSuites;
 		},
 		{},

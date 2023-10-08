@@ -7,10 +7,12 @@ class ContainsVec {
 	deserialize(store: Store) {
 		this.v3.deserialize(store);
 		this.bool = Boolean(store.readU8());
+		store.offset += 3;
 	}
 	serialize(store: Store) {
 		this.v3.serialize(store);
 		store.writeU8(Number(this.bool));
+		store.offset += 3;
 	}
 	v3: Vec3 = new Vec3();
 	bool: boolean = false;

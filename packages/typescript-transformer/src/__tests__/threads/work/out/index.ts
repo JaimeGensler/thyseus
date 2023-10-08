@@ -6,12 +6,12 @@ self.addEventListener('message', async __e => {
 		return;
 	}
 	if (__k === 'myFunc') {
-		const __r = await myFunc();
+		const __r = await myFunc(...__v);
 		self.postMessage({ id: __i, result: __r });
 		return;
 	}
 	if (__k === 'temp') {
-		const __r = await temp();
+		const __r = await temp(...__v);
 		self.postMessage({ id: __i, result: __r });
 		return;
 	}

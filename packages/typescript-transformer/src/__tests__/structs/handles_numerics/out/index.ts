@@ -14,6 +14,7 @@ class AllNumerics {
 		this.i16 = store.readI16();
 		this.u8 = store.readU8();
 		this.i8 = store.readI8();
+		store.offset += 6;
 	}
 	serialize(store: Store) {
 		store.writeU64(this.u64);
@@ -26,6 +27,7 @@ class AllNumerics {
 		store.writeI16(this.i16);
 		store.writeU8(this.u8);
 		store.writeI8(this.i8);
+		store.offset += 6;
 	}
 	u8: u8 = 0;
 	u16: u16 = 0;
