@@ -8,12 +8,14 @@ class PrivateData {
 		this.#otherPrivateData[0] = store.readI32();
 		this.#otherPrivateData[1] = store.readI32();
 		this.notPrivate = store.readU8();
+		store.offset += 7;
 	}
 	serialize(store: Store) {
 		store.writeF64(this.#private);
 		store.writeI32(this.#otherPrivateData[0]);
 		store.writeI32(this.#otherPrivateData[1]);
 		store.writeU8(this.notPrivate);
+		store.offset += 7;
 	}
 	notPrivate: u8 = 0;
 	#private: number = 0;

@@ -49,7 +49,11 @@ const call = (name: string) =>
 						ts.factory.createCallExpression(
 							ts.factory.createIdentifier(name),
 							undefined,
-							[],
+							[
+								ts.factory.createSpreadElement(
+									ts.factory.createIdentifier('__v'),
+								),
+							],
 						),
 					),
 				),

@@ -7,10 +7,12 @@ export class Penguin extends Bird {
 	deserialize(store: Store) {
 		super.deserialize(store);
 		this.otherProperty = Boolean(store.readU8());
+		store.offset += 3;
 	}
 	serialize(store: Store) {
 		super.serialize(store);
 		store.writeU8(Number(this.otherProperty));
+		store.offset += 3;
 	}
 	otherProperty: boolean = true;
 }

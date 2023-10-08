@@ -6,10 +6,12 @@ export class Bird {
 	deserialize(store: Store) {
 		this.climate = store.readU32();
 		this.canFly = Boolean(store.readU8());
+		store.offset += 3;
 	}
 	serialize(store: Store) {
 		store.writeU32(this.climate);
 		store.writeU8(Number(this.canFly));
+		store.offset += 3;
 	}
 	climate: u32 = 0;
 	canFly: boolean = true;

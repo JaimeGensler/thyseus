@@ -57,8 +57,3 @@ export const isAlignmentProperty = AND(
 	hasNumericInitializer,
 	node => node.name.getText() === 'alignment',
 );
-export const isDropProperty = AND(
-	ts.isMethodDeclaration,
-	isStaticMember,
-	node => node.name.getText() === 'drop',
-);

@@ -14,6 +14,7 @@ class Tuples {
 		this.i16s[0] = store.readI16();
 		this.i16s[1] = store.readI16();
 		this.u8s[0] = store.readU8();
+		store.offset += 7;
 	}
 	serialize(store: Store) {
 		store.writeF64(this.nums[0]);
@@ -26,6 +27,7 @@ class Tuples {
 		store.writeI16(this.i16s[0]);
 		store.writeI16(this.i16s[1]);
 		store.writeU8(this.u8s[0]);
+		store.offset += 7;
 	}
 	u8s: [u8] = [0];
 	i16s: [i16, i16] = [0, 0];

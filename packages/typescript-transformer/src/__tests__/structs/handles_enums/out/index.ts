@@ -20,11 +20,13 @@ class SomeStruct {
 		this.math = store.readF64();
 		this.order = store.readI16();
 		this.status = store.readU8();
+		store.offset += 5;
 	}
 	serialize(store: Store) {
 		store.writeF64(this.math);
 		store.writeI16(this.order);
 		store.writeU8(this.status);
+		store.offset += 5;
 	}
 	status: Status = Status.Pending;
 	order: SortOrder = SortOrder.Ascending;
