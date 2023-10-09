@@ -32,9 +32,18 @@ export const defaultSystemParameters: SystemParameterMap = {
 		importPath: 'thyseus',
 	},
 
+	Thread: {
+		descriptorName: 'ThreadDescriptor',
+		importPath: 'thyseus',
+	},
+
 	// Modifiers
-	Mut: {
-		descriptorName: 'Mut',
+	Read: {
+		descriptorName: 'ReadModifier',
+		importPath: 'thyseus',
+	},
+	Readonly: {
+		descriptorName: 'ReadModifier',
 		importPath: 'thyseus',
 	},
 	With: {
