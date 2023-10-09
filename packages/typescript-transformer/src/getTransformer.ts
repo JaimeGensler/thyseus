@@ -13,7 +13,7 @@ const visitors = pipe(
 	registerHandwrittenStructs,
 	transformStructs,
 	transformSystems,
-	transformIterators,
+	// transformIterators,
 	transformThreads,
 );
 

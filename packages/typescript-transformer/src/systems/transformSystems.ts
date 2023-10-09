@@ -51,6 +51,23 @@ function createDescriptorFromTypeNode(
 				createDescriptorFromTypeNode(child, param),
 			),
 		);
+	} else if (ts.isImportTypeNode(node) && node.isTypeOf) {
+		const text = (node.argument as any).literal.text;
+		return ts.factory.createArrayLiteralExpression([
+			ts.factory.createArrowFunction(
+				undefined,
+				undefined,
+				[],
+				undefined,
+				undefined,
+				ts.factory.createCallExpression(
+					ts.factory.createIdentifier('import'),
+					[],
+					[ts.factory.createStringLiteral(text)],
+				),
+			),
+			ts.factory.createStringLiteral(text),
+		]);
 	} else {
 		return ts.factory.createIdentifier(node.getText());
 	}
