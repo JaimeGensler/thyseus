@@ -1,6 +1,6 @@
 {
 	"name": "@thyseus/rollup-plugin-thyseus",
-	"version": "0.15.0",
+	"version": "0.16.0-beta.0",
 	"description": "Rollup plugin for the Thyseus transformer",
 	"author": "Jaime Gensler",
 	"license": "MIT",
@@ -51,6 +51,6 @@
 		"typescript": "^5.1.6"
 	},
 	"peerDependencies": {
-		"thyseus": "^0.15.0"
+		"thyseus": "^0.16.0-beta.0"
 	}
 }
