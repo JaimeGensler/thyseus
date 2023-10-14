@@ -1,6 +1,6 @@
 {
 	"name": "@thyseus/typescript-transformer",
-	"version": "0.15.0",
+	"version": "0.16.0-beta.0",
 	"description": "Core of the official Thyseus transformer",
 	"author": "Jaime Gensler",
 	"license": "MIT",
