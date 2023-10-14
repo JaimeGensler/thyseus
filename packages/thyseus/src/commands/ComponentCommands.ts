@@ -98,15 +98,23 @@ function handleComponentCommands(commands: Commands, world: World) {
 	}
 
 	// Handle data insertion from adds
-	for (const { entityId, componentId, store } of commands.iterate(
-		AddComponentCommand,
-	)) {
+	for (const {
+		entityId,
+		componentId,
+		store,
+		boxedOffset,
+	} of commands.iterate(AddComponentCommand)) {
 		const { row, tableId } = entities.getLocation(entityId);
 		const componentType = components[componentId];
 		if (tableId === 0) {
 			continue;
 		}
-		tables[tableId].copyDataIntoRow(row, componentType, store!);
+		tables[tableId].copyDataIntoRow(
+			row,
+			componentType,
+			store!,
+			boxedOffset,
+		);
 		store!.offset += alignTo8(componentType.size!);
 	}
 }
