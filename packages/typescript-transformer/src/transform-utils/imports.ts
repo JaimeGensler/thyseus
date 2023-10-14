@@ -40,10 +40,10 @@ export function consumeImports(sourceFile: ts.SourceFile): ts.SourceFile {
 				}
 			}
 		}
+		importsToAdd.delete(path);
 		if (js.size === 0 && type.size === 0) {
 			return statement;
 		}
-		importsToAdd.delete(path);
 		didUpdateStatements = true;
 		return ts.factory.updateImportDeclaration(
 			statement,
@@ -78,7 +78,9 @@ export function consumeImports(sourceFile: ts.SourceFile): ts.SourceFile {
 			statement.assertClause,
 		);
 	});
+
 	for (const [path, { js, type }] of importsToAdd) {
+		didUpdateStatements = true;
 		updatedStatements.unshift(
 			ts.factory.createImportDeclaration(
 				undefined,
@@ -102,7 +104,7 @@ export function consumeImports(sourceFile: ts.SourceFile): ts.SourceFile {
 						),
 					]),
 				),
-				ts.factory.createStringLiteral(path),
+				ts.factory.createStringLiteral(path.slice(1, path.length - 1)),
 			),
 		);
 	}

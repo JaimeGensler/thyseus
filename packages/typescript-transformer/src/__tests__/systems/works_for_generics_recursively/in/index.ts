@@ -1,1 +1,1 @@
-function querySystem(query: Query<Mut<A>>) {}
+function querySystem(query: Query<Readonly<A>>) {}
