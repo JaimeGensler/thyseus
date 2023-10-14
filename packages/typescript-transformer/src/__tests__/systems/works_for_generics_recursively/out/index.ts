@@ -1,3 +1,3 @@
-import { QueryDescriptor, Mut } from 'thyseus';
-function querySystem(query: Query<Mut<A>>) { }
-querySystem.parameters = [new QueryDescriptor(new Mut(A))];
+import { QueryDescriptor, ReadModifier } from 'thyseus';
+function querySystem(query: Query<Readonly<A>>) {}
+querySystem.parameters = [new QueryDescriptor(new ReadModifier(A))];
