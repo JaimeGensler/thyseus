@@ -1,6 +1,6 @@
 import type { World, WorldBuilder } from '../world';
 import type { SystemParameter } from '../systems';
-import type { Struct, StructInstance } from '../struct';
+import type { Struct, StructInstance } from '../components';
 
 import { Events } from './Events';
 import type { EventReader, EventWriter } from './EventQueues';
@@ -28,8 +28,7 @@ export class EventReaderDescriptor implements SystemParameter {
 	onAddSystem(builder: WorldBuilder): void {
 		builder
 			.registerResource(Events)
-			.registerCommand(ClearEventQueueCommand)
-			.register(Events.key, this.eventType);
+			.registerCommand(ClearEventQueueCommand);
 	}
 	intoArgument(world: World): EventReader<StructInstance> {
 		return world.getResource(Events).getReaderOfType(this.eventType)!;
@@ -90,20 +89,14 @@ if (import.meta.vitest) {
 	describe('onAddSystem', () => {
 		it('registers the events', () => {
 			const builder: WorldBuilder = {
-				register: vi.fn(() => builder),
 				registerResource: vi.fn(() => builder),
 				registerCommand: vi.fn(() => builder),
 			} as any;
 			new EventReaderDescriptor(A).onAddSystem(builder);
-			expect(builder.register).toHaveBeenCalledOnce();
 			expect(builder.registerResource).toHaveBeenLastCalledWith(Events);
-			expect(builder.register).toHaveBeenCalledWith(Events.key, A);
 			expect(builder.registerCommand).toHaveBeenCalledWith(
 				ClearEventQueueCommand,
 			);
-			new EventWriterDescriptor(B).onAddSystem(builder);
-			expect(builder.register).toHaveBeenCalledTimes(2);
-			expect(builder.register).toHaveBeenLastCalledWith(Events.key, B);
 		});
 	});
 

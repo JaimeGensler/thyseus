@@ -1,5 +1,5 @@
 import type { Commands } from '../commands';
-import type { Struct, StructInstance } from '../struct';
+import type { Struct, StructInstance } from '../components';
 import type { Store } from '../storage';
 import { ClearEventQueueCommand } from './ClearEventQueueCommand';
 
@@ -183,13 +183,13 @@ if (import.meta.vitest) {
 	});
 
 	it('EventWriter.clearImmediate() clears events immediately', async () => {
-		class StructWithDrop {
+		class MyStruct {
 			static size = 1;
 			static alignment = 1;
 			serialize() {}
 			deserialize() {}
 		}
-		const [reader, writer] = await setupQueue(StructWithDrop);
+		const [reader, writer] = await setupQueue(MyStruct);
 		expect(reader.length).toBe(0);
 		expect(writer.length).toBe(0);
 
