@@ -1,40 +1,64 @@
 import { EventReader, EventWriter } from './EventQueues';
-import { Struct } from '../struct';
 import { Store } from '../storage';
+import type { Struct } from '../components';
 import type { World } from '../world';
+import type { Commands } from '../commands';
 
 /**
  * A resource responsible for creating & holding all event queues in a world.
  */
 export class Events {
-	static readonly key = Symbol('EventRegistryKey');
+	/**
+	 * An array of `EventReaders` in a world.
+	 * Each member in the `readers` array has a corresponding member at the same index in `writers`.
+	 */
+	readers: EventReader<any>[];
+	/**
+	 * An array of `EventWriters` in a world.
+	 * Each member in the `writers` array has a corresponding member at the same index in `readers`.
+	 */
+	writers: EventWriter<any>[];
+	#commands: Commands;
 
-	readers: EventReader<any>[] = [];
-	writers: EventWriter<any>[] = [];
-
-	static fromWorld(world: World) {
-		return new this(world);
+	static fromWorld({ commands }: World) {
+		return new this(commands);
 	}
-	constructor({ registry, commands }: World) {
-		// SAFETY: We know this is non-null, as the EventsRes only gets added
-		// if an event queue has been registered!
-		const eventTypes = registry.get(Events.key)! as Set<Struct>;
-		for (const type of eventTypes) {
-			const queueId = this.readers.length;
-			const store = new Store(0);
-			this.readers.push(new EventReader(commands, type, store, queueId));
-			this.writers.push(new EventWriter(commands, type, store, queueId));
-		}
+	constructor(commands: Commands) {
+		this.readers = [];
+		this.writers = [];
+		this.#commands = commands;
+	}
+
+	#createReaderWriter<T extends Struct>(
+		type: Struct,
+		isRead: 'readers',
+	): EventReader<InstanceType<T>>;
+	#createReaderWriter<T extends Struct>(
+		type: Struct,
+		isRead: 'writers',
+	): EventWriter<InstanceType<T>>;
+	#createReaderWriter(type: Struct, accessType: 'readers' | 'writers') {
+		const id = this.readers.length;
+		const store = new Store(0);
+		this.readers.push(new EventReader(this.#commands, type, store, id));
+		this.writers.push(new EventWriter(this.#commands, type, store, id));
+		return this[accessType][id];
 	}
 
 	getReaderOfType<T extends Struct>(
 		eventType: T,
-	): EventReader<InstanceType<T>> | undefined {
-		return this.readers.find(reader => reader.type === eventType);
+	): EventReader<InstanceType<T>> {
+		return (
+			this.readers.find(reader => reader.type === eventType) ??
+			this.#createReaderWriter(eventType, 'readers')
+		);
 	}
 	getWriterOfType<T extends Struct>(
 		eventType: T,
-	): EventWriter<InstanceType<T>> | undefined {
-		return this.writers.find(writer => writer.type === eventType);
+	): EventWriter<InstanceType<T>> {
+		return (
+			this.writers.find(writer => writer.type === eventType) ??
+			this.#createReaderWriter(eventType, 'writers')
+		);
 	}
 }

@@ -1,12 +1,13 @@
 import { Commands } from '../commands';
 import { Store } from '../storage';
-import { u32 } from '../struct';
+import { u32 } from '../components';
 import { World } from '../world';
 import { Events } from './Events';
 
 export class ClearEventQueueCommand {
 	static readonly size = 8;
 	static readonly alignment = 4;
+	static readonly boxedSize = 0;
 	deserialize(store: Store): void {
 		this.eventId = store.readU32();
 	}
