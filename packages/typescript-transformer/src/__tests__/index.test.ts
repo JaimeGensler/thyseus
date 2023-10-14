@@ -3,13 +3,13 @@ import ts from 'typescript';
 import prettier from 'prettier';
 import { getTransformer } from '../index';
 
-// createSuite(
-// 	'systems',
-// 	import.meta.glob('./systems/**/*.ts', {
-// 		eager: true,
-// 		as: 'raw',
-// 	}),
-// );
+createSuite(
+	'systems',
+	import.meta.glob('./systems/**/*.ts', {
+		eager: true,
+		as: 'raw',
+	}),
+);
 createSuite(
 	'structs',
 	import.meta.glob('./structs/**/*.ts', {
