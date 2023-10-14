@@ -1,4 +1,4 @@
-import type { Class, Struct } from '../struct';
+import type { Class, Struct } from '../components';
 
 // `Read<T>` relies on methods of classes having an `unknown` this type.
 // If an explicit `this` type is provided, it will no longer be `unknown`.

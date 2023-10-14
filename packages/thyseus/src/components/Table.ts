@@ -1,6 +1,6 @@
 import { Entity } from '../entities/Entity';
-import { Store } from './Store';
-import type { Struct, StructInstance, u64 } from '../struct';
+import { Store } from '../storage/Store';
+import type { Struct, u64 } from '.';
 
 export class Table {
 	static createEmpty(): Table {
@@ -41,9 +41,16 @@ export class Table {
 		this.length--;
 		for (let i = 0; i < this.#columns.length; i++) {
 			const column = this.#columns[i];
-			const size = this.#components[i].size!;
-			const lastElement = this.length * size;
-			column.copyWithin(lastElement, size, row * size!);
+			const { size, boxedSize } = this.#components[i];
+			column.copyWithin(this.length * size!, size!, row * size!);
+			for (let j = 0; j < boxedSize!; j++) {
+				column.boxed[row * boxedSize! + j] = null;
+			}
+			column.copyBoxedWithin(
+				this.length * boxedSize!,
+				boxedSize!,
+				row * boxedSize!,
+			);
 			column.length--;
 		}
 	}
@@ -61,15 +68,23 @@ export class Table {
 			entityColumn.u64[((this.length - 1) * Entity.size!) >> 3];
 		for (let i = 0; i < this.#columns.length; i++) {
 			const component = this.#components[i];
-			const size = component.size!;
+			const { size, boxedSize } = component;
 			if (targetTable.hasColumn(component)) {
+				const ownColumn = this.#columns[i];
 				const targetColumn = targetTable.getColumn(component);
 				targetColumn.copyFrom(
 					this.#columns[i],
-					size,
-					row * size,
-					targetTable.length * size,
+					size!,
+					row * size!,
+					targetTable.length * size!,
 				);
+				const ownBoxOffset = row * boxedSize!;
+				const targetBoxOffset = targetColumn.length * boxedSize!;
+				for (let j = 0; j < boxedSize!; j++) {
+					targetColumn.boxed[targetBoxOffset + j] =
+						ownColumn.boxed[ownBoxOffset + j];
+					ownColumn.boxed[ownBoxOffset + j] = null;
+				}
 				targetColumn.length++;
 			}
 		}

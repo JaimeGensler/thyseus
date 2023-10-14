@@ -3,7 +3,7 @@ import { DEV_ASSERT } from '../utils';
 export type WorldConfig = {
 	getNewTableSize(prev: number): number;
 	useSharedMemory: boolean;
-	getWorker(url: string): Worker;
+	createWorker(url: string): Worker;
 };
 
 export function getCompleteConfig(
@@ -20,7 +20,7 @@ export function getCompleteConfig(
 		getNewTableSize(prev) {
 			return prev * 2 || 4;
 		},
-		getWorker(url) {
+		createWorker(url) {
 			return new Worker(url, { type: 'module' });
 		},
 		...config,
@@ -67,6 +67,6 @@ if (import.meta.vitest) {
 		const result = getCompleteConfig();
 		expect(result).toHaveProperty('useSharedMemory');
 		expect(result).toHaveProperty('getNewTableSize');
-		expect(result).toHaveProperty('getWorker');
+		expect(result).toHaveProperty('createWorker');
 	});
 }

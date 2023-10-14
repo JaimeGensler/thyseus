@@ -1,5 +1,5 @@
 import type { Commands } from './Commands';
-import type { Struct, StructInstance } from '../struct';
+import type { Struct, StructInstance } from '../components';
 import type { World } from '../world';
 import { DEV_ASSERT } from '../utils';
 import { Entity } from '../entities';
@@ -65,7 +65,7 @@ export class EntityCommands {
 	 */
 	addType(componentType: Struct): this {
 		if (componentType.boxedSize! === 0) {
-			if (this.#reused.has(componentType)) {
+			if (!this.#reused.has(componentType)) {
 				this.#reused.set(componentType, new componentType());
 			}
 			return this.add(this.#reused.get(componentType)!);

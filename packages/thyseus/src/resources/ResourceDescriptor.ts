@@ -1,5 +1,5 @@
 import { ReadModifier } from '../queries';
-import { isStruct, type Class, Struct } from '../struct';
+import { isStruct, type Class, Struct } from '../components';
 import type { SystemParameter } from '../systems';
 import type { World, WorldBuilder } from '../world';
 

@@ -15,7 +15,10 @@ export class Thread<T extends object> {
 	#id: number;
 	#resolvers: Map<number, (args: any) => void>;
 
-	constructor(worker: Worker) {
+	module: string;
+
+	constructor(worker: Worker, module: string) {
+		this.module = module;
 		this.#worker = worker;
 		this.#resolvers = new Map();
 		this.#id = 0;
@@ -25,21 +28,6 @@ export class Thread<T extends object> {
 			resolver(result);
 			this.#resolvers.delete(id);
 		});
-	}
-
-	/**
-	 * Runs the exposed function on the thread with the provided arguments.
-	 * @param key The name of the exposed function to be called in the thread.
-	 * @param ...args The arguments
-	 * @returns A promise
-	 */
-	run<K extends PureFunctionKeys<T>>(
-		key: K,
-		...args: ArgumentsType<T[K]>
-	): Promise<ReturnType<T[K]>> {
-		const id = this.#id++;
-		this.#worker.postMessage({ key, value: args, id });
-		return new Promise(r => this.#resolvers.set(id, r));
 	}
 
 	/**
@@ -76,17 +64,25 @@ export class Thread<T extends object> {
 	}
 
 	/**
+	 * Runs the exposed function on the thread with the provided arguments.
+	 * @param key The name of the exposed function to be called in the thread.
+	 * @param ...args The arguments to provide the function.
+	 * @returns A promise that resolves with the value the thread function returned.
+	 */
+	run<K extends PureFunctionKeys<T>>(
+		key: K,
+		...args: ArgumentsType<T[K]>
+	): Promise<ReturnType<T[K]>> {
+		const id = this.#id++;
+		this.#worker.postMessage({ key, value: args, id });
+		return new Promise(r => this.#resolvers.set(id, r));
+	}
+
+	/**
 	 * Stops the worker.
 	 * The worker will not have an opportunity to finish any ongoing operations; it will be terminated at once.
 	 */
 	terminate() {
 		this.#worker.terminate();
 	}
-}
-
-// type X = PureFunction extends typeof import('./ThreadInterface').adder
-// 	? true
-// 	: false;
-function temp(thread: Thread<typeof import('./ThreadInterface')>) {
-	thread.transfer('canvas', new OffscreenCanvas(0, 0));
 }

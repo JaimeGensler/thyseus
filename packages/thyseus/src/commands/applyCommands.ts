@@ -11,7 +11,6 @@ export function applyCommands(world: World) {
 		commandType.iterate(commands, world);
 	}
 
-	// SAFETY: We have ownership of World right now.
 	(commands as any).reset();
 }
 applyCommands.parameters = [new WorldDescriptor()];
@@ -34,8 +33,12 @@ if (import.meta.vitest) {
 	class Struct {
 		static size = 1;
 		static alignment = 1;
-		deserialize() {}
-		serialize() {}
+		deserialize(store: Store) {
+			store.readU8();
+		}
+		serialize(store: Store) {
+			store.writeU8(0);
+		}
 	}
 	class CompA extends Struct {}
 	class CompB extends Struct {}

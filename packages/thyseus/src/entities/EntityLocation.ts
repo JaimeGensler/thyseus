@@ -1,4 +1,4 @@
-import { u32 } from '../struct';
+import { u32 } from '../components';
 import { Store } from '../storage/Store';
 
 export class EntityLocation {
