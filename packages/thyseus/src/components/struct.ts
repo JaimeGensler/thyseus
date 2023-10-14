@@ -26,11 +26,6 @@ export type Struct = {
 	 */
 	boxedSize?: number;
 
-	/**
-	 * A function that fully drops an instance of a struct.
-	 */
-	drop?(pointer: number): void;
-
 	new (): StructInstance;
 };
 

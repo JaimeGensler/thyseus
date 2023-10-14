@@ -1,5 +1,5 @@
-import type { Table, Store } from '../storage';
-import type { Struct, StructInstance } from '../struct';
+import type { Table, Struct, StructInstance } from '../components';
+import type { Store } from '../storage';
 import type { Filter } from './filters';
 
 export class Query<A extends object | object[], F extends Filter = Filter> {
@@ -37,25 +37,31 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 	*[Symbol.iterator](): Iterator<A> {
 		const elements = this.#getIteration();
 		const componentCount = this.#components.length;
-		for (const column of this.#columns) {
-			column.offset = 0;
-		}
 		for (
 			let columnGroup = 0;
 			columnGroup < this.#columns.length;
 			columnGroup += componentCount
 		) {
 			const { length } = this.#columns[columnGroup];
-			for (let k = 0; k < length; k++) {
+			for (let iters = 0; iters < length; iters++) {
 				for (let offset = 0; offset < componentCount; offset++) {
 					const column = this.#columns[columnGroup + offset];
-					elements[offset].deserialize!(column);
+					elements[offset].deserialize!(
+						column.setOffsets(
+							iters * this.#components[offset].size!,
+							iters * this.#components[offset].boxedSize!,
+						),
+					);
 				}
 				yield (this.#isIndividual ? elements[0] : elements) as any;
 				for (let offset = 0; offset < componentCount; offset++) {
 					const column = this.#columns[columnGroup + offset];
-					column.offset -= this.#components[offset].size!;
-					elements[offset].serialize!(column);
+					elements[offset].serialize!(
+						column.setOffsets(
+							iters * this.#components[offset].size!,
+							iters * this.#components[offset].boxedSize!,
+						),
+					);
 				}
 			}
 		}

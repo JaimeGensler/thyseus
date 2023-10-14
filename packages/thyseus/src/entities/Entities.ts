@@ -1,9 +1,8 @@
 import { DEV_ASSERT } from '../utils';
-import { Entity } from './Entity';
-import { Store } from '../storage/Store';
+import { Store } from '../storage';
 import { EntityLocation } from './EntityLocation';
 import type { World } from '../world';
-import type { Struct } from '../struct';
+import type { Struct } from '../components';
 
 const low32 = 0x0000_0000_ffff_ffffn;
 const getIndex = (entityId: bigint) => Number(entityId & low32);
@@ -19,11 +18,11 @@ export class Entities {
 	/**
 	 * A store containing `[nextId: u32, cursor: u32, freeCount: u32]`.
 	 */
-	#data: Store;
+	#data: Uint32Array;
 	/**
 	 * Generations (`u32`) of all spawned entities.
 	 */
-	#generations: Store;
+	#generations: Uint32Array;
 	/**
 	 * Locations (`EntityLocation`) of all spawned entities [table, row]
 	 */
@@ -31,7 +30,7 @@ export class Entities {
 	/**
 	 * List of freed entity indexes (`u32`) available for reuse.
 	 */
-	#freed: Store;
+	#freed: Uint32Array;
 	/**
 	 * A reuseable `EntityLocation` to track where an entity lives.
 	 */
@@ -39,25 +38,26 @@ export class Entities {
 	constructor(world: World) {
 		this.#world = world;
 		this.#location = new EntityLocation();
-		this.#data = new Store(12);
-		this.#generations = new Store(ENTITY_BATCH_SIZE * 4);
+		this.#data = new Uint32Array(12);
+		this.#generations = new Uint32Array(ENTITY_BATCH_SIZE);
 		this.#locations = new Store(ENTITY_BATCH_SIZE * EntityLocation.size);
-		this.#freed = new Store(64 * 4);
+		this.#freed = new Uint32Array(64);
 	}
 
+	// TODO: Reconsider having this be atomic - not necessary if entities isn't accessible on other threads
 	/**
 	 * A **lockfree** method to obtain a new Entity ID.
 	 */
 	getId(): bigint {
-		const cursor = Atomics.add(this.#data.u32, 1, 1);
-		const freeCount = this.#data.u32[2];
+		const cursor = Atomics.add(this.#data, 1, 1);
+		const freeCount = this.#data[2];
 		if (cursor >= freeCount) {
 			// If we've already exhausted freed ids,
 			// bump the nextId and return that (generation = 0)
-			return BigInt(Atomics.add(this.#data.u32, 0, 1));
+			return BigInt(Atomics.add(this.#data, 0, 1));
 		}
-		const index = this.#freed.u32[freeCount - 1 - cursor];
-		const generation = this.#generations.u32[index];
+		const index = this.#freed[freeCount - 1 - cursor];
+		const generation = this.#generations[index];
 		return (BigInt(generation) << 32n) | BigInt(index);
 	}
 
@@ -69,10 +69,11 @@ export class Entities {
 	 * @param entityId The id of the entity to despawn.
 	 */
 	freeId(entityId: bigint): void {
+		// TODO: Resize freed as needed
 		const index = getIndex(entityId);
-		this.#generations.u32[index]++;
-		this.#freed.u32[this.#data.u32[2]] = index;
-		this.#data.u32[2]++;
+		this.#generations[index]++;
+		this.#freed[this.#data[2]] = index;
+		this.#data[2]++;
 		this.setLocation(entityId, this.#location.set(0, 0));
 	}
 
@@ -85,8 +86,7 @@ export class Entities {
 	isAlive(entityId: bigint): boolean {
 		// If generations mismatch, it was despawned.
 		return (
-			getGeneration(entityId) ===
-			this.#generations.u32[getIndex(entityId)]
+			getGeneration(entityId) === this.#generations[getIndex(entityId)]
 		);
 	}
 	/**
@@ -97,7 +97,7 @@ export class Entities {
 		const index = getIndex(entityId);
 		return (
 			this.#generations.length > index &&
-			this.#generations.u32[index] !== getGeneration(entityId)
+			this.#generations[index] !== getGeneration(entityId)
 		);
 	}
 
@@ -119,13 +119,15 @@ export class Entities {
 	}
 
 	resetCursor(): void {
-		this.#data.u32[1] = 0;
-		const entityCount = this.#data.u32[0];
-		if (entityCount >= this.#generations.u32.length) {
+		this.#data[1] = 0;
+		const entityCount = this.#data[0];
+		if (entityCount >= this.#generations.length) {
 			const newLength =
 				Math.ceil((entityCount + 1) / ENTITY_BATCH_SIZE) *
 				ENTITY_BATCH_SIZE;
-			this.#generations.resize(newLength * 4);
+			const oldGenerations = this.#generations;
+			this.#generations = new Uint32Array(newLength);
+			this.#generations.set(oldGenerations);
 			this.#locations.resize(newLength * EntityLocation.size);
 		}
 	}
@@ -157,6 +159,7 @@ export class Entities {
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
 	const { World } = await import('../world');
+	const { Entity } = await import('./Entity');
 
 	const ONE_GENERATION = 1n << 32n;
 	async function createWorld(...components: Struct[]) {

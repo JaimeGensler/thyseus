@@ -1,13 +1,13 @@
 import { EntityCommands } from './EntityCommands';
+import { alignTo8 } from '../utils';
+import { Store } from '../storage';
 import {
 	AddComponentCommand,
 	RemoveComponentCommand,
 } from './ComponentCommands';
 import { Entity, type Entities } from '../entities';
-import type { Struct, StructInstance } from '../struct';
+import type { Struct, StructInstance } from '../components';
 import type { World } from '../world';
-import { alignTo8 } from '../utils';
-import { Store } from '../storage';
 
 export type Command = Struct & {
 	iterate(commands: Commands, world: World): any;
@@ -36,7 +36,10 @@ export class Commands {
 	 */
 	spawn(reuse: boolean = false): EntityCommands {
 		const entityId = this.#entities.getId();
-		this.push(AddComponentCommand.with(entityId, 0, new Entity(entityId)));
+		this.push(
+			AddComponentCommand.with(entityId, 0, new Entity(entityId)),
+			Entity.size,
+		);
 		return this.getById(entityId, reuse);
 	}
 
@@ -91,10 +94,8 @@ export class Commands {
 		const commandType = command.constructor as Command;
 		const store = this.#queues[this.commandTypes.indexOf(commandType)];
 		const addedSize = commandType.size! + alignTo8(additionalSize);
-		let newLength = store.length + addedSize;
-		if (store.byteLength < newLength) {
-			newLength *= 2;
-			store.resize(newLength);
+		if (store.byteLength < store.length + addedSize) {
+			store.resize((store.length + addedSize) * 2);
 		}
 		store.offset = store.length;
 		store.length += addedSize;
@@ -219,6 +220,7 @@ if (import.meta.vitest) {
 			if (i === 0) {
 				expect(command.entityId).toBe(ent.id);
 				expect(command.componentId).toBe(0);
+				command.store!.offset += 8;
 			} else {
 				expect(command.entityId).toBe(ent.id);
 				expect(command.componentId).toBe(zstID);

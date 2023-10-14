@@ -9,8 +9,8 @@ export class CommandsDescriptor implements SystemParameter {
 	intersectsWith(other: unknown): boolean {
 		return false;
 	}
-	intoArgument(world: World): Commands {
-		return world.commands;
+	intoArgument({ commands }: World): Commands {
+		return commands;
 	}
 	onAddSystem(builder: WorldBuilder): void {}
 }

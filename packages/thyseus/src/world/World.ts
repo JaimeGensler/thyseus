@@ -1,14 +1,14 @@
-import { bits, DEV_ASSERT } from '../utils';
+import { DEV_ASSERT } from '../utils';
 import { WorldBuilder, type Registry } from './WorldBuilder';
 import { Commands } from '../commands';
-import { Table } from '../storage';
 import { CommandRegistryKey, ComponentRegistryKey } from './registryKeys';
 import { StartSchedule } from '../schedules';
 import { getCompleteConfig, type WorldConfig } from './config';
-import type { Class, Struct } from '../struct';
+import { Table, type Class, type Struct } from '../components';
 import type { Query } from '../queries';
 import { Entities } from '../entities';
-import { System } from '../systems';
+import type { System } from '../systems';
+import type { Thread } from '../threads';
 
 export class World {
 	/**
@@ -20,12 +20,13 @@ export class World {
 		return new WorldBuilder(getCompleteConfig(config));
 	}
 
-	tables: Table[] = [];
-	#archetypeToTable: Map<bigint, Table> = new Map<bigint, Table>();
-	queries: Query<any, any>[] = [];
-	resources: object[] = [];
+	tables: Table[];
+	#archetypeToTable: Map<bigint, Table>;
+	queries: Query<any, any>[];
+	resources: object[];
+	threads: Thread<any>[];
 
-	schedules: Record<symbol, { systems: System[]; args: any[][] }> = {};
+	schedules: Record<symbol, { systems: System[]; args: any[][] }>;
 
 	registry: Registry;
 	commands: Commands;
@@ -38,8 +39,13 @@ export class World {
 
 		this.components = Array.from(registry.get(ComponentRegistryKey)!);
 
-		this.tables.push(Table.createEmpty());
+		this.tables = [Table.createEmpty()];
+		this.#archetypeToTable = new Map();
 		this.#archetypeToTable.set(0n, this.tables[0]);
+		this.queries = [];
+		this.resources = [];
+		this.threads = [];
+		this.schedules = {};
 
 		this.entities = new Entities(this);
 		this.commands = new Commands(this, [
@@ -144,13 +150,34 @@ export class World {
 
 	/**
 	 * Returns the matching archetype (bigint) for a set of components.
+	 * @param ...componentTypes The components to get an archetype for.
+	 * @returns The archetype for this set of components.
 	 */
-	getArchetype(...componentTypes: Struct[]) {
+	getArchetype(...componentTypes: Struct[]): bigint {
 		let result = 0n;
 		for (const componentType of componentTypes) {
 			result |= 1n << BigInt(this.getComponentId(componentType));
 		}
 		return result;
+	}
+
+	/**
+	 * Given an archetype (`bigint)`, returns the array of components that matches this archetype.
+	 * @param archetype The archetype to get components for
+	 * @returns An array of components (`Struct[]`).
+	 */
+	getComponentsForArchetype(archetype: bigint): Struct[] {
+		const components = [];
+		let temp = archetype;
+		let i = 0;
+		while (temp !== 0n) {
+			if ((temp & 1n) === 1n) {
+				components.push(this.components[i]);
+			}
+			temp >>= 1n;
+			i++;
+		}
+		return components;
 	}
 
 	/**
@@ -163,8 +190,9 @@ export class World {
 		if (table) {
 			return table;
 		}
+
 		table = new Table(
-			Array.from(bits(archetype), cid => this.components[cid]),
+			this.getComponentsForArchetype(archetype),
 			archetype,
 			this.tables.length,
 		);

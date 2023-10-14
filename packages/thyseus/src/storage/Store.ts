@@ -1,4 +1,3 @@
-import type { u8, u16, u32, u64, i8, i16, i32, i64, f32, f64 } from '../struct';
 import { alignTo8 } from '../utils';
 
 /**
@@ -107,6 +106,17 @@ export class Store {
 	copyWithin(from: number, length: number, to: number): void {
 		this.u8.copyWithin(to, from, from + length);
 	}
+
+	/**
+	 * Starting at `from`, copies `length` boxed elements to the target destination `to`.
+	 * @param from The offset to start copying from.
+	 * @param length The number of boxed elements to copy.
+	 * @param to The offset to copy data to.
+	 */
+	copyBoxedWithin(from: number, length: number, to: number): void {
+		this.boxed.copyWithin(to, from, from + length);
+	}
+
 	/**
 	 * Copies `length` bytes from `other` store at `otherOffset` to `thisOffset`.
 	 * @param other The store to copy from.
@@ -125,6 +135,7 @@ export class Store {
 			thisOffset,
 		);
 	}
+
 	/**
 	 * Starting at `from`, sets `length` bytes to `value`.
 	 * @param from The offset to start writing to.
@@ -134,6 +145,7 @@ export class Store {
 	set(from: number, length: number, value: number): void {
 		this.u8.fill(value, from, from + length);
 	}
+
 	/**
 	 * Resizes this store's internal buffer, copying any data from the old buffer.
 	 * Resets `offset` to 0.
@@ -158,17 +170,23 @@ export class Store {
 		this.u8.set(oldU8);
 	}
 
+	setOffsets(offset: number, boxedOffset: number): this {
+		this.offset = offset;
+		this.boxedOffset = boxedOffset;
+		return this;
+	}
+
 	/**
 	 * Reads the unsigned 8-bit integer value at the current offset, moving the offset by 1 byte.
 	 * @returns The `u8` value at the offset.
 	 */
-	readU8(): u8 {
+	readU8(): number {
 		return this.u8[(this.offset += 1) - 1];
 	}
 	/**
 	 * Writes an unsigned 8-bit integer value to the current offset, moving the offset by 1 byte.
 	 */
-	writeU8(value: u8): void {
+	writeU8(value: number): void {
 		this.u8[(this.offset += 1) - 1] = value;
 	}
 
@@ -176,13 +194,13 @@ export class Store {
 	 * Reads the unsigned 16-bit integer value at the current offset, moving the offset by 2 bytes.
 	 * @returns The `u16` value at the offset.
 	 */
-	readU16(): u16 {
+	readU16(): number {
 		return this.u16[((this.offset += 2) - 2) >> 1];
 	}
 	/**
 	 * Writes an unsigned 16-bit integer value to the current offset, moving the offset by 2 bytes.
 	 */
-	writeU16(value: u16): void {
+	writeU16(value: number): void {
 		this.u16[((this.offset += 2) - 2) >> 1] = value;
 	}
 
@@ -190,13 +208,13 @@ export class Store {
 	 * Reads the unsigned 32-bit integer value at the current offset, moving the offset by 4 bytes.
 	 * @returns The `u32` value at the offset.
 	 */
-	readU32(): u32 {
+	readU32(): number {
 		return this.u32[((this.offset += 4) - 4) >> 2];
 	}
 	/**
 	 * Writes an unsigned 32-bit integer value to the current offset, moving the offset by 4 bytes.
 	 */
-	writeU32(value: u32): void {
+	writeU32(value: number): void {
 		this.u32[((this.offset += 4) - 4) >> 2] = value;
 	}
 
@@ -204,13 +222,13 @@ export class Store {
 	 * Reads the unsigned 64-bit integer value at the current offset, moving the offset by 8 bytes.
 	 * @returns The `u64` value at the offset.
 	 */
-	readU64(): u64 {
+	readU64(): bigint {
 		return this.u64[((this.offset += 8) - 8) >> 3];
 	}
 	/**
 	 * Writes an unsigned 64-bit integer value to the current offset, moving the offset by 8 bytes.
 	 */
-	writeU64(value: u64): void {
+	writeU64(value: bigint): void {
 		this.u64[((this.offset += 8) - 8) >> 3] = value;
 	}
 
@@ -218,13 +236,13 @@ export class Store {
 	 * Reads the signed 8-bit integer value at the current offset, moving the offset by 1 byte.
 	 * @returns The `i8` value at the offset.
 	 */
-	readI8(): i8 {
+	readI8(): number {
 		return this.i8[(this.offset += 1) - 1];
 	}
 	/**
 	 * Writes a signed 8-bit integer value to the current offset, moving the offset by 1 byte.
 	 */
-	writeI8(value: i8): void {
+	writeI8(value: number): void {
 		this.i8[(this.offset += 1) - 1] = value;
 	}
 
@@ -232,13 +250,13 @@ export class Store {
 	 * Reads the signed 16-bit integer value at the current offset, moving the offset by 2 bytes.
 	 * @returns The `i16` value at the offset.
 	 */
-	readI16(): i16 {
+	readI16(): number {
 		return this.i16[((this.offset += 2) - 2) >> 1];
 	}
 	/**
 	 * Writes a signed 16-bit integer value to the current offset, moving the offset by 2 bytes.
 	 */
-	writeI16(value: i16): void {
+	writeI16(value: number): void {
 		this.i16[((this.offset += 2) - 2) >> 1] = value;
 	}
 
@@ -246,13 +264,13 @@ export class Store {
 	 * Reads the signed 32-bit integer value at the current offset, moving the offset by 4 bytes.
 	 * @returns The `i32` value at the offset.
 	 */
-	readI32(): i32 {
+	readI32(): number {
 		return this.i32[((this.offset += 4) - 4) >> 2];
 	}
 	/**
 	 * Writes a signed 32-bit integer value to the current offset, moving the offset by 4 bytes.
 	 */
-	writeI32(value: i32): void {
+	writeI32(value: number): void {
 		this.i32[((this.offset += 4) - 4) >> 2] = value;
 	}
 
@@ -260,13 +278,13 @@ export class Store {
 	 * Reads the signed 64-bit integer value at the current offset, moving the offset by 8 bytes.
 	 * @returns The `i64` value at the offset.
 	 */
-	readI64(): i64 {
+	readI64(): bigint {
 		return this.i64[((this.offset += 8) - 8) >> 3];
 	}
 	/**
 	 * Writes a signed 64-bit integer value to the current offset, moving the offset by 8 bytes.
 	 */
-	writeI64(value: i64): void {
+	writeI64(value: bigint): void {
 		this.i64[((this.offset += 8) - 8) >> 3] = value;
 	}
 
@@ -274,13 +292,13 @@ export class Store {
 	 * Reads the 32-bit single-precision floating-point value (float) at the current offset, moving the offset by 4 bytes.
 	 * @returns The `f32` value at the offset.
 	 */
-	readF32(): f32 {
+	readF32(): number {
 		return this.f32[((this.offset += 4) - 4) >> 2];
 	}
 	/**
 	 * Writes a 32-bit single-precision floating-point value (float) to the current offset, moving the offset by 4 bytes.
 	 */
-	writeF32(value: f32): void {
+	writeF32(value: number): void {
 		this.f32[((this.offset += 4) - 4) >> 2] = value;
 	}
 
@@ -288,13 +306,13 @@ export class Store {
 	 * Reads the 64-bit double-precision floating-point value (double) at the current offset, moving the offset by 8 bytes.
 	 * @returns The `f64` value at the offset.
 	 */
-	readF64(): f64 {
+	readF64(): number {
 		return this.f64[((this.offset += 8) - 8) >> 3];
 	}
 	/**
 	 * Writes a 64-bit double-precision floating-point value (double) to the current offset, moving the offset by 8 bytes.
 	 */
-	writeF64(value: f64): void {
+	writeF64(value: number): void {
 		this.f64[((this.offset += 8) - 8) >> 3] = value;
 	}
 

@@ -1,4 +1,4 @@
-import type { u32, u64 } from '../struct';
+import type { u32, u64 } from '../components';
 import type { Store } from '../storage/Store';
 
 /**
@@ -11,6 +11,7 @@ export class Entity {
 	// TODO: Remove u64 access of id and lower alignment to 4.
 	static readonly alignment = 8;
 	static readonly size = 8;
+	static readonly boxedSize = 0;
 	#index: u32 = 0;
 	#generation: u32 = 0;
 

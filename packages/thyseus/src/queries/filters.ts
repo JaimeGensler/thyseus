@@ -1,4 +1,4 @@
-import type { Struct } from '../struct';
+import type { Struct } from '../components';
 import { DEV_ASSERT } from '../utils';
 
 export class Predicate {

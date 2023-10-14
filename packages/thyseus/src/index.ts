@@ -4,7 +4,7 @@ export { Entity } from './entities';
 export { Events } from './events';
 export { DefaultSchedule, StartSchedule } from './schedules';
 export { Store } from './storage';
-export { struct } from './struct';
+export { struct } from './components';
 export { cloneSystem } from './systems';
 export { World } from './world';
 
@@ -26,11 +26,8 @@ export { WorldDescriptor } from './world';
 // Types
 export type { Commands, EntityCommands } from './commands';
 export type { EventReader, EventWriter } from './events';
-export type { Query, Filter, Read } from './queries';
-export type { Res, SystemRes } from './resources';
-export type { Table } from './storage';
-export type { Entities } from './entities';
 export type {
+	Table,
 	Struct,
 	u8,
 	u16,
@@ -42,7 +39,10 @@ export type {
 	i64,
 	f32,
 	f64,
-} from './struct';
+} from './components';
+export type { Query, Filter, Read } from './queries';
+export type { Res, SystemRes } from './resources';
+export type { Entities } from './entities';
 export type { System, SystemParameter } from './systems';
 export type { Thread, StructuredCloneable } from './threads';
 export type { WorldBuilder, Plugin, WorldConfig } from './world';

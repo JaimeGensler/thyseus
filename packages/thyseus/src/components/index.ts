@@ -1,5 +1,6 @@
-export { struct, type Class, type Struct, type StructInstance } from './struct';
 export { isStruct } from './isStruct';
+export { Table } from './Table';
+export { struct, type Class, type Struct, type StructInstance } from './struct';
 export type {
 	u8,
 	u16,

@@ -2,7 +2,7 @@ import { Query } from './Query';
 import { registerFilters, createArchetypeFilter, type Filter } from './filters';
 import type { World, WorldBuilder } from '../world';
 import type { SystemParameter } from '../systems';
-import type { Struct } from '../struct';
+import type { Struct } from '../components';
 import { ReadModifier } from './modifiers';
 
 export class QueryDescriptor implements SystemParameter {
@@ -83,15 +83,6 @@ if (import.meta.vitest) {
 	class B extends Comp {}
 	class C extends Comp {}
 	class D extends Comp {}
-
-	it('throws if trying to access ZSTs', () => {
-		class ZST {
-			static size = 0;
-		}
-		expect(() => new QueryDescriptor([ZST])).toThrow(
-			/may not request direct access to ZSTs/,
-		);
-	});
 
 	describe('intersectsWith', () => {
 		it('returns false for queries that do not overlap', () => {

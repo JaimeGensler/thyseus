@@ -7,7 +7,7 @@ import {
 	ComponentRegistryKey,
 	ResourceRegistryKey,
 } from './registryKeys';
-import type { Class, Struct } from '../struct';
+import type { Class, Struct } from '../components';
 import type { Plugin } from './Plugin';
 import type { System } from '../systems';
 import type { WorldConfig } from './config';

@@ -1,4 +1,4 @@
-import { isStruct, type Class } from '../struct';
+import { isStruct, type Class } from '../components';
 import type { SystemParameter } from '../systems';
 import type { World, WorldBuilder } from '../world';
 
