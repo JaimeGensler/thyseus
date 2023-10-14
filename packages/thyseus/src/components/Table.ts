@@ -107,11 +107,21 @@ export class Table {
 		}
 	}
 
-	copyDataIntoRow(row: number, componentType: Struct, store: Store): void {
+	copyDataIntoRow(
+		row: number,
+		componentType: Struct,
+		store: Store,
+		boxedOffset: number,
+	): void {
 		if (this.hasColumn(componentType)) {
-			const size = componentType.size!;
+			const { size, boxedSize } = componentType;
 			const column = this.getColumn(componentType);
-			column.copyFrom(store, size, store.offset, row * size);
+			column.copyFrom(store, size!, store.offset, row * size!);
+			const ownBoxOffset = row * boxedSize!;
+			for (let j = 0; j < boxedSize!; j++) {
+				column.boxed[ownBoxOffset + j] = store.boxed[boxedOffset + j];
+				store.boxed[boxedOffset + j] = null;
+			}
 		}
 	}
 
