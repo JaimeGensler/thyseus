@@ -32,7 +32,7 @@ export type Struct = {
 export type StructInstance = {
 	serialize?(store: Store): void;
 	deserialize?(store: Store): void;
-};
+} & object;
 
 export function struct(targetClass: Class): void;
 export function struct(
