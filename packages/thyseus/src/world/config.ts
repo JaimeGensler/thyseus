@@ -1,8 +1,33 @@
 import { DEV_ASSERT } from '../utils';
 
 export type WorldConfig = {
-	getNewTableSize(prev: number): number;
+	/**
+	 * The amount to grow binary data by when it's resized for more elements.
+	 *
+	 * Defaults to a 2x growth factor.
+	 *
+	 * @param previousSize The previous size - in **elements** - of a store. This will be `0` the first time a store is grown.
+	 * @returns The new size - in **elements** - the store should be.
+	 */
+	growStore(previousSize: number): number;
+
+	/**
+	 * When `true`, will used `SharedArrayBuffer` instead of `ArrayBuffer` when creating binary data.
+	 *
+	 * Use of `SharedArrayBuffer` requires a secure context.
+	 *
+	 * Defaults to false.
+	 */
 	useSharedMemory: boolean;
+
+	/**
+	 * A function that accepts the URL of a module and returns a `Worker`-like object for that module.
+	 *
+	 * Defaults to a browser-oriented worker creator.
+	 *
+	 * @param url The URL of the worker module.
+	 * @returns A `Worker`-like object.
+	 */
 	createWorker(url: string): Worker;
 };
 
@@ -17,8 +42,8 @@ export function getCompleteConfig(
 	}
 	return {
 		useSharedMemory: false,
-		getNewTableSize(prev) {
-			return prev * 2 || 4;
+		growStore(previousSize) {
+			return previousSize * 2 || 4;
 		},
 		createWorker(url) {
 			return new Worker(url, { type: 'module' });
@@ -66,7 +91,7 @@ if (import.meta.vitest) {
 	it('completes partial config', () => {
 		const result = getCompleteConfig();
 		expect(result).toHaveProperty('useSharedMemory');
-		expect(result).toHaveProperty('getNewTableSize');
+		expect(result).toHaveProperty('growStore');
 		expect(result).toHaveProperty('createWorker');
 	});
 }

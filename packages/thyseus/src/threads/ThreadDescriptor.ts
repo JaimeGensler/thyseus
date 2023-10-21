@@ -1,5 +1,6 @@
-import { SystemParameter } from '../systems';
-import { World, WorldBuilder } from '../world';
+import type { SystemParameter } from '../systems';
+import type { World } from '../world';
+
 import { Thread } from './Thread';
 
 export class ThreadDescriptor implements SystemParameter {
@@ -9,13 +10,6 @@ export class ThreadDescriptor implements SystemParameter {
 		[this.#import, this.#path] = x;
 	}
 
-	isLocalToThread(): boolean {
-		return true;
-	}
-	intersectsWith(other: unknown): boolean {
-		return true;
-	}
-	onAddSystem(builder: WorldBuilder) {}
 	intoArgument(world: World): Thread<any> {
 		let thread = world.threads.find(thread => thread.module === this.#path);
 		if (thread) {

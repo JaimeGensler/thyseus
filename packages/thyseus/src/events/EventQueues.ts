@@ -97,15 +97,13 @@ export class EventWriter<T extends StructInstance> extends EventReader<T> {
 	 * Will grow queue, if necessary.
 	 */
 	#addEvent(): Store {
-		const { size, boxedSize } = this.type;
-		const offset = this.length * size!;
-		const boxedOffset = this.length * boxedSize!;
+		const size = this.type.size!;
+		const offset = this.length * size;
 		if (offset >= this.#store.byteLength) {
-			this.#store.resize(this.#store.byteLength * 2 || 4 * size!);
+			this.#store.resize(this.#store.byteLength * 2 || 4 * size);
 		}
 		this.#store.length++;
 		this.#store.offset = offset;
-		this.#store.boxedOffset = boxedOffset;
 		return this.#store;
 	}
 }
@@ -121,9 +119,7 @@ if (import.meta.vitest) {
 	async function setupQueue<T extends Struct, I extends InstanceType<T>>(
 		queueType: T,
 	) {
-		const world = await World.new()
-			.registerCommand(ClearEventQueueCommand)
-			.build();
+		const world = await World.new().build();
 		const store = new Store(4 * queueType.size!);
 		return [
 			new EventReader<I>(world.commands, queueType as any, store, 0),

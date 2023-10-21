@@ -62,14 +62,11 @@ if (import.meta.vitest) {
 			this.y = y;
 		}
 	}
-	const createWorld = () =>
-		World.new()
-			.registerComponent(ZST)
-			.registerComponent(CompA)
-			.registerComponent(CompB)
-			.registerComponent(CompC)
-			.registerComponent(CompD)
-			.build();
+	const createWorld = async () => {
+		const world = await World.new().build();
+		world.components.push(ZST, CompA, CompB, CompC, CompD);
+		return world;
+	};
 
 	it('moves entities', async () => {
 		const world = await createWorld();

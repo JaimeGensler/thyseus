@@ -1,4 +1,3 @@
-import { DEV_ASSERT } from '../utils';
 import { Store } from '../storage';
 import { EntityLocation } from './EntityLocation';
 import type { World } from '../world';
@@ -28,7 +27,7 @@ export class Entities {
 	 */
 	#locations: Store;
 	/**
-	 * List of freed entity indexes (`u32`) available for reuse.
+	 * List of freed entity indexes available for reuse.
 	 */
 	#freed: Uint32Array;
 	/**
@@ -45,6 +44,7 @@ export class Entities {
 	}
 
 	// TODO: Reconsider having this be atomic - not necessary if entities isn't accessible on other threads
+	// If non-atomic, #data is no longer needed
 	/**
 	 * A **lockfree** method to obtain a new Entity ID.
 	 */
@@ -69,9 +69,12 @@ export class Entities {
 	 * @param entityId The id of the entity to despawn.
 	 */
 	freeId(entityId: bigint): void {
-		// TODO: Resize freed as needed
 		const index = getIndex(entityId);
 		this.#generations[index]++;
+		const freeLen = this.#freed.length;
+		if (this.#data[2] >= freeLen) {
+			this.#freed = this.#resizeArray(this.#freed, freeLen * 2);
+		}
 		this.#freed[this.#data[2]] = index;
 		this.#data[2]++;
 		this.setLocation(entityId, this.#location.set(0, 0));
@@ -108,11 +111,7 @@ export class Entities {
 	 * @returns A `boolean`, true if the entity has the component and false if it does not.
 	 */
 	hasComponent(entityId: bigint, componentType: Struct): boolean {
-		const componentId = this.#world.components.indexOf(componentType);
-		DEV_ASSERT(
-			componentId !== -1,
-			'hasComponent method must receive a component that exists in the world.',
-		);
+		const componentId = this.#world.getComponentId(componentType);
 		const archetype = this.getArchetype(entityId);
 		const componentBit = 1n << BigInt(componentId);
 		return (archetype & componentBit) === componentBit;
@@ -125,9 +124,7 @@ export class Entities {
 			const newLength =
 				Math.ceil((entityCount + 1) / ENTITY_BATCH_SIZE) *
 				ENTITY_BATCH_SIZE;
-			const oldGenerations = this.#generations;
-			this.#generations = new Uint32Array(newLength);
-			this.#generations.set(oldGenerations);
+			this.#generations = this.#resizeArray(this.#generations, newLength);
 			this.#locations.resize(newLength * EntityLocation.size);
 		}
 	}
@@ -151,6 +148,12 @@ export class Entities {
 		const { tableId } = this.getLocation(entityId);
 		return this.#world.tables[tableId]?.archetype ?? 0n;
 	}
+
+	#resizeArray(oldArray: Uint32Array, newLength: number): Uint32Array {
+		const newArray = new Uint32Array(newLength);
+		newArray.set(oldArray);
+		return newArray;
+	}
 }
 
 /*---------*\
@@ -162,13 +165,11 @@ if (import.meta.vitest) {
 	const { Entity } = await import('./Entity');
 
 	const ONE_GENERATION = 1n << 32n;
-	async function createWorld(...components: Struct[]) {
-		const builder = World.new();
-		for (const comp of components) {
-			builder.registerComponent(comp);
-		}
-		return builder.build();
-	}
+	const createWorld = async (...components: Struct[]) => {
+		const world = await World.new().build();
+		world.components.push(...components);
+		return world;
+	};
 
 	it('returns incrementing generational integers', async () => {
 		const world = await createWorld();

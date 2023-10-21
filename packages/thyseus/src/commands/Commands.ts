@@ -1,17 +1,16 @@
-import { EntityCommands } from './EntityCommands';
-import { alignTo8 } from '../utils';
+import { Entity, type Entities } from '../entities';
 import { Store } from '../storage';
+import { alignTo8 } from '../utils';
+import type { StructInstance } from '../components';
+import type { World } from '../world';
+
 import {
 	AddComponentCommand,
 	RemoveComponentCommand,
 } from './ComponentCommands';
-import { Entity, type Entities } from '../entities';
-import type { Struct, StructInstance } from '../components';
-import type { World } from '../world';
+import { EntityCommands } from './EntityCommands';
+import type { Command } from './Command';
 
-export type Command = Struct & {
-	iterate(commands: Commands, world: World): any;
-};
 export class Commands {
 	#world: World;
 	#entities: Entities;
@@ -20,12 +19,15 @@ export class Commands {
 	#queues: Store[];
 
 	#entityCommands: EntityCommands;
-	constructor(world: World, commandTypes: Command[]) {
+	constructor(world: World) {
 		this.#world = world;
 		this.#entities = world.entities;
-		this.commandTypes = commandTypes;
-		this.#commands = this.commandTypes.map(command => new command());
-		this.#queues = this.commandTypes.map(() => new Store(0));
+		this.commandTypes = [AddComponentCommand, RemoveComponentCommand];
+		this.#commands = [
+			new AddComponentCommand(),
+			new RemoveComponentCommand(),
+		];
+		this.#queues = [new Store(0), new Store(0)];
 		this.#entityCommands = new EntityCommands(world, this, 0n);
 	}
 
@@ -83,6 +85,16 @@ export class Commands {
 			: new EntityCommands(this.#world, this, entityId);
 	}
 
+	#getCommandId(commandType: Command): number {
+		let commandId = this.commandTypes.indexOf(commandType);
+		if (commandId === -1) {
+			commandId = this.commandTypes.push(commandType) - 1;
+			this.#commands.push(new commandType());
+			this.#queues.push(new Store(0));
+		}
+		return commandId;
+	}
+
 	/**
 	 * Pushes a command to the queue.
 	 *
@@ -92,7 +104,7 @@ export class Commands {
 	 */
 	push(command: StructInstance, additionalSize: number = 0): void {
 		const commandType = command.constructor as Command;
-		const store = this.#queues[this.commandTypes.indexOf(commandType)];
+		const store = this.#queues[this.#getCommandId(commandType)];
 		const addedSize = commandType.size! + alignTo8(additionalSize);
 		if (store.byteLength < store.length + addedSize) {
 			store.resize((store.length + addedSize) * 2);
@@ -103,7 +115,7 @@ export class Commands {
 	}
 
 	*iterate<T extends Command>(type: T): Generator<Readonly<InstanceType<T>>> {
-		const id = this.commandTypes.indexOf(type);
+		const id = this.#getCommandId(type);
 		const store = this.#queues[id];
 		const command = this.#commands[id];
 		store.offset = 0;
@@ -169,14 +181,11 @@ if (import.meta.vitest) {
 		}
 	}
 
-	const createWorld = () =>
-		World.new()
-			.registerComponent(ZST)
-			.registerComponent(CompA)
-			.registerComponent(CompB)
-			.registerComponent(CompC)
-			.registerComponent(CompD)
-			.build();
+	const createWorld = async () => {
+		const world = await World.new().build();
+		world.components.push(ZST, CompA, CompB, CompC, CompD);
+		return world;
+	};
 
 	it('returns unique entity handles if reuse is false', async () => {
 		const world = await createWorld();

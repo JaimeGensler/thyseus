@@ -48,17 +48,6 @@ export class And<
 }
 export type Filter = Predicate | Connective;
 
-export function registerFilters(
-	filter: Filter,
-	register: (instance: Struct) => void,
-) {
-	if (filter instanceof Connective) {
-		filter.children.forEach(child => registerFilters(child, register));
-	} else {
-		filter.children.forEach(register);
-	}
-}
-
 export function createArchetypeFilter(
 	filter: Filter,
 	current: bigint[],

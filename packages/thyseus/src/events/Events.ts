@@ -1,8 +1,9 @@
-import { EventReader, EventWriter } from './EventQueues';
 import { Store } from '../storage';
+import type { Commands } from '../commands';
 import type { Struct } from '../components';
 import type { World } from '../world';
-import type { Commands } from '../commands';
+
+import { EventReader, EventWriter } from './EventQueues';
 
 /**
  * A resource responsible for creating & holding all event queues in a world.

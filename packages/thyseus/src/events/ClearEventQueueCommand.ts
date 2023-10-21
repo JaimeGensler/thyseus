@@ -17,7 +17,8 @@ export class ClearEventQueueCommand {
 	eventId: u32 = 0;
 
 	static iterate(commands: Commands, world: World): void {
-		const events = world.getResource(Events);
+		// SAFETY: `Events` must exist because it's used to create readers/writers
+		const events = world.getResource(Events)!;
 		for (const command of commands.iterate(ClearEventQueueCommand)) {
 			events.writers[command.eventId].clearImmediate();
 		}
