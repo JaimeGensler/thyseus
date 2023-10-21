@@ -1,14 +1,14 @@
-import { DEV_ASSERT } from '../utils';
-import { WorldBuilder, type Registry } from './WorldBuilder';
 import { Commands } from '../commands';
-import { CommandRegistryKey, ComponentRegistryKey } from './registryKeys';
-import { StartSchedule } from '../schedules';
-import { getCompleteConfig, type WorldConfig } from './config';
 import { Table, type Class, type Struct } from '../components';
+import { Entities, Entity } from '../entities';
+import { DEV_ASSERT } from '../utils';
 import type { Query } from '../queries';
-import { Entities } from '../entities';
 import type { System } from '../systems';
 import type { Thread } from '../threads';
+
+import { getCompleteConfig, type WorldConfig } from './config';
+import { StartSchedule } from './schedules';
+import { WorldBuilder } from './WorldBuilder';
 
 export class World {
 	/**
@@ -28,29 +28,24 @@ export class World {
 
 	schedules: Record<symbol, { systems: System[]; args: any[][] }>;
 
-	registry: Registry;
 	commands: Commands;
 	entities: Entities;
 	config: Readonly<WorldConfig>;
 	components: Struct[];
-	constructor(config: WorldConfig, registry: Registry) {
+	constructor(config: WorldConfig) {
 		this.config = config;
-		this.registry = registry;
 
-		this.components = Array.from(registry.get(ComponentRegistryKey)!);
+		this.components = [Entity];
 
 		this.tables = [Table.createEmpty()];
-		this.#archetypeToTable = new Map();
-		this.#archetypeToTable.set(0n, this.tables[0]);
+		this.#archetypeToTable = new Map([[0n, this.tables[0]]]);
 		this.queries = [];
 		this.resources = [];
 		this.threads = [];
 		this.schedules = {};
 
 		this.entities = new Entities(this);
-		this.commands = new Commands(this, [
-			...registry.get(CommandRegistryKey)!,
-		] as any);
+		this.commands = new Commands(this);
 	}
 
 	/**
@@ -78,14 +73,32 @@ export class World {
 	}
 
 	/**
-	 * Gets the resource (instance) of the passed type.
-	 * @param resourceType The type of the resource to get.
+	 * Returns the resource of the provided type, or `undefined` if it doesn't exist.
+	 * @param resourceType The type of the resource to get
 	 * @returns The resource instance.
 	 */
-	getResource<T extends Class>(resourceType: T): InstanceType<T> {
+	getResource<T extends Class>(resourceType: T): InstanceType<T> | undefined {
 		return this.resources.find(
-			instance => instance.constructor === resourceType,
-		)! as any;
+			res => res.constructor === resourceType,
+		) as any;
+	}
+
+	/**
+	 * Returns the resource (instance) of the passed type, creating and adding it to the world if it doesn't exist yet.
+	 * @param resourceType The type of the resource to get or create.
+	 * @returns The resource instance.
+	 */
+	async getOrCreateResource<T extends Class>(
+		resourceType: T,
+	): Promise<InstanceType<T>> {
+		return (this.getResource(resourceType) ??
+			this.resources[
+				this.resources.push(
+					'fromWorld' in resourceType
+						? await (resourceType as any).fromWorld(this)
+						: new resourceType(),
+				) - 1
+			]) as InstanceType<T>;
 	}
 
 	/**
@@ -107,9 +120,7 @@ export class World {
 		}
 		const targetTable = this.#getTable(targetArchetype);
 		if (targetTable.length === targetTable.capacity) {
-			targetTable.resize(
-				this.config.getNewTableSize(targetTable.capacity),
-			);
+			targetTable.resize(this.config.growStore(targetTable.capacity));
 		}
 
 		if (currentTable.archetype === 0n) {
@@ -136,16 +147,17 @@ export class World {
 
 	/**
 	 * Gets the internal id for a component in this world.
-	 * May differ from world to world.
+	 * If the provided component type doesn't yet have an id in this world, an id will be reserved.
 	 * @param componentType The component type to get an id for.
 	 * @returns The numeric id of the component.
 	 */
 	getComponentId(componentType: Struct): number {
-		DEV_ASSERT(
-			this.components.includes(componentType),
-			`Tried to get id of unregistered component "${componentType.name}"`,
-		);
-		return this.components.indexOf(componentType);
+		const componentId = this.components.indexOf(componentType);
+		if (componentId !== -1) {
+			return componentId;
+		}
+		this.components.push(componentType);
+		return this.components.length - 1;
 	}
 
 	/**

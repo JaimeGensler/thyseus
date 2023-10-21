@@ -1,6 +1,6 @@
-import { isStruct, type Class } from '../components';
+import type { Class } from '../components';
 import type { SystemParameter } from '../systems';
-import type { World, WorldBuilder } from '../world';
+import type { World } from '../world';
 
 export class SystemResourceDescriptor implements SystemParameter {
 	resourceType: Class;
@@ -9,19 +9,10 @@ export class SystemResourceDescriptor implements SystemParameter {
 		this.resourceType = resource;
 	}
 
-	isLocalToThread(): boolean {
-		return !isStruct(this.resourceType);
-	}
-	intersectsWith(other: unknown): boolean {
-		return false;
-	}
-
-	onAddSystem(builder: WorldBuilder): void {}
-
 	async intoArgument(world: World): Promise<object> {
 		const { resourceType } = this;
-		return (resourceType as any).fromWorld
-			? (resourceType as any).fromWorld(world)
+		return 'fromWorld' in resourceType
+			? await (resourceType as any).fromWorld(world)
 			: new resourceType();
 	}
 }
@@ -33,42 +24,6 @@ if (import.meta.vitest) {
 	const { it, expect, describe, vi } = import.meta.vitest;
 
 	class A {}
-	class C {
-		static size = 1;
-		static alignment = 1;
-	}
-
-	describe('intersectsWith', () => {
-		it('returns false', () => {
-			const resA = new SystemResourceDescriptor(A);
-			const resA2 = new SystemResourceDescriptor(A);
-			expect(resA.intersectsWith(resA2)).toBe(false);
-		});
-	});
-
-	describe('onAddSystem', () => {
-		it('is a no-op', () => {
-			const builder = {
-				registerResource: vi.fn(),
-				registerSendableClass: vi.fn(),
-			} as any;
-			new SystemResourceDescriptor(A).onAddSystem(builder);
-			expect(builder.registerResource).not.toHaveBeenCalled();
-		});
-	});
-
-	describe('isLocalToThread', () => {
-		it('returns true if resource is not a struct', () => {
-			expect(new SystemResourceDescriptor(A).isLocalToThread()).toBe(
-				true,
-			);
-		});
-		it('returns false if resource has struct static fields', () => {
-			expect(new SystemResourceDescriptor(C).isLocalToThread()).toBe(
-				false,
-			);
-		});
-	});
 
 	describe('intoArgument', () => {
 		const world: World = {

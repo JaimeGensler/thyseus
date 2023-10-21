@@ -2,11 +2,10 @@
 export { applyCommands } from './commands';
 export { Entity } from './entities';
 export { Events } from './events';
-export { DefaultSchedule, StartSchedule } from './schedules';
 export { Store } from './storage';
 export { struct } from './components';
 export { cloneSystem } from './systems';
-export { World } from './world';
+export { World, DefaultSchedule, StartSchedule } from './world';
 
 // Descriptors
 export { CommandsDescriptor } from './commands';
