@@ -1,4 +1,4 @@
-import type { Class, Struct } from '../components';
+import type { Class } from '../components';
 
 // `Read<T>` relies on methods of classes having an `unknown` this type.
 // If an explicit `this` type is provided, it will no longer be `unknown`.
@@ -15,7 +15,7 @@ export type Read<T> = {
 };
 
 export class ReadModifier {
-	value: Struct;
+	value: Class;
 	constructor(value: Class) {
 		this.value = value;
 	}

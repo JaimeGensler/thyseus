@@ -1,87 +1,47 @@
-import { alignTo8 } from '../utils';
-import type { Store } from '../storage';
-import type { u64, u32, StructInstance } from '../components';
+import type { Class } from '../components';
+import { Entity } from '../entities';
 import type { World } from '../world';
+
 import type { Commands } from './Commands';
 
-class BaseComponentCommand {
-	static readonly size = 16; // Size is for struct internals, payload follows
-	static readonly alignment = 8;
-	static readonly boxedSize = 0;
-	deserialize(store: Store) {
-		this.entityId = store.readU64();
-		this.componentId = store.readU32();
-		this.boxedOffset = store.readU32();
-	}
-	serialize(store: Store) {
-		store.writeU64(this.entityId);
-		store.writeU32(this.componentId);
-		store.writeU32(this.boxedOffset);
-	}
-
-	entityId: u64 = 0n;
-	componentId: u32 = 0;
-	boxedOffset: u32 = 0;
-}
-
-export class AddComponentCommand extends BaseComponentCommand {
-	component: StructInstance | null = null;
-	store: Store | null = null;
-	deserialize(store: Store) {
-		super.deserialize(store);
-		this.store = store;
-		store.offset = alignTo8(store.offset);
-		store.boxedOffset = this.boxedOffset;
-	}
-	serialize(store: Store) {
-		super.serialize(store);
-		this.component!.serialize!(store);
-		store.offset = alignTo8(store.offset);
-	}
-
-	static with(
-		entityId: u64,
-		componentId: u32,
-		component: StructInstance,
-	): AddComponentCommand {
-		addComponent.entityId = entityId;
-		addComponent.componentId = componentId;
-		addComponent.component = component;
-		return addComponent;
+export class AddComponentCommand {
+	entity: Entity;
+	component: object;
+	constructor(entity: Entity, component: object) {
+		this.entity = entity;
+		this.component = component;
 	}
 
 	static iterate = handleComponentCommands;
 }
-const addComponent = new AddComponentCommand();
 
-export class RemoveComponentCommand extends BaseComponentCommand {
-	static with(entityId: u64, componentId: u32): RemoveComponentCommand {
-		removeComponent.entityId = entityId;
-		removeComponent.componentId = componentId;
-		return removeComponent;
+export class RemoveComponentCommand {
+	entity: Entity;
+	componentType: Class;
+	constructor(entity: Entity, componentType: Class) {
+		this.entity = entity;
+		this.componentType = componentType;
 	}
-
 	static iterate(commands: Commands, world: World) {}
 }
-const removeComponent = new RemoveComponentCommand();
 
-const entityDestinations = new Map<bigint, bigint>();
+const entityDestinations = new Map<number, bigint>();
 function handleComponentCommands(commands: Commands, world: World) {
-	const { entities, tables, components } = world;
+	const { entities, tables } = world;
 	// Find where entities will end up
 	entityDestinations.clear();
-	for (const { entityId, componentId, store } of commands.iterate(
-		AddComponentCommand,
-	)) {
-		store!.offset += alignTo8(world.components[componentId].size!);
-		let val = entityDestinations.get(entityId);
+	for (const { index, component } of commands.iterate(AddComponentCommand)) {
+		let val = entityDestinations.get(index);
 		if (val === 0n) {
 			continue;
 		}
 		val ??= entities.getArchetype(entityId);
-		entityDestinations.set(entityId, val | (1n << BigInt(componentId)));
+		const componentId = world.getComponentId(
+			component.constructor as Class,
+		);
+		entityDestinations.set(index, val | (1n << BigInt(componentId)));
 	}
-	for (const { entityId, componentId } of commands.iterate(
+	for (const { entityId, componentType } of commands.iterate(
 		RemoveComponentCommand,
 	)) {
 		let val = entityDestinations.get(entityId);
@@ -89,6 +49,7 @@ function handleComponentCommands(commands: Commands, world: World) {
 			continue;
 		}
 		val ??= entities.getArchetype(entityId);
+		const componentId = world.getComponentId(componentType);
 		entityDestinations.set(entityId, val ^ (1n << BigInt(componentId)));
 	}
 
@@ -98,23 +59,13 @@ function handleComponentCommands(commands: Commands, world: World) {
 	}
 
 	// Handle data insertion from adds
-	for (const {
-		entityId,
-		componentId,
-		store,
-		boxedOffset,
-	} of commands.iterate(AddComponentCommand)) {
+	for (const { entityId, component } of commands.iterate(
+		AddComponentCommand,
+	)) {
 		const { row, tableId } = entities.getLocation(entityId);
-		const componentType = components[componentId];
 		if (tableId === 0) {
 			continue;
 		}
-		tables[tableId].copyDataIntoRow(
-			row,
-			componentType,
-			store!,
-			boxedOffset,
-		);
-		store!.offset += alignTo8(componentType.size!);
+		tables[tableId].copyComponentIntoRow(row, component);
 	}
 }

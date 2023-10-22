@@ -1,9 +1,9 @@
-import type { Struct } from '../components';
+import type { Class } from '../components';
 import { DEV_ASSERT } from '../utils';
 
 export class Predicate {
-	children: Struct[];
-	constructor(...children: Struct[]) {
+	children: Class[];
+	constructor(...children: Class[]) {
 		this.children = children;
 	}
 }
@@ -51,7 +51,7 @@ export type Filter = Predicate | Connective;
 export function createArchetypeFilter(
 	filter: Filter,
 	current: bigint[],
-	getArchetype: (...components: Struct[]) => bigint,
+	getArchetype: (...components: Class[]) => bigint,
 ): bigint[] {
 	if (filter instanceof And) {
 		return filter.children.reduce(
@@ -92,9 +92,9 @@ if (import.meta.vitest) {
 	class C extends Comp {}
 	class D extends Comp {}
 	class E extends Comp {}
-	const components: Struct[] = [A, B, C, D, E];
+	const components: Class[] = [A, B, C, D, E];
 
-	const getArchetype = (...comps: Struct[]) =>
+	const getArchetype = (...comps: Class[]) =>
 		comps.reduce(
 			(acc, val) => acc | (1n << BigInt(components.indexOf(val))),
 			0n,

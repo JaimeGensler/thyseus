@@ -1,11 +1,13 @@
 import { WorldDescriptor } from '../world/WorldDescriptor';
 
 import type { World } from '../world';
-import type { Store } from '../storage';
 
+/**
+ * A system that applies all commands that have been enqueued in a world.
+ * @param world The world to apply commands in.
+ */
 export function applyCommands(world: World) {
-	const { commands, entities } = world;
-	entities.resetCursor();
+	const { commands } = world;
 
 	for (const commandType of commands.commandTypes) {
 		commandType.iterate(commands, world);
@@ -22,39 +24,14 @@ if (import.meta.vitest) {
 	const { it, expect, vi } = import.meta.vitest;
 	const { World } = await import('../world');
 	const { EventWriterDescriptor } = await import('../events');
+	const { Tag } = await import('../components');
 
-	class ZST {
-		static size = 0;
-		static alignment = 1;
-		deserialize() {}
-		serialize() {}
-	}
+	class ZST extends Tag {}
 
-	class Struct {
-		static size = 1;
-		static alignment = 1;
-		deserialize(store: Store) {
-			store.readU8();
-		}
-		serialize(store: Store) {
-			store.writeU8(0);
-		}
-	}
-	class CompA extends Struct {}
-	class CompB extends Struct {}
-	class CompC extends Struct {}
+	class CompA {}
+	class CompB {}
+	class CompC {}
 	class CompD {
-		static size = 8;
-		static alignment = 4;
-		deserialize(store: Store) {
-			this.x = store.readU32();
-			this.y = store.readU32();
-		}
-		serialize(store: Store) {
-			store.writeU32(this.x);
-			store.writeU32(this.y);
-		}
-
 		x: number;
 		y: number;
 		constructor(x = 23, y = 42) {
@@ -95,14 +72,14 @@ if (import.meta.vitest) {
 
 		applyCommands(myWorld);
 		const tableD = myWorld.tables[1];
-		const testComp = new CompD();
+		const comp = tableD.getColumn(CompD)[0];
 
-		const column = tableD.getColumn(CompD);
-		column.offset = 0;
-		testComp.deserialize(column);
 		expect(tableD.length).toBe(1);
-		expect(testComp.x).toBe(1);
-		expect(testComp.y).toBe(2);
+		expect(comp).toBeInstanceOf(CompD);
+		if (comp instanceof CompD) {
+			expect(comp.x).toBe(1);
+			expect(comp.y).toBe(2);
+		}
 	});
 
 	it('clears event queues', async () => {

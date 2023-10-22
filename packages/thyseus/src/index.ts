@@ -2,8 +2,7 @@
 export { applyCommands } from './commands';
 export { Entity } from './entities';
 export { Events } from './events';
-export { Store } from './storage';
-export { struct } from './components';
+export { Tag } from './components';
 export { cloneSystem } from './systems';
 export { World, DefaultSchedule, StartSchedule } from './world';
 
@@ -25,20 +24,7 @@ export { WorldDescriptor } from './world';
 // Types
 export type { Commands, EntityCommands } from './commands';
 export type { EventReader, EventWriter } from './events';
-export type {
-	Table,
-	Struct,
-	u8,
-	u16,
-	u32,
-	u64,
-	i8,
-	i16,
-	i32,
-	i64,
-	f32,
-	f64,
-} from './components';
+export type { Table, Class } from './components';
 export type { Query, Filter, Read } from './queries';
 export type { Res, SystemRes } from './resources';
 export type { Entities } from './entities';

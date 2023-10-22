@@ -1,28 +1,10 @@
-import type { u32, u64 } from '../components';
-import type { Store } from '../storage/Store';
-
 /**
  * A component that can be used to get the id, index, and generation of an Entity.
  * All living entities have the `Entity` component.
- *
- * Should always be accessed readonly.
  */
 export class Entity {
-	// TODO: Remove u64 access of id and lower alignment to 4.
-	static readonly alignment = 8;
-	static readonly size = 8;
-	static readonly boxedSize = 0;
-	#index: u32 = 0;
-	#generation: u32 = 0;
-
-	deserialize(store: Store) {
-		this.#index = store.readU32();
-		this.#generation = store.readU32();
-	}
-	serialize(store: Store) {
-		store.writeU32(this.#index);
-		store.writeU32(this.#generation);
-	}
+	#index: number = 0;
+	#generation: number = 0;
 
 	constructor();
 	constructor(id: bigint);
@@ -51,21 +33,21 @@ export class Entity {
 	/**
 	 * The entity's world-unique `u64` integer id, composed of its generation and index.
 	 */
-	get id(): u64 {
+	get id(): bigint {
 		return (BigInt(this.#generation) << 32n) | BigInt(this.#index);
 	}
 
 	/**
 	 * The `u32` index of this entity.
 	 */
-	get index(): u32 {
+	get index(): number {
 		return this.#index;
 	}
 
 	/**
 	 * The `u32` generation of this entity.
 	 */
-	get generation(): u32 {
+	get generation(): number {
 		return this.#generation;
 	}
 }

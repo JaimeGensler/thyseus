@@ -1,4 +1,4 @@
-import type { Struct } from '../components';
+import type { Class } from '../components';
 import type { SystemParameter } from '../systems';
 import type { World } from '../world';
 
@@ -7,21 +7,21 @@ import { ReadModifier } from './modifiers';
 import { Query } from './Query';
 
 export class QueryDescriptor implements SystemParameter {
-	components: Struct[] = [];
+	components: Class[] = [];
 	reads: boolean[] = [];
 	filter: Filter | undefined;
 	isIndividual: boolean;
 
-	constructor(accessors: (Struct | ReadModifier)[], filter?: Filter) {
+	constructor(accessors: (Class | ReadModifier)[], filter?: Filter) {
 		this.isIndividual = !Array.isArray(accessors);
-		const iter: (Struct | ReadModifier)[] = Array.isArray(accessors)
+		const iter: (Class | ReadModifier)[] = Array.isArray(accessors)
 			? accessors
 			: [accessors];
 
 		for (const accessor of iter) {
 			const isReadonly = accessor instanceof ReadModifier;
 			this.reads.push(isReadonly);
-			const component: Struct = isReadonly ? accessor.value : accessor;
+			const component: Class = isReadonly ? accessor.value : accessor;
 			this.components.push(component);
 		}
 		this.filter = filter;
