@@ -1,7 +1,5 @@
 import { Entity, type Entities } from '../entities';
-import { Store } from '../storage';
-import { alignTo8 } from '../utils';
-import type { StructInstance } from '../components';
+import type { Class } from '../components';
 import type { World } from '../world';
 
 import {
@@ -15,19 +13,14 @@ export class Commands {
 	#world: World;
 	#entities: Entities;
 	commandTypes: Command[];
-	#commands: StructInstance[];
-	#queues: Store[];
+	#queues: Map<Class, object[]>;
 
 	#entityCommands: EntityCommands;
 	constructor(world: World) {
 		this.#world = world;
 		this.#entities = world.entities;
 		this.commandTypes = [AddComponentCommand, RemoveComponentCommand];
-		this.#commands = [
-			new AddComponentCommand(),
-			new RemoveComponentCommand(),
-		];
-		this.#queues = [new Store(0), new Store(0)];
+		this.#queues = new Map();
 		this.#entityCommands = new EntityCommands(world, this, 0n);
 	}
 
@@ -37,12 +30,9 @@ export class Commands {
 	 * @returns `EntityCommands`, which can add/remove components from an entity.
 	 */
 	spawn(reuse: boolean = false): EntityCommands {
-		const entityId = this.#entities.getId();
-		this.push(
-			AddComponentCommand.with(entityId, 0, new Entity(entityId)),
-			Entity.size,
-		);
-		return this.getById(entityId, reuse);
+		const entity = this.#entities.get();
+		this.push(new AddComponentCommand(entity, entity));
+		return this.get(entity, reuse);
 	}
 
 	/**
@@ -60,7 +50,7 @@ export class Commands {
 		if (this.#entities.wasDespawned(entityId)) {
 			return;
 		}
-		this.push(RemoveComponentCommand.with(entityId, 0));
+		this.push(new RemoveComponentCommand(entityId, Entity));
 	}
 
 	/**
@@ -85,14 +75,12 @@ export class Commands {
 			: new EntityCommands(this.#world, this, entityId);
 	}
 
-	#getCommandId(commandType: Command): number {
-		let commandId = this.commandTypes.indexOf(commandType);
-		if (commandId === -1) {
-			commandId = this.commandTypes.push(commandType) - 1;
-			this.#commands.push(new commandType());
-			this.#queues.push(new Store(0));
+	#getCommandQueue<T extends Command>(commandType: T): InstanceType<T>[] {
+		if (!this.#queues.has(commandType)) {
+			this.#queues.set(commandType, []);
+			this.commandTypes.push(commandType);
 		}
-		return commandId;
+		return this.#queues.get(commandType)! as InstanceType<T>[];
 	}
 
 	/**
@@ -100,29 +88,15 @@ export class Commands {
 	 *
 	 * Added Commands must have been registered - currently only useable for internal commands.
 	 * @param command The command to add.
-	 * @param additionalSize The _additional size_ (beyond the size of the commandType) this command will need.
 	 */
-	push(command: StructInstance, additionalSize: number = 0): void {
+	push(command: object): void {
 		const commandType = command.constructor as Command;
-		const store = this.#queues[this.#getCommandId(commandType)];
-		const addedSize = commandType.size! + alignTo8(additionalSize);
-		if (store.byteLength < store.length + addedSize) {
-			store.resize((store.length + addedSize) * 2);
-		}
-		store.offset = store.length;
-		store.length += addedSize;
-		command.serialize!(store);
+		const queue = this.#getCommandQueue(commandType);
+		queue.push(command);
 	}
 
-	*iterate<T extends Command>(type: T): Generator<Readonly<InstanceType<T>>> {
-		const id = this.#getCommandId(type);
-		const store = this.#queues[id];
-		const command = this.#commands[id];
-		store.offset = 0;
-		while (store.offset < store.length) {
-			command.deserialize!(store);
-			yield command as InstanceType<T>;
-		}
+	iterate<T extends Command>(type: T): IterableIterator<InstanceType<T>> {
+		return this.#getCommandQueue(type)[Symbol.iterator]();
 	}
 
 	// Marked private so consumers don't know it's available.
@@ -133,7 +107,7 @@ export class Commands {
 	 * You must have exclusive access to the world to call this.
 	 */
 	private reset(): void {
-		for (const queue of this.#queues) {
+		for (const queue of this.#queues.values()) {
 			queue.length = 0;
 		}
 	}
@@ -162,17 +136,6 @@ if (import.meta.vitest) {
 	class CompB extends Struct {}
 	class CompC extends Struct {}
 	class CompD {
-		static size = 8;
-		static alignment = 4;
-		deserialize(store: Store) {
-			this.x = store.readU32();
-			this.y = store.readU32();
-		}
-		serialize(store: Store) {
-			store.writeU32(this.x);
-			store.writeU32(this.y);
-		}
-
 		x: number;
 		y: number;
 		constructor(x = 23, y = 42) {
@@ -215,24 +178,22 @@ if (import.meta.vitest) {
 		for (const command of commands.iterate(AddComponentCommand)) {
 			expect(command).toBeInstanceOf(AddComponentCommand);
 			expect(command.entityId).toBe(ent.id);
-			expect(command.componentId).toBe(0);
+			expect(command.component).toBeInstanceOf(Entity);
 		}
 	});
 
 	it('inserts ZSTs', async () => {
 		const world = await createWorld();
-		const zstID = world.getComponentId(ZST);
 		const { commands } = world;
 		const ent = commands.spawn().addType(ZST);
 		let i = 0;
 		for (const command of commands.iterate(AddComponentCommand)) {
 			if (i === 0) {
 				expect(command.entityId).toBe(ent.id);
-				expect(command.componentId).toBe(0);
-				command.store!.offset += 8;
+				expect(command.component).toBeInstanceOf(Entity);
 			} else {
 				expect(command.entityId).toBe(ent.id);
-				expect(command.componentId).toBe(zstID);
+				expect(command.component).toBeInstanceOf(ZST);
 			}
 			i++;
 		}
@@ -242,11 +203,10 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const { commands } = world;
 		const ent = commands.spawn().addType(ZST).remove(ZST);
-		const zstID = world.getComponentId(ZST);
 		for (const command of commands.iterate(RemoveComponentCommand)) {
 			expect(command).toBeInstanceOf(RemoveComponentCommand);
 			expect(command.entityId).toBe(ent.id);
-			expect(command.componentId).toBe(zstID);
+			expect(command.componentType).toBe(ZST);
 		}
 	});
 
@@ -258,7 +218,7 @@ if (import.meta.vitest) {
 		for (const command of commands.iterate(RemoveComponentCommand)) {
 			expect(command).toBeInstanceOf(RemoveComponentCommand);
 			expect(command.entityId).toBe(ent.id);
-			expect(command.componentId).toBe(0);
+			expect(command.componentType).toBe(Entity);
 		}
 	});
 
@@ -271,9 +231,9 @@ if (import.meta.vitest) {
 			if (i === 0) {
 				continue;
 			}
-			const { entityId, componentId } = command;
+			const { entityId, component } = command;
 			expect(entityId).toBe(ent.id);
-			expect(componentId).toBe(5);
+			expect(component).toBeInstanceOf(CompD);
 		}
 	});
 
@@ -286,11 +246,13 @@ if (import.meta.vitest) {
 			if (i === 0) {
 				continue;
 			}
-			const { store, entityId, componentId } = command;
+			const { entityId, component } = command;
 			expect(entityId).toBe(ent.id);
-			expect(componentId).toBe(5);
-			expect(store?.readU32()).toBe(15);
-			expect(store?.readU32()).toBe(16);
+			expect(component).toBeInstanceOf(CompD);
+			if (component instanceof CompD) {
+				expect(component.x).toBe(15);
+				expect(component.y).toBe(16);
+			}
 		}
 	});
 

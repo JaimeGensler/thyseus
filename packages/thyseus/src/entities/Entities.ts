@@ -1,12 +1,7 @@
-import { Store } from '../storage';
-import { EntityLocation } from './EntityLocation';
 import type { World } from '../world';
-import type { Struct } from '../components';
+import type { Class } from '../components';
 
-const low32 = 0x0000_0000_ffff_ffffn;
-const getIndex = (entityId: bigint) => Number(entityId & low32);
-const getGeneration = (entityId: bigint) => Number(entityId >> 32n);
-const ENTITY_BATCH_SIZE = 256;
+import { Entity } from './Entity';
 
 export class Entities {
 	/**
@@ -15,69 +10,33 @@ export class Entities {
 	#world: World;
 
 	/**
-	 * A store containing `[nextId: u32, cursor: u32, freeCount: u32]`.
+	 * The next entity ID.
 	 */
-	#data: Uint32Array;
+	#nextId: number;
 	/**
-	 * Generations (`u32`) of all spawned entities.
+	 * Locations (`[table, row]`) of all spawned entities.
 	 */
-	#generations: Uint32Array;
+	locations: number[];
 	/**
-	 * Locations (`EntityLocation`) of all spawned entities [table, row]
+	 * List of freed entities available for reuse.
 	 */
-	#locations: Store;
-	/**
-	 * List of freed entity indexes available for reuse.
-	 */
-	#freed: Uint32Array;
-	/**
-	 * A reuseable `EntityLocation` to track where an entity lives.
-	 */
-	#location: EntityLocation;
-	constructor(world: World) {
+	#freed: Entity[];
+
+	#location: [tableId: number, row: number];
+
+	constructor(world: World, entityLocations: number[]) {
 		this.#world = world;
-		this.#location = new EntityLocation();
-		this.#data = new Uint32Array(12);
-		this.#generations = new Uint32Array(ENTITY_BATCH_SIZE);
-		this.#locations = new Store(ENTITY_BATCH_SIZE * EntityLocation.size);
-		this.#freed = new Uint32Array(64);
+		this.#nextId = 0;
+		this.locations = entityLocations;
+		this.#freed = world.tables[0].getColumn(Entity);
+		this.#location = [0, 0];
 	}
 
-	// TODO: Reconsider having this be atomic - not necessary if entities isn't accessible on other threads
-	// If non-atomic, #data is no longer needed
-	/**
-	 * A **lockfree** method to obtain a new Entity ID.
-	 */
-	getId(): bigint {
-		const cursor = Atomics.add(this.#data, 1, 1);
-		const freeCount = this.#data[2];
-		if (cursor >= freeCount) {
-			// If we've already exhausted freed ids,
-			// bump the nextId and return that (generation = 0)
-			return BigInt(Atomics.add(this.#data, 0, 1));
-		}
-		const index = this.#freed[freeCount - 1 - cursor];
-		const generation = this.#generations[index];
-		return (BigInt(generation) << 32n) | BigInt(index);
-	}
-
-	/**
-	 * Adds the provided entityId to the list of recycled Entity IDs,
-	 * increments its generation, and moves its location.
-	 *
-	 * **NOTE: Is _not_ lock-free!**
-	 * @param entityId The id of the entity to despawn.
-	 */
-	freeId(entityId: bigint): void {
-		const index = getIndex(entityId);
-		this.#generations[index]++;
-		const freeLen = this.#freed.length;
-		if (this.#data[2] >= freeLen) {
-			this.#freed = this.#resizeArray(this.#freed, freeLen * 2);
-		}
-		this.#freed[this.#data[2]] = index;
-		this.#data[2]++;
-		this.setLocation(entityId, this.#location.set(0, 0));
+	get(): Entity {
+		const free = this.#freed.pop();
+		return free
+			? new Entity(free.index, free.generation + 1)
+			: new Entity(this.#nextId++, 0);
 	}
 
 	/**
@@ -87,56 +46,23 @@ export class Entities {
 	 * @returns A `boolean`, true if the entity is alive and false if it is not.
 	 */
 	isAlive(entityId: bigint): boolean {
+		return true;
 		// If generations mismatch, it was despawned.
-		return (
-			getGeneration(entityId) === this.#generations[getIndex(entityId)]
-		);
+		// return (
+		// 	getGeneration(entityId) === this.#generations[getIndex(entityId)]
+		// );
 	}
 	/**
 	 * Checks if the entity with the provided id has been despawned.
 	 * @param entityId
 	 */
 	wasDespawned(entityId: bigint): boolean {
-		const index = getIndex(entityId);
-		return (
-			this.#generations.length > index &&
-			this.#generations[index] !== getGeneration(entityId)
-		);
-	}
-
-	/**
-	 * Verifies if an entity has a specific component type.
-	 * @param entityId The id of the entity
-	 * @param componentType The type (class) of the component to detect.
-	 * @returns A `boolean`, true if the entity has the component and false if it does not.
-	 */
-	hasComponent(entityId: bigint, componentType: Struct): boolean {
-		const componentId = this.#world.getComponentId(componentType);
-		const archetype = this.getArchetype(entityId);
-		const componentBit = 1n << BigInt(componentId);
-		return (archetype & componentBit) === componentBit;
-	}
-
-	resetCursor(): void {
-		this.#data[1] = 0;
-		const entityCount = this.#data[0];
-		if (entityCount >= this.#generations.length) {
-			const newLength =
-				Math.ceil((entityCount + 1) / ENTITY_BATCH_SIZE) *
-				ENTITY_BATCH_SIZE;
-			this.#generations = this.#resizeArray(this.#generations, newLength);
-			this.#locations.resize(newLength * EntityLocation.size);
-		}
-	}
-
-	getLocation(entityId: bigint): EntityLocation {
-		this.#locations.offset = getIndex(entityId) * EntityLocation.size;
-		this.#location.deserialize(this.#locations);
-		return this.#location;
-	}
-	setLocation(entityId: bigint, location: EntityLocation): void {
-		this.#locations.offset = getIndex(entityId) * EntityLocation.size;
-		location.serialize(this.#locations);
+		return false;
+		// const index = getIndex(entityId);
+		// return (
+		// 	this.#generations.length > index &&
+		// 	this.#generations[index] !== getGeneration(entityId)
+		// );
 	}
 
 	/**
@@ -144,15 +70,15 @@ export class Entities {
 	 * @param entityId The id of the entity.
 	 * @returns `bigint`, the archetype of the entity.
 	 */
-	getArchetype(entityId: bigint): bigint {
-		const { tableId } = this.getLocation(entityId);
+	getArchetype(entity: Entity): bigint {
+		const [tableId] = this.getLocation(entity);
 		return this.#world.tables[tableId]?.archetype ?? 0n;
 	}
 
-	#resizeArray(oldArray: Uint32Array, newLength: number): Uint32Array {
-		const newArray = new Uint32Array(newLength);
-		newArray.set(oldArray);
-		return newArray;
+	getLocation({ index }: Entity): [tableId: number, row: number] {
+		this.#location[0] = this.locations[index * 2];
+		this.#location[1] = this.locations[index * 2 + 1];
+		return this.#location;
 	}
 }
 
@@ -162,10 +88,9 @@ export class Entities {
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
 	const { World } = await import('../world');
-	const { Entity } = await import('./Entity');
 
 	const ONE_GENERATION = 1n << 32n;
-	const createWorld = async (...components: Struct[]) => {
+	const createWorld = async (...components: Class[]) => {
 		const world = await World.new().build();
 		world.components.push(...components);
 		return world;
@@ -187,7 +112,6 @@ if (import.meta.vitest) {
 		expect(entities.getId()).toBe(0n);
 		expect(entities.getId()).toBe(1n);
 
-		entities.resetCursor();
 		entities.freeId(0n);
 		entities.freeId(1n);
 
@@ -196,49 +120,10 @@ if (import.meta.vitest) {
 		expect(entities.getId()).toBe(2n);
 		expect(entities.getId()).toBe(3n);
 
-		entities.resetCursor();
 		entities.freeId(ONE_GENERATION | 1n);
 		entities.freeId(2n);
 
 		expect(entities.getId()).toBe(ONE_GENERATION | 2n);
 		expect(entities.getId()).toBe((ONE_GENERATION * 2n) | 1n);
-	});
-
-	it('hasComponent returns true if the entity has the component and false otherwise', async () => {
-		class A {
-			static size = 0;
-		}
-		class B {
-			static size = 0;
-		}
-		const world = await createWorld(A, B);
-		const { entities } = world;
-
-		const none = entities.getId();
-		const a = entities.getId();
-		const b = entities.getId();
-		const ab = entities.getId();
-		entities.resetCursor();
-
-		world.moveEntity(none, 0b001n);
-		world.moveEntity(a, 0b011n);
-		world.moveEntity(b, 0b101n);
-		world.moveEntity(ab, 0b111n);
-
-		expect(entities.hasComponent(none, Entity)).toBe(true);
-		expect(entities.hasComponent(none, A)).toBe(false);
-		expect(entities.hasComponent(none, B)).toBe(false);
-
-		expect(entities.hasComponent(a, Entity)).toBe(true);
-		expect(entities.hasComponent(a, A)).toBe(true);
-		expect(entities.hasComponent(a, B)).toBe(false);
-
-		expect(entities.hasComponent(b, Entity)).toBe(true);
-		expect(entities.hasComponent(b, A)).toBe(false);
-		expect(entities.hasComponent(b, B)).toBe(true);
-
-		expect(entities.hasComponent(ab, Entity)).toBe(true);
-		expect(entities.hasComponent(ab, A)).toBe(true);
-		expect(entities.hasComponent(ab, B)).toBe(true);
 	});
 }

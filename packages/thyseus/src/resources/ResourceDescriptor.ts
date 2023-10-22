@@ -1,5 +1,5 @@
 import { ReadModifier } from '../queries';
-import type { Class, Struct } from '../components';
+import type { Class } from '../components';
 import type { SystemParameter } from '../systems';
 import type { World } from '../world';
 
@@ -7,7 +7,7 @@ export class ResourceDescriptor implements SystemParameter {
 	resourceType: Class;
 	isReadonly: boolean;
 
-	constructor(resource: Struct | ReadModifier) {
+	constructor(resource: Class | ReadModifier) {
 		const isReadonly = resource instanceof ReadModifier;
 		this.resourceType = isReadonly ? resource.value : resource;
 		this.isReadonly = isReadonly;

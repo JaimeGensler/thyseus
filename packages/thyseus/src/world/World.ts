@@ -1,8 +1,7 @@
 import { Commands } from '../commands';
-import { Table, type Class, type Struct } from '../components';
+import { Table, type Class } from '../components';
 import { Entities, Entity } from '../entities';
 import { DEV_ASSERT } from '../utils';
-import type { Query } from '../queries';
 import type { System } from '../systems';
 import type { Thread } from '../threads';
 
@@ -10,6 +9,9 @@ import { getCompleteConfig, type WorldConfig } from './config';
 import { StartSchedule } from './schedules';
 import { WorldBuilder } from './WorldBuilder';
 
+type WorldEventListeners = {
+	createTable: ((table: Table) => void)[];
+};
 export class World {
 	/**
 	 * Constructs and returns a new `WorldBuilder`.
@@ -20,9 +22,10 @@ export class World {
 		return new WorldBuilder(getCompleteConfig(config));
 	}
 
+	#listeners: WorldEventListeners;
+
 	tables: Table[];
 	#archetypeToTable: Map<bigint, Table>;
-	queries: Query<any, any>[];
 	resources: object[];
 	threads: Thread<any>[];
 
@@ -31,20 +34,21 @@ export class World {
 	commands: Commands;
 	entities: Entities;
 	config: Readonly<WorldConfig>;
-	components: Struct[];
+	components: Class[];
+
 	constructor(config: WorldConfig) {
+		const entityLocations: number[] = [];
 		this.config = config;
-
+		this.#listeners = {
+			createTable: [],
+		};
 		this.components = [Entity];
-
-		this.tables = [Table.createEmpty()];
+		this.tables = [Table.createEmpty(entityLocations)];
 		this.#archetypeToTable = new Map([[0n, this.tables[0]]]);
-		this.queries = [];
 		this.resources = [];
 		this.threads = [];
 		this.schedules = {};
-
-		this.entities = new Entities(this);
+		this.entities = new Entities(this, entityLocations);
 		this.commands = new Commands(this);
 	}
 
@@ -106,43 +110,17 @@ export class World {
 	 * @param entityId The id of the entity to move.
 	 * @param targetArchetype The archetype of the target table.
 	 */
-	moveEntity(entityId: bigint, targetArchetype: bigint): void {
-		if (!this.entities.isAlive(entityId)) {
+	moveEntity(entity: Entity, targetArchetype: bigint): void {
+		if (!this.entities.isAlive(entity.id)) {
 			return;
 		}
-
-		const location = this.entities.getLocation(entityId);
-		const { row, tableId } = location;
+		const [tableId, row] = this.entities.getLocation(entity);
 		const currentTable = this.tables[tableId];
 		if (currentTable.archetype === targetArchetype) {
 			// No need to move, we're already there!
 			return;
 		}
-		const targetTable = this.#getTable(targetArchetype);
-		if (targetTable.length === targetTable.capacity) {
-			targetTable.resize(this.config.growStore(targetTable.capacity));
-		}
-
-		if (currentTable.archetype === 0n) {
-			targetTable.add(entityId);
-		} else {
-			// If the moving entity is the last element, move() returns the id
-			// of the entity that's moving tables. This means we set row for
-			// that entity twice, but the last set will be correct.
-			const backfilledEntity = currentTable.move(row, targetTable);
-			this.entities.setLocation(
-				backfilledEntity,
-				location.set(currentTable.id, row),
-			);
-		}
-		if (targetArchetype === 0n) {
-			this.entities.freeId(entityId);
-		}
-
-		this.entities.setLocation(
-			entityId,
-			location.set(targetTable.id, targetTable.length - 1),
-		);
+		currentTable.move(row, this.#getTable(targetArchetype));
 	}
 
 	/**
@@ -151,7 +129,7 @@ export class World {
 	 * @param componentType The component type to get an id for.
 	 * @returns The numeric id of the component.
 	 */
-	getComponentId(componentType: Struct): number {
+	getComponentId(componentType: Class): number {
 		const componentId = this.components.indexOf(componentType);
 		if (componentId !== -1) {
 			return componentId;
@@ -165,7 +143,7 @@ export class World {
 	 * @param ...componentTypes The components to get an archetype for.
 	 * @returns The archetype for this set of components.
 	 */
-	getArchetype(...componentTypes: Struct[]): bigint {
+	getArchetype(...componentTypes: Class[]): bigint {
 		let result = 0n;
 		for (const componentType of componentTypes) {
 			result |= 1n << BigInt(this.getComponentId(componentType));
@@ -178,7 +156,7 @@ export class World {
 	 * @param archetype The archetype to get components for
 	 * @returns An array of components (`Struct[]`).
 	 */
-	getComponentsForArchetype(archetype: bigint): Struct[] {
+	getComponentsForArchetype(archetype: bigint): Class[] {
 		const components = [];
 		let temp = archetype;
 		let i = 0;
@@ -192,11 +170,6 @@ export class World {
 		return components;
 	}
 
-	/**
-	 *
-	 * @param archetype The archetype of the table to get.
-	 * @returns
-	 */
 	#getTable(archetype: bigint): Table {
 		let table = this.#archetypeToTable.get(archetype);
 		if (table) {
@@ -207,13 +180,30 @@ export class World {
 			this.getComponentsForArchetype(archetype),
 			archetype,
 			this.tables.length,
+			this.entities.locations,
 		);
 		this.tables.push(table);
 		this.#archetypeToTable.set(archetype, table);
 
-		for (const query of this.queries) {
-			query.testAdd(table);
+		for (const listener of this.#listeners.createTable) {
+			listener(table);
 		}
 		return table;
+	}
+
+	addEventListener<T extends keyof WorldEventListeners>(
+		type: T,
+		listener: WorldEventListeners[T][0],
+	) {
+		DEV_ASSERT(
+			type in this.#listeners,
+			`Unrecognized World event listener ("${type}")`,
+		);
+		this.#listeners[type].push(listener);
+	}
+
+	removeEventListener(type: string, listener: Function) {
+		const arr = (this.#listeners as Record<string, Function[]>)[type];
+		arr.splice(arr.indexOf(listener, 1));
 	}
 }

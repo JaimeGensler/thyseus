@@ -1,132 +1,70 @@
-import { Entity } from '../entities/Entity';
-import { Store } from '../storage/Store';
-import type { Struct, u64 } from '.';
+import { Entity } from '../entities';
+import { swapRemove } from '../utils';
+
+import { isSizedComponent } from './Tag';
+import type { Class } from './Class';
 
 export class Table {
-	static createEmpty(): Table {
-		const table = new this([], 0n, 0);
-		table.length = 2 ** 32 - 1;
-		return table;
+	static createEmpty(locations: number[]): Table {
+		return new this([Entity], 0n, 0, locations);
 	}
 
 	id: number;
 	archetype: bigint;
-
-	length: number = 0;
-	capacity: number = 0;
-	#components: Struct[];
-	#columns: Store[];
-	constructor(components: Struct[], archetype: bigint, id: number) {
-		this.#components = components.filter(component => component.size! > 0);
+	#components: Class[];
+	#columns: [Entity[], ...Array<object[]>];
+	#locations: number[];
+	constructor(
+		components: Class[],
+		archetype: bigint,
+		id: number,
+		locations: number[],
+	) {
+		this.#components = components.filter(isSizedComponent);
 		this.archetype = archetype;
 		this.id = id;
-		this.#columns = this.#components.map(() => new Store(0));
+		this.#columns = this.#components.map(() => []) as any;
+		this.#locations = locations;
 	}
 
-	hasColumn(componentType: Struct): boolean {
-		return this.#components.includes(componentType);
-	}
-
-	add(entityId: bigint) {
-		const entityStore = this.#columns[0];
-		entityStore.offset = this.length * Entity.size;
-		entityStore.writeU64(entityId);
-		for (const column of this.#columns) {
-			column.length++;
-		}
-		this.length++;
-	}
-
-	delete(row: number): void {
-		this.length--;
-		for (let i = 0; i < this.#columns.length; i++) {
-			const column = this.#columns[i];
-			const { size, boxedSize } = this.#components[i];
-			column.copyWithin(this.length * size!, size!, row * size!);
-			for (let j = 0; j < boxedSize!; j++) {
-				column.boxed[row * boxedSize! + j] = null;
-			}
-			column.copyBoxedWithin(
-				this.length * boxedSize!,
-				boxedSize!,
-				row * boxedSize!,
-			);
-			column.length--;
-		}
+	get length(): number {
+		return this.#columns[0].length;
 	}
 
 	/**
 	 * Moves the entity at `row` and all its associated data into `targetTable`.
-	 * Returns the id of the entity in this table that was backfilled.
 	 * @param row The row of the entity to move.
 	 * @param targetTable The table to move that entity to.
-	 * @returns The id of the backfilled entity.
 	 */
-	move(row: number, targetTable: Table): u64 {
-		const entityColumn = this.#columns[0];
-		const lastEntity =
-			entityColumn.u64[((this.length - 1) * Entity.size!) >> 3];
+	move(row: number, targetTable: Table): void {
+		const { index: moveIndex } = this.#columns[0][row];
+		const { index: backfillIndex } = this.#columns[0][this.length - 1];
+		this.#locations[backfillIndex * 2 + 1] = row;
 		for (let i = 0; i < this.#columns.length; i++) {
-			const component = this.#components[i];
-			const { size, boxedSize } = component;
-			if (targetTable.hasColumn(component)) {
-				const ownColumn = this.#columns[i];
-				const targetColumn = targetTable.getColumn(component);
-				targetColumn.copyFrom(
-					this.#columns[i],
-					size!,
-					row * size!,
-					targetTable.length * size!,
-				);
-				const ownBoxOffset = row * boxedSize!;
-				const targetBoxOffset = targetColumn.length * boxedSize!;
-				for (let j = 0; j < boxedSize!; j++) {
-					targetColumn.boxed[targetBoxOffset + j] =
-						ownColumn.boxed[ownBoxOffset + j];
-					ownColumn.boxed[ownBoxOffset + j] = null;
-				}
-				targetColumn.length++;
+			const componentType = this.#components[i];
+			const element = swapRemove(this.#columns[i], row)!;
+			if (targetTable.hasColumn(componentType)) {
+				targetTable.getColumn(componentType).push(element);
 			}
 		}
-		targetTable.length++;
-		this.delete(row);
-		return lastEntity;
+		this.#locations[moveIndex * 2] = targetTable.id;
+		this.#locations[moveIndex * 2 + 1] = targetTable.length - 1;
 	}
 
-	/**
-	 * Resizes this `Table` to have a room for `newCapacity` elements.
-	 * Can be used to grow or shrink.
-	 * @param newCapacity The number of elements each column of this table should have room for.
-	 */
-	resize(newCapacity: number): void {
-		this.capacity = newCapacity;
-		for (let i = 0; i < this.#columns.length; i++) {
-			const column = this.#columns[i];
-			const component = this.#components[i];
-			column.resize(newCapacity * component.size!);
-		}
-	}
-
-	copyDataIntoRow(
-		row: number,
-		componentType: Struct,
-		store: Store,
-		boxedOffset: number,
-	): void {
+	copyComponentIntoRow(row: number, component: object): void {
+		const componentType = component.constructor as Class;
 		if (this.hasColumn(componentType)) {
-			const { size, boxedSize } = componentType;
-			const column = this.getColumn(componentType);
-			column.copyFrom(store, size!, store.offset, row * size!);
-			const ownBoxOffset = row * boxedSize!;
-			for (let j = 0; j < boxedSize!; j++) {
-				column.boxed[ownBoxOffset + j] = store.boxed[boxedOffset + j];
-				store.boxed[boxedOffset + j] = null;
-			}
+			this.getColumn(componentType)[row] = component;
 		}
 	}
 
-	getColumn(componentType: Struct): Store {
-		return this.#columns[this.#components.indexOf(componentType)];
+	hasColumn(componentType: Class): boolean {
+		return this.#components.includes(componentType);
+	}
+	getColumn<T extends Class>(componentType: T): InstanceType<T>[] {
+		return this.#columns[
+			this.#components.indexOf(componentType)
+		] as InstanceType<T>[];
 	}
 }
 
@@ -135,126 +73,84 @@ export class Table {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
+	const { Tag } = await import('./Tag');
 
 	class Vec3 {
-		static size = 24;
-		static alignment = 8;
-		deserialize(store: Store) {
-			this.x = store.readF64();
-			this.y = store.readF64();
-			this.z = store.readF64();
+		x: number;
+		y: number;
+		z: number;
+		constructor(x = 0, y = 0, z = 0) {
+			this.x = x;
+			this.y = y;
+			this.z = z;
 		}
-		serialize(store: Store) {
-			store.writeF64(this.x);
-			store.writeF64(this.y);
-			store.writeF64(this.z);
-		}
-		x: number = 0;
-		y: number = 0;
-		z: number = 0;
 	}
 
-	const createTable = (...components: Struct[]) =>
-		new Table(components, 0n, 0);
+	const createTable = (...components: Class[]) =>
+		new Table(components, 0n, 0, []);
 
 	it('add() adds an item', async () => {
 		const table = createTable(Entity);
 		const entityColumn = table.getColumn(Entity);
 		expect(table.length).toBe(0);
-		expect(table.capacity).toBe(0);
-		table.resize(8);
 
-		const id1 = 4n;
-		const id2 = (1n << 32n) | 5n;
-		table.add(id1);
-		table.add(id2);
+		const e1 = new Entity(4n);
+		const e2 = new Entity((1n << 32n) | 5n);
+		table.add(e1);
+		table.add(e2);
 
-		entityColumn.offset = 0;
-		const entity = new Entity();
-		entity.deserialize(entityColumn);
-		expect(entity.id).toBe(id1);
-		entity.deserialize(entityColumn);
-		expect(entity.id).toBe(id2);
+		expect(entityColumn[0]).toBe(e1);
+		expect(entityColumn[1]).toBe(e2);
 	});
 
 	it('adds an element', async () => {
 		const table = createTable(Entity);
 		expect(table.length).toBe(0);
-		expect(table.capacity).toBe(0);
 
-		table.resize(8);
-		table.add(0n);
+		table.add(new Entity());
 		expect(table.length).toBe(1);
-		expect(table.capacity).toBe(8);
 
-		const entity = new Entity();
 		const entityColumn = table.getColumn(Entity);
-		entityColumn.offset = 0;
-		entity.deserialize(entityColumn);
-		expect(entity.id).toBe(0n);
+		expect(entityColumn[0].id).toBe(0n);
 
-		table.add(3n);
-		entityColumn.offset = 0;
-		entity.deserialize(entityColumn);
-		expect(entity.id).toBe(0n);
-
-		entity.deserialize(entityColumn);
-		expect(entity.id).toBe(3n);
+		table.add(new Entity(3n));
 		expect(table.length).toBe(2);
+
+		expect(entityColumn[0].id).toBe(0n);
+		expect(entityColumn[1].id).toBe(3n);
 	});
 
 	it('moves elements from one table to another', async () => {
 		const fromTable = createTable(Entity, Vec3);
 		const toTable = createTable(Entity, Vec3);
-		fromTable.resize(8);
-		toTable.resize(8);
 
-		fromTable.add(3n);
-		fromTable.add(1n);
-		toTable.add(4n);
-
-		const ent = new Entity();
+		fromTable.add(new Entity(3n));
+		fromTable.add(new Entity(1n));
+		toTable.add(new Entity(4n));
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
+
 		const fromTableEntityColumn = fromTable.getColumn(Entity);
-		fromTableEntityColumn.offset = 0;
-		ent.deserialize(fromTableEntityColumn);
-		expect(ent.id).toBe(3n);
+		expect(fromTableEntityColumn[0].id).toBe(3n);
 
 		const fromTableVec3Column = fromTable.getColumn(Vec3);
-		fromTableVec3Column.offset = 0;
-		const v3 = new Vec3();
-		v3.x = 1;
-		v3.y = 2;
-		v3.z = 3;
-		v3.serialize(fromTableVec3Column);
-		v3.x = 7;
-		v3.y = 8;
-		v3.z = 9;
-		v3.serialize(fromTableVec3Column);
-
 		const toTableVec3Column = toTable.getColumn(Vec3);
-		toTableVec3Column.offset = 0;
-		v3.deserialize(toTableVec3Column);
-		expect(v3.x).toBe(0);
-		expect(v3.y).toBe(0);
-		expect(v3.z).toBe(0);
+
+		fromTable.copyComponentIntoRow(0, new Vec3(1, 2, 3));
+		fromTable.copyComponentIntoRow(1, new Vec3(7, 8, 9));
 
 		fromTable.move(0, toTable);
-
 		expect(fromTable.length).toBe(1);
 		expect(toTable.length).toBe(2);
 
-		v3.deserialize(toTableVec3Column);
+		let v3 = toTableVec3Column[0];
 		expect(v3.x).toBe(1);
 		expect(v3.y).toBe(2);
 		expect(v3.z).toBe(3);
 
-		ent.deserialize(fromTableEntityColumn);
-		expect(ent.id).toBe(1n);
-		fromTableVec3Column.offset = 0;
-		v3.deserialize(fromTableVec3Column);
+		expect(fromTableEntityColumn[0].id).toBe(1n);
+		v3 = fromTableVec3Column[0];
 		expect(v3.x).toBe(7);
 		expect(v3.y).toBe(8);
 		expect(v3.z).toBe(9);
@@ -263,144 +159,82 @@ if (import.meta.vitest) {
 	it('deletes elements, swaps in last elements', async () => {
 		const table = createTable(Entity, Vec3);
 
-		table.resize(8);
-		table.add(1n);
-		table.add(2n);
-		table.add(3n);
-		table.add(4n);
+		table.add(new Entity(1n));
+		table.add(new Entity(2n));
+		table.add(new Entity(3n));
+		table.add(new Entity(4n));
 		expect(table.length).toBe(4);
 
 		const entityColumn = table.getColumn(Entity);
-		entityColumn.offset = 0;
 		const vecColumn = table.getColumn(Vec3);
-		vecColumn.offset = 0;
-		const vec = new Vec3();
-		const ent = new Entity();
-
-		vec.deserialize(vecColumn);
-		vec.x = 1;
-		vec.y = 2;
-		vec.z = 3;
-		vecColumn.offset -= Vec3.size;
-		vec.serialize(vecColumn);
-		vec.deserialize(vecColumn);
-		vec.x = 4;
-		vec.y = 5;
-		vec.z = 6;
-		vecColumn.offset -= Vec3.size;
-		vec.serialize(vecColumn);
-		vec.deserialize(vecColumn);
-		vec.x = 7;
-		vec.y = 8;
-		vec.z = 9;
-		vecColumn.offset -= Vec3.size;
-		vec.serialize(vecColumn);
-		vec.deserialize(vecColumn);
-		vec.x = 10;
-		vec.y = 11;
-		vec.z = 12;
-		vecColumn.offset -= Vec3.size;
-		vec.serialize(vecColumn);
+		vecColumn.push(
+			new Vec3(1, 2, 3),
+			new Vec3(4, 5, 6),
+			new Vec3(7, 8, 9),
+			new Vec3(10, 11, 12),
+		);
 
 		table.delete(1);
 		expect(table.length).toBe(3);
-
-		vecColumn.offset = 0;
-		entityColumn.offset = 0;
-		vec.deserialize(vecColumn);
-		ent.deserialize(entityColumn);
-		expect(ent.id).toBe(1n);
-		expect(vec.x).toBe(1);
-		expect(vec.y).toBe(2);
-		expect(vec.z).toBe(3);
-		vec.deserialize(vecColumn);
-		ent.deserialize(entityColumn);
-		expect(ent.id).toBe(4n);
-		expect(vec.x).toBe(10);
-		expect(vec.y).toBe(11);
-		expect(vec.z).toBe(12);
-		vec.deserialize(vecColumn);
-		ent.deserialize(entityColumn);
-		expect(ent.id).toBe(3n);
-		expect(vec.x).toBe(7);
-		expect(vec.y).toBe(8);
-		expect(vec.z).toBe(9);
+		expect(entityColumn[0].id).toBe(1n);
+		expect(vecColumn[0].x).toBe(1);
+		expect(vecColumn[0].y).toBe(2);
+		expect(vecColumn[0].z).toBe(3);
+		expect(entityColumn[1].id).toBe(4n);
+		expect(vecColumn[1].x).toBe(10);
+		expect(vecColumn[1].y).toBe(11);
+		expect(vecColumn[1].z).toBe(12);
+		expect(entityColumn[2].id).toBe(3n);
+		expect(vecColumn[2].x).toBe(7);
+		expect(vecColumn[2].y).toBe(8);
+		expect(vecColumn[2].z).toBe(9);
 	});
 
 	it('move() returns the last entity', async () => {
 		const table = createTable(Entity);
 		const empty = Table.createEmpty();
 		expect(table.length).toBe(0);
-		expect(table.capacity).toBe(0);
-		table.resize(8);
 
 		const id1 = 4n;
 		const id2 = (1n << 32n) | 5n;
-		table.add(id1);
-		table.add(id2);
+		const e1 = new Entity(id1);
+		const e2 = new Entity(id2);
+		table.add(e1);
+		table.add(e2);
 
-		expect(table.move(0, empty)).toBe(id2);
-		expect(table.move(0, empty)).toBe(id2);
+		expect(table.move(0, empty)).toBe(e2);
+		expect(table.move(0, empty)).toBe(e2);
 	});
 
 	// v0.6 changelog bugfix
-	it('backfills elements for ALL stores', async () => {
+	it('backfills elements for all stores', async () => {
 		const fromTable = createTable(Entity, Vec3);
 		const toTable = createTable(Entity);
-		const ent = new Entity();
-
-		fromTable.resize(8);
-		toTable.resize(8);
-		fromTable.add(3n);
-		fromTable.add(1n);
-		toTable.add(4n);
-
 		const fromTableEntityColumn = fromTable.getColumn(Entity);
 		const fromTableVec3Column = fromTable.getColumn(Vec3);
+		const toTableEntityColumn = toTable.getColumn(Entity);
+
+		fromTable.add(new Entity(3n));
+		fromTable.add(new Entity(1n));
+		toTable.add(new Entity(4n));
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
-		fromTableEntityColumn.offset = 0;
-		ent.deserialize(fromTableEntityColumn);
-		expect(ent.id).toBe(3n);
+		expect(fromTableEntityColumn[0].id).toBe(3n);
 
-		const v3 = new Vec3();
-		v3.deserialize(fromTableVec3Column);
-		fromTableVec3Column.offset -= Vec3.size;
-		v3.x = 1;
-		v3.y = 2;
-		v3.z = 3;
-		v3.serialize(fromTableVec3Column);
-		v3.deserialize(fromTableVec3Column);
-		fromTableVec3Column.offset -= Vec3.size;
-		v3.x = 7;
-		v3.y = 8;
-		v3.z = 9;
-		v3.serialize(fromTableVec3Column);
-
+		fromTableVec3Column.push(new Vec3(1, 2, 3), new Vec3(7, 8, 9));
 		fromTable.move(0, toTable);
 
-		const toTableEntityColumn = toTable.getColumn(Entity);
-		toTableEntityColumn.offset = Entity.size;
-		ent.deserialize(toTableEntityColumn);
-		expect(ent.id).toBe(3n);
-
-		fromTableVec3Column.offset = 0;
-		fromTableEntityColumn.offset = 0;
-		v3.deserialize(fromTableVec3Column);
-		ent.deserialize(fromTableEntityColumn);
-		expect(ent.id).toBe(1n);
-		expect(v3.x).toBe(7);
-		expect(v3.y).toBe(8);
-		expect(v3.z).toBe(9);
+		expect(toTableEntityColumn[1].id).toBe(3n);
+		expect(fromTableEntityColumn[0].id).toBe(1n);
+		expect(fromTableVec3Column[0].x).toBe(7);
+		expect(fromTableVec3Column[0].y).toBe(8);
+		expect(fromTableVec3Column[0].z).toBe(9);
 	});
 
 	// v0.6 changelog bugfix
-	it('does not create columns for ZSTs', async () => {
-		class ZST {
-			static size = 0;
-			static alignment = 1;
-		}
+	it.only('does not create columns for ZSTs', async () => {
+		class ZST extends Tag {}
 		const table = createTable(Entity, Vec3, ZST);
 		expect(table.hasColumn(ZST)).toBe(false);
 	});

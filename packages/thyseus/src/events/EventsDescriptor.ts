@@ -1,23 +1,23 @@
+import type { Class } from '../components';
 import type { World } from '../world';
 import type { SystemParameter } from '../systems';
-import type { Struct, StructInstance } from '../components';
 
 import { Events } from './Events';
 import type { EventReader, EventWriter } from './EventQueues';
 
 export class EventReaderDescriptor implements SystemParameter {
-	eventType: Struct;
-	constructor(eventType: Struct) {
+	eventType: Class;
+	constructor(eventType: Class) {
 		this.eventType = eventType;
 	}
-	async intoArgument(world: World): Promise<EventReader<StructInstance>> {
+	async intoArgument(world: World): Promise<EventReader<object>> {
 		return (await world.getOrCreateResource(Events)).getReaderOfType(
 			this.eventType,
 		)!;
 	}
 }
 export class EventWriterDescriptor extends EventReaderDescriptor {
-	async intoArgument(world: World): Promise<EventWriter<StructInstance>> {
+	async intoArgument(world: World): Promise<EventWriter<object>> {
 		return (await world.getOrCreateResource(Events)).getWriterOfType(
 			this.eventType,
 		)!;

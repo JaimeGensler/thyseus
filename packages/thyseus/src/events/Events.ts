@@ -1,6 +1,5 @@
-import { Store } from '../storage';
 import type { Commands } from '../commands';
-import type { Struct } from '../components';
+import type { Class } from '../components';
 import type { World } from '../world';
 
 import { EventReader, EventWriter } from './EventQueues';
@@ -30,23 +29,23 @@ export class Events {
 		this.#commands = commands;
 	}
 
-	#createReaderWriter<T extends Struct>(
-		type: Struct,
+	#createReaderWriter<T extends Class>(
+		type: Class,
 		isRead: 'readers',
 	): EventReader<InstanceType<T>>;
-	#createReaderWriter<T extends Struct>(
-		type: Struct,
+	#createReaderWriter<T extends Class>(
+		type: Class,
 		isRead: 'writers',
 	): EventWriter<InstanceType<T>>;
-	#createReaderWriter(type: Struct, accessType: 'readers' | 'writers') {
+	#createReaderWriter(type: Class, accessType: 'readers' | 'writers') {
 		const id = this.readers.length;
-		const store = new Store(0);
-		this.readers.push(new EventReader(this.#commands, type, store, id));
-		this.writers.push(new EventWriter(this.#commands, type, store, id));
+		const queue: object[] = [];
+		this.readers.push(new EventReader(this.#commands, type, queue, id));
+		this.writers.push(new EventWriter(this.#commands, type, queue, id));
 		return this[accessType][id];
 	}
 
-	getReaderOfType<T extends Struct>(
+	getReaderOfType<T extends Class>(
 		eventType: T,
 	): EventReader<InstanceType<T>> {
 		return (
@@ -54,7 +53,7 @@ export class Events {
 			this.#createReaderWriter(eventType, 'readers')
 		);
 	}
-	getWriterOfType<T extends Struct>(
+	getWriterOfType<T extends Class>(
 		eventType: T,
 	): EventWriter<InstanceType<T>> {
 		return (
