@@ -36,8 +36,12 @@ export class QueryDescriptor implements SystemParameter {
 					(...components) => world.getArchetype(...components),
 			  )
 			: [initial, 0n];
-		const query = new Query(filters, this.isIndividual, this.components);
-		world.queries.push(query);
+		const query = new Query(
+			world,
+			filters,
+			this.isIndividual,
+			this.components,
+		);
 		return query as any;
 	}
 }

@@ -107,7 +107,7 @@ export class World {
 
 	/**
 	 * Moves an entity from one table to another.
-	 * @param entityId The id of the entity to move.
+	 * @param entity The entity to move.
 	 * @param targetArchetype The archetype of the target table.
 	 */
 	moveEntity(entity: Entity, targetArchetype: bigint): void {
@@ -116,11 +116,9 @@ export class World {
 		}
 		const [tableId, row] = this.entities.getLocation(entity);
 		const currentTable = this.tables[tableId];
-		if (currentTable.archetype === targetArchetype) {
-			// No need to move, we're already there!
-			return;
+		if (currentTable.archetype !== targetArchetype) {
+			currentTable.move(row, this.#getTable(targetArchetype));
 		}
-		currentTable.move(row, this.#getTable(targetArchetype));
 	}
 
 	/**
@@ -144,7 +142,7 @@ export class World {
 	 * @returns The archetype for this set of components.
 	 */
 	getArchetype(...componentTypes: Class[]): bigint {
-		let result = 0n;
+		let result = 1n;
 		for (const componentType of componentTypes) {
 			result |= 1n << BigInt(this.getComponentId(componentType));
 		}
@@ -154,7 +152,7 @@ export class World {
 	/**
 	 * Given an archetype (`bigint)`, returns the array of components that matches this archetype.
 	 * @param archetype The archetype to get components for
-	 * @returns An array of components (`Struct[]`).
+	 * @returns An array of components (`Class[]`).
 	 */
 	getComponentsForArchetype(archetype: bigint): Class[] {
 		const components = [];
@@ -184,7 +182,6 @@ export class World {
 		);
 		this.tables.push(table);
 		this.#archetypeToTable.set(archetype, table);
-
 		for (const listener of this.#listeners.createTable) {
 			listener(table);
 		}
@@ -204,6 +201,6 @@ export class World {
 
 	removeEventListener(type: string, listener: Function) {
 		const arr = (this.#listeners as Record<string, Function[]>)[type];
-		arr.splice(arr.indexOf(listener, 1));
+		arr.splice(arr.indexOf(listener), 1);
 	}
 }
