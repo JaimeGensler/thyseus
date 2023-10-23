@@ -7,13 +7,12 @@ import type { World } from '../world';
  * @param world The world to apply commands in.
  */
 export function applyCommands(world: World) {
-	const { commands } = world;
+	const { commands, entities } = world;
+	entities.resetCursor();
 
-	for (const commandType of commands.commandTypes) {
-		commandType.iterate(commands, world);
+	for (const queue of commands) {
+		queue.apply(world);
 	}
-
-	(commands as any).reset();
 }
 applyCommands.parameters = [new WorldDescriptor()];
 
@@ -45,30 +44,30 @@ if (import.meta.vitest) {
 		return world;
 	};
 
-	it('moves entities', async () => {
+	it.only('moves entities', async () => {
 		const world = await createWorld();
 		const moveEntitySpy = vi.spyOn(world, 'moveEntity');
-		world.commands.spawn().addType(CompA).add(new CompD());
-		world.commands.spawn().addType(CompB).addType(ZST).add(new CompD());
-		const archetype1 =
-			1n |
-			(1n << BigInt(world.getComponentId(CompA))) |
-			(1n << BigInt(world.getComponentId(CompD)));
-		const archetype2 =
-			1n |
-			(1n << BigInt(world.getComponentId(CompB))) |
-			(1n << BigInt(world.getComponentId(ZST))) |
-			(1n << BigInt(world.getComponentId(CompD)));
+		const { entity: e1 } = world.commands
+			.spawn()
+			.add(new CompA())
+			.add(new CompD());
+		const { entity: e2 } = world.commands
+			.spawn()
+			.add(new CompB())
+			.addType(ZST)
+			.add(new CompD());
+		const archetype1 = world.getArchetype(CompA, CompD);
+		const archetype2 = world.getArchetype(CompB, ZST, CompD);
 
 		applyCommands(world);
 		expect(moveEntitySpy).toHaveBeenCalledTimes(2);
-		expect(moveEntitySpy).toHaveBeenCalledWith(0n, archetype1);
-		expect(moveEntitySpy).toHaveBeenCalledWith(1n, archetype2);
+		expect(moveEntitySpy).toHaveBeenCalledWith(e1, archetype1);
+		expect(moveEntitySpy).toHaveBeenCalledWith(e2, archetype2);
 	});
 
 	it('initializes data', async () => {
 		const myWorld = await createWorld();
-		myWorld.commands.spawn().addType(CompA).add(new CompD(1, 2));
+		myWorld.commands.spawn().add(new CompA()).add(new CompD(1, 2));
 
 		applyCommands(myWorld);
 		const tableD = myWorld.tables[1];

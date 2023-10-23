@@ -1,35 +1,23 @@
 import { Entity } from '../entities';
 import { DEV_ASSERT } from '../utils';
 import type { Class } from '../components';
-import type { World } from '../world';
 
+import { EntityCommandQueue } from './EntityCommandQueue';
 import {
-	AddComponentCommand,
-	RemoveComponentCommand,
-} from './ComponentCommands';
-import type { Commands } from './Commands';
+	TagComponentType,
+	isSizedComponent,
+	isTagComponent,
+} from '../components/Tag';
 
 type NotFunction<T> = T extends Function ? never : T;
 
 export class EntityCommands {
-	#world: World;
-	#commands: Commands;
-	#id: bigint;
-	#isAlive: boolean;
-	constructor(world: World, commands: Commands, id: bigint) {
-		this.#world = world;
-		this.#commands = commands;
-		this.#id = id;
-		this.#isAlive = !this.#world.entities.wasDespawned(this.id);
-	}
+	#queue: EntityCommandQueue;
+	entity: Entity;
 
-	get id() {
-		return this.#id;
-	}
-	setId(newId: bigint): this {
-		this.#id = newId;
-		this.#isAlive = !this.#world.entities.wasDespawned(this.id);
-		return this;
+	constructor(queue: EntityCommandQueue, entity: Entity) {
+		this.#queue = queue;
+		this.entity = entity;
 	}
 
 	/**
@@ -43,36 +31,45 @@ export class EntityCommands {
 			componentType !== Entity,
 			'Tried to add Entity component, which is forbidden.',
 		);
-		if (!this.#isAlive) {
-			return this;
-		}
-		this.#commands.push(new AddComponentCommand(this.id, component));
+		DEV_ASSERT(
+			isSizedComponent(componentType),
+			'ZSTs must be added with EntityCommands.addType().',
+		);
+		// if (!this.#isAlive) {
+		// 	return this;
+		// }
+		this.#queue.add(this.entity, component);
 		return this;
 	}
 
 	/**
 	 * Queues a component type to be inserted into this entity.
-	 * @param componentType The component class to insert into the entity.
+	 * @param type The component class to insert into the entity.
 	 * @returns `this`, for chaining.
 	 */
-	addType(componentType: Class): this {
-		return this.add(new componentType());
+	addType(type: TagComponentType): this {
+		DEV_ASSERT(
+			isTagComponent(type),
+			'Sized types must be added with EntityCommands.add()',
+		);
+		this.#queue.addType(this.entity, type);
+		return this;
 	}
 
 	/**
 	 * Queues a component to be removed from this entity.
-	 * @param Component The Component **class** to remove from the entity.
+	 * @param type The type of the component to remove from the entity.
 	 * @returns `this`, for chaining.
 	 */
-	remove(componentType: Class): this {
+	remove(type: Class): this {
 		DEV_ASSERT(
-			componentType !== Entity,
+			type !== Entity,
 			'Tried to remove Entity component, which is forbidden.',
 		);
-		if (!this.#isAlive) {
-			return this;
-		}
-		this.#commands.push(new RemoveComponentCommand(this.id, componentType));
+		// if (!this.#isAlive) {
+		// 	return this;
+		// }
+		this.#queue.remove(this.entity, type);
 		return this;
 	}
 
@@ -81,6 +78,6 @@ export class EntityCommands {
 	 * @returns `void`
 	 */
 	despawn(): void {
-		this.#commands.despawnById(this.id);
+		this.#queue.despawn(this.entity);
 	}
 }

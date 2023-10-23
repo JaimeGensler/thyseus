@@ -1,6 +1,7 @@
 import type { Commands } from '../commands';
 import type { Class } from '../components';
 import type { World } from '../world';
+import { ClearEventsCommandQueue } from './ClearEventsCommandQueue';
 
 import { EventReader, EventWriter } from './EventQueues';
 
@@ -18,7 +19,7 @@ export class Events {
 	 * Each member in the `writers` array has a corresponding member at the same index in `readers`.
 	 */
 	writers: EventWriter<any>[];
-	#commands: Commands;
+	#commandQueue: ClearEventsCommandQueue;
 
 	static fromWorld({ commands }: World) {
 		return new this(commands);
@@ -26,7 +27,7 @@ export class Events {
 	constructor(commands: Commands) {
 		this.readers = [];
 		this.writers = [];
-		this.#commands = commands;
+		this.#commandQueue = commands.getQueue(ClearEventsCommandQueue);
 	}
 
 	#createReaderWriter<T extends Class>(
@@ -39,9 +40,13 @@ export class Events {
 	): EventWriter<InstanceType<T>>;
 	#createReaderWriter(type: Class, accessType: 'readers' | 'writers') {
 		const id = this.readers.length;
-		const queue: object[] = [];
-		this.readers.push(new EventReader(this.#commands, type, queue, id));
-		this.writers.push(new EventWriter(this.#commands, type, queue, id));
+		const eventQueue: object[] = [];
+		this.readers.push(
+			new EventReader(this.#commandQueue, type, eventQueue, id),
+		);
+		this.writers.push(
+			new EventWriter(this.#commandQueue, type, eventQueue, id),
+		);
 		return this[accessType][id];
 	}
 

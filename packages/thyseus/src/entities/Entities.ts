@@ -10,9 +10,13 @@ export class Entities {
 	#world: World;
 
 	/**
-	 * The next entity ID.
+	 * The next entity index.
 	 */
-	#nextId: number;
+	#nextIndex: number;
+
+	#cursor: number;
+	#maxLength: number;
+
 	/**
 	 * Locations (`[table, row]`) of all spawned entities.
 	 */
@@ -26,17 +30,30 @@ export class Entities {
 
 	constructor(world: World, entityLocations: number[]) {
 		this.#world = world;
-		this.#nextId = 0;
+		this.#nextIndex = 0;
+		this.#cursor = 0;
+		this.#maxLength = 0;
 		this.locations = entityLocations;
 		this.#freed = world.tables[0].getColumn(Entity);
 		this.#location = [0, 0];
 	}
+	resetCursor() {
+		this.#cursor = 0;
+		this.#maxLength = this.#freed.length;
+	}
 
 	get(): Entity {
-		const free = this.#freed.pop();
-		return free
-			? new Entity(free.index, free.generation + 1)
-			: new Entity(this.#nextId++, 0);
+		const next = this.#cursor++;
+		if (next >= this.#maxLength) {
+			this.locations.push(0, this.#freed.length);
+			const ent = new Entity(this.#nextIndex++, 0);
+			this.#freed.push(ent);
+			return ent;
+		}
+		const free = this.#freed[next];
+		const ent = new Entity(free.index, free.generation + 1);
+		this.#freed[next] = ent;
+		return ent;
 	}
 
 	/**
@@ -75,6 +92,10 @@ export class Entities {
 		return this.#world.tables[tableId]?.archetype ?? 0n;
 	}
 
+	getArchetypeForIndex(index: number): bigint {
+		return this.#world.tables[this.locations[index * 2]]?.archetype ?? 0n;
+	}
+
 	getLocation({ index }: Entity): [tableId: number, row: number] {
 		this.#location[0] = this.locations[index * 2];
 		this.#location[1] = this.locations[index * 2 + 1];
@@ -89,7 +110,6 @@ if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
 	const { World } = await import('../world');
 
-	const ONE_GENERATION = 1n << 32n;
 	const createWorld = async (...components: Class[]) => {
 		const world = await World.new().build();
 		world.components.push(...components);
@@ -100,8 +120,8 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const { entities } = world;
 
-		for (let i = 0n; i < 256n; i++) {
-			expect(entities.getId()).toBe(i);
+		for (let i = 0; i < 256; i++) {
+			expect(entities.get().index).toBe(i);
 		}
 	});
 
@@ -109,21 +129,37 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const entities = world.entities;
 
-		expect(entities.getId()).toBe(0n);
-		expect(entities.getId()).toBe(1n);
+		const e1 = entities.get();
+		const e2 = entities.get();
+		expect(e1.index).toBe(0);
+		expect(e1.generation).toBe(0);
+		expect(e2.index).toBe(1);
+		expect(e2.generation).toBe(0);
 
-		entities.freeId(0n);
-		entities.freeId(1n);
+		entities.resetCursor();
+		const e1_recycled = entities.get();
+		const e2_recycled = entities.get();
+		const e3 = entities.get();
+		const e4 = entities.get();
 
-		expect(entities.getId()).toBe(ONE_GENERATION | 1n);
-		expect(entities.getId()).toBe(ONE_GENERATION | 0n);
-		expect(entities.getId()).toBe(2n);
-		expect(entities.getId()).toBe(3n);
+		expect(e1_recycled.index).toBe(0);
+		expect(e1_recycled.generation).toBe(1);
+		expect(e1_recycled).not.toBe(e2);
+		expect(e2_recycled.index).toBe(1);
+		expect(e2_recycled.generation).toBe(1);
+		expect(e2_recycled).not.toBe(e2);
+		expect(e3.index).toBe(2);
+		expect(e3.generation).toBe(0);
+		expect(e4.index).toBe(3);
+		expect(e4.generation).toBe(0);
 
-		entities.freeId(ONE_GENERATION | 1n);
-		entities.freeId(2n);
+		entities.resetCursor();
 
-		expect(entities.getId()).toBe(ONE_GENERATION | 2n);
-		expect(entities.getId()).toBe((ONE_GENERATION * 2n) | 1n);
+		const e1_recycled2 = entities.get();
+		expect(e1_recycled2.index).toBe(0);
+		expect(e1_recycled2.generation).toBe(2);
+		const e2_recycled2 = entities.get();
+		expect(e2_recycled2.index).toBe(1);
+		expect(e2_recycled2.generation).toBe(2);
 	});
 }
