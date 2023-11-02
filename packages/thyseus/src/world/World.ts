@@ -3,7 +3,6 @@ import { Table, type Class } from '../components';
 import { Entities, Entity } from '../entities';
 import { DEV_ASSERT } from '../utils';
 import type { System } from '../systems';
-import type { Thread } from '../threads';
 
 import { getCompleteConfig, type WorldConfig } from './config';
 import { StartSchedule } from './schedules';
@@ -27,7 +26,6 @@ export class World {
 	tables: Table[];
 	#archetypeToTable: Map<bigint, Table>;
 	resources: object[];
-	threads: Thread<any>[];
 
 	schedules: Record<symbol, { systems: System[]; args: any[][] }>;
 
@@ -46,7 +44,6 @@ export class World {
 		this.tables = [Table.createEmpty(entityLocations)];
 		this.#archetypeToTable = new Map([[0n, this.tables[0]]]);
 		this.resources = [];
-		this.threads = [];
 		this.schedules = {};
 		this.entities = new Entities(this, entityLocations);
 		this.commands = new Commands(this);
@@ -95,14 +92,16 @@ export class World {
 	async getOrCreateResource<T extends Class>(
 		resourceType: T,
 	): Promise<InstanceType<T>> {
-		return (this.getResource(resourceType) ??
-			this.resources[
-				this.resources.push(
-					'fromWorld' in resourceType
-						? await (resourceType as any).fromWorld(this)
-						: new resourceType(),
-				) - 1
-			]) as InstanceType<T>;
+		const res = this.getResource(resourceType);
+		if (res) {
+			return res;
+		}
+		this.resources.push(
+			'fromWorld' in resourceType
+				? await (resourceType as any).fromWorld(this)
+				: new resourceType(),
+		);
+		return this.resources.at(-1) as InstanceType<T>;
 	}
 
 	/**
@@ -111,13 +110,16 @@ export class World {
 	 * @param targetArchetype The archetype of the target table.
 	 */
 	moveEntity(entity: Entity, targetArchetype: bigint): void {
-		if (!this.entities.isAlive(entity.id)) {
+		if (!entity.isAlive) {
 			return;
 		}
 		const [tableId, row] = this.entities.getLocation(entity);
 		const currentTable = this.tables[tableId];
 		if (currentTable.archetype !== targetArchetype) {
 			currentTable.move(row, this.#getTable(targetArchetype));
+		}
+		if (targetArchetype === 0n) {
+			Entity.despawn(entity);
 		}
 	}
 
@@ -191,7 +193,7 @@ export class World {
 	addEventListener<T extends keyof WorldEventListeners>(
 		type: T,
 		listener: WorldEventListeners[T][0],
-	) {
+	): void {
 		DEV_ASSERT(
 			type in this.#listeners,
 			`Unrecognized World event listener ("${type}")`,
@@ -199,7 +201,7 @@ export class World {
 		this.#listeners[type].push(listener);
 	}
 
-	removeEventListener(type: string, listener: Function) {
+	removeEventListener(type: string, listener: Function): void {
 		const arr = (this.#listeners as Record<string, Function[]>)[type];
 		arr.splice(arr.indexOf(listener), 1);
 	}
