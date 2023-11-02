@@ -7,10 +7,12 @@ import type { System } from '../systems';
 import { getCompleteConfig, type WorldConfig } from './config';
 import { StartSchedule } from './schedules';
 import { WorldBuilder } from './WorldBuilder';
+import type { WorldEventListeners } from './WorldEventListeners';
 
-type WorldEventListeners = {
-	createTable: ((table: Table) => void)[];
-};
+/**
+ * A container for data and data-types used by an application.
+ * Contains entities and their component data, resources, schedules and more.
+ */
 export class World {
 	/**
 	 * Constructs and returns a new `WorldBuilder`.
@@ -21,14 +23,18 @@ export class World {
 		return new WorldBuilder(getCompleteConfig(config));
 	}
 
+	/**
+	 * The event listeners for this world.
+	 */
 	#listeners: WorldEventListeners;
+	/**
+	 * A lookup for archetypes (`bigint`s) to tables.
+	 */
+	#archetypeToTable: Map<bigint, Table>;
 
 	tables: Table[];
-	#archetypeToTable: Map<bigint, Table>;
 	resources: object[];
-
 	schedules: Record<symbol, { systems: System[]; args: any[][] }>;
-
 	commands: Commands;
 	entities: Entities;
 	config: Readonly<WorldConfig>;
