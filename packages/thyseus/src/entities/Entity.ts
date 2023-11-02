@@ -3,20 +3,48 @@
  * All living entities have the `Entity` component.
  */
 export class Entity {
+	static despawn(entity: Entity) {
+		entity.#isAlive = false;
+	}
+
 	#index: number = 0;
 	#generation: number = 0;
+	#isAlive: boolean;
 
-	constructor();
-	constructor(id: bigint);
-	constructor(index: number, generation: number);
-	constructor(indexOrId: number | bigint = 0, generation: number = 0) {
-		if (typeof indexOrId === 'number') {
-			this.#index = indexOrId;
-			this.#generation = generation!;
-		} else {
-			this.#index = Number(indexOrId & 0xffff_ffffn);
-			this.#generation = Number(indexOrId >> 32n);
-		}
+	constructor(index: number, generation: number = 0) {
+		this.#isAlive = true;
+		this.#index = index;
+		this.#generation = generation!;
+	}
+
+	/**
+	 * The entity's world-unique `u64` integer id, composed of its generation and index.
+	 */
+	get id(): bigint {
+		return (BigInt(this.#generation) << 32n) | BigInt(this.#index);
+	}
+
+	/**
+	 * The index of this entity.
+	 */
+	get index(): number {
+		return this.#index;
+	}
+
+	/**
+	 * The generation of this entity.
+	 */
+	get generation(): number {
+		return this.#generation;
+	}
+
+	/**
+	 * Returns a boolean indicating if this entity is still alive or has been despawned.
+	 *
+	 * Entities that have a despawn command enqueued are still alive until commands are applied.
+	 */
+	get isAlive(): boolean {
+		return this.#isAlive;
 	}
 
 	/**
@@ -28,26 +56,5 @@ export class Entity {
 		return (
 			this.index === other.index && this.generation === other.generation
 		);
-	}
-
-	/**
-	 * The entity's world-unique `u64` integer id, composed of its generation and index.
-	 */
-	get id(): bigint {
-		return (BigInt(this.#generation) << 32n) | BigInt(this.#index);
-	}
-
-	/**
-	 * The `u32` index of this entity.
-	 */
-	get index(): number {
-		return this.#index;
-	}
-
-	/**
-	 * The `u32` generation of this entity.
-	 */
-	get generation(): number {
-		return this.#generation;
 	}
 }

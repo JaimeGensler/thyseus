@@ -1,13 +1,13 @@
 import { Entity } from '../entities';
 import { DEV_ASSERT } from '../utils';
-import type { Class } from '../components';
-
-import { EntityCommandQueue } from './EntityCommandQueue';
 import {
-	TagComponentType,
 	isSizedComponent,
 	isTagComponent,
-} from '../components/Tag';
+	type Class,
+	type TagComponentType,
+} from '../components';
+
+import { EntityCommandQueue } from './EntityCommandQueue';
 
 type NotFunction<T> = T extends Function ? never : T;
 
@@ -35,10 +35,9 @@ export class EntityCommands {
 			isSizedComponent(componentType),
 			'ZSTs must be added with EntityCommands.addType().',
 		);
-		// if (!this.#isAlive) {
-		// 	return this;
-		// }
-		this.#queue.add(this.entity, component);
+		if (this.entity.isAlive) {
+			this.#queue.add(this.entity, component);
+		}
 		return this;
 	}
 
@@ -66,10 +65,9 @@ export class EntityCommands {
 			type !== Entity,
 			'Tried to remove Entity component, which is forbidden.',
 		);
-		// if (!this.#isAlive) {
-		// 	return this;
-		// }
-		this.#queue.remove(this.entity, type);
+		if (this.entity.isAlive) {
+			this.#queue.remove(this.entity, type);
+		}
 		return this;
 	}
 

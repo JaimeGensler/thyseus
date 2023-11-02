@@ -97,8 +97,8 @@ if (import.meta.vitest) {
 		const entityColumn = table.getColumn(Entity);
 		expect(table.length).toBe(0);
 
-		const e1 = new Entity(4n);
-		const e2 = new Entity((1n << 32n) | 5n);
+		const e1 = new Entity(4, 0);
+		const e2 = new Entity(5, 1);
 		addToTable(table, e1);
 		addToTable(table, e2);
 
@@ -110,13 +110,13 @@ if (import.meta.vitest) {
 		const table = createTable(Entity);
 		expect(table.length).toBe(0);
 
-		addToTable(table, new Entity());
+		addToTable(table, new Entity(0, 0));
 		expect(table.length).toBe(1);
 
 		const entityColumn = table.getColumn(Entity);
 		expect(entityColumn[0].id).toBe(0n);
 
-		addToTable(table, new Entity(3n));
+		addToTable(table, new Entity(3, 0));
 		expect(table.length).toBe(2);
 
 		expect(entityColumn[0].id).toBe(0n);
@@ -127,9 +127,9 @@ if (import.meta.vitest) {
 		const fromTable = createTable(Entity, Vec3);
 		const toTable = createTable(Entity, Vec3);
 
-		addToTable(fromTable, new Entity(3n));
-		addToTable(fromTable, new Entity(1n));
-		addToTable(toTable, new Entity(4n));
+		addToTable(fromTable, new Entity(3, 0));
+		addToTable(fromTable, new Entity(1, 0));
+		addToTable(toTable, new Entity(4, 0));
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
@@ -162,10 +162,10 @@ if (import.meta.vitest) {
 	it('deletes elements, swaps in last elements', async () => {
 		const table = createTable(Entity, Vec3);
 
-		addToTable(table, new Entity(1n));
-		addToTable(table, new Entity(2n));
-		addToTable(table, new Entity(3n));
-		addToTable(table, new Entity(4n));
+		addToTable(table, new Entity(1, 0));
+		addToTable(table, new Entity(2, 0));
+		addToTable(table, new Entity(3, 0));
+		addToTable(table, new Entity(4, 0));
 		expect(table.length).toBe(4);
 
 		const entityColumn = table.getColumn(Entity);
@@ -200,8 +200,8 @@ if (import.meta.vitest) {
 
 		const id1 = 4n;
 		const id2 = (1n << 32n) | 5n;
-		const e1 = new Entity(id1);
-		const e2 = new Entity(id2);
+		const e1 = new Entity(4, 0);
+		const e2 = new Entity(5, 1);
 		addToTable(table, e1);
 		addToTable(table, e2);
 
@@ -217,9 +217,9 @@ if (import.meta.vitest) {
 		const fromTableVec3Column = fromTable.getColumn(Vec3);
 		const toTableEntityColumn = toTable.getColumn(Entity);
 
-		addToTable(fromTable, new Entity(3n));
-		addToTable(fromTable, new Entity(1n));
-		addToTable(toTable, new Entity(4n));
+		addToTable(fromTable, new Entity(3, 0));
+		addToTable(fromTable, new Entity(1, 0));
+		addToTable(toTable, new Entity(4, 0));
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);

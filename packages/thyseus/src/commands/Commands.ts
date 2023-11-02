@@ -23,7 +23,7 @@ export class Commands {
 		]);
 		this.#entityCommands = new EntityCommands(
 			this.#entityCommandQueue,
-			new Entity(),
+			new Entity(0, 0),
 		);
 	}
 
@@ -70,12 +70,6 @@ export class Commands {
 		return new EntityCommands(this.#entityCommandQueue, entity as any);
 	}
 
-	/**
-	 * A function to clear the queue of all commands.
-	 *
-	 * **NOTE: This method is not thread-safe!**
-	 * You must have exclusive access to the world to call this.
-	 */
 	[Symbol.iterator](): IterableIterator<CommandQueue> {
 		return this.#queues.values();
 	}
@@ -113,9 +107,9 @@ if (import.meta.vitest) {
 	it('returns unique entity handles if reuse is false', async () => {
 		const world = await createWorld();
 		const { commands } = world;
-		const e1 = commands.get(new Entity());
-		const e2 = commands.get(new Entity(), false);
-		const e3 = commands.get(new Entity(), false);
+		const e1 = commands.get(new Entity(0, 0));
+		const e2 = commands.get(new Entity(0, 0), false);
+		const e3 = commands.get(new Entity(0, 0), false);
 		expect(e1).not.toBe(e2);
 		expect(e2).not.toBe(e3);
 		expect(e1).not.toBe(e3);
@@ -123,9 +117,9 @@ if (import.meta.vitest) {
 	it('returns unique entity handles if reuse is false', async () => {
 		const world = await createWorld();
 		const { commands } = world;
-		const e1 = commands.get(new Entity());
-		const e2 = commands.get(new Entity(), true);
-		const e3 = commands.get(new Entity(), true);
+		const e1 = commands.get(new Entity(0, 0));
+		const e2 = commands.get(new Entity(0, 0), true);
+		const e3 = commands.get(new Entity(0, 0), true);
 		expect(e1).not.toBe(e2);
 		expect(e1).not.toBe(e3);
 		expect(e2).toBe(e3);
@@ -190,7 +184,7 @@ if (import.meta.vitest) {
 		const world = await createWorld();
 		const { commands } = world;
 		expect(() => commands.spawn().addType(Entity as any)).toThrow();
-		expect(() => commands.spawn().add(new Entity())).toThrow();
+		expect(() => commands.spawn().add(new Entity(0, 0))).toThrow();
 		expect(() => commands.spawn().remove(Entity)).toThrow();
 	});
 }
