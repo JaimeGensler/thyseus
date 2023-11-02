@@ -15,7 +15,6 @@ export class Entities {
 	#nextIndex: number;
 
 	#cursor: number;
-	#maxLength: number;
 
 	/**
 	 * Locations (`[table, row]`) of all spawned entities.
@@ -32,54 +31,25 @@ export class Entities {
 		this.#world = world;
 		this.#nextIndex = 0;
 		this.#cursor = 0;
-		this.#maxLength = 0;
 		this.locations = entityLocations;
 		this.#freed = world.tables[0].getColumn(Entity);
 		this.#location = [0, 0];
 	}
 	resetCursor() {
-		this.#cursor = 0;
-		this.#maxLength = this.#freed.length;
+		this.#cursor = this.#freed.length;
 	}
 
 	get(): Entity {
-		const next = this.#cursor++;
-		if (next >= this.#maxLength) {
+		if (this.#cursor === 0) {
 			this.locations.push(0, this.#freed.length);
 			const ent = new Entity(this.#nextIndex++, 0);
 			this.#freed.push(ent);
 			return ent;
 		}
-		const free = this.#freed[next];
+		const free = this.#freed[--this.#cursor];
 		const ent = new Entity(free.index, free.generation + 1);
-		this.#freed[next] = ent;
+		this.#freed[this.#cursor] = ent;
 		return ent;
-	}
-
-	/**
-	 * Checks if this entity is currently alive.
-	 * Entities that have been queued for despawn are still alive until commands are processed.
-	 * @param entityId The id of the entity to check.
-	 * @returns A `boolean`, true if the entity is alive and false if it is not.
-	 */
-	isAlive(entityId: bigint): boolean {
-		return true;
-		// If generations mismatch, it was despawned.
-		// return (
-		// 	getGeneration(entityId) === this.#generations[getIndex(entityId)]
-		// );
-	}
-	/**
-	 * Checks if the entity with the provided id has been despawned.
-	 * @param entityId
-	 */
-	wasDespawned(entityId: bigint): boolean {
-		return false;
-		// const index = getIndex(entityId);
-		// return (
-		// 	this.#generations.length > index &&
-		// 	this.#generations[index] !== getGeneration(entityId)
-		// );
 	}
 
 	/**
@@ -87,15 +57,16 @@ export class Entities {
 	 * @param entityId The id of the entity.
 	 * @returns `bigint`, the archetype of the entity.
 	 */
-	getArchetype(entity: Entity): bigint {
-		const [tableId] = this.getLocation(entity);
-		return this.#world.tables[tableId]?.archetype ?? 0n;
-	}
-
-	getArchetypeForIndex(index: number): bigint {
+	getArchetype({ index }: Entity): bigint {
 		return this.#world.tables[this.locations[index * 2]]?.archetype ?? 0n;
 	}
 
+	/**
+	 * Gets the location (`[tableId: number, row: number]`) for a given entity.
+	 * This assumes the entity is living.
+	 * @param entity The Entity to check the location of.
+	 * @returns The location of the Entity.
+	 */
 	getLocation({ index }: Entity): [tableId: number, row: number] {
 		this.#location[0] = this.locations[index * 2];
 		this.#location[1] = this.locations[index * 2 + 1];
