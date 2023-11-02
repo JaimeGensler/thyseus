@@ -60,7 +60,7 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	}
 
 	/**
-	 * Creates an event on the queue from a passed instance of a struct.
+	 * Adds the provided event to the queue.
 	 * @param instance The event to add to the event queue.
 	 */
 	create(instance: T): void {
@@ -105,7 +105,7 @@ if (import.meta.vitest) {
 		}
 	}
 
-	it('EventReader.type and EventWriter.type point to the struct', async () => {
+	it('EventReader.type and EventWriter.type point to the class', async () => {
 		const [reader, writer] = await setupQueue(A);
 		expect(reader.type).toBe(A);
 		expect(writer.type).toBe(A);
