@@ -3,15 +3,12 @@ import { consumeImports, shouldIgnoreNode } from ':transform-utils';
 import { pipe } from ':utils';
 import { useConfig, useProgram, type TransformerConfig } from ':context';
 import { transformSystems } from './systems';
-import { registerHandwrittenStructs, transformStructs } from './structs';
-import { transformIterators } from './iterators';
+// import { transformIterators } from './iterators';
 import { transformThreads } from './threads/transformThreads';
 
 const visitors = pipe(
 	// registerHandwrittenStructs needs to run before transformStructs
 	// Nodes created by transform won't actually exist and cause issues
-	registerHandwrittenStructs,
-	transformStructs,
 	transformSystems,
 	// transformIterators,
 	transformThreads,
