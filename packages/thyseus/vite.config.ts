@@ -11,7 +11,6 @@ export default defineConfig({
 		lib: {
 			entry: {
 				index: resolve(__dirname, 'src/index.ts'),
-				// descriptors: resolve(__dirname, 'src/descriptors.ts'),
 			},
 			name: 'Thyseus',
 		},
