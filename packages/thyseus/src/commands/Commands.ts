@@ -6,6 +6,10 @@ import { EntityCommandQueue } from './EntityCommandQueue';
 import { EntityCommands } from './EntityCommands';
 import type { CommandQueue } from './CommandQueue';
 
+/**
+ * A class that enqueues commands to be handled by the world at a later point -
+ * typically when the `applyCommands` system runs.
+ */
 export class Commands {
 	#world: World;
 	#entities: Entities;
