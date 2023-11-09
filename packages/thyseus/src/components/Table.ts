@@ -1,6 +1,6 @@
 import { Entity } from '../entities';
-import { swapRemove } from '../utils';
 
+import { swapRemove } from './swapRemove';
 import { isSizedComponent } from './Tag';
 import type { Class } from './Class';
 

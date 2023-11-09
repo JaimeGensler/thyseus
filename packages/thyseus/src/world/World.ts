@@ -2,10 +2,9 @@ import { Commands } from '../commands';
 import { Table, type Class } from '../components';
 import { Entities, Entity } from '../entities';
 import { DEV_ASSERT } from '../utils';
-import type { System } from '../systems';
 
 import { getCompleteConfig, type WorldConfig } from './config';
-import { StartSchedule } from './schedules';
+import { Schedule, type ScheduleType } from './Schedule';
 import { WorldBuilder } from './WorldBuilder';
 import type { WorldEventListeners } from './WorldEventListeners';
 
@@ -31,35 +30,65 @@ export class World {
 	 * A lookup for archetypes (`bigint`s) to tables.
 	 */
 	#archetypeToTable: Map<bigint, Table>;
-
+	/**
+	 * A list of tables in the world.
+	 * Tables group entities with the same components together.
+	 */
 	tables: Table[];
+	/**
+	 * A list of resources in the world.
+	 */
 	resources: object[];
-	schedules: Record<symbol, { systems: System[]; args: any[][] }>;
+	/**
+	 * The schedules that exist in this world.
+	 */
+	schedules: Map<ScheduleType, Schedule>;
+	/**
+	 * This world's `Commands` object.
+	 */
 	commands: Commands;
+	/**
+	 * This world's `Entities` object.
+	 */
 	entities: Entities;
+	/**
+	 * The config used to create this world.
+	 */
 	config: Readonly<WorldConfig>;
+	/**
+	 * A list of components currently used by this world.
+	 */
 	components: Class[];
 
-	constructor(config: WorldConfig) {
-		const entityLocations: number[] = [];
+	constructor(config: WorldConfig, listeners: WorldEventListeners) {
 		this.config = config;
-		this.#listeners = {
-			createTable: [],
-		};
+		this.#listeners = listeners;
+
+		const entityLocations: number[] = [];
 		this.components = [Entity];
 		this.tables = [Table.createEmpty(entityLocations)];
 		this.#archetypeToTable = new Map([[0n, this.tables[0]]]);
 		this.resources = [];
-		this.schedules = {};
+		this.schedules = new Map();
 		this.entities = new Entities(this, entityLocations);
 		this.commands = new Commands(this);
 	}
 
 	/**
-	 * Starts execution of the world.
+	 * Emits the `"start"` event in this world.
 	 */
 	start(): void {
-		this.runSchedule(StartSchedule);
+		for (const listener of this.#listeners.start) {
+			listener(this);
+		}
+	}
+	/**
+	 * Emits the `"stop"` event in this world.
+	 */
+	stop(): void {
+		for (const listener of this.#listeners.stop) {
+			listener(this);
+		}
 	}
 
 	/**
@@ -68,15 +97,15 @@ export class World {
 	 * @param schedule The schedule to run.
 	 * @returns A promise that resolves when the schedule has completed
 	 */
-	async runSchedule(schedule: symbol): Promise<void> {
+	async runSchedule(scheduleType: ScheduleType): Promise<void> {
 		DEV_ASSERT(
-			schedule in this.schedules,
-			`Could not find schedule (${String(schedule)}) in the world!`,
+			this.schedules.has(scheduleType),
+			`Could not find schedule (${String(
+				scheduleType.name,
+			)}) in the world!`,
 		);
-		const { systems, args } = this.schedules[schedule];
-		for (let i = 0; i < systems.length; i++) {
-			await systems[i](...args[i]);
-		}
+		const schedule = this.schedules.get(scheduleType)!;
+		schedule.run();
 	}
 
 	/**
@@ -176,6 +205,12 @@ export class World {
 		return components;
 	}
 
+	/**
+	 * Gets this world's table for the provided archetype.
+	 * If it doesn't exist, creates the table and returns it.
+	 * @param archetype The archetype for the table to find.
+	 * @returns The table matching the provided archetype.
+	 */
 	#getTable(archetype: bigint): Table {
 		let table = this.#archetypeToTable.get(archetype);
 		if (table) {
@@ -196,6 +231,11 @@ export class World {
 		return table;
 	}
 
+	/**
+	 * Adds a listener for a specific event to the world.
+	 * @param type The type of event to listen to.
+	 * @param listener The callback to be run when this event is emitted.
+	 */
 	addEventListener<T extends keyof WorldEventListeners>(
 		type: T,
 		listener: WorldEventListeners[T][0],
@@ -204,10 +244,19 @@ export class World {
 			type in this.#listeners,
 			`Unrecognized World event listener ("${type}")`,
 		);
-		this.#listeners[type].push(listener);
+		this.#listeners[type].push(listener as any);
 	}
 
+	/**
+	 * Removes a listener for an event from the world.
+	 * @param type The type of event to remove a listener from.
+	 * @param listener The callback to be removed.
+	 */
 	removeEventListener(type: string, listener: Function): void {
+		DEV_ASSERT(
+			type in this.#listeners,
+			`Unrecognized World event listener ("${type}")`,
+		);
 		const arr = (this.#listeners as Record<string, Function[]>)[type];
 		arr.splice(arr.indexOf(listener), 1);
 	}
