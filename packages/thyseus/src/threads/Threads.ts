@@ -1,25 +1,30 @@
-import type { World, WorldConfig } from '../world';
+import type { World } from '../world';
 
 import { Thread } from './Thread';
 
 export class Threads {
 	static fromWorld(world: World) {
-		return new this(world.config.createWorker);
+		return new this(world);
 	}
 
 	#threads: Thread<any>[];
-	#createWorker: WorldConfig['createWorker'];
-	constructor(createWorker: WorldConfig['createWorker']) {
-		this.#createWorker = createWorker;
+	#createWorker: (scriptURL: string) => Worker;
+	constructor(world: World) {
 		this.#threads = [];
+		this.#createWorker = world.config.createWorker;
+		world.addEventListener('stop', () => {
+			for (const thread of this.#threads) {
+				thread.terminate();
+			}
+		});
 	}
 
 	getThread<T extends object = any>(module: string): Thread<T> {
-		const thread = this.#threads.find(thread => thread.module === module);
-		if (thread) {
-			return thread;
+		let thread = this.#threads.find(thread => thread.module === module);
+		if (!thread) {
+			thread = new Thread(this.#createWorker(module), module);
+			this.#threads.push(thread);
 		}
-		this.#threads.push(new Thread(this.#createWorker(module), module));
-		return this.#threads[this.#threads.length - 1];
+		return thread;
 	}
 }
