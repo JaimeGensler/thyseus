@@ -4,7 +4,7 @@ export { Entity } from './entities';
 export { Events } from './events';
 export { Tag } from './components';
 export { cloneSystem } from './systems';
-export { World, DefaultSchedule, StartSchedule } from './world';
+export { World, Schedule } from './world';
 
 // Descriptors
 export { CommandsDescriptor } from './commands';
