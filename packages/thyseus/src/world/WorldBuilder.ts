@@ -48,15 +48,6 @@ export class WorldBuilder {
 				this.#schedules.set(schedule, []);
 			}
 			this.#systems.add(system);
-			// const receivedParameters = system.parameters?.length ?? 0;
-			// const expectedParameters = system.length;
-			// DEV_ASSERT(
-			// 	// A system should receive at least as many parameters as its
-			// 	// length. Fewer is probably the result of bad transformation,
-			// 	// more could just be the result of handwritten params.
-			// 	receivedParameters >= expectedParameters,
-			// 	`System "${system.name}" expects ${expectedParameters} parameters, but will receive ${receivedParameters}. This is likely due to a failed transformation.`,
-			// );
 			this.#schedules.get(schedule)!.push(system);
 		}
 		return this;
