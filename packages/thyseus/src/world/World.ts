@@ -13,6 +13,10 @@ import type { WorldEventListeners } from './WorldEventListeners';
  * Contains entities and their component data, resources, schedules and more.
  */
 export class World {
+	static intoArgument(world: World): World {
+		return world;
+	}
+
 	/**
 	 * Constructs and returns a new `WorldBuilder`.
 	 * @param config The config of the world.

@@ -10,6 +10,6 @@ import { System } from './System';
  */
 export function cloneSystem<T extends System>(system: T): T {
 	const clone = system.bind(null) as T;
-	clone.parameters = system.parameters!;
+	clone.getSystemArguments = system.getSystemArguments!;
 	return clone;
 }

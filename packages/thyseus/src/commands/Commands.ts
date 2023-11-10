@@ -11,6 +11,10 @@ import type { CommandQueue } from './CommandQueue';
  * typically when the `applyCommands` system runs.
  */
 export class Commands {
+	static intoArgument(world: World): Commands {
+		return world.commands;
+	}
+
 	#world: World;
 	#entities: Entities;
 	#queues: Map<Class, CommandQueue>;

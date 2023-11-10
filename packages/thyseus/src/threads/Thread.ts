@@ -1,3 +1,6 @@
+import type { World } from '../world';
+
+import { Threads } from './Threads';
 import type { StructuredCloneable } from './StructuredCloneable';
 
 type PureFunction = <T extends StructuredCloneable>(...args: T[]) => T;
@@ -11,6 +14,13 @@ type ArgumentsType<T> = T extends (...args: infer R) => any ? R : never;
 type ReturnType<T> = T extends (...args: any[]) => infer R ? R : any;
 
 export class Thread<T extends object> {
+	static async intoArgument(
+		world: World,
+		[importer, scriptURL]: [() => any, string],
+	): Promise<Thread<any>> {
+		return (await world.getOrCreateResource(Threads)).getThread(scriptURL);
+	}
+
 	#worker: Worker;
 	#id: number;
 	#resolvers: Map<number, (args: any) => void>;

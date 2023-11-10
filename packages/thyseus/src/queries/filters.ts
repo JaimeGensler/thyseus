@@ -1,7 +1,12 @@
-import type { Class } from '../components';
 import { DEV_ASSERT } from '../utils';
+import type { Class } from '../components';
+import type { World } from '../world';
 
 export class Predicate {
+	static intoArgument(_: World, ...children: Class[]) {
+		return new this(...children);
+	}
+
 	children: Class[];
 	constructor(...children: Class[]) {
 		this.children = children;
@@ -25,6 +30,10 @@ export class Without<
 }
 
 export class Connective {
+	static intoArgument(_: World, ...children: Filter[]) {
+		return new this(...children);
+	}
+
 	children: Filter[];
 	constructor(...children: Filter[]) {
 		this.children = children;

@@ -5,5 +5,5 @@ export type SystemParameter = {
 };
 
 export type System = ((...args: any[]) => void | Promise<void>) & {
-	parameters?: SystemParameter[];
+	getSystemArguments?(world: World): any[];
 };
