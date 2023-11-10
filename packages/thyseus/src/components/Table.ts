@@ -4,6 +4,10 @@ import { swapRemove } from './swapRemove';
 import { isSizedComponent } from './Tag';
 import type { Class } from './Class';
 
+/**
+ * Contains component data for entities with the same archetype.
+ * Entities are rows, component types are columns.
+ */
 export class Table {
 	static createEmpty(locations: number[]): Table {
 		return new this([Entity], 0n, 0, locations);
@@ -27,6 +31,9 @@ export class Table {
 		this.#locations = locations;
 	}
 
+	/**
+	 * The number of entities in this table.
+	 */
 	get length(): number {
 		return this.#columns[0].length;
 	}
@@ -36,7 +43,7 @@ export class Table {
 	 * @param row The row of the entity to move.
 	 * @param targetTable The table to move that entity to.
 	 */
-	move(row: number, targetTable: Table): void {
+	move(row: number, targetTable: Table, components: object[]): void {
 		const { index: moveIndex } = this.#columns[0][row];
 		const { index: backfillIndex } = this.#columns[0][this.length - 1];
 		this.#locations[backfillIndex * 2 + 1] = row;
@@ -47,15 +54,15 @@ export class Table {
 				targetTable.getColumn(componentType).push(element);
 			}
 		}
+		for (const component of components) {
+			if (targetTable.hasColumn(component.constructor as any)) {
+				targetTable
+					.getColumn(component.constructor as any)
+					?.push(component);
+			}
+		}
 		this.#locations[moveIndex * 2] = targetTable.id;
 		this.#locations[moveIndex * 2 + 1] = targetTable.length - 1;
-	}
-
-	copyComponentIntoRow(row: number, component: object): void {
-		const componentType = component.constructor as Class;
-		if (this.hasColumn(componentType)) {
-			this.getColumn(componentType)[row] = component;
-		}
 	}
 
 	hasColumn(componentType: Class): boolean {
@@ -89,8 +96,16 @@ if (import.meta.vitest) {
 	const createTable = (...components: Class[]) =>
 		new Table(components, 0n, 0, []);
 
-	const addToTable = (table: Table, entity: Entity) =>
+	const addToTable = (
+		table: Table,
+		entity: Entity,
+		...components: object[]
+	) => {
 		table.getColumn(Entity).push(entity);
+		for (const component of components) {
+			table.getColumn(component.constructor as any).push(component);
+		}
+	};
 
 	it('add() adds an item', async () => {
 		const table = createTable(Entity);
@@ -127,9 +142,9 @@ if (import.meta.vitest) {
 		const fromTable = createTable(Entity, Vec3);
 		const toTable = createTable(Entity, Vec3);
 
-		addToTable(fromTable, new Entity(3, 0));
-		addToTable(fromTable, new Entity(1, 0));
-		addToTable(toTable, new Entity(4, 0));
+		addToTable(fromTable, new Entity(3, 0), new Vec3(1, 2, 3));
+		addToTable(fromTable, new Entity(1, 0), new Vec3(7, 8, 9));
+		addToTable(toTable, new Entity(4, 0), new Vec3(0, 0, 0));
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
@@ -140,14 +155,11 @@ if (import.meta.vitest) {
 		const fromTableVec3Column = fromTable.getColumn(Vec3);
 		const toTableVec3Column = toTable.getColumn(Vec3);
 
-		fromTable.copyComponentIntoRow(0, new Vec3(1, 2, 3));
-		fromTable.copyComponentIntoRow(1, new Vec3(7, 8, 9));
-
-		fromTable.move(0, toTable);
+		fromTable.move(0, toTable, []);
 		expect(fromTable.length).toBe(1);
 		expect(toTable.length).toBe(2);
 
-		let v3 = toTableVec3Column[0];
+		let v3 = toTableVec3Column[1];
 		expect(v3.x).toBe(1);
 		expect(v3.y).toBe(2);
 		expect(v3.z).toBe(3);
@@ -177,7 +189,7 @@ if (import.meta.vitest) {
 			new Vec3(10, 11, 12),
 		);
 
-		table.move(1, Table.createEmpty([]));
+		table.move(1, Table.createEmpty([]), []);
 		expect(table.length).toBe(3);
 		expect(entityColumn[0].id).toBe(1n);
 		expect(vecColumn[0].x).toBe(1);
@@ -226,7 +238,7 @@ if (import.meta.vitest) {
 		expect(fromTableEntityColumn[0].id).toBe(3n);
 
 		fromTableVec3Column.push(new Vec3(1, 2, 3), new Vec3(7, 8, 9));
-		fromTable.move(0, toTable);
+		fromTable.move(0, toTable, []);
 
 		expect(toTableEntityColumn[1].id).toBe(3n);
 		expect(fromTableEntityColumn[0].id).toBe(1n);

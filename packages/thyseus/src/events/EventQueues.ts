@@ -1,15 +1,15 @@
 import type { Class } from '../components';
 
-import type { ClearEventsCommandQueue } from './ClearEventsCommandQueue';
+import type { EventsCommandQueue } from './EventsCommandQueue';
 
 export class EventReader<T extends object> {
-	#commandQueue: ClearEventsCommandQueue;
+	#commandQueue: EventsCommandQueue;
 	#type: Class;
 	#id: number;
 	#queue: T[];
 
 	constructor(
-		commandQueue: ClearEventsCommandQueue,
+		commandQueue: EventsCommandQueue,
 		type: { new (...args: any[]): T },
 		queue: T[],
 		id: number,
@@ -23,7 +23,7 @@ export class EventReader<T extends object> {
 	/**
 	 * The number of events currently in this queue.
 	 */
-	get length() {
+	get length(): number {
 		return this.#queue.length;
 	}
 
@@ -41,8 +41,8 @@ export class EventReader<T extends object> {
 	/**
 	 * Sets this event queue to be cleared when commands are next processed.
 	 */
-	clear() {
-		this.#commandQueue.eventQueuesToClear.push(this.#id);
+	clear(): void {
+		this.#commandQueue.clear(this.#id);
 	}
 }
 
@@ -50,7 +50,7 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	#queue: T[];
 
 	constructor(
-		commandQueue: ClearEventsCommandQueue,
+		commandQueue: EventsCommandQueue,
 		type: { new (...args: any[]): T },
 		queue: T[],
 		id: number,
@@ -81,16 +81,14 @@ export class EventWriter<T extends object> extends EventReader<T> {
 if (import.meta.vitest) {
 	const { it, expect, vi } = import.meta.vitest;
 	const { World } = await import('../world');
-	const { ClearEventsCommandQueue } = await import(
-		'./ClearEventsCommandQueue'
-	);
+	const { EventsCommandQueue } = await import('./EventsCommandQueue');
 
 	async function setupQueue<T extends Class, I extends InstanceType<T>>(
 		queueType: T,
 	) {
 		const world = await World.new().build();
 		const queue: I[] = [];
-		const commandQueue = world.commands.getQueue(ClearEventsCommandQueue);
+		const commandQueue = world.commands.getQueue(EventsCommandQueue);
 		return [
 			new EventReader<I>(commandQueue, queueType as any, queue, 0),
 			new EventWriter<I>(commandQueue, queueType as any, queue, 0),
@@ -143,10 +141,8 @@ if (import.meta.vitest) {
 
 	it('EventReader.clear() queues a clear command', async () => {
 		const [reader, writer, world] = await setupQueue(A);
-		const queue = world.commands.getQueue(
-			ClearEventsCommandQueue,
-		).eventQueuesToClear;
-		const pushCommandSpy = vi.spyOn(queue, 'push' as any);
+		const queue = world.commands.getQueue(EventsCommandQueue);
+		const pushCommandSpy = vi.spyOn(queue, 'clear' as any);
 		expect(reader.length).toBe(0);
 		expect(writer.length).toBe(0);
 

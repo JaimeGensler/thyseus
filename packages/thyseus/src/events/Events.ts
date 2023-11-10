@@ -1,7 +1,7 @@
 import type { Commands } from '../commands';
 import type { Class } from '../components';
 import type { World } from '../world';
-import { ClearEventsCommandQueue } from './ClearEventsCommandQueue';
+import { EventsCommandQueue } from './EventsCommandQueue';
 
 import { EventReader, EventWriter } from './EventQueues';
 
@@ -19,7 +19,7 @@ export class Events {
 	 * Each member in the `writers` array has a corresponding member at the same index in `readers`.
 	 */
 	writers: EventWriter<any>[];
-	#commandQueue: ClearEventsCommandQueue;
+	#commandQueue: EventsCommandQueue;
 
 	static fromWorld({ commands }: World) {
 		return new this(commands);
@@ -27,7 +27,8 @@ export class Events {
 	constructor(commands: Commands) {
 		this.readers = [];
 		this.writers = [];
-		this.#commandQueue = commands.getQueue(ClearEventsCommandQueue);
+		this.#commandQueue = new EventsCommandQueue(this.writers);
+		commands.addQueue(this.#commandQueue);
 	}
 
 	#createReaderWriter<T extends Class>(
