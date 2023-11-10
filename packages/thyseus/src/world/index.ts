@@ -1,5 +1,4 @@
 export { World } from './World';
-export { WorldDescriptor } from './WorldDescriptor';
 export { Schedule } from './Schedule';
 
 export type { Plugin } from './Plugin';

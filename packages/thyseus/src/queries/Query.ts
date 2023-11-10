@@ -1,9 +1,35 @@
 import type { Class } from '../components';
 import type { World } from '../world';
 
-import type { Filter } from './filters';
+import { createArchetypeFilter, type Filter } from './filters';
+import { ReadModifier } from './modifiers';
 
 export class Query<A extends object | object[], F extends Filter = Filter> {
+	static async intoArgument(
+		world: World,
+		accessors: (Class | ReadModifier)[],
+		filter?: Filter,
+	) {
+		const isIndividual = !Array.isArray(accessors);
+		const iter: (Class | ReadModifier)[] = Array.isArray(accessors)
+			? accessors
+			: [accessors];
+		const components: Class[] = [];
+
+		for (const accessor of iter) {
+			const isReadonly = accessor instanceof ReadModifier;
+			const component: Class = isReadonly ? accessor.value : accessor;
+			components.push(component);
+		}
+		const initial = world.getArchetype(...components);
+		const filters = filter
+			? createArchetypeFilter(filter, [initial, 0n], (...components) =>
+					world.getArchetype(...components),
+			  )
+			: [initial, 0n];
+		return new Query(world, filters, isIndividual, components);
+	}
+
 	#elements: Array<object[]>;
 
 	#columns: Array<object[]>;

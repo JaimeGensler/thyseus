@@ -1,4 +1,5 @@
 import type { Class } from '../components';
+import type { World } from '../world';
 
 // `Read<T>` relies on methods of classes having an `unknown` this type.
 // If an explicit `this` type is provided, it will no longer be `unknown`.
@@ -15,6 +16,10 @@ export type Read<T> = {
 };
 
 export class ReadModifier {
+	static intoArgument(world: World, value: Class) {
+		return new this(value);
+	}
+
 	value: Class;
 	constructor(value: Class) {
 		this.value = value;

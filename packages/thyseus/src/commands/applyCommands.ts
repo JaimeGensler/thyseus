@@ -1,5 +1,3 @@
-import { WorldDescriptor } from '../world/WorldDescriptor';
-
 import type { World } from '../world';
 
 /**
@@ -14,7 +12,7 @@ export function applyCommands(world: World) {
 		queue.apply(world);
 	}
 }
-applyCommands.parameters = [new WorldDescriptor()];
+applyCommands.getSystemArguments = (world: World) => [world];
 
 /*---------*\
 |   TESTS   |

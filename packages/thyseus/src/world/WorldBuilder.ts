@@ -48,15 +48,15 @@ export class WorldBuilder {
 				this.#schedules.set(schedule, []);
 			}
 			this.#systems.add(system);
-			const receivedParameters = system.parameters?.length ?? 0;
-			const expectedParameters = system.length;
-			DEV_ASSERT(
-				// A system should receive at least as many parameters as its
-				// length. Fewer is probably the result of bad transformation,
-				// more could just be the result of handwritten params.
-				receivedParameters >= expectedParameters,
-				`System "${system.name}" expects ${expectedParameters} parameters, but will receive ${receivedParameters}. This is likely due to a failed transformation.`,
-			);
+			// const receivedParameters = system.parameters?.length ?? 0;
+			// const expectedParameters = system.length;
+			// DEV_ASSERT(
+			// 	// A system should receive at least as many parameters as its
+			// 	// length. Fewer is probably the result of bad transformation,
+			// 	// more could just be the result of handwritten params.
+			// 	receivedParameters >= expectedParameters,
+			// 	`System "${system.name}" expects ${expectedParameters} parameters, but will receive ${receivedParameters}. This is likely due to a failed transformation.`,
+			// );
 			this.#schedules.get(schedule)!.push(system);
 		}
 		return this;
@@ -111,11 +111,7 @@ export class WorldBuilder {
 		for (const system of this.#systems) {
 			systemArguments.set(
 				system,
-				await Promise.all(
-					system.parameters?.map(parameter =>
-						parameter.intoArgument(world),
-					) ?? [],
-				),
+				await Promise.all(system.getSystemArguments?.(world) ?? []),
 			);
 		}
 		for (const creator of this.#creators) {

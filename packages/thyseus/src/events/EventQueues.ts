@@ -1,8 +1,19 @@
 import type { Class } from '../components';
+import { World } from '../world';
 
+import { Events } from './Events';
 import type { EventsCommandQueue } from './EventsCommandQueue';
 
 export class EventReader<T extends object> {
+	static async intoArgument(
+		world: World,
+		eventType: Class,
+	): Promise<EventReader<any>> {
+		return (await world.getOrCreateResource(Events)).getReaderOfType(
+			eventType,
+		);
+	}
+
 	#commandQueue: EventsCommandQueue;
 	#type: Class;
 	#id: number;
@@ -47,6 +58,14 @@ export class EventReader<T extends object> {
 }
 
 export class EventWriter<T extends object> extends EventReader<T> {
+	static async intoArgument(
+		world: World,
+		eventType: Class,
+	): Promise<EventWriter<any>> {
+		return (await world.getOrCreateResource(Events)).getWriterOfType(
+			eventType,
+		);
+	}
 	#queue: T[];
 
 	constructor(
