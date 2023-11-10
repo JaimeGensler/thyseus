@@ -1,5 +1,5 @@
-import { CommandsDescriptor } from 'thyseus';
+import { SystemRes, Commands } from 'thyseus';
 // thyseus-ignore
-function mySystem(systemRes: SystemRes<Map<bigint, bigint>>) { }
-function otherSystem(commands: Commands) { }
-otherSystem.parameters = [new CommandsDescriptor()];
+function mySystem(systemRes: SystemRes<Map<bigint, bigint>>) {}
+function otherSystem(commands: Commands) {}
+otherSystem.getSystemArguments = (__w: any) => [Commands.intoArgument(__w)];

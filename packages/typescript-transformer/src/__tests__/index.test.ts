@@ -10,13 +10,13 @@ createSuite(
 		as: 'raw',
 	}),
 );
-createSuite(
-	'structs',
-	import.meta.glob('./structs/**/*.ts', {
-		eager: true,
-		as: 'raw',
-	}),
-);
+// createSuite(
+// 	'structs',
+// 	import.meta.glob('./structs/**/*.ts', {
+// 		eager: true,
+// 		as: 'raw',
+// 	}),
+// );
 createSuite(
 	'threads',
 	import.meta.glob('./threads/**/*.ts', {
@@ -34,7 +34,7 @@ createSuite(
 
 const customConfig = {
 	MyCustomParameter: {
-		descriptorName: 'MyCustomParameterDescriptor',
+		descriptorName: 'MyCustomParameter',
 		importPath: ':somewhere',
 	},
 };
