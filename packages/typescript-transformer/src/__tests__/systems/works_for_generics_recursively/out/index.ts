@@ -1,3 +1,6 @@
-import { QueryDescriptor, ReadModifier } from 'thyseus';
+import { Query, ReadModifier } from 'thyseus';
+class A {}
 function querySystem(query: Query<Readonly<A>>) {}
-querySystem.parameters = [new QueryDescriptor(new ReadModifier(A))];
+querySystem.getSystemArguments = (__w: any) => [
+	Query.intoArgument(__w, ReadModifier.intoArgument(__w, A)),
+];

@@ -11,11 +11,29 @@ export const transformSystems = createVisitor(isSystem, node => {
 		ts.factory.createAssignment(
 			ts.factory.createPropertyAccessExpression(
 				getName(node),
-				'parameters',
+				'getSystemArguments',
 			),
-			ts.factory.createArrayLiteralExpression(
-				getSignatureDeclaration(node).parameters.map(parameter =>
-					createDescriptorFromTypeNode(parameter.type!, parameter),
+			ts.factory.createArrowFunction(
+				undefined,
+				undefined,
+				[
+					ts.factory.createParameterDeclaration(
+						undefined,
+						undefined,
+						'__w',
+						undefined,
+						ts.factory.createTypeReferenceNode('any'),
+					),
+				],
+				undefined,
+				undefined,
+				ts.factory.createArrayLiteralExpression(
+					getSignatureDeclaration(node).parameters.map(parameter =>
+						createDescriptorFromTypeNode(
+							parameter.type!,
+							parameter,
+						),
+					),
 				),
 			),
 		),
@@ -27,7 +45,7 @@ export const transformSystems = createVisitor(isSystem, node => {
 function createDescriptorFromTypeNode(
 	node: ts.TypeNode,
 	param: ts.ParameterDeclaration,
-): ts.NewExpression | ts.Identifier | ts.ArrayLiteralExpression {
+): ts.CallExpression | ts.Identifier | ts.ArrayLiteralExpression {
 	const systemParameters = useConfig('systemParameters');
 	if (ts.isTypeReferenceNode(node)) {
 		const typeName = getTypeNameFromNode(node);
@@ -35,13 +53,26 @@ function createDescriptorFromTypeNode(
 
 		if (descriptor) {
 			addImport(descriptor.importPath, descriptor.descriptorName);
-			return ts.factory.createNewExpression(
-				ts.factory.createIdentifier(descriptor.descriptorName),
+			return ts.factory.createCallExpression(
+				ts.factory.createPropertyAccessExpression(
+					ts.factory.createIdentifier(descriptor.descriptorName),
+					ts.factory.createIdentifier('intoArgument'),
+				),
 				undefined,
-				node.typeArguments?.map(child =>
-					createDescriptorFromTypeNode(child, param),
-				) ?? [],
+				[
+					ts.factory.createIdentifier('__w'),
+					...(node.typeArguments?.map(child =>
+						createDescriptorFromTypeNode(child, param),
+					) ?? []),
+				],
 			);
+			// return ts.factory.createNewExpression(
+			// 	ts.factory.createIdentifier(descriptor.descriptorName),
+			// 	undefined,
+			// 	node.typeArguments?.map(child =>
+			// 		createDescriptorFromTypeNode(child, param),
+			// 	) ?? [],
+			// );
 		} else {
 			return ts.factory.createIdentifier(typeName);
 		}

@@ -1,5 +1,5 @@
-import { Thread, ThreadDescriptor } from 'thyseus';
+import { Thread } from 'thyseus';
 function threadSystem(thread: Thread<typeof import('./thread')>) {}
-threadSystem.parameters = [
-	new ThreadDescriptor([() => import('./thread'), './thread']),
+threadSystem.getSystemArguments = (__w: any) => [
+	Thread.intoArgument(__w, [() => import('./thread'), './thread']),
 ];

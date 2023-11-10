@@ -1,3 +1,3 @@
-import { CommandsDescriptor } from 'thyseus';
-export function commandsSystem(commands: Commands) { }
-commandsSystem.parameters = [new CommandsDescriptor()];
+import { Commands } from 'thyseus';
+export function commandsSystem(commands: Commands) {}
+commandsSystem.getSystemArguments = (__w: any) => [Commands.intoArgument(__w)];

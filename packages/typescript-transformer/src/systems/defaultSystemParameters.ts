@@ -4,36 +4,36 @@ export type SystemParameterMap = Record<string, SystemParameterDescriptor>;
 export const defaultSystemParameters: SystemParameterMap = {
 	// Parameters
 	World: {
-		descriptorName: 'WorldDescriptor',
+		descriptorName: 'World',
 		importPath: 'thyseus',
 	},
 	Commands: {
-		descriptorName: 'CommandsDescriptor',
+		descriptorName: 'Commands',
 		importPath: 'thyseus',
 	},
 	Query: {
-		descriptorName: 'QueryDescriptor',
+		descriptorName: 'Query',
 		importPath: 'thyseus',
 	},
 	Res: {
-		descriptorName: 'ResourceDescriptor',
+		descriptorName: 'Res',
 		importPath: 'thyseus',
 	},
 	SystemRes: {
-		descriptorName: 'SystemResourceDescriptor',
+		descriptorName: 'SystemRes',
 		importPath: 'thyseus',
 	},
 	EventReader: {
-		descriptorName: 'EventReaderDescriptor',
+		descriptorName: 'EventReader',
 		importPath: 'thyseus',
 	},
 	EventWriter: {
-		descriptorName: 'EventWriterDescriptor',
+		descriptorName: 'EventWriter',
 		importPath: 'thyseus',
 	},
 
 	Thread: {
-		descriptorName: 'ThreadDescriptor',
+		descriptorName: 'Thread',
 		importPath: 'thyseus',
 	},
 

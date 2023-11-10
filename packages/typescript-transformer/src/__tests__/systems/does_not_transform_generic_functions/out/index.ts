@@ -1,1 +1,2 @@
-function mySystem<T>(res: Res<T>) { }
+import { Res } from 'thyseus';
+function mySystem<T>(res: Res<T>) {}
