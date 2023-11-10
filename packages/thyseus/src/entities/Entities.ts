@@ -87,7 +87,7 @@ if (import.meta.vitest) {
 		return world;
 	};
 
-	it('returns incrementing generational integers', async () => {
+	it('returns incrementing integers', async () => {
 		const world = await createWorld();
 		const { entities } = world;
 
@@ -108,17 +108,17 @@ if (import.meta.vitest) {
 		expect(e2.generation).toBe(0);
 
 		entities.resetCursor();
-		const e1_recycled = entities.get();
 		const e2_recycled = entities.get();
+		const e1_recycled = entities.get();
 		const e3 = entities.get();
 		const e4 = entities.get();
 
-		expect(e1_recycled.index).toBe(0);
-		expect(e1_recycled.generation).toBe(1);
-		expect(e1_recycled).not.toBe(e2);
 		expect(e2_recycled.index).toBe(1);
 		expect(e2_recycled.generation).toBe(1);
 		expect(e2_recycled).not.toBe(e2);
+		expect(e1_recycled.index).toBe(0);
+		expect(e1_recycled.generation).toBe(1);
+		expect(e1_recycled).not.toBe(e2);
 		expect(e3.index).toBe(2);
 		expect(e3.generation).toBe(0);
 		expect(e4.index).toBe(3);
@@ -126,11 +126,13 @@ if (import.meta.vitest) {
 
 		entities.resetCursor();
 
-		const e1_recycled2 = entities.get();
-		expect(e1_recycled2.index).toBe(0);
-		expect(e1_recycled2.generation).toBe(2);
+		entities.get(); // 4
+		entities.get(); // 3
 		const e2_recycled2 = entities.get();
+		const e1_recycled2 = entities.get();
 		expect(e2_recycled2.index).toBe(1);
 		expect(e2_recycled2.generation).toBe(2);
+		expect(e1_recycled2.index).toBe(0);
+		expect(e1_recycled2.generation).toBe(2);
 	});
 }

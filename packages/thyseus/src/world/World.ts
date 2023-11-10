@@ -143,15 +143,20 @@ export class World {
 	 * Moves an entity from one table to another.
 	 * @param entity The entity to move.
 	 * @param targetArchetype The archetype of the target table.
+	 * @param components The components to insert into this entity.
 	 */
-	moveEntity(entity: Entity, targetArchetype: bigint): void {
+	moveEntity(
+		entity: Entity,
+		targetArchetype: bigint,
+		components: object[],
+	): void {
 		if (!entity.isAlive) {
 			return;
 		}
 		const [tableId, row] = this.entities.getLocation(entity);
 		const currentTable = this.tables[tableId];
 		if (currentTable.archetype !== targetArchetype) {
-			currentTable.move(row, this.#getTable(targetArchetype));
+			currentTable.move(row, this.#getTable(targetArchetype), components);
 		}
 		if (targetArchetype === 0n) {
 			Entity.despawn(entity);

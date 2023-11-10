@@ -31,6 +31,10 @@ export class Commands {
 		);
 	}
 
+	addQueue(queue: CommandQueue) {
+		this.#queues.set(queue.constructor as Class, queue);
+	}
+
 	getQueue<T extends Class>(queueType: T): InstanceType<T> {
 		if (!this.#queues.has(queueType)) {
 			this.#queues.set(
