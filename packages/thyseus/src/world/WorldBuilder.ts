@@ -98,6 +98,7 @@ export class WorldBuilder {
 	 */
 	async build(): Promise<World> {
 		const world = new World(this.config, this.#listeners);
+
 		const systemArguments = new Map();
 		for (const system of this.#systems) {
 			systemArguments.set(
@@ -122,6 +123,7 @@ export class WorldBuilder {
 				),
 			);
 		}
+
 		return world;
 	}
 }
