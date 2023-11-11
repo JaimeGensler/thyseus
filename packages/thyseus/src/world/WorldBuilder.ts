@@ -99,13 +99,6 @@ export class WorldBuilder {
 	async build(): Promise<World> {
 		const world = new World(this.config, this.#listeners);
 
-		const systemArguments = new Map();
-		for (const system of this.#systems) {
-			systemArguments.set(
-				system,
-				await Promise.all(system.getSystemArguments?.(world) ?? []),
-			);
-		}
 		for (const creator of this.#creators) {
 			const resource = await creator(world);
 			const index =
@@ -117,10 +110,7 @@ export class WorldBuilder {
 		for (const [scheduleType, systems] of this.#schedules) {
 			world.schedules.set(
 				scheduleType,
-				new scheduleType(
-					systems,
-					systems.map(s => systemArguments.get(s)),
-				),
+				new scheduleType(systems).prepare(world),
 			);
 		}
 
