@@ -1,9 +1,9 @@
 export const indexTS = `
-import { World, StartSchedule, DefaultSchedule } from 'thyseus';
+import { World, Schedule } from 'thyseus';
 
 function start(world: World) {
 	async function loop() {
-		await world.runSchedule(DefaultSchedule);
+		await world.runSchedule(Schedule);
 		requestAnimationFrame(loop);
 	}
 	loop();
@@ -12,10 +12,10 @@ function helloWorld() {
 	console.log('Hello, world!');
 }
 
-const world = await World.new()
-	.addSystemsToSchedule(StartSchedule, start)
+const world = await new World()
+	.addEventListener('start', start)
 	.addSystems(helloWorld, /* Your systems here! */)
-	.build();
+	.prepare();
 
 world.start();
 `.trim();

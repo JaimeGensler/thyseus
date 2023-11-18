@@ -34,12 +34,6 @@ inquirer
 				return true;
 			},
 		},
-		{
-			name: 'useGlobalTypes',
-			message: "Use Thyseus's global type injection?",
-			type: 'confirm',
-			default: false,
-		},
 	])
 	.then(async function ({ projectName, useGlobalTypes }: Answers) {
 		mkdirSync(projectName);
