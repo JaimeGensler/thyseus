@@ -1,3 +1,3 @@
-import { WorldBuilder } from './WorldBuilder';
+import { World } from './World';
 
-export type Plugin = (worldBuilder: WorldBuilder) => void;
+export type Plugin = (world: World) => void;

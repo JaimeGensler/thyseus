@@ -1,29 +1,65 @@
+import { DEV_ASSERT } from '../utils';
 import type { System } from '../systems';
 
 import type { World } from './World';
 
 /**
  * A class that contains systems to be run, as well as the arguments to provide these systems.
+ *
+ * By default, systems are added to this class, the parent `Schedule`.
+ *
+ * Can be extended to create custom schedules.
  */
 export class Schedule {
+	#world: World;
 	#systems: System[];
 	#args: Array<any[]>;
 
-	constructor(systems: System[]) {
-		this.#systems = systems;
+	constructor(world: World) {
+		this.#world = world;
+		this.#systems = [];
 		this.#args = [];
 	}
 
 	/**
-	 * Prepares this schedule to be run, grabbing arguments for all systems.
-	 * @param world The world to pull arguments from.
+	 * Adds a system to this schedule.
+	 * @param system The system to add.
 	 * @returns `this`, for chaining.
 	 */
-	prepare(world: World): this {
-		for (let i = 0; i < this.#systems.length; i++) {
-			this.#args[i] = this.#systems[i].getSystemArguments?.(world) ?? [];
-		}
+	addSystem(system: System): this {
+		DEV_ASSERT(
+			!this.#systems.includes(system),
+			`Cannot add the same system to a schedule twice (adding ${system.name} to ${this.constructor.name})`,
+		);
+		this.#systems.push(system);
 		return this;
+	}
+
+	/**
+	 * Removes a system from this schedule.
+	 * @param system The system to remove.
+	 * @returns `this`, for chaining.
+	 */
+	removeSystem(system: System): this {
+		DEV_ASSERT(
+			this.#systems.includes(system),
+			`Cannot remove a system from a schedule it isn't in (removing ${system.name} from ${this.constructor.name})`,
+		);
+		this.#systems.splice(this.#systems.indexOf(system), 1);
+		return this;
+	}
+
+	/**
+	 * Prepares the system arguments for this schedule, grabbing new arguments for all systems.
+	 * Any previous arguments will be replaced.
+	 * @returns A promise that resolves once all systems are ready to be run.
+	 */
+	async prepare(): Promise<void> {
+		for (let i = 0; i < this.#systems.length; i++) {
+			this.#args[i] = await Promise.all(
+				this.#systems[i].getSystemArguments?.(this.#world) ?? [],
+			);
+		}
 	}
 
 	/**

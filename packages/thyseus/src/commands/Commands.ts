@@ -111,7 +111,7 @@ if (import.meta.vitest) {
 	}
 
 	const createWorld = async () => {
-		const world = await World.new().build();
+		const world = new World();
 		world.components.push(ZST, CompA, CompB, CompC, CompD);
 		return world;
 	};
