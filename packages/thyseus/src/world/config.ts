@@ -8,7 +8,7 @@ export type WorldConfig = {
 	 * @returns A `Worker`-like object.
 	 */
 	createWorker(url: string): Worker;
-};
+} & Record<string, unknown>;
 
 export function getCompleteConfig(
 	config?: Partial<WorldConfig> | undefined,

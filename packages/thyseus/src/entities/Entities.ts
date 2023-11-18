@@ -14,6 +14,9 @@ export class Entities {
 	 */
 	#nextIndex: number;
 
+	/**
+	 * The cursor in the freed table to use.
+	 */
 	#cursor: number;
 
 	/**
@@ -82,7 +85,7 @@ if (import.meta.vitest) {
 	const { World } = await import('../world');
 
 	const createWorld = async (...components: Class[]) => {
-		const world = await World.new().build();
+		const world = new World();
 		world.components.push(...components);
 		return world;
 	};

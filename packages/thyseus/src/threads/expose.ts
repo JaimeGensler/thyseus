@@ -14,7 +14,7 @@ type ExposedFields = Record<
  * // In a worker module
  * export default expose({
  * 	add(left: number, right: number) {
- * 		return left + right
+ * 		return left + right;
  * 	}
  * });
  * ```

@@ -34,7 +34,7 @@ if (import.meta.vitest) {
 	class LevelUpEvent {}
 
 	it('clears event queues', async () => {
-		const world = await World.new().build();
+		const world = new World();
 
 		const events = await world.getOrCreateResource(Events);
 		const queue = world.commands.getQueue(EventsCommandQueue);

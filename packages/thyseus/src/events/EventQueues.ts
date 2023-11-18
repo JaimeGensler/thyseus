@@ -105,7 +105,7 @@ if (import.meta.vitest) {
 	async function setupQueue<T extends Class, I extends InstanceType<T>>(
 		queueType: T,
 	) {
-		const world = await World.new().build();
+		const world = new World();
 		const queue: I[] = [];
 		const commandQueue = world.commands.getQueue(EventsCommandQueue);
 		return [

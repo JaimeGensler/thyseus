@@ -23,7 +23,7 @@ if (import.meta.vitest) {
 	const { EntityCommandQueue } = await import('./EntityCommandQueue');
 
 	it('resets entities cursor, calls apply for all command queues', async () => {
-		const world = await World.new().build();
+		const world = new World();
 		class CustomQueue {
 			apply(world: World) {}
 		}
