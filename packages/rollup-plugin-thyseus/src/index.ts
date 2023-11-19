@@ -26,7 +26,7 @@ export function thyseus({
 
 	return {
 		name: '@thyseus/rollup-plugin-thyseus',
-		version: '0.15.0',
+		version: '0.16.0-beta.2',
 		enforce: 'pre',
 		transform(code, id) {
 			if (!filter(id)) {
