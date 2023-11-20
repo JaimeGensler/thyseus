@@ -1,13 +1,11 @@
-import { StructuredCloneable } from './StructuredCloneable';
+export type Exposeable = Record<string, (...args: any[]) => any>;
 
-type ExposedFields = Record<
-	string,
-	(
-		...args: StructuredCloneable[]
-	) => StructuredCloneable | Promise<StructuredCloneable>
->;
 /**
  * A function that exposes functions to be called on a thread.
+ *
+ * @param fields The fields to expose to the main thread.
+ * @param shouldSetup A boolean that indicates whether event handlers should be orchestrated.
+ * @returns The provided `fields` object.
  *
  * @example
  * ```ts
@@ -19,7 +17,7 @@ type ExposedFields = Record<
  * });
  * ```
  */
-export function expose<T extends ExposedFields>(
+export function expose<T extends Exposeable>(
 	fields: T,
 	shouldSetup: boolean = true,
 ): T {
