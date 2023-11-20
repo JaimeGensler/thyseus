@@ -88,24 +88,11 @@ export class World {
 	 * @param systems The systems to add.
 	 * @returns `this`, for chaining.
 	 */
-	addSystems(...systems: System[]): this {
-		return this.addSystemsToSchedule(Schedule, ...systems);
-	}
-
-	/**
-	 * Adds systems to the specified schedule.
-	 * @param scheduleType The schedule to add the systems to.
-	 * @param systems The systems to add.
-	 * @returns `this`, for chaining.
-	 */
-	addSystemsToSchedule(
-		scheduleType: ScheduleType,
-		...systems: System[]
-	): this {
+	addSystems(scheduleType: ScheduleType, systems: System | System[]): this {
 		if (!this.schedules.has(scheduleType)) {
 			this.schedules.set(scheduleType, new scheduleType(this));
 		}
-		for (const system of systems) {
+		for (const system of Array.isArray(systems) ? systems : [systems]) {
 			this.schedules.get(scheduleType)!.addSystem(system);
 		}
 		return this;
