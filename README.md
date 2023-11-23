@@ -13,25 +13,21 @@
 [![pull requests: welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/JaimeGensler/thyseus/pulls)
 [![code style: prettier](https://img.shields.io/badge/code%20style-prettier-ff69b4)](https://github.com/prettier/prettier)
 
-Thyseus is a DX-focused and highly performant
+Thyseus is a DX & performance oriented
 [archetypal](https://github.com/SanderMertens/ecs-faq#archetypes-aka-dense-ecs-or-table-based-ecs)
 [Entity Component System](https://en.wikipedia.org/wiki/Entity_component_system)
 ([ECS](https://github.com/SanderMertens/ecs-faq)) for Typescript. It provides an
 expressive, type-driven API and includes many features out of the box,
 including:
 
--   Boilerplate-free multithreading. Don't worry about setting up event
-    listeners - just export some functions and let Thyseus take care of the
-    rest.
--   A **safety-first** approach. No `eval`, `new Function()`, or creating
-    workers from blobs - Thyseus leverages recent additions to the language and
-    a little bit of ✨ magic ✨ to do what it needs to, and **_will never use
-    unsafe code_**.
+-   Boilerplate-free and safety-first multithreading. Define some functions and
+    let Thyseus handle worker setup - all without relying on `eval()`.
 -   Archetypal storage for lean memory use and cache-friendly iteration.
 -   Complex queries with `And`, `Or`, `With`, `Without` filters.
 -   First class support for Resources (singletons) and Events.
 -   Deeply customizable execution logic for easy handling of patterns like fixed
     updates.
+-   Effortless integration with third-party libraries.
 
 Get started with [the docs](https://thyseus.dev/docs), or join us on the
 [Web-ECS Discord](https://discord.gg/T3g8U89qqZ)!
@@ -61,9 +57,6 @@ If you're interested in contributing, please have a look at the
 
 <!-- prettier-ignore -->
 ```ts
-import { struct } from 'thyseus';
-
-@struct
 class Vec2 {
   x: number;
   y: number;
@@ -85,13 +78,13 @@ export class Velocity extends Vec2 {}
 
 <!-- prettier-ignore -->
 ```ts
-import { Position, Velocity } from './components';
+import { Query, Position, Velocity } from './components';
 
 export function spawnEntitiesSystem(commands: Commands) {
-  commands.spawn().addType(Position).add(new Velocity(1, 2));
+  commands.spawn().add(new Position()).add(new Velocity(1, 2));
 }
 
-export function moveSystem(query: Query<[Mut<Position>, Velocity]>) {
+export function moveSystem(query: Query<[Position, Velocity]>) {
   for (const [pos, vel] of query) {
     pos.add(vel);
   }
@@ -102,14 +95,15 @@ export function moveSystem(query: Query<[Mut<Position>, Velocity]>) {
 
 <!-- prettier-ignore -->
 ```ts
-import { World } from 'thyseus';
+import { World, Schedule } from 'thyseus';
 import { moveSystem, spawnEntitiesSystem } from './systems';
 import { StartupSchedule } from './schedules'
 
-export const myWorld = await World.new()
-  .addSystemsToSchedule(StartupSchedule, spawnEntitiesSystem)
-  .addSystems(moveSystem)
-  .build();
+class SetupSchedule extends Schedule {}
+export const myWorld = await new World()
+  .addSystems(SetupSchedule, spawnEntitiesSystem)
+  .addSystems(Schedule, moveSystem)
+  .prepare();
 
 myWorld.start();
 ```
