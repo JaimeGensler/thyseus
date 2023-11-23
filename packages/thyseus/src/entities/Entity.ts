@@ -7,14 +7,14 @@ export class Entity {
 		entity.#isAlive = false;
 	}
 
-	#index: number = 0;
-	#generation: number = 0;
+	#index: number;
+	#generation: number;
 	#isAlive: boolean;
 
-	constructor(index: number, generation: number = 0) {
+	constructor(index: number, generation: number) {
 		this.#isAlive = true;
 		this.#index = index;
-		this.#generation = generation!;
+		this.#generation = generation;
 	}
 
 	/**

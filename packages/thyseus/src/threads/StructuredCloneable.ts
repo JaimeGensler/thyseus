@@ -1,3 +1,6 @@
+/**
+ * A union of types that are permitted to be sent to web workers.
+ */
 export type StructuredCloneable =
 	| null
 	| undefined

@@ -65,9 +65,23 @@ export class Table {
 		this.#locations[moveIndex * 2 + 1] = targetTable.length - 1;
 	}
 
+	/**
+	 * Returns a boolean indicating if this table contains a column for the provided component type.
+	 *
+	 * Tables do not create columns for ZSTs so will always return false when called with `Tag` components.
+	 * @param componentType The type of the component to check for.
+	 * @returns A boolean, true if this table has a column for the provided component type.
+	 */
 	hasColumn(componentType: Class): boolean {
 		return this.#components.includes(componentType);
 	}
+	/**
+	 * Gets the column for the provided component.
+	 *
+	 * Assumes the column exists - check for presence with `hasColumn()` first.
+	 * @param componentType The type of the component to fetch the column for.
+	 * @returns The column (`object[]`) for the provided component type.
+	 */
 	getColumn<T extends Class>(componentType: T): InstanceType<T>[] {
 		return this.#columns[
 			this.#components.indexOf(componentType)

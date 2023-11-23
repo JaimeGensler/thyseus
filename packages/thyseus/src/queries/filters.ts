@@ -2,6 +2,9 @@ import { DEV_ASSERT } from '../utils';
 import type { Class } from '../components';
 import type { World } from '../world';
 
+/**
+ * The base class for a condition that must be met for a filter to match.
+ */
 export class Predicate {
 	static intoArgument(_: World, ...children: Class[]) {
 		return new this(...children);
@@ -12,6 +15,9 @@ export class Predicate {
 		this.children = children;
 	}
 }
+/**
+ * A predicate that ensures only entities **with** the specified components will match a query.
+ */
 export class With<
 	A extends object,
 	B extends object = object,
@@ -20,6 +26,9 @@ export class With<
 > extends Predicate {
 	#_: [A, B, C, D] = true as any;
 }
+/**
+ * A predicate that ensures only entities **without** the specified components will match a query.
+ */
 export class Without<
 	A extends object,
 	B extends object = object,
@@ -29,6 +38,9 @@ export class Without<
 	#_: [A, B, C, D] = true as any;
 }
 
+/**
+ * The base class for a logical connection between filter conditions.
+ */
 export class Connective {
 	static intoArgument(_: World, ...children: Filter[]) {
 		return new this(...children);
@@ -39,6 +51,10 @@ export class Connective {
 		this.children = children;
 	}
 }
+
+/**
+ * A connective that ensures that **at least one** of the provided conditions must be met for a query to match.
+ */
 export class Or<
 	A extends Filter,
 	B extends Filter,
@@ -47,6 +63,9 @@ export class Or<
 > extends Connective {
 	#_: [A, B, C, D] = true as any;
 }
+/**
+ * A connective that ensures that **all** of the provided conditions must be met for a query to match.
+ */
 export class And<
 	A extends Filter,
 	B extends Filter,
@@ -55,8 +74,19 @@ export class And<
 > extends Connective {
 	#_: [A, B, C, D] = true as any;
 }
+/**
+ * A combination of predicates and connectives that entities must satisfy in order to match a query.
+ */
 export type Filter = Predicate | Connective;
 
+/**
+ * Given a filter, returns a list of archetypes (`bigint`) that could match the filter.
+ * Archetypes come in pairs of [with, without]
+ * @param filter The filter to compare.
+ * @param current The current state of the archetypes.
+ * @param getArchetype Returns an archetype given a list of components.
+ * @returns The pair of filters that must [match | not-match] for an entity to match a query.
+ */
 export function createArchetypeFilter(
 	filter: Filter,
 	current: bigint[],

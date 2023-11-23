@@ -35,10 +35,20 @@ export class Commands {
 		);
 	}
 
-	addQueue(queue: CommandQueue) {
+	/**
+	 * Adds the provided custom command queue to this world.
+	 * @param queue The custom command queue to add.
+	 */
+	addQueue(queue: CommandQueue): void {
 		this.#queues.set(queue.constructor as Class, queue);
 	}
 
+	/**
+	 * Fetches the provided command queue type for this world.
+	 * If it cannot be found, creates the queue.
+	 * @param queueType The type of the queue to fetch.
+	 * @returns An instance of the provided queue type.
+	 */
 	getQueue<T extends Class>(queueType: T): InstanceType<T> {
 		if (!this.#queues.has(queueType)) {
 			this.#queues.set(

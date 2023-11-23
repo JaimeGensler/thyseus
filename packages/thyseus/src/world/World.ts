@@ -84,8 +84,9 @@ export class World {
 	}
 
 	/**
-	 * Adds systems to the default `Schedule`.
-	 * @param systems The systems to add.
+	 * Adds systems to the provided schedule.
+	 * @param scheduleType The schedule **class** to add systems to.
+	 * @param systems The system or systems to add.
 	 * @returns `this`, for chaining.
 	 */
 	addSystems(scheduleType: ScheduleType, systems: System | System[]): this {
@@ -136,26 +137,35 @@ export class World {
 	async runSchedule(scheduleType: ScheduleType): Promise<void> {
 		DEV_ASSERT(
 			this.schedules.has(scheduleType),
-			`Could not find schedule (${String(
+			`Could not find schedule "${String(
 				scheduleType.name,
-			)}) in the world!`,
+			)}" in the world!`,
 		);
 		this.schedules.get(scheduleType)!.run();
 	}
 
 	/**
-	 * Returns the resource of the provided type, or `undefined` if it doesn't exist.
+	 * Returns the resource of the provided type, creating it if it doesn't yet exist.
 	 * @param resourceType The type of the resource to get
 	 * @returns The resource instance.
 	 */
-	getResource<T extends Class>(resourceType: T): InstanceType<T> | undefined {
-		return this.resources.find(
-			res => res.constructor === resourceType,
-		) as any;
+	async getResource<T extends Class>(
+		resourceType: T,
+	): Promise<InstanceType<T>> {
+		let res = this.resources.find(r => r.constructor === resourceType) as
+			| InstanceType<T>
+			| undefined;
+		if (res) {
+			return res;
+		}
+		res = await (resourceType as any).fromWorld(this);
+		this.resources.push(res!);
+		return res!;
 	}
 
 	/**
 	 * Inserts the provided object as a resource into the world.
+	 * If a resource of the same type already exists, the provided value will override that resource.
 	 * @param `resource` The resource object to insert.
 	 * @returns `this`, for chaining.
 	 */
@@ -169,26 +179,6 @@ export class World {
 			this.resources[resourceIndex] = resource;
 		}
 		return this;
-	}
-
-	/**
-	 * Returns the resource (instance) of the passed type, creating and adding it to the world if it doesn't exist yet.
-	 * @param resourceType The type of the resource to get or create.
-	 * @returns The resource instance.
-	 */
-	async getOrCreateResource<T extends Class>(
-		resourceType: T,
-	): Promise<InstanceType<T>> {
-		const res = this.getResource(resourceType);
-		if (res) {
-			return res;
-		}
-		this.resources.push(
-			'fromWorld' in resourceType
-				? await (resourceType as any).fromWorld(this)
-				: new resourceType(),
-		);
-		return this.resources.at(-1) as InstanceType<T>;
 	}
 
 	/**
@@ -267,9 +257,30 @@ export class World {
 	 * @param type The type of event to listen to.
 	 * @param listener The callback to be run when the event is emitted.
 	 */
-	addEventListener<T extends keyof WorldEventListeners>(
-		type: T,
-		listener: WorldEventListeners[T][0],
+	addEventListener(type: 'start', listener: (world: World) => void): void;
+	/**
+	 * Adds a listener for a specific event to the world.
+	 * @param type The type of event to listen to.
+	 * @param listener The callback to be run when the event is emitted.
+	 */
+	addEventListener(type: 'stop', listener: (world: World) => void): void;
+	/**
+	 * Adds a listener for a specific event to the world.
+	 * @param type The type of event to listen to.
+	 * @param listener The callback to be run when the event is emitted.
+	 */
+	addEventListener(
+		type: 'createTable',
+		listener: (table: Table) => void,
+	): void;
+	/**
+	 * Adds a listener for a specific event to the world.
+	 * @param type The type of event to listen to.
+	 * @param listener The callback to be run when the event is emitted.
+	 */
+	addEventListener(
+		type: keyof WorldEventListeners,
+		listener: Function,
 	): void {
 		DEV_ASSERT(
 			type in this.#listeners,
@@ -283,9 +294,9 @@ export class World {
 	 * @param type The type of event to remove a listener from.
 	 * @param listener The callback to be removed.
 	 */
-	removeEventListener<T extends keyof WorldEventListeners>(
-		type: T,
-		listener: WorldEventListeners[T][0],
+	removeEventListener(
+		type: keyof WorldEventListeners,
+		listener: Function,
 	): void {
 		DEV_ASSERT(
 			type in this.#listeners,
