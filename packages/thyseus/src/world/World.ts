@@ -158,6 +158,10 @@ export class World {
 		if (res) {
 			return res;
 		}
+		DEV_ASSERT(
+			'fromWorld' in resourceType,
+			`Could not construct resource "${resourceType.name}" - resources must either have a static fromWorld() property or be inserted with World.p.insertResource().`,
+		);
 		res = await (resourceType as any).fromWorld(this);
 		this.resources.push(res!);
 		return res!;
@@ -317,7 +321,6 @@ export class World {
 		if (table) {
 			return table;
 		}
-
 		table = new Table(
 			this.getComponentsForArchetype(archetype),
 			archetype,
