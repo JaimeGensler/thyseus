@@ -12,10 +12,19 @@ export class EventsCommandQueue {
 		this.#queuesToClear = [];
 	}
 
+	/**
+	 * Enqueues a clear command given an event queue's ID.
+	 * @param queueId The id of the queue to clear when commands are processed.
+	 */
 	clear(queueId: number): void {
 		this.#queuesToClear.push(queueId);
 	}
 
+	/**
+	 * Clears the event queues for the supplied events.
+	 * Removes all commands from the queue.
+	 * @param world The world to apply this queue to.
+	 */
 	apply(world: World): void {
 		for (const queueId of this.#queuesToClear) {
 			this.#writers[queueId].clearImmediate();
@@ -36,7 +45,7 @@ if (import.meta.vitest) {
 	it('clears event queues', async () => {
 		const world = new World();
 
-		const events = await world.getOrCreateResource(Events);
+		const events = await world.getResource(Events);
 		const queue = world.commands.getQueue(EventsCommandQueue);
 		const writer = events.getWriterOfType(LevelUpEvent);
 

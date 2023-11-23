@@ -11,6 +11,9 @@ import { EntityCommandQueue } from './EntityCommandQueue';
 
 type NotFunction<T> = T extends Function ? never : T;
 
+/**
+ * A collection of methods that enqueue commands to alter the components an `Entity` possesses.
+ */
 export class EntityCommands {
 	#queue: EntityCommandQueue;
 	entity: Entity;

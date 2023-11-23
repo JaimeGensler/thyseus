@@ -1,3 +1,7 @@
+/**
+ * Configuration used by a `World`.
+ * May be accessed by resources or other data in a world.
+ */
 export type WorldConfig = {
 	/**
 	 * A function that accepts the URL of a module and returns a `Worker`-like object for that module.
@@ -10,6 +14,11 @@ export type WorldConfig = {
 	createWorker(url: string): Worker;
 } & Record<string, unknown>;
 
+/**
+ * Completes the config for a world.
+ * @param config The partial config for the world.
+ * @returns The completed config.
+ */
 export function getCompleteConfig(
 	config?: Partial<WorldConfig> | undefined,
 ): WorldConfig {

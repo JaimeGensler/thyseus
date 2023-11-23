@@ -3,7 +3,7 @@ import { System } from './System';
 /**
  * Clones a system.
  *
- * Note: **Does not** preserve your system's `this` value.
+ * Note: **Does not** preserve the system's `this` value.
  *
  * @param system The system to clone.
  * @returns The cloned system.

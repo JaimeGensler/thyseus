@@ -1,9 +1,9 @@
 import type { Commands } from '../commands';
 import type { Class } from '../components';
 import type { World } from '../world';
-import { EventsCommandQueue } from './EventsCommandQueue';
 
 import { EventReader, EventWriter } from './EventQueues';
+import { EventsCommandQueue } from './EventsCommandQueue';
 
 /**
  * A resource responsible for creating & holding all event queues in a world.
@@ -19,6 +19,9 @@ export class Events {
 	 * Each member in the `writers` array has a corresponding member at the same index in `readers`.
 	 */
 	writers: EventWriter<any>[];
+	/**
+	 * The `EventsCommandQueue` for the world, used for clear commands.
+	 */
 	#commandQueue: EventsCommandQueue;
 
 	static fromWorld({ commands }: World) {

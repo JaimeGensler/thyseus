@@ -4,14 +4,15 @@ import { World } from '../world';
 import { Events } from './Events';
 import type { EventsCommandQueue } from './EventsCommandQueue';
 
+/**
+ * A class that holds a queue of events and can be used to read those events.
+ */
 export class EventReader<T extends object> {
 	static async intoArgument(
 		world: World,
 		eventType: Class,
 	): Promise<EventReader<any>> {
-		return (await world.getOrCreateResource(Events)).getReaderOfType(
-			eventType,
-		);
+		return (await world.getResource(Events)).getReaderOfType(eventType);
 	}
 
 	#commandQueue: EventsCommandQueue;
@@ -57,14 +58,15 @@ export class EventReader<T extends object> {
 	}
 }
 
+/**
+ * A class that holds a queue of events and can be used to read or write those events.
+ */
 export class EventWriter<T extends object> extends EventReader<T> {
 	static async intoArgument(
 		world: World,
 		eventType: Class,
 	): Promise<EventWriter<any>> {
-		return (await world.getOrCreateResource(Events)).getWriterOfType(
-			eventType,
-		);
+		return (await world.getResource(Events)).getWriterOfType(eventType);
 	}
 	#queue: T[];
 

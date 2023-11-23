@@ -8,17 +8,14 @@ export class Entities {
 	 * The world this `Entities` instance belongs to.
 	 */
 	#world: World;
-
 	/**
 	 * The next entity index.
 	 */
 	#nextIndex: number;
-
 	/**
 	 * The cursor in the freed table to use.
 	 */
 	#cursor: number;
-
 	/**
 	 * Locations (`[table, row]`) of all spawned entities.
 	 */
@@ -27,7 +24,9 @@ export class Entities {
 	 * List of freed entities available for reuse.
 	 */
 	#freed: Entity[];
-
+	/**
+	 * A reuseable location tuple. Must always be immediately destructured.
+	 */
 	#location: [tableId: number, row: number];
 
 	constructor(world: World, entityLocations: number[]) {

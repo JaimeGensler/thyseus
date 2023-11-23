@@ -3,7 +3,7 @@ import type { World } from '../world';
 import { Threads } from './Threads';
 import type { Exposeable } from './expose';
 
-type ThreadModule = {
+export type ThreadModule = {
 	default: Exposeable;
 };
 type KeysWith<T extends Exposeable, U extends any> = {
@@ -12,12 +12,15 @@ type KeysWith<T extends Exposeable, U extends any> = {
 type ArgumentsType<T> = T extends (...args: infer R) => any ? R : never;
 type ReturnType<T> = T extends (...args: any[]) => infer R ? R : any;
 
+/**
+ * A wrapper over the `Worker` object to handle message passing.
+ */
 export class Thread<T extends ThreadModule> {
 	static async intoArgument(
 		world: World,
 		[importer, scriptURL]: [() => any, string],
 	): Promise<Thread<any>> {
-		return (await world.getOrCreateResource(Threads)).getThread(scriptURL);
+		return (await world.getResource(Threads)).getThread(scriptURL);
 	}
 
 	#worker: Worker;

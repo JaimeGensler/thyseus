@@ -4,6 +4,9 @@ import type { World } from '../world';
 import { createArchetypeFilter, type Filter } from './filters';
 import { ReadModifier } from './modifiers';
 
+/**
+ * A collection that matches against entities that have a set of components and match a particular filter.
+ */
 export class Query<A extends object | object[], F extends Filter = Filter> {
 	static async intoArgument(
 		world: World,
@@ -88,7 +91,12 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 		}
 	}
 
-	#test(n: bigint) {
+	/**
+	 * Tests if a given archetype matches this queries filters.
+	 * @param n The archetype to test.
+	 * @returns A boolean, `true` if the archetype matches and `false` if it does not.
+	 */
+	#test(n: bigint): boolean {
 		for (let i = 0; i < this.#filters.length; ) {
 			const withFilter = this.#filters[i++];
 			const withoutFilter = this.#filters[i++];
