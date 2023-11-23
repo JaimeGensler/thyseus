@@ -3,6 +3,9 @@ import type { Class } from '../components';
 
 import { Entity } from './Entity';
 
+/**
+ * A class responsible for holding data about the entities in the world and allocating new entity objects/ids.
+ */
 export class Entities {
 	/**
 	 * The world this `Entities` instance belongs to.
