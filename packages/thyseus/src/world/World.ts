@@ -261,13 +261,13 @@ export class World {
 	 * @param type The type of event to listen to.
 	 * @param listener The callback to be run when the event is emitted.
 	 */
-	addEventListener(type: 'start', listener: (world: World) => void): void;
+	addEventListener(type: 'start', listener: (world: World) => void): this;
 	/**
 	 * Adds a listener for a specific event to the world.
 	 * @param type The type of event to listen to.
 	 * @param listener The callback to be run when the event is emitted.
 	 */
-	addEventListener(type: 'stop', listener: (world: World) => void): void;
+	addEventListener(type: 'stop', listener: (world: World) => void): this;
 	/**
 	 * Adds a listener for a specific event to the world.
 	 * @param type The type of event to listen to.
@@ -276,7 +276,7 @@ export class World {
 	addEventListener(
 		type: 'createTable',
 		listener: (table: Table) => void,
-	): void;
+	): this;
 	/**
 	 * Adds a listener for a specific event to the world.
 	 * @param type The type of event to listen to.
@@ -285,12 +285,13 @@ export class World {
 	addEventListener(
 		type: keyof WorldEventListeners,
 		listener: Function,
-	): void {
+	): this {
 		DEV_ASSERT(
 			type in this.#listeners,
 			`Unrecognized World event listener ("${type}")`,
 		);
 		this.#listeners[type].push(listener as any);
+		return this;
 	}
 
 	/**
@@ -301,13 +302,14 @@ export class World {
 	removeEventListener(
 		type: keyof WorldEventListeners,
 		listener: Function,
-	): void {
+	): this {
 		DEV_ASSERT(
 			type in this.#listeners,
 			`Unrecognized World event listener ("${type}")`,
 		);
 		const arr = this.#listeners[type];
 		arr.splice(arr.indexOf(listener as any), 1);
+		return this;
 	}
 
 	/**
