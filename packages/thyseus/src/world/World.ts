@@ -93,9 +93,7 @@ export class World {
 		if (!this.schedules.has(scheduleType)) {
 			this.schedules.set(scheduleType, new scheduleType(this));
 		}
-		for (const system of Array.isArray(systems) ? systems : [systems]) {
-			this.schedules.get(scheduleType)!.addSystem(system);
-		}
+		this.schedules.get(scheduleType)?.addSystems(systems);
 		return this;
 	}
 

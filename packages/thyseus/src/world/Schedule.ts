@@ -22,16 +22,18 @@ export class Schedule {
 	}
 
 	/**
-	 * Adds a system to this schedule.
+	 * Adds systems to this schedule.
 	 * @param system The system to add.
 	 * @returns `this`, for chaining.
 	 */
-	addSystem(system: System): this {
-		DEV_ASSERT(
-			!this.#systems.includes(system),
-			`Cannot add the same system to a schedule twice (adding ${system.name} to ${this.constructor.name})`,
-		);
-		this.#systems.push(system);
+	addSystems(systems: System | System[]): this {
+		for (const system of Array.isArray(systems) ? systems : [systems]) {
+			DEV_ASSERT(
+				!this.#systems.includes(system),
+				`Cannot add the same system to a schedule twice (adding ${system.name} to ${this.constructor.name})`,
+			);
+			this.#systems.push(system);
+		}
 		return this;
 	}
 
