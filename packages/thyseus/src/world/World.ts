@@ -10,8 +10,9 @@ import type { Plugin } from './Plugin';
 import type { WorldEventListeners } from './WorldEventListeners';
 
 /**
- * A container for data and data-types used by an application.
- * Contains entities and their component data, resources, schedules and more.
+ * The entry point for a Thyseus application.
+ *
+ * Contains data and data-types used by the app, such as entities, components, resources, and systems.
  */
 export class World {
 	static intoArgument(world: World): World {
