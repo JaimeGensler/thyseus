@@ -103,9 +103,9 @@ export class World {
 	 * @returns
 	 */
 	async prepare(): Promise<this> {
-		await Promise.all(
-			Array.from(this.schedules.values(), schedule => schedule.prepare()),
-		);
+		for (const schedule of this.schedules.values()) {
+			await schedule.prepare();
+		}
 		return this;
 	}
 
