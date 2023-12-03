@@ -11,7 +11,7 @@ const visitors = pipe(
 	// Nodes created by transform won't actually exist and cause issues
 	transformSystems,
 	// transformIterators,
-	transformThreads,
+	// transformThreads,
 );
 
 export function getTransformer(config?: TransformerConfig) {

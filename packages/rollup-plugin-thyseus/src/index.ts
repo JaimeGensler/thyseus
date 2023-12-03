@@ -4,7 +4,6 @@ import {
 	type TransformerConfig,
 } from '@thyseus/typescript-transformer';
 import ts from 'typescript';
-import type { Plugin } from 'vite';
 
 type ThyseusPluginConfig = {
 	include?: string | string[];
@@ -26,9 +25,9 @@ export function thyseus({
 
 	return {
 		name: '@thyseus/rollup-plugin-thyseus',
-		version: '0.16.0-beta.2',
+		version: '0.16.0',
 		enforce: 'pre',
-		transform(code, id) {
+		transform(code: string, id: string) {
 			if (!filter(id)) {
 				return code;
 			}
@@ -47,5 +46,5 @@ export function thyseus({
 			const result = ts.transform(file, [transformer]);
 			return printer.printFile(result.transformed[0]);
 		},
-	} satisfies Plugin;
+	};
 }

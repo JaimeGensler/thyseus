@@ -20,10 +20,11 @@ Thyseus is a DX & performance oriented
 expressive, type-driven API and includes many features out of the box,
 including:
 
--   Boilerplate-free and safety-first multithreading. Define some functions and
-    let Thyseus handle worker setup - all without relying on `eval()`.
+-   Effortless integration with third-party libraries like
+    [three.js](https://github.com/mrdoob/three.js/).
+-   Boilerplate-free and safety-first multithreading (goodbye `eval()`!).
 -   Archetypal storage for lean memory use and cache-friendly iteration.
--   Complex queries with `And`, `Or`, `With`, `Without` filters.
+-   Complex queries with filters like `And`, `Or`, `With`, and `Without`.
 -   First class support for Resources (singletons) and Events.
 -   Deeply customizable execution logic for easy handling of patterns like fixed
     updates.

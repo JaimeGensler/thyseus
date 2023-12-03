@@ -119,11 +119,11 @@ export default defineConfig({
 
 // src/templates/indexTS.ts
 var indexTS = `
-import { World, StartSchedule, DefaultSchedule } from 'thyseus';
+import { World, Schedule } from 'thyseus';
 
 function start(world: World) {
 	async function loop() {
-		await world.runSchedule(DefaultSchedule);
+		await world.runSchedule(Schedule);
 		requestAnimationFrame(loop);
 	}
 	loop();
@@ -132,10 +132,10 @@ function helloWorld() {
 	console.log('Hello, world!');
 }
 
-const world = await World.new()
-	.addSystemsToSchedule(StartSchedule, start)
-	.addSystems(helloWorld, /* Your systems here! */)
-	.build();
+const world = await new World()
+	.addEventListener('start', start)
+	.addSystems(Schedule, helloWorld)
+	.prepare();
 
 world.start();
 `.trim();
@@ -156,12 +156,6 @@ inquirer.prompt([
       }
       return true;
     }
-  },
-  {
-    name: "useGlobalTypes",
-    message: "Use Thyseus's global type injection?",
-    type: "confirm",
-    default: true
   }
 ]).then(async function({ projectName, useGlobalTypes }) {
   mkdirSync(projectName);

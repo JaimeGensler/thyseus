@@ -14,7 +14,7 @@ function helloWorld() {
 
 const world = await new World()
 	.addEventListener('start', start)
-	.addSystems(helloWorld, /* Your systems here! */)
+	.addSystems(Schedule, helloWorld)
 	.prepare();
 
 world.start();
