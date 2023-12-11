@@ -22,7 +22,7 @@ including:
 
 -   Effortless integration with third-party libraries like
     [three.js](https://github.com/mrdoob/three.js/).
--   Boilerplate-free and safety-first multithreading (goodbye `eval()`!).
+-   Boilerplate-free and safety-first multithreading - no `eval()`!
 -   Archetypal storage for lean memory use and cache-friendly iteration.
 -   Complex queries with filters like `And`, `Or`, `With`, and `Without`.
 -   First class support for Resources (singletons) and Events.
