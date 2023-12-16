@@ -140,7 +140,7 @@ export class World {
 				scheduleType.name,
 			)}" in the world!`,
 		);
-		this.schedules.get(scheduleType)!.run();
+		return this.schedules.get(scheduleType)!.run();
 	}
 
 	/**
