@@ -4,6 +4,7 @@ import {
 	type TransformerConfig,
 } from '@thyseus/typescript-transformer';
 import ts from 'typescript';
+import type { Plugin } from 'rollup';
 
 type ThyseusPluginConfig = {
 	include?: string | string[];
@@ -14,7 +15,7 @@ export function thyseus({
 	include = 'src/**/*.ts',
 	exclude,
 	...transformerConfig
-}: ThyseusPluginConfig = {}) {
+}: ThyseusPluginConfig = {}): Plugin {
 	const filter = createFilter(include, exclude);
 	const createTransformer = getTransformer(transformerConfig);
 	const fileIds = new Set<string>();
@@ -27,7 +28,7 @@ export function thyseus({
 		name: '@thyseus/rollup-plugin-thyseus',
 		version: '0.16.0',
 		enforce: 'pre',
-		transform(code: string, id: string) {
+		transform(code, id) {
 			if (!filter(id)) {
 				return code;
 			}
@@ -46,5 +47,5 @@ export function thyseus({
 			const result = ts.transform(file, [transformer]);
 			return printer.printFile(result.transformed[0]);
 		},
-	};
+	} as Plugin;
 }

@@ -38,19 +38,18 @@
 		"test": "vitest",
 		"build": "vite build && tsup src/index.ts --dts-only"
 	},
-	"devDependencies": {
-		"rollup": "^3.26.0",
-		"thyseus": "0.14.0",
-		"tsup": "^6.7.0",
-		"vite": "^4.3.9",
-		"vitest": "^0.29.8"
+	"peerDependencies": {
+		"thyseus": "^0.16.0"
 	},
 	"dependencies": {
 		"@rollup/pluginutils": "^5.0.2",
 		"@thyseus/typescript-transformer": "workspace:*",
 		"typescript": "^5.1.6"
 	},
-	"peerDependencies": {
-		"thyseus": "^0.16.0"
+	"devDependencies": {
+		"rollup": "^3.26.0",
+		"tsup": "^6.7.0",
+		"vite": "^4.3.9",
+		"vitest": "^0.29.8"
 	}
 }
