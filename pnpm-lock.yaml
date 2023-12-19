@@ -74,9 +74,6 @@ importers:
       rollup:
         specifier: ^3.26.0
         version: 3.26.0
-      thyseus:
-        specifier: 0.14.0
-        version: link:../thyseus
       tsup:
         specifier: ^6.7.0
         version: 6.7.0(typescript@5.1.6)
@@ -129,7 +126,7 @@ importers:
         version: 2.8.8
       thyseus:
         specifier: 0.14.0
-        version: link:../thyseus
+        version: 0.14.0
       tsup:
         specifier: ^6.7.0
         version: 6.7.0(typescript@5.1.6)
@@ -1461,7 +1458,6 @@ packages:
 
   /esm-env@1.0.0:
     resolution: {integrity: sha512-Cf6VksWPsTuW01vU9Mk/3vRue91Zevka5SjyNf3nEpokFRuqt/KjUQoGAwq9qMmhpLTHmXzSIrFRw8zxWzmFBA==}
-    dev: false
 
   /esprima@4.0.1:
     resolution: {integrity: sha512-eGuFFw7Upda+g4p+QHvnW0RyTX/SVeJBDM/gCtMARO0cLuT2HcEKnTPvhjV6aGeqrCB/sbNop0Kszm0jsaWU4A==}
@@ -3077,6 +3073,12 @@ packages:
     resolution: {integrity: sha512-RVZSIV5IG10Hk3enotrhvz0T9em6cyHBLkH/YAZuKqd8hRkKhSfCGIcP2KUY0EPxndzANBmNllzWPwak+bheSw==}
     dependencies:
       any-promise: 1.3.0
+    dev: true
+
+  /thyseus@0.14.0:
+    resolution: {integrity: sha512-WBNkAQnPMNlQX+wVQUhBZg/rlzQ7DvRG9+7VhMmza2w9SWnrKmPciOaB2MULuezwGwCWCoWCsczfpib9PXMIcA==}
+    dependencies:
+      esm-env: 1.0.0
     dev: true
 
   /time-zone@1.0.0:
