@@ -114,6 +114,9 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [thyseus()],
+	build: {
+		target: 'esnext',
+	},
 });
 `.trim();
 
