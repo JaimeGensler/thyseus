@@ -12,7 +12,7 @@ import type { WorldEventListeners } from './WorldEventListeners';
 /**
  * The entry point for a Thyseus application.
  *
- * Contains data and data-types used by the app, such as entities, components, resources, and systems.
+ * Contains data and types used by the app, such as entities, components, resources, and systems.
  */
 export class World {
 	static intoArgument(world: World): World {
@@ -53,6 +53,10 @@ export class World {
 	 */
 	components: Class[];
 	/**
+	 *
+	 */
+	#pendingPlugins: Promise<any> | null;
+	/**
 	 * The config used to create this world.
 	 */
 	config: Readonly<WorldConfig>;
@@ -72,6 +76,7 @@ export class World {
 		this.schedules = new Map();
 		this.entities = new Entities(this, entityLocations);
 		this.commands = new Commands(this);
+		this.#pendingPlugins = null;
 	}
 
 	/**
@@ -80,7 +85,10 @@ export class World {
 	 * @returns `this`, for chaining.
 	 */
 	addPlugin(plugin: Plugin): this {
-		plugin(this);
+		const result = plugin(this);
+		if (result instanceof Promise) {
+			this.#pendingPlugins = Promise.all([result, this.#pendingPlugins]);
+		}
 		return this;
 	}
 
@@ -103,6 +111,8 @@ export class World {
 	 * @returns
 	 */
 	async prepare(): Promise<this> {
+		await this.#pendingPlugins;
+		this.#pendingPlugins = null;
 		for (const schedule of this.schedules.values()) {
 			await schedule.prepare();
 		}
