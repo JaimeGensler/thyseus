@@ -3,7 +3,7 @@ export { applyCommands, Commands } from './commands';
 export { Tag } from './components';
 export { Entity } from './entities';
 export { EventReader, Events, EventWriter } from './events';
-export { Query } from './queries';
+export { Query, With, Without, Or, And, ReadModifier } from './queries';
 export { Res, SystemRes } from './resources';
 export { cloneSystem } from './systems';
 export { expose, Thread, Threads } from './threads';
