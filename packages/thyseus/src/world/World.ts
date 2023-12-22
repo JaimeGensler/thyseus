@@ -53,9 +53,9 @@ export class World {
 	 */
 	components: Class[];
 	/**
-	 *
+	 * A list of async plugins that have been started.
 	 */
-	#pendingPlugins: Promise<any> | null;
+	#pendingPlugins: Promise<any>[];
 	/**
 	 * The config used to create this world.
 	 */
@@ -76,7 +76,7 @@ export class World {
 		this.schedules = new Map();
 		this.entities = new Entities(this, entityLocations);
 		this.commands = new Commands(this);
-		this.#pendingPlugins = null;
+		this.#pendingPlugins = [];
 	}
 
 	/**
@@ -87,7 +87,7 @@ export class World {
 	addPlugin(plugin: Plugin): this {
 		const result = plugin(this);
 		if (result instanceof Promise) {
-			this.#pendingPlugins = Promise.all([result, this.#pendingPlugins]);
+			this.#pendingPlugins.push(result);
 		}
 		return this;
 	}
@@ -111,8 +111,8 @@ export class World {
 	 * @returns
 	 */
 	async prepare(): Promise<this> {
-		await this.#pendingPlugins;
-		this.#pendingPlugins = null;
+		await Promise.all(this.#pendingPlugins);
+		this.#pendingPlugins.length = 0;
 		for (const schedule of this.schedules.values()) {
 			await schedule.prepare();
 		}
