@@ -58,6 +58,29 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 		return result;
 	}
 
+	*[Symbol.iterator](): Iterator<A> {
+		const elements = [];
+		const componentCount = this.#components.length;
+		for (
+			let columnGroup = 0;
+			columnGroup < this.#columns.length;
+			columnGroup += componentCount
+		) {
+			const { length } = this.#columns[columnGroup];
+			for (let iterations = 0; iterations < length; iterations++) {
+				for (
+					let columnOffset = 0;
+					columnOffset < componentCount;
+					columnOffset++
+				) {
+					elements[columnOffset] =
+						this.#columns[columnGroup + columnOffset][iterations];
+				}
+				yield (this.#isIndividual ? elements[0] : elements) as any;
+			}
+		}
+	}
+
 	/**
 	 * Calls the provided callback function for all entities in the query.
 	 * @param callback The callback to be called for all entities in this query.
@@ -106,29 +129,6 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 			}
 		}
 		return initialValue;
-	}
-
-	*[Symbol.iterator](): Iterator<A> {
-		const elements = [];
-		const componentCount = this.#components.length;
-		for (
-			let columnGroup = 0;
-			columnGroup < this.#columns.length;
-			columnGroup += componentCount
-		) {
-			const { length } = this.#columns[columnGroup];
-			for (let iterations = 0; iterations < length; iterations++) {
-				for (
-					let columnOffset = 0;
-					columnOffset < componentCount;
-					columnOffset++
-				) {
-					elements[columnOffset] =
-						this.#columns[columnGroup + columnOffset][iterations];
-				}
-				yield (this.#isIndividual ? elements[0] : elements) as any;
-			}
-		}
 	}
 
 	/**
