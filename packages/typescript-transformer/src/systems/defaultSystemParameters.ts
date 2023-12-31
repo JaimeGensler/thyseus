@@ -1,5 +1,8 @@
 type SystemParameterDescriptor = { descriptorName: string; importPath: string };
-export type SystemParameterMap = Record<string, SystemParameterDescriptor>;
+export type SystemParameterMap = Record<
+	string,
+	SystemParameterDescriptor | null
+>;
 
 export const defaultSystemParameters: SystemParameterMap = {
 	// Parameters
@@ -38,14 +41,7 @@ export const defaultSystemParameters: SystemParameterMap = {
 	},
 
 	// Modifiers
-	Read: {
-		descriptorName: 'ReadModifier',
-		importPath: 'thyseus',
-	},
-	Readonly: {
-		descriptorName: 'ReadModifier',
-		importPath: 'thyseus',
-	},
+	Readonly: null,
 	With: {
 		descriptorName: 'With',
 		importPath: 'thyseus',

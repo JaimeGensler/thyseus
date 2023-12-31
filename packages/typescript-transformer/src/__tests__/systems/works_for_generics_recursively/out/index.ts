@@ -1,6 +1,6 @@
-import { Query, ReadModifier } from 'thyseus';
+import { Query } from 'thyseus';
 class A {}
-function querySystem(query: Query<Readonly<A>>) {}
+function querySystem(query: Query<Query<A>>) {}
 querySystem.getSystemArguments = (__w: any) => [
-	Query.intoArgument(__w, ReadModifier.intoArgument(__w, A)),
+	Query.intoArgument(__w, Query.intoArgument(__w, A)),
 ];

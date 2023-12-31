@@ -29,10 +29,7 @@ export const transformSystems = createVisitor(isSystem, node => {
 				undefined,
 				ts.factory.createArrayLiteralExpression(
 					getSignatureDeclaration(node).parameters.map(parameter =>
-						createDescriptorFromTypeNode(
-							parameter.type!,
-							parameter,
-						),
+						createDescriptorFromTypeNode(parameter.type!),
 					),
 				),
 			),
@@ -44,14 +41,17 @@ export const transformSystems = createVisitor(isSystem, node => {
 
 function createDescriptorFromTypeNode(
 	node: ts.TypeNode,
-	param: ts.ParameterDeclaration,
 ): ts.CallExpression | ts.Identifier | ts.ArrayLiteralExpression {
 	const systemParameters = useConfig('systemParameters');
 	if (ts.isTypeReferenceNode(node)) {
 		const typeName = getTypeNameFromNode(node);
-		const descriptor = systemParameters[typeName];
 
-		if (descriptor) {
+		const isKnownDescriptor = typeName in systemParameters;
+		if (isKnownDescriptor) {
+			const descriptor = systemParameters[typeName];
+			if (descriptor === null) {
+				return createDescriptorFromTypeNode(node.typeArguments![0]);
+			}
 			addImport(descriptor.importPath, descriptor.descriptorName);
 			return ts.factory.createCallExpression(
 				ts.factory.createPropertyAccessExpression(
@@ -62,25 +62,16 @@ function createDescriptorFromTypeNode(
 				[
 					ts.factory.createIdentifier('__w'),
 					...(node.typeArguments?.map(child =>
-						createDescriptorFromTypeNode(child, param),
+						createDescriptorFromTypeNode(child),
 					) ?? []),
 				],
 			);
-			// return ts.factory.createNewExpression(
-			// 	ts.factory.createIdentifier(descriptor.descriptorName),
-			// 	undefined,
-			// 	node.typeArguments?.map(child =>
-			// 		createDescriptorFromTypeNode(child, param),
-			// 	) ?? [],
-			// );
 		} else {
 			return ts.factory.createIdentifier(typeName);
 		}
 	} else if (ts.isTupleTypeNode(node)) {
 		return ts.factory.createArrayLiteralExpression(
-			node.elements.map(child =>
-				createDescriptorFromTypeNode(child, param),
-			),
+			node.elements.map(child => createDescriptorFromTypeNode(child)),
 		);
 	} else if (ts.isImportTypeNode(node) && node.isTypeOf) {
 		const text = (node.argument as any).literal.text;
