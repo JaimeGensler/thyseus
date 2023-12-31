@@ -1,3 +1,4 @@
+import { DEV_ASSERT } from '../utils';
 import type { Class } from '../components';
 import type { World } from '../world';
 
@@ -129,6 +130,22 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 			}
 		}
 		return initialValue;
+	}
+
+	/**
+	 * Returns the first entity of this query.
+	 *
+	 * Queries using this method **should only have one match**;
+	 * in dev, this method will throw if the query matches more than one entity.
+	 * @returns The single matching entity.
+	 */
+	single(): A {
+		DEV_ASSERT(
+			this.length === 1,
+			'Query.p.single was used for a query that matched multiple entities.',
+		);
+		const [result] = this;
+		return result;
 	}
 
 	/**
