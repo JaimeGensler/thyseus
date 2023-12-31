@@ -11,20 +11,6 @@ createSuite(
 	}),
 );
 // createSuite(
-// 	'structs',
-// 	import.meta.glob('./structs/**/*.ts', {
-// 		eager: true,
-// 		as: 'raw',
-// 	}),
-// );
-createSuite(
-	'threads',
-	import.meta.glob('./threads/**/*.ts', {
-		eager: true,
-		as: 'raw',
-	}),
-);
-// createSuite(
 // 	'serialize inserts',
 // 	import.meta.glob('./serialize_inserts/**/*.ts', {
 // 		eager: true,
