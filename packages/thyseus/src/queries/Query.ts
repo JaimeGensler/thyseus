@@ -59,6 +59,17 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 	}
 
 	/**
+	 * Calls the provided callback function for all entities in the query.
+	 * @param callback The callback to be called for all entities in this query.
+	 */
+	forEach(callback: (args: A, index: number) => void) {
+		let index = 0;
+		for (const result of this) {
+			callback(result, index++);
+		}
+	}
+
+	/**
 	 * Calls the provided callback function for all the entities in the query.
 	 * The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
 	 * @param callback The callback to be called for every entity in the query.
