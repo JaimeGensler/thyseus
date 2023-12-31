@@ -1,4 +1,3 @@
-import { ReadModifier } from '../queries';
 import type { Class } from '../components';
 import type { World } from '../world';
 
@@ -8,15 +7,8 @@ import type { World } from '../world';
  */
 export type Res<T extends object> = T;
 export const Res = {
-	async intoArgument(
-		world: World,
-		resourceOrRead: Class | ReadModifier,
-	): Promise<object> {
-		return world.getResource(
-			resourceOrRead instanceof ReadModifier
-				? resourceOrRead.value
-				: resourceOrRead,
-		);
+	async intoArgument(world: World, resource: Class): Promise<object> {
+		return world.getResource(resource);
 	},
 };
 

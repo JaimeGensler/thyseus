@@ -2,7 +2,6 @@ import type { Class } from '../components';
 import type { World } from '../world';
 
 import { createArchetypeFilter, type Filter } from './filters';
-import { ReadModifier } from './modifiers';
 
 /**
  * A collection that matches against entities that have a set of components and match a particular filter.
@@ -10,20 +9,11 @@ import { ReadModifier } from './modifiers';
 export class Query<A extends object | object[], F extends Filter = Filter> {
 	static async intoArgument(
 		world: World,
-		accessors: (Class | ReadModifier)[],
+		accessors: Class | Class[],
 		filter?: Filter,
 	) {
 		const isIndividual = !Array.isArray(accessors);
-		const iter: (Class | ReadModifier)[] = Array.isArray(accessors)
-			? accessors
-			: [accessors];
-		const components: Class[] = [];
-
-		for (const accessor of iter) {
-			const isReadonly = accessor instanceof ReadModifier;
-			const component: Class = isReadonly ? accessor.value : accessor;
-			components.push(component);
-		}
+		const components: Class[] = isIndividual ? [accessors] : accessors;
 		const initial = world.getArchetype(...components);
 		const filters = filter
 			? createArchetypeFilter(filter, [initial, 0n], (...components) =>
