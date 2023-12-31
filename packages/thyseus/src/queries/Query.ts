@@ -58,6 +58,45 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 		return result;
 	}
 
+	/**
+	 * Calls the provided callback function for all the entities in the query.
+	 * The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
+	 * @param callback The callback to be called for every entity in the query.
+	 * @param initialValue The initial value for the accumulated result.
+	 * @returns The accumulated result.
+	 */
+	reduce<T>(
+		callback: (acc: T, args: A, index: number) => T,
+		initialValue: T,
+	): T {
+		let index = 0;
+		const elements = [];
+		const componentCount = this.#components.length;
+		for (
+			let columnGroup = 0;
+			columnGroup < this.#columns.length;
+			columnGroup += componentCount
+		) {
+			const { length } = this.#columns[columnGroup];
+			for (let iterations = 0; iterations < length; iterations++) {
+				for (
+					let columnOffset = 0;
+					columnOffset < componentCount;
+					columnOffset++
+				) {
+					elements[columnOffset] =
+						this.#columns[columnGroup + columnOffset][iterations];
+				}
+				initialValue = callback(
+					initialValue,
+					(this.#isIndividual ? elements[0] : elements) as any,
+					index++,
+				);
+			}
+		}
+		return initialValue;
+	}
+
 	*[Symbol.iterator](): Iterator<A> {
 		const elements = [];
 		const componentCount = this.#components.length;
@@ -87,9 +126,9 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 	 * @returns A boolean, `true` if the archetype matches and `false` if it does not.
 	 */
 	#test(n: bigint): boolean {
-		for (let i = 0; i < this.#filters.length; ) {
-			const withFilter = this.#filters[i++];
-			const withoutFilter = this.#filters[i++];
+		for (let i = 0; i < this.#filters.length; i += 2) {
+			const withFilter = this.#filters[i];
+			const withoutFilter = this.#filters[i + 1];
 			if ((withFilter & n) === withFilter && (withoutFilter & n) === 0n) {
 				return true;
 			}
