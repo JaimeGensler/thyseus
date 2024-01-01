@@ -108,29 +108,8 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 		initialValue: T,
 	): T {
 		let index = 0;
-		const elements = [];
-		const componentCount = this.#components.length;
-		for (
-			let columnGroup = 0;
-			columnGroup < this.#columns.length;
-			columnGroup += componentCount
-		) {
-			const { length } = this.#columns[columnGroup];
-			for (let iterations = 0; iterations < length; iterations++) {
-				for (
-					let columnOffset = 0;
-					columnOffset < componentCount;
-					columnOffset++
-				) {
-					elements[columnOffset] =
-						this.#columns[columnGroup + columnOffset][iterations];
-				}
-				initialValue = callback(
-					initialValue,
-					(this.#isIndividual ? elements[0] : elements) as A,
-					index++,
-				);
-			}
+		for (const result of this) {
+			initialValue = callback(initialValue, result, index++);
 		}
 		return initialValue;
 	}
