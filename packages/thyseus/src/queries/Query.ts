@@ -1,6 +1,7 @@
 import { DEV_ASSERT } from '../utils';
 import type { Class } from '../components';
 import type { World } from '../world';
+import type { Entity } from '../entities';
 
 import { createArchetypeFilter, type Filter } from './filters';
 
@@ -24,6 +25,7 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 		return new Query(world, filters, isIndividual, components);
 	}
 
+	#world: World;
 	#columns: Array<object[]>;
 	#filters: bigint[];
 	#isIndividual: boolean;
@@ -34,17 +36,18 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 		isIndividual: boolean,
 		components: Class[],
 	) {
-		world.addEventListener('createTable', table => {
-			if (this.#test(table.archetype)) {
+		this.#world = world;
+		this.#filters = filters;
+		this.#isIndividual = isIndividual;
+		this.#components = components;
+		this.#columns = [];
+		this.#world.addEventListener('createTable', table => {
+			if (this.#testArchetype(table.archetype)) {
 				for (const component of this.#components) {
 					this.#columns.push(table.getColumn(component));
 				}
 			}
 		});
-		this.#filters = filters;
-		this.#isIndividual = isIndividual;
-		this.#components = components;
-		this.#columns = [];
 	}
 
 	/**
@@ -77,7 +80,7 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 					elements[columnOffset] =
 						this.#columns[columnGroup + columnOffset][iterations];
 				}
-				yield (this.#isIndividual ? elements[0] : elements) as any;
+				yield (this.#isIndividual ? elements[0] : elements) as A;
 			}
 		}
 	}
@@ -124,12 +127,31 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 				}
 				initialValue = callback(
 					initialValue,
-					(this.#isIndividual ? elements[0] : elements) as any,
+					(this.#isIndividual ? elements[0] : elements) as A,
 					index++,
 				);
 			}
 		}
 		return initialValue;
+	}
+
+	/**
+	 * Returns the queried components for the provided entity if it is alive and matched by this query.
+	 * Otherwise, returns null.
+	 * @param entity The entity
+	 * @returns The queried-for components, or null if the entity no longer exists or does not match.
+	 */
+	get(entity: Entity): A | null {
+		const [tableId, row] = this.#world.entities.getLocation(entity);
+		const table = this.#world.tables[tableId];
+		if (!this.#testArchetype(table.archetype)) {
+			return null;
+		}
+		const result = [];
+		for (const component of this.#components) {
+			result.push(table.getColumn(component)[row]);
+		}
+		return (this.#isIndividual ? result[0] : result) as A;
 	}
 
 	/**
@@ -153,11 +175,14 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 	 * @param n The archetype to test.
 	 * @returns A boolean, `true` if the archetype matches and `false` if it does not.
 	 */
-	#test(n: bigint): boolean {
+	#testArchetype(archetype: bigint): boolean {
 		for (let i = 0; i < this.#filters.length; i += 2) {
 			const withFilter = this.#filters[i];
 			const withoutFilter = this.#filters[i + 1];
-			if ((withFilter & n) === withFilter && (withoutFilter & n) === 0n) {
+			if (
+				(withFilter & archetype) === withFilter &&
+				(withoutFilter & archetype) === 0n
+			) {
 				return true;
 			}
 		}
