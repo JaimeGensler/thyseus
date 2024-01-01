@@ -150,6 +150,27 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 	}
 
 	/**
+	 * Iterates all **unique** pairs in the query.
+	 */
+	*pairs(): IterableIterator<[A, A]> {
+		const result: [A, A] = [null, null] as any;
+		let i = 0;
+		for (const iter1 of this) {
+			let j = 0;
+			for (const iter2 of this) {
+				if (i <= j) {
+					continue;
+				}
+				result[0] = iter1;
+				result[1] = iter2;
+				yield result;
+				j++;
+			}
+			i++;
+		}
+	}
+
+	/**
 	 * Tests if a given archetype matches this queries filters.
 	 * @param n The archetype to test.
 	 * @returns A boolean, `true` if the archetype matches and `false` if it does not.
