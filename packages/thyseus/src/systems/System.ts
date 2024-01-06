@@ -1,8 +1,8 @@
 import type { World } from '../world';
 
 /**
- * An object that can be used as a parameter in an ECS system.
- * Typically a class, but the `intoArgument` is permitted to return anything.
+ * An object - typically a class - that can be used as a parameter in a system.
+ * `intoArgument` may return anything, but promises will be `await`ed.
  */
 export type SystemParameter = {
 	intoArgument(world: World, ...args: any[]): any;
