@@ -52,6 +52,15 @@ export class Schedule {
 	}
 
 	/**
+	 * Returns whether the schedule has the specified system.
+	 * @param system The system to check the presence of.
+	 * @returns `true` if the schedule has the system, `false` otherwise.
+	 */
+	hasSystem(system: System): boolean {
+		return this.#systems.includes(system);
+	}
+
+	/**
 	 * Prepares the system arguments for this schedule, grabbing new arguments for all systems.
 	 * Any previous arguments will be replaced.
 	 * @returns A promise that resolves once all systems are ready to be run.
