@@ -62,7 +62,7 @@ export class Entities {
 	 * @param entityId The id of the entity.
 	 * @returns `bigint`, the archetype of the entity.
 	 */
-	getArchetype({ index }: Entity): bigint {
+	getArchetype({ index }: Readonly<Entity>): bigint {
 		return this.#world.tables[this.locations[index * 2]]?.archetype ?? 0n;
 	}
 
@@ -72,7 +72,7 @@ export class Entities {
 	 * @param entity The Entity to check the location of.
 	 * @returns The location of the Entity.
 	 */
-	getLocation({ index }: Entity): [tableId: number, row: number] {
+	getLocation({ index }: Readonly<Entity>): [tableId: number, row: number] {
 		this.#location[0] = this.locations[index * 2];
 		this.#location[1] = this.locations[index * 2 + 1];
 		return this.#location;

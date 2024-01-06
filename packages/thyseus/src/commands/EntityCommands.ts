@@ -16,9 +16,9 @@ type NotFunction<T> = T extends Function ? never : T;
  */
 export class EntityCommands {
 	#queue: EntityCommandQueue;
-	entity: Entity;
+	entity: Readonly<Entity>;
 
-	constructor(queue: EntityCommandQueue, entity: Entity) {
+	constructor(queue: EntityCommandQueue, entity: Readonly<Entity>) {
 		this.#queue = queue;
 		this.entity = entity;
 	}
