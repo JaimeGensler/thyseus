@@ -1,8 +1,8 @@
-import { Commands } from '../commands';
+import { applyCommands, Commands } from '../commands';
 import { Table, type Class } from '../components';
 import { Entities, Entity } from '../entities';
 import { System } from '../systems';
-import { DEV_ASSERT } from '../utils';
+import { DEV_ASSERT, DEV_WARN } from '../utils';
 
 import { getCompleteConfig, type WorldConfig } from './config';
 import { Schedule, type ScheduleType } from './Schedule';
@@ -108,9 +108,13 @@ export class World {
 
 	/**
 	 * Prepares the world by preparing all the system arguments for every schedule in the world.
-	 * @returns
+	 * @returns `Promise<this>`, for chaining.
 	 */
 	async prepare(): Promise<this> {
+		DEV_WARN(
+			[...this.schedules.values()].some(s => s.hasSystem(applyCommands)),
+			'A world was prepared that does not contain the applyCommands system; this is likely unintentional.',
+		);
 		await Promise.all(this.#pendingPlugins);
 		this.#pendingPlugins.length = 0;
 		for (const schedule of this.schedules.values()) {

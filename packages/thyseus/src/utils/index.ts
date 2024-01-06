@@ -1,1 +1,1 @@
-export { DEV_ASSERT } from './assert';
+export { DEV_ASSERT, DEV_WARN } from './dev';

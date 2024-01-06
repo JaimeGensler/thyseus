@@ -17,3 +17,16 @@ export function DEV_ASSERT(
 		}
 	}
 }
+
+/**
+ * Logs a warning if the provided condition fails (in development builds only).
+ * @param condition The condition to warn against.
+ * @param errorMessage The warning message if the condition fails.
+ */
+export function DEV_WARN(condition: unknown, warnMessage: string): void {
+	if (DEV) {
+		if (!condition) {
+			console.warn(warnMessage);
+		}
+	}
+}
