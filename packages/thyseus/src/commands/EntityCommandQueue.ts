@@ -4,8 +4,8 @@ import type { World } from '../world';
 
 export class EntityCommandQueue {
 	#world: World;
-	#destinations: Map<Entity, bigint>;
-	#inserts: Map<Entity, object[]>;
+	#destinations: Map<Readonly<Entity>, bigint>;
+	#inserts: Map<Readonly<Entity>, object[]>;
 	#EMPTY: [];
 
 	constructor(world: World) {
@@ -15,15 +15,15 @@ export class EntityCommandQueue {
 		this.#EMPTY = [];
 	}
 
-	spawn(entity: Entity) {
+	spawn(entity: Readonly<Entity>) {
 		this.addType(entity, Entity);
 	}
 
-	despawn(entity: Entity) {
+	despawn(entity: Readonly<Entity>) {
 		this.#destinations.set(entity, 0n);
 	}
 
-	add(entity: Entity, instance: object) {
+	add(entity: Readonly<Entity>, instance: object) {
 		const type = instance.constructor as Class;
 		this.addType(entity, type);
 		const inserts = this.#inserts.get(entity) ?? [];
@@ -31,7 +31,7 @@ export class EntityCommandQueue {
 		this.#inserts.set(entity, inserts);
 	}
 
-	addType(entity: Entity, type: Class) {
+	addType(entity: Readonly<Entity>, type: Class) {
 		let val = this.#destinations.get(entity);
 		if (val === 0n) {
 			return;
@@ -41,7 +41,7 @@ export class EntityCommandQueue {
 		this.#destinations.set(entity, val | (1n << BigInt(componentId)));
 	}
 
-	remove(entity: Entity, type: Class) {
+	remove(entity: Readonly<Entity>, type: Class) {
 		let val = this.#destinations.get(entity);
 		if (val === 0n) {
 			return;
@@ -54,7 +54,7 @@ export class EntityCommandQueue {
 	apply(world: World) {
 		for (const [entity, archetype] of this.#destinations) {
 			const components = this.#inserts.get(entity) ?? this.#EMPTY;
-			world.moveEntity(entity, archetype, components);
+			world.moveEntity(entity as any, archetype, components);
 		}
 		this.#destinations.clear();
 		this.#inserts.clear();

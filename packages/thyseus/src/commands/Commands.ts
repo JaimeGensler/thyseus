@@ -75,7 +75,7 @@ export class Commands {
 	 * @param entity The Entity to be despawned.
 	 */
 	despawn(entity: Readonly<Entity>): void {
-		this.#entityCommandQueue.despawn(entity as any);
+		this.#entityCommandQueue.despawn(entity);
 	}
 
 	/**
@@ -86,10 +86,10 @@ export class Commands {
 	 */
 	get(entity: Readonly<Entity>, reuse: boolean = false): EntityCommands {
 		if (reuse) {
-			this.#entityCommands.entity = entity as any;
+			this.#entityCommands.entity = entity;
 			return this.#entityCommands;
 		}
-		return new EntityCommands(this.#entityCommandQueue, entity as any);
+		return new EntityCommands(this.#entityCommandQueue, entity);
 	}
 
 	[Symbol.iterator](): IterableIterator<CommandQueue> {
