@@ -1,22 +1,36 @@
+import { Entity } from '../entities';
 import { DEV_ASSERT } from '../utils';
 import type { Class } from '../components';
 import type { World } from '../world';
-import type { Entity } from '../entities';
 
 import { createArchetypeFilter, type Filter } from './filters';
+import {
+	MaybeModifier,
+	type Accessor,
+	type AccessorDescriptor,
+} from './modifiers';
+
+const EMPTY_COLUMN: [] = [];
 
 /**
  * A collection that matches against entities that have a set of components and match a particular filter.
  */
-export class Query<A extends object | object[], F extends Filter = Filter> {
-	static async intoArgument(
+export class Query<A extends Accessor | Accessor[], F extends Filter = Filter> {
+	static intoArgument(
 		world: World,
-		accessors: Class | Class[],
+		accessors: AccessorDescriptor | AccessorDescriptor[],
 		filter?: Filter,
 	) {
 		const isIndividual = !Array.isArray(accessors);
-		const components: Class[] = isIndividual ? [accessors] : accessors;
-		const initial = world.getArchetype(...components);
+		accessors = Array.isArray(accessors) ? accessors : [accessors];
+		const components = accessors.map(x =>
+			x instanceof MaybeModifier ? x.type : x,
+		);
+		const initial = world.getArchetype(
+			...accessors.filter(
+				(x): x is Class => !(x instanceof MaybeModifier),
+			),
+		);
 		const filters = filter
 			? createArchetypeFilter(filter, [initial, 0n], (...components) =>
 					world.getArchetype(...components),
@@ -43,8 +57,13 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 		this.#columns = [];
 		this.#world.addEventListener('createTable', table => {
 			if (this.#testArchetype(table.archetype)) {
+				this.#columns.push(table.getColumn(Entity));
 				for (const component of this.#components) {
-					this.#columns.push(table.getColumn(component));
+					this.#columns.push(
+						table.hasColumn(component)
+							? table.getColumn(component)
+							: EMPTY_COLUMN,
+					);
 				}
 			}
 		});
@@ -55,30 +74,27 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 	 */
 	get length(): number {
 		let result = 0;
-		const jump = this.#components.length;
-		for (let i = 0; i < this.#columns.length; i += jump) {
+		const span = this.#components.length + 1;
+		for (let i = 0; i < this.#columns.length; i += span) {
 			result += this.#columns[i].length;
 		}
 		return result;
 	}
 
-	*[Symbol.iterator](): Iterator<A> {
+	*[Symbol.iterator](): IterableIterator<A> {
 		const elements = [];
 		const componentCount = this.#components.length;
+		const groupSpan = componentCount + 1;
 		for (
 			let columnGroup = 0;
 			columnGroup < this.#columns.length;
-			columnGroup += componentCount
+			columnGroup += groupSpan
 		) {
 			const { length } = this.#columns[columnGroup];
 			for (let iterations = 0; iterations < length; iterations++) {
-				for (
-					let columnOffset = 0;
-					columnOffset < componentCount;
-					columnOffset++
-				) {
-					elements[columnOffset] =
-						this.#columns[columnGroup + columnOffset][iterations];
+				for (let offset = 0; offset < componentCount; offset++) {
+					elements[offset] =
+						this.#columns[columnGroup + offset + 1][iterations];
 				}
 				yield (this.#isIndividual ? elements[0] : elements) as A;
 			}
@@ -150,7 +166,7 @@ export class Query<A extends object | object[], F extends Filter = Filter> {
 	}
 
 	/**
-	 * Iterates all **unique** pairs in the query.
+	 * Iterates all _unique_ pairs in the query.
 	 */
 	*pairs(): IterableIterator<[A, A]> {
 		const result: [A, A] = [null, null] as any;
@@ -212,32 +228,34 @@ if (import.meta.vitest) {
 	class Vec3 {}
 	type Entity = InstanceType<typeof Entity>;
 
-	it('adds tables if a filter passes', () => {
-		const world = createWorld(ZST, Vec3);
-		const query1 = new Query(world, [0b001n, 0b000n], false, [Entity]);
-		const query2 = new Query(world, [0b100n, 0b010n], false, [Entity]);
-		const query3 = new Query(
-			world,
-			[0b010n, 0b100n, 0b100n, 0b010n],
-			false,
-			[Entity],
-		);
+	describe('filtering', () => {
+		it('adds tables if a filter passes', () => {
+			const world = createWorld(ZST, Vec3);
+			const query1 = new Query(world, [0b001n, 0b000n], false, [Entity]);
+			const query2 = new Query(world, [0b100n, 0b010n], false, [Entity]);
+			const query3 = new Query(
+				world,
+				[0b010n, 0b100n, 0b100n, 0b010n],
+				false,
+				[Entity],
+			);
 
-		expect(query1.length).toBe(0);
-		expect(query2.length).toBe(0);
-		expect(query3.length).toBe(0);
+			expect(query1.length).toBe(0);
+			expect(query2.length).toBe(0);
+			expect(query3.length).toBe(0);
 
-		world.commands.spawn(); // 1
-		world.commands.spawn().add(new Vec3()); // 1, 2, 3
-		world.commands.spawn().addType(ZST); // 1, 3
-		applyCommands(world);
+			world.commands.spawn(); // 1
+			world.commands.spawn().add(new Vec3()); // 1, 2, 3
+			world.commands.spawn().addType(ZST); // 1, 3
+			applyCommands(world);
 
-		expect(query1.length).toBe(3); // Everything matches
-		expect(query2.length).toBe(1);
-		expect(query3.length).toBe(2);
+			expect(query1.length).toBe(3); // Everything matches
+			expect(query2.length).toBe(1);
+			expect(query3.length).toBe(2);
+		});
 	});
 
-	describe('iteration', () => {
+	describe('*[Symbol.iterator]', () => {
 		it('yields normal elements for all table members', () => {
 			const world = createWorld(Vec3, ZST);
 			const query = new Query<[Vec3, Entity]>(world, [0n, 0n], false, [
@@ -282,6 +300,38 @@ if (import.meta.vitest) {
 				j++;
 			}
 			expect(j).toBe(10);
+		});
+
+		it('yields undefined for Maybe values', () => {
+			const world = createWorld(Vec3);
+			const query: Query<Vec3 | undefined> = Query.intoArgument(
+				world,
+				new MaybeModifier(Vec3),
+			);
+
+			expect(query.length).toBe(0);
+			for (let i = 0; i < 5; i++) {
+				world.commands.spawn();
+			}
+			for (let i = 0; i < 5; i++) {
+				world.commands.spawn().add(new Vec3());
+			}
+			applyCommands(world);
+
+			expect(query.length).toBe(10);
+			let undef = 0;
+			let def = 0;
+			for (const vec of query) {
+				if (vec) {
+					def++;
+					expect(vec).toBeInstanceOf(Vec3);
+				} else {
+					undef++;
+					expect(vec).toBeUndefined();
+				}
+			}
+			expect(undef).toBe(5);
+			expect(def).toBe(5);
 		});
 	});
 }
