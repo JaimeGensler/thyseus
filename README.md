@@ -17,18 +17,18 @@ Thyseus is a DX & performance oriented
 [archetypal](https://github.com/SanderMertens/ecs-faq#archetypes-aka-dense-ecs-or-table-based-ecs)
 [Entity Component System](https://en.wikipedia.org/wiki/Entity_component_system)
 ([ECS](https://github.com/SanderMertens/ecs-faq)) for Typescript. It provides an
-expressive, type-driven API and includes many features out of the box,
-including:
+expressive, type-driven API so you can focus on how data moves through your app
+instead of worrying about how to manage it. Many features are included out of
+the box, including:
 
 -   Effortless integration with third-party libraries like
     [three.js](https://github.com/mrdoob/three.js/).
--   Boilerplate-free and safety-first multithreading - no `eval()`!
 -   Archetypal storage for lean memory use and cache-friendly iteration.
 -   Complex queries with filters like `And`, `Or`, `With`, and `Without`.
 -   First class support for Resources (singletons) and Events.
+-   Boilerplate-free and safety-first worker thread support - no `eval()`!
 -   Deeply customizable execution logic for easy handling of patterns like fixed
     updates.
--   Effortless integration with third-party libraries.
 
 Get started with [the docs](https://thyseus.dev/docs), or join us on the
 [Web-ECS Discord](https://discord.gg/T3g8U89qqZ)!
@@ -79,13 +79,14 @@ export class Velocity extends Vec2 {}
 
 <!-- prettier-ignore -->
 ```ts
-import { Query, Position, Velocity } from './components';
+import { Query } from 'thyseus'
+import { Position, Velocity } from './components';
 
-export function spawnEntitiesSystem(commands: Commands) {
+export function spawnEntities(commands: Commands) {
   commands.spawn().add(new Position()).add(new Velocity(1, 2));
 }
 
-export function moveSystem(query: Query<[Position, Velocity]>) {
+export function move(query: Query<[Position, Velocity]>) {
   for (const [pos, vel] of query) {
     pos.add(vel);
   }
@@ -98,12 +99,20 @@ export function moveSystem(query: Query<[Position, Velocity]>) {
 ```ts
 import { World, Schedule } from 'thyseus';
 import { moveSystem, spawnEntitiesSystem } from './systems';
-import { StartupSchedule } from './schedules'
 
 class SetupSchedule extends Schedule {}
+
 export const myWorld = await new World()
-  .addSystems(SetupSchedule, spawnEntitiesSystem)
-  .addSystems(Schedule, moveSystem)
+  .addEventListener('start', async world => {
+	await world.runSchedule(SetupSchedule);
+	function loop() {
+		await world.runSchedule(Schedule);
+		requestAnimationFrame(loop);
+	}
+	loop();
+  })
+  .addSystems(SetupSchedule, spawnEntities)
+  .addSystems(Schedule, move)
   .prepare();
 
 myWorld.start();
