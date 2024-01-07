@@ -24,7 +24,8 @@ the box, including:
 -   Effortless integration with third-party libraries like
     [three.js](https://github.com/mrdoob/three.js/).
 -   Archetypal storage for lean memory use and cache-friendly iteration.
--   Complex queries with filters like `And`, `Or`, `With`, and `Without`.
+-   Complex queries with filters like `Maybe`, `And`, `Or`, `With`, and
+    `Without`.
 -   First class support for Resources (singletons) and Events.
 -   Boilerplate-free and safety-first worker thread support - no `eval()`!
 -   Deeply customizable execution logic for easy handling of patterns like fixed
