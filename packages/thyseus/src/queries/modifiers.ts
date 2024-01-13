@@ -5,11 +5,12 @@ import { World } from '../world';
  * A type that may or may not be present.
  */
 export type Maybe<T> = T | undefined;
+export const Maybe = {
+	intoArgument(_: World, type: Class) {
+		return new MaybeModifier(type);
+	},
+};
 export class MaybeModifier {
-	static intoArgument(_: World, type: Class) {
-		return new this(type);
-	}
-
 	type: Class;
 	constructor(type: Class) {
 		this.type = type;
