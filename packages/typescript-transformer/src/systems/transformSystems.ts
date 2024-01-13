@@ -1,6 +1,6 @@
 import ts from 'typescript';
 import { useConfig } from ':context';
-import { createVisitor, addImport } from ':transform-utils';
+import { createVisitor } from ':transform-utils';
 import { isSystem } from './rules';
 import { getSignatureDeclaration } from './getSignatureDeclaration';
 import { getTypeNameFromNode } from './getTypeNameFromNode';
@@ -49,13 +49,12 @@ function createDescriptorFromTypeNode(
 		const isKnownDescriptor = typeName in systemParameters;
 		if (isKnownDescriptor) {
 			const descriptor = systemParameters[typeName];
-			if (descriptor === null) {
+			if (!descriptor) {
 				return createDescriptorFromTypeNode(node.typeArguments![0]);
 			}
-			addImport(descriptor.importPath, descriptor.descriptorName);
 			return ts.factory.createCallExpression(
 				ts.factory.createPropertyAccessExpression(
-					ts.factory.createIdentifier(descriptor.descriptorName),
+					ts.factory.createIdentifier(typeName),
 					ts.factory.createIdentifier('intoArgument'),
 				),
 				undefined,

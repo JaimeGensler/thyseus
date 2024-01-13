@@ -1,5 +1,5 @@
 import ts from 'typescript';
-import { consumeImports, shouldIgnoreNode } from ':transform-utils';
+import { shouldIgnoreNode } from ':transform-utils';
 import { pipe } from ':utils';
 import { useConfig, useProgram, type TransformerConfig } from ':context';
 import { transformSystems } from './systems';
@@ -35,7 +35,7 @@ export function getTransformer(config?: TransformerConfig) {
 				return ts.visitEachChild(result, visit, context);
 			}
 
-			return consumeImports(ts.visitNode(file, visit)! as ts.SourceFile);
+			return ts.visitNode(file, visit)! as ts.SourceFile;
 		};
 	};
 }
