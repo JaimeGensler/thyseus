@@ -1,3 +1,4 @@
+import { DEV_ASSERT } from '../utils';
 import type { Class } from '../components';
 import type { World } from '../world';
 
@@ -19,6 +20,11 @@ export const Res = {
 export type SystemRes<T extends object> = T;
 export const SystemRes = {
 	async intoArgument(world: World, resourceType: Class) {
-		return (resourceType as any).fromWorld(world);
+		const result = await (resourceType as any).fromWorld(world);
+		DEV_ASSERT(
+			result !== undefined,
+			'Resource.fromWorld must return an object.',
+		);
+		return result;
 	},
 };

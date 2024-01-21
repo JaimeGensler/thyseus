@@ -176,6 +176,10 @@ export class World {
 			`Could not construct resource "${resourceType.name}" - resources must either have a static fromWorld() property or be inserted with World.p.insertResource().`,
 		);
 		res = await (resourceType as any).fromWorld(this);
+		DEV_ASSERT(
+			res !== undefined,
+			`${resourceType.name}.fromWorld() returned undefined; expected an object.`,
+		);
 		this.resources.push(res!);
 		return res!;
 	}
