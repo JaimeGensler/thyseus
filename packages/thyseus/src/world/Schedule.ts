@@ -6,8 +6,6 @@ import type { World } from './World';
 /**
  * A class that contains systems to be run, as well as the arguments to provide these systems.
  *
- * By default, systems are added to this class, the parent `Schedule`.
- *
  * Can be extended to create custom schedules.
  */
 export class Schedule {
