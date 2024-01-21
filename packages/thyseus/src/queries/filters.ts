@@ -103,7 +103,10 @@ export function createArchetypeFilter(
 		);
 	} else {
 		const remainder = filter instanceof With ? 0 : 1;
-		const archetype = getArchetype(...(filter as Predicate).children);
+		let archetype = getArchetype(...(filter as Predicate).children);
+		if (filter instanceof Without) {
+			archetype ^= 1n;
+		}
 		return current.map((val, i) =>
 			i % 2 === remainder ? val | archetype : val,
 		);

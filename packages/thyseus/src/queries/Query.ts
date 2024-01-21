@@ -32,8 +32,10 @@ export class Query<A extends Accessor | Accessor[], F extends Filter = Filter> {
 			),
 		);
 		const filters = filter
-			? createArchetypeFilter(filter, [initial, 0n], (...components) =>
-					world.getArchetype(...components),
+			? createArchetypeFilter(
+					filter,
+					[initial, 0n],
+					world.getArchetype.bind(world),
 			  )
 			: [initial, 0n];
 		return new Query(world, filters, isIndividual, components);
@@ -211,6 +213,7 @@ export class Query<A extends Accessor | Accessor[], F extends Filter = Filter> {
 \*---------*/
 if (import.meta.vitest) {
 	const { it, expect, describe } = import.meta.vitest;
+	const { With, Without } = await import('./filters');
 	const { Entity } = await import('../entities');
 	const { World } = await import('../world');
 	const { applyCommands } = await import('../commands');
@@ -229,29 +232,88 @@ if (import.meta.vitest) {
 	type Entity = InstanceType<typeof Entity>;
 
 	describe('filtering', () => {
-		it('adds tables if a filter passes', () => {
+		it('matches tables for basic filters', () => {
 			const world = createWorld(ZST, Vec3);
-			const query1 = new Query(world, [0b001n, 0b000n], false, [Entity]);
-			const query2 = new Query(world, [0b100n, 0b010n], false, [Entity]);
-			const query3 = new Query(
-				world,
-				[0b010n, 0b100n, 0b100n, 0b010n],
-				false,
-				[Entity],
-			);
+			const catchAllQuery = Query.intoArgument(world, Entity);
+			const withVec = Query.intoArgument(world, [Vec3]);
 
-			expect(query1.length).toBe(0);
-			expect(query2.length).toBe(0);
-			expect(query3.length).toBe(0);
+			expect(catchAllQuery.length).toBe(0);
+			expect(withVec.length).toBe(0);
 
 			world.commands.spawn(); // 1
+			world.commands.spawn().addType(ZST); // 1
 			world.commands.spawn().add(new Vec3()); // 1, 2, 3
-			world.commands.spawn().addType(ZST); // 1, 3
+			world.commands.spawn().add(new Vec3()).addType(ZST); // 1, 3
 			applyCommands(world);
 
-			expect(query1.length).toBe(3); // Everything matches
-			expect(query2.length).toBe(1);
-			expect(query3.length).toBe(2);
+			expect(catchAllQuery.length).toBe(4);
+			expect(withVec.length).toBe(2);
+		});
+
+		it('matches tables for Maybe<T>', () => {
+			const world = createWorld(ZST, Vec3);
+			const catchAllQuery = Query.intoArgument(world, Entity);
+			const maybeVec = Query.intoArgument(world, new MaybeModifier(Vec3));
+
+			expect(catchAllQuery.length).toBe(0);
+			expect(maybeVec.length).toBe(0);
+
+			world.commands.spawn(); // 1
+			world.commands.spawn().addType(ZST); // 1
+			world.commands.spawn().add(new Vec3()); // 1, 2, 3
+			world.commands.spawn().add(new Vec3()).addType(ZST); // 1, 3
+			applyCommands(world);
+
+			expect(catchAllQuery.length).toBe(4);
+			expect(maybeVec.length).toBe(4);
+		});
+
+		it('matches tables for With<T>', () => {
+			const world = createWorld(ZST, Vec3);
+			const withZST = Query.intoArgument(world, Entity, new With(ZST));
+			const withVecAndZST = Query.intoArgument(
+				world,
+				Vec3,
+				new With(ZST),
+			);
+
+			expect(withZST.length).toBe(0);
+			expect(withVecAndZST.length).toBe(0);
+
+			world.commands.spawn(); // 1
+			world.commands.spawn().addType(ZST); // 1
+			world.commands.spawn().add(new Vec3()); // 1, 2, 3
+			world.commands.spawn().add(new Vec3()).addType(ZST); // 1, 3
+			applyCommands(world);
+
+			expect(withZST.length).toBe(2);
+			expect(withVecAndZST.length).toBe(1);
+		});
+
+		it('matches tables for Without<T>', () => {
+			const world = createWorld(ZST, Vec3);
+			const withoutZST = Query.intoArgument(
+				world,
+				Entity,
+				new Without(ZST),
+			);
+			const withVecWithoutZST = Query.intoArgument(
+				world,
+				Vec3,
+				new Without(ZST),
+			);
+
+			expect(withoutZST.length).toBe(0);
+			expect(withVecWithoutZST.length).toBe(0);
+
+			world.commands.spawn(); // 1
+			world.commands.spawn().addType(ZST); // 1
+			world.commands.spawn().add(new Vec3()); // 1, 2, 3
+			world.commands.spawn().add(new Vec3()).addType(ZST); // 1, 3
+			applyCommands(world);
+
+			expect(withoutZST.length).toBe(2);
+			expect(withVecWithoutZST.length).toBe(1);
 		});
 	});
 
