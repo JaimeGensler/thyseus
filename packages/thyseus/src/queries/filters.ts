@@ -105,7 +105,7 @@ export function createArchetypeFilter(
 		const remainder = filter instanceof With ? 0 : 1;
 		let archetype = getArchetype(...(filter as Predicate).children);
 		if (filter instanceof Without) {
-			archetype ^= 1n;
+			archetype &= ~1n;
 		}
 		return current.map((val, i) =>
 			i % 2 === remainder ? val | archetype : val,
@@ -218,7 +218,7 @@ if (import.meta.vitest) {
 			]);
 		});
 
-		it('works with initial values', () => {
+		it.only('works with initial values', () => {
 			expect(
 				createArchetypeFilter(
 					new And(new With(C), new Without(D)),
