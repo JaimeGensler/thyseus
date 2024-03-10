@@ -2,7 +2,6 @@ import type { Class } from '../components';
 import { World } from '../world';
 
 import { Events } from './Events';
-import type { EventsCommandQueue } from './EventsCommandQueue';
 
 /**
  * A class that holds a queue of events and can be used to read those events.
@@ -12,21 +11,14 @@ export class EventReader<T extends object> {
 		world: World,
 		eventType: Class,
 	): Promise<EventReader<any>> {
-		return (await world.getResource(Events)).getReaderOfType(eventType);
+		return (await world.getResource(Events)).getReader(eventType);
 	}
 
-	#commandQueue: EventsCommandQueue;
 	#type: Class;
 	#id: number;
 	#queue: T[];
 
-	constructor(
-		commandQueue: EventsCommandQueue,
-		type: { new (...args: any[]): T },
-		queue: T[],
-		id: number,
-	) {
-		this.#commandQueue = commandQueue;
+	constructor(type: { new (...args: any[]): T }, queue: T[], id: number) {
 		this.#type = type;
 		this.#queue = queue;
 		this.#id = id;
@@ -53,9 +45,7 @@ export class EventReader<T extends object> {
 	/**
 	 * Sets this event queue to be cleared when commands are next processed.
 	 */
-	clear(): void {
-		this.#commandQueue.clear(this.#id);
-	}
+	clear(): void {}
 }
 
 /**
@@ -66,17 +56,12 @@ export class EventWriter<T extends object> extends EventReader<T> {
 		world: World,
 		eventType: Class,
 	): Promise<EventWriter<any>> {
-		return (await world.getResource(Events)).getWriterOfType(eventType);
+		return (await world.getResource(Events)).getWriter(eventType);
 	}
 	#queue: T[];
 
-	constructor(
-		commandQueue: EventsCommandQueue,
-		type: { new (...args: any[]): T },
-		queue: T[],
-		id: number,
-	) {
-		super(commandQueue, type, queue, id);
+	constructor(type: { new (...args: any[]): T }, queue: T[], id: number) {
+		super(type, queue, id);
 		this.#queue = queue;
 	}
 
@@ -92,7 +77,7 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	 * **Immediately** clears all events in this queue.
 	 */
 	clearImmediate(): void {
-		this.#queue.length = 0;
+		this.#queue = [];
 	}
 }
 
@@ -102,7 +87,7 @@ export class EventWriter<T extends object> extends EventReader<T> {
 if (import.meta.vitest) {
 	const { it, expect, vi } = import.meta.vitest;
 	const { World } = await import('../world');
-	const { EventsCommandQueue } = await import('./EventsCommandQueue');
+	const { EventsCommandQueue } = await import('./clearAllEventQueues');
 
 	async function setupQueue<T extends Class, I extends InstanceType<T>>(
 		queueType: T,

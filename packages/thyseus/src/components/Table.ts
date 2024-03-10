@@ -9,26 +9,19 @@ import type { Class } from './Class';
  * Entities are rows, component types are columns.
  */
 export class Table {
-	static createEmpty(locations: number[]): Table {
-		return new this([Entity], 0n, 0, locations);
+	static createEmpty(): Table {
+		return new this([], 0n, 0);
 	}
 
 	id: number;
 	archetype: bigint;
 	#components: Class[];
-	#columns: [Entity[], ...Array<object[]>];
-	#locations: number[];
-	constructor(
-		components: Class[],
-		archetype: bigint,
-		id: number,
-		locations: number[],
-	) {
+	#columns: [...Array<object[]>];
+	constructor(components: Class[], archetype: bigint, id: number) {
 		this.#components = components.filter(isSizedComponent);
 		this.archetype = archetype;
 		this.id = id;
 		this.#columns = this.#components.map(() => []) as any;
-		this.#locations = locations;
 	}
 
 	/**
@@ -43,10 +36,11 @@ export class Table {
 	 * @param row The row of the entity to move.
 	 * @param targetTable The table to move that entity to.
 	 */
-	move(row: number, targetTable: Table, components: object[]): void {
-		const { index: moveIndex } = this.#columns[0][row];
-		const { index: backfillIndex } = this.#columns[0][this.length - 1];
-		this.#locations[backfillIndex * 2 + 1] = row;
+	move(
+		row: number,
+		targetTable: Table,
+		components: object[],
+	): Entity | undefined {
 		for (let i = 0; i < this.#columns.length; i++) {
 			const componentType = this.#components[i];
 			const element = swapRemove(this.#columns[i], row)!;
@@ -61,8 +55,9 @@ export class Table {
 					?.push(component);
 			}
 		}
-		this.#locations[moveIndex * 2] = targetTable.id;
-		this.#locations[moveIndex * 2 + 1] = targetTable.length - 1;
+		return this.#columns[0]?.[this.#columns[0].length - 1] as
+			| Entity
+			| undefined;
 	}
 
 	/**
@@ -108,7 +103,7 @@ if (import.meta.vitest) {
 	}
 
 	const createTable = (...components: Class[]) =>
-		new Table(components, 0n, 0, []);
+		new Table(components, 0n, 0);
 
 	const addToTable = (
 		table: Table,
@@ -126,8 +121,8 @@ if (import.meta.vitest) {
 		const entityColumn = table.getColumn(Entity);
 		expect(table.length).toBe(0);
 
-		const e1 = new Entity(4, 0);
-		const e2 = new Entity(5, 1);
+		const e1 = new Entity(4);
+		const e2 = new Entity(5);
 		addToTable(table, e1);
 		addToTable(table, e2);
 
@@ -139,13 +134,13 @@ if (import.meta.vitest) {
 		const table = createTable(Entity);
 		expect(table.length).toBe(0);
 
-		addToTable(table, new Entity(0, 0));
+		addToTable(table, new Entity(0));
 		expect(table.length).toBe(1);
 
 		const entityColumn = table.getColumn(Entity);
 		expect(entityColumn[0].id).toBe(0n);
 
-		addToTable(table, new Entity(3, 0));
+		addToTable(table, new Entity(3));
 		expect(table.length).toBe(2);
 
 		expect(entityColumn[0].id).toBe(0n);
@@ -156,9 +151,9 @@ if (import.meta.vitest) {
 		const fromTable = createTable(Entity, Vec3);
 		const toTable = createTable(Entity, Vec3);
 
-		addToTable(fromTable, new Entity(3, 0), new Vec3(1, 2, 3));
-		addToTable(fromTable, new Entity(1, 0), new Vec3(7, 8, 9));
-		addToTable(toTable, new Entity(4, 0), new Vec3(0, 0, 0));
+		addToTable(fromTable, new Entity(3), new Vec3(1, 2, 3));
+		addToTable(fromTable, new Entity(1), new Vec3(7, 8, 9));
+		addToTable(toTable, new Entity(4), new Vec3(0, 0, 0));
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
@@ -188,10 +183,10 @@ if (import.meta.vitest) {
 	it('deletes elements, swaps in last elements', async () => {
 		const table = createTable(Entity, Vec3);
 
-		addToTable(table, new Entity(1, 0));
-		addToTable(table, new Entity(2, 0));
-		addToTable(table, new Entity(3, 0));
-		addToTable(table, new Entity(4, 0));
+		addToTable(table, new Entity(1));
+		addToTable(table, new Entity(2));
+		addToTable(table, new Entity(3));
+		addToTable(table, new Entity(4));
 		expect(table.length).toBe(4);
 
 		const entityColumn = table.getColumn(Entity);
@@ -203,7 +198,7 @@ if (import.meta.vitest) {
 			new Vec3(10, 11, 12),
 		);
 
-		table.move(1, Table.createEmpty([]), []);
+		table.move(1, Table.createEmpty(), []);
 		expect(table.length).toBe(3);
 		expect(entityColumn[0].id).toBe(1n);
 		expect(vecColumn[0].x).toBe(1);
@@ -221,13 +216,13 @@ if (import.meta.vitest) {
 
 	it.todo('move() moves entity locations', async () => {
 		const table = createTable(Entity);
-		const empty = Table.createEmpty([]);
+		const empty = Table.createEmpty();
 		expect(table.length).toBe(0);
 
 		const id1 = 4n;
 		const id2 = (1n << 32n) | 5n;
-		const e1 = new Entity(4, 0);
-		const e2 = new Entity(5, 1);
+		const e1 = new Entity(4);
+		const e2 = new Entity(5);
 		addToTable(table, e1);
 		addToTable(table, e2);
 
@@ -243,9 +238,9 @@ if (import.meta.vitest) {
 		const fromTableVec3Column = fromTable.getColumn(Vec3);
 		const toTableEntityColumn = toTable.getColumn(Entity);
 
-		addToTable(fromTable, new Entity(3, 0));
-		addToTable(fromTable, new Entity(1, 0));
-		addToTable(toTable, new Entity(4, 0));
+		addToTable(fromTable, new Entity(3));
+		addToTable(fromTable, new Entity(0));
+		addToTable(toTable, new Entity(4));
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);

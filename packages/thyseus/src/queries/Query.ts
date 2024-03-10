@@ -4,11 +4,7 @@ import type { Class } from '../components';
 import type { World } from '../world';
 
 import { createArchetypeFilter, type Filter } from './filters';
-import {
-	MaybeModifier,
-	type Accessor,
-	type AccessorDescriptor,
-} from './modifiers';
+import { Maybe, type Accessor, type AccessorDescriptor } from './modifiers';
 
 const EMPTY_COLUMN: [] = [];
 
@@ -23,13 +19,9 @@ export class Query<A extends Accessor | Accessor[], F extends Filter = Filter> {
 	) {
 		const isIndividual = !Array.isArray(accessors);
 		accessors = Array.isArray(accessors) ? accessors : [accessors];
-		const components = accessors.map(x =>
-			x instanceof MaybeModifier ? x.type : x,
-		);
+		const components = accessors.map(x => (Maybe.isMaybe(x) ? x.type : x));
 		const initial = world.getArchetype(
-			...accessors.filter(
-				(x): x is Class => !(x instanceof MaybeModifier),
-			),
+			...accessors.filter((x): x is Class => !Maybe.isMaybe(x)),
 		);
 		const filters = filter
 			? createArchetypeFilter(

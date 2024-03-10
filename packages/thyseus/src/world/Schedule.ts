@@ -27,7 +27,7 @@ export class Schedule {
 	addSystems(systems: System | System[]): this {
 		for (const system of Array.isArray(systems) ? systems : [systems]) {
 			DEV_ASSERT(
-				!this.#systems.includes(system),
+				!this.hasSystem(system),
 				`Cannot add the same system to a schedule twice (adding ${system.name} to ${this.constructor.name})`,
 			);
 			this.#systems.push(system);
@@ -42,7 +42,7 @@ export class Schedule {
 	 */
 	removeSystem(system: System): this {
 		DEV_ASSERT(
-			this.#systems.includes(system),
+			this.hasSystem(system),
 			`Cannot remove a system from a schedule it isn't in (removing ${system.name} from ${this.constructor.name})`,
 		);
 		this.#systems.splice(this.#systems.indexOf(system), 1);
