@@ -12,6 +12,15 @@ export type WorldConfig = {
 	 * @returns A `Worker`-like object.
 	 */
 	createWorker(url: string): Worker;
+	/**
+	 * Specify when entities should update to add/remove components.
+	 * Can be one of three values:
+	 *
+	 * - `"before"` - updates before systems are executed in `World.p.runSchedule()`.
+	 * - `"after"`  - updates after systems are executed in `World.p.runSchedule()`.
+	 * - `"custom"` - does not run by default, you must add a system to execute it.
+	 */
+	entityUpdateTiming: 'before' | 'after' | 'custom';
 } & Record<string, unknown>;
 
 /**
@@ -26,6 +35,7 @@ export function getCompleteConfig(
 		createWorker(url) {
 			return new Worker(url, { type: 'module' });
 		},
+		entityUpdateTiming: 'after',
 		...config,
 	};
 }

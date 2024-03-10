@@ -1,6 +1,5 @@
-import { applyCommands, Commands } from '../commands';
 import { Table, type Class } from '../components';
-import { Entities, Entity } from '../entities';
+import { Entity } from '../entities';
 import { System } from '../systems';
 import { DEV_ASSERT, DEV_WARN } from '../utils';
 
@@ -41,14 +40,6 @@ export class World {
 	 */
 	schedules: Map<ScheduleType, Schedule>;
 	/**
-	 * This world's `Commands` object.
-	 */
-	commands: Commands;
-	/**
-	 * This world's `Entities` object.
-	 */
-	entities: Entities;
-	/**
 	 * A list of components currently used by this world.
 	 */
 	components: Class[];
@@ -57,25 +48,28 @@ export class World {
 	 */
 	#pendingPlugins: Promise<any>[];
 	/**
+	 * The next entity ID.
+	 */
+	#nextId: number;
+	#updatedEntities: Set<Entity> = new Set();
+	/**
 	 * The config used to create this world.
 	 */
 	config: Readonly<WorldConfig>;
 
 	constructor(config: Partial<WorldConfig> = {}) {
 		this.config = getCompleteConfig(config);
+		this.#nextId = 0;
 		this.#listeners = {
 			start: [],
 			stop: [],
 			createTable: [],
 		};
-		const entityLocations: number[] = [];
 		this.components = [Entity];
-		this.tables = [Table.createEmpty(entityLocations)];
+		this.tables = [Table.createEmpty()];
 		this.#archetypeToTable = new Map([[0n, this.tables[0]]]);
 		this.resources = [];
 		this.schedules = new Map();
-		this.entities = new Entities(this, entityLocations);
-		this.commands = new Commands(this);
 		this.#pendingPlugins = [];
 	}
 
@@ -111,34 +105,12 @@ export class World {
 	 * @returns `Promise<this>`, for chaining.
 	 */
 	async prepare(): Promise<this> {
-		DEV_WARN(
-			[...this.schedules.values()].some(s => s.hasSystem(applyCommands)),
-			'A world was prepared that does not contain the applyCommands system; this is likely unintentional.',
-		);
 		await Promise.all(this.#pendingPlugins);
-		this.#pendingPlugins.length = 0;
+		this.#pendingPlugins = [];
 		for (const schedule of this.schedules.values()) {
 			await schedule.prepare();
 		}
 		return this;
-	}
-
-	/**
-	 * Emits the `"start"` event in this world.
-	 */
-	start(): void {
-		for (const listener of this.#listeners.start) {
-			listener(this);
-		}
-	}
-
-	/**
-	 * Emits the `"stop"` event in this world.
-	 */
-	stop(): void {
-		for (const listener of this.#listeners.stop) {
-			listener(this);
-		}
 	}
 
 	/**
@@ -155,6 +127,25 @@ export class World {
 			)}" in the world!`,
 		);
 		return this.schedules.get(scheduleType)!.run();
+	}
+
+	/**
+	 * Spawns a new entity in the world.
+	 * @returns
+	 */
+	spawn(): Entity {
+		const ent = new Entity(this, this.#nextId++);
+		this.#updatedEntities.add(ent);
+		return ent;
+	}
+
+	/**
+	 * Updates all entities that have been marked as needing update.
+	 */
+	updateEntities(): void {
+		for (const entity of this.#updatedEntities) {
+			entity.move();
+		}
 	}
 
 	/**
@@ -203,30 +194,6 @@ export class World {
 	}
 
 	/**
-	 * Moves an entity from one table to another.
-	 * @param entity The entity to move.
-	 * @param targetArchetype The archetype of the target table.
-	 * @param components The components to insert into this entity.
-	 */
-	moveEntity(
-		entity: Entity,
-		targetArchetype: bigint,
-		components: object[],
-	): void {
-		if (!entity.isAlive) {
-			return;
-		}
-		const [tableId, row] = this.entities.getLocation(entity);
-		const currentTable = this.tables[tableId];
-		if (currentTable.archetype !== targetArchetype) {
-			currentTable.move(row, this.#getTable(targetArchetype), components);
-		}
-		if (targetArchetype === 0n) {
-			Entity.despawn(entity);
-		}
-	}
-
-	/**
 	 * Gets the internal id for a component in this world.
 	 * If the provided component type doesn't yet have an id in this world, an id will be reserved.
 	 * @param componentType The component type to get an id for.
@@ -271,6 +238,48 @@ export class World {
 			i++;
 		}
 		return components;
+	}
+
+	/**
+	 * Gets a table for the provided archetype.
+	 * If it doesn't exist, creates the table.
+	 * @param archetype The archetype for the table to find.
+	 * @returns The table matching the provided archetype.
+	 */
+	getTable(archetype: bigint): Table {
+		let table = this.#archetypeToTable.get(archetype);
+		if (table) {
+			return table;
+		}
+		table = new Table(
+			this.getComponentsForArchetype(archetype),
+			archetype,
+			this.tables.length,
+		);
+		this.tables.push(table);
+		this.#archetypeToTable.set(archetype, table);
+		for (const listener of this.#listeners.createTable) {
+			listener(table);
+		}
+		return table;
+	}
+
+	/**
+	 * Emits the `"start"` event in this world.
+	 */
+	start(): void {
+		for (const listener of this.#listeners.start) {
+			listener(this);
+		}
+	}
+
+	/**
+	 * Emits the `"stop"` event in this world.
+	 */
+	stop(): void {
+		for (const listener of this.#listeners.stop) {
+			listener(this);
+		}
 	}
 
 	/**
@@ -327,30 +336,5 @@ export class World {
 		const arr = this.#listeners[type];
 		arr.splice(arr.indexOf(listener as any), 1);
 		return this;
-	}
-
-	/**
-	 * Gets a table for the provided archetype.
-	 * If it doesn't exist, creates the table.
-	 * @param archetype The archetype for the table to find.
-	 * @returns The table matching the provided archetype.
-	 */
-	#getTable(archetype: bigint): Table {
-		let table = this.#archetypeToTable.get(archetype);
-		if (table) {
-			return table;
-		}
-		table = new Table(
-			this.getComponentsForArchetype(archetype),
-			archetype,
-			this.tables.length,
-			this.entities.locations,
-		);
-		this.tables.push(table);
-		this.#archetypeToTable.set(archetype, table);
-		for (const listener of this.#listeners.createTable) {
-			listener(table);
-		}
-		return table;
 	}
 }

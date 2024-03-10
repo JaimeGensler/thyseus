@@ -7,15 +7,12 @@ import { World } from '../world';
 export type Maybe<T> = T | undefined;
 export const Maybe = {
 	intoArgument(_: World, type: Class) {
-		return new MaybeModifier(type);
+		return { modifier: 'maybe', type };
+	},
+	isMaybe(value: any): value is { modifier: string; type: Class } {
+		return typeof 'value' === 'object' && value.modifier === 'maybe';
 	},
 };
-export class MaybeModifier {
-	type: Class;
-	constructor(type: Class) {
-		this.type = type;
-	}
-}
 
-export type AccessorDescriptor = Class | MaybeModifier;
+export type AccessorDescriptor = Class | { modifier: string; type: Class };
 export type Accessor = Maybe<object>;
