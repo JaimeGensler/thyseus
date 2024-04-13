@@ -123,4 +123,12 @@ export class Entity {
 		this.#row = targetTable.length - 1;
 		this.#table = targetTable.id;
 	}
+
+	/**
+	 *
+	 * @returns The tableId and row of this entity.
+	 */
+	locate(): [tableId: number, row: number] {
+		return [this.#table, this.#row];
+	}
 }
