@@ -4,7 +4,7 @@ import { Events } from './Events';
 
 export function clearAllEventQueues({ writers }: Events) {
 	for (const writer of writers) {
-		writer.clearImmediate();
+		writer.clear();
 	}
 }
 clearAllEventQueues.getSystemArguments = (world: World) => [
@@ -19,23 +19,26 @@ if (import.meta.vitest) {
 	const { World } = await import('../world');
 
 	class LevelUpEvent {}
+	class LevelDownEvent {}
 
 	it('clears event queues', async () => {
 		const world = new World();
 
 		const events = await world.getResource(Events);
-		const queue = world.commands.getQueue(EventsCommandQueue);
-		const writer = events.getWriterOfType(LevelUpEvent);
+		const upWriter = events.getWriter(LevelUpEvent);
+		const downWriter = events.getWriter(LevelDownEvent);
 
-		expect(writer.length).toBe(0);
+		expect(upWriter.length).toBe(0);
+		expect(downWriter.length).toBe(0);
 
-		writer.create(new LevelUpEvent());
-		expect(writer.length).toBe(1);
+		upWriter.create(new LevelUpEvent());
+		downWriter.create(new LevelDownEvent());
+		downWriter.create(new LevelDownEvent());
+		expect(upWriter.length).toBe(1);
+		expect(downWriter.length).toBe(2);
 
-		writer.clear();
-		expect(writer.length).toBe(1);
-
-		queue.apply(world);
-		expect(writer.length).toBe(0);
+		clearAllEventQueues(events);
+		expect(upWriter.length).toBe(0);
+		expect(downWriter.length).toBe(0);
 	});
 }

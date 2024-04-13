@@ -15,13 +15,11 @@ export class EventReader<T extends object> {
 	}
 
 	#type: Class;
-	#id: number;
 	#queue: T[];
 
-	constructor(type: { new (...args: any[]): T }, queue: T[], id: number) {
+	constructor(type: { new (...args: any[]): T }, queue: T[]) {
 		this.#type = type;
 		this.#queue = queue;
-		this.#id = id;
 	}
 
 	/**
@@ -41,11 +39,6 @@ export class EventReader<T extends object> {
 	[Symbol.iterator](): IterableIterator<Readonly<T>> {
 		return this.#queue[Symbol.iterator]();
 	}
-
-	/**
-	 * Sets this event queue to be cleared when commands are next processed.
-	 */
-	clear(): void {}
 }
 
 /**
@@ -60,24 +53,26 @@ export class EventWriter<T extends object> extends EventReader<T> {
 	}
 	#queue: T[];
 
-	constructor(type: { new (...args: any[]): T }, queue: T[], id: number) {
-		super(type, queue, id);
+	constructor(type: { new (...args: any[]): T }, queue: T[]) {
+		super(type, queue);
 		this.#queue = queue;
 	}
 
 	/**
 	 * Adds the provided event to the queue.
 	 * @param instance The event to add to the event queue.
+	 * @returns `this`, for chaining.
 	 */
-	create(instance: T): void {
+	create(instance: T): this {
 		this.#queue.push(instance);
+		return this;
 	}
 
 	/**
-	 * **Immediately** clears all events in this queue.
+	 * Immediately clears all events in this queue.
 	 */
-	clearImmediate(): void {
-		this.#queue = [];
+	clear(): void {
+		this.#queue.length = 0;
 	}
 }
 
@@ -85,19 +80,17 @@ export class EventWriter<T extends object> extends EventReader<T> {
 |   TESTS   |
 \*---------*/
 if (import.meta.vitest) {
-	const { it, expect, vi } = import.meta.vitest;
+	const { it, expect } = import.meta.vitest;
 	const { World } = await import('../world');
-	const { EventsCommandQueue } = await import('./clearAllEventQueues');
 
 	async function setupQueue<T extends Class, I extends InstanceType<T>>(
 		queueType: T,
 	) {
 		const world = new World();
 		const queue: I[] = [];
-		const commandQueue = world.commands.getQueue(EventsCommandQueue);
 		return [
-			new EventReader<I>(commandQueue, queueType as any, queue, 0),
-			new EventWriter<I>(commandQueue, queueType as any, queue, 0),
+			new EventReader<I>(queueType as any, queue),
+			new EventWriter<I>(queueType as any, queue),
 			world,
 		] as const;
 	}
@@ -143,25 +136,5 @@ if (import.meta.vitest) {
 			iterations++;
 		}
 		expect(iterations).toBe(1);
-	});
-
-	it('EventReader.clear() queues a clear command', async () => {
-		const [reader, writer, world] = await setupQueue(A);
-		const queue = world.commands.getQueue(EventsCommandQueue);
-		const pushCommandSpy = vi.spyOn(queue, 'clear' as any);
-		expect(reader.length).toBe(0);
-		expect(writer.length).toBe(0);
-
-		writer.create(new A(16));
-		expect(reader.length).toBe(1);
-		expect(writer.length).toBe(1);
-
-		expect(reader.clear());
-		expect(pushCommandSpy).toHaveBeenCalledOnce();
-		expect(pushCommandSpy).toHaveBeenCalledWith(0);
-
-		expect(writer.clear());
-		expect(pushCommandSpy).toHaveBeenCalledTimes(2);
-		expect(pushCommandSpy).toHaveBeenLastCalledWith(0);
 	});
 }

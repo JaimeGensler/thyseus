@@ -131,7 +131,7 @@ export class Query<A extends Accessor | Accessor[], F extends Filter = Filter> {
 	 * @returns The queried-for components, or null if the entity no longer exists or does not match.
 	 */
 	get(entity: Entity): A | null {
-		const [tableId, row] = this.#world.entities.getLocation(entity);
+		const [tableId, row] = entity.locate();
 		const table = this.#world.tables[tableId];
 		if (!this.#testArchetype(table.archetype)) {
 			return null;
@@ -208,7 +208,6 @@ if (import.meta.vitest) {
 	const { With, Without } = await import('./filters');
 	const { Entity } = await import('../entities');
 	const { World } = await import('../world');
-	const { applyCommands } = await import('../commands');
 	const { Tag } = await import('../components');
 
 	const createWorld = (...components: Class[]) => {
@@ -232,11 +231,11 @@ if (import.meta.vitest) {
 			expect(catchAllQuery.length).toBe(0);
 			expect(withVec.length).toBe(0);
 
-			world.commands.spawn(); // 1
-			world.commands.spawn().addType(ZST); // 1
-			world.commands.spawn().add(new Vec3()); // 1, 2, 3
-			world.commands.spawn().add(new Vec3()).addType(ZST); // 1, 3
-			applyCommands(world);
+			world.spawn(); // 1
+			world.spawn().addType(ZST); // 1
+			world.spawn().add(new Vec3()); // 1, 2, 3
+			world.spawn().add(new Vec3()).addType(ZST); // 1, 3
+			world.updateEntities();
 
 			expect(catchAllQuery.length).toBe(4);
 			expect(withVec.length).toBe(2);
@@ -245,16 +244,19 @@ if (import.meta.vitest) {
 		it('matches tables for Maybe<T>', () => {
 			const world = createWorld(ZST, Vec3);
 			const catchAllQuery = Query.intoArgument(world, Entity);
-			const maybeVec = Query.intoArgument(world, new MaybeModifier(Vec3));
+			const maybeVec = Query.intoArgument(
+				world,
+				Maybe.intoArgument(world, Vec3),
+			);
 
 			expect(catchAllQuery.length).toBe(0);
 			expect(maybeVec.length).toBe(0);
 
-			world.commands.spawn(); // 1
-			world.commands.spawn().addType(ZST); // 1
-			world.commands.spawn().add(new Vec3()); // 1, 2, 3
-			world.commands.spawn().add(new Vec3()).addType(ZST); // 1, 3
-			applyCommands(world);
+			world.spawn(); // 1
+			world.spawn().addType(ZST); // 1
+			world.spawn().add(new Vec3()); // 1, 2, 3
+			world.spawn().add(new Vec3()).addType(ZST); // 1, 3
+			world.updateEntities();
 
 			expect(catchAllQuery.length).toBe(4);
 			expect(maybeVec.length).toBe(4);
@@ -272,11 +274,11 @@ if (import.meta.vitest) {
 			expect(withZST.length).toBe(0);
 			expect(withVecAndZST.length).toBe(0);
 
-			world.commands.spawn(); // 1
-			world.commands.spawn().addType(ZST); // 1
-			world.commands.spawn().add(new Vec3()); // 1, 2, 3
-			world.commands.spawn().add(new Vec3()).addType(ZST); // 1, 3
-			applyCommands(world);
+			world.spawn(); // 1
+			world.spawn().addType(ZST); // 1
+			world.spawn().add(new Vec3()); // 1, 2, 3
+			world.spawn().add(new Vec3()).addType(ZST); // 1, 3
+			world.updateEntities();
 
 			expect(withZST.length).toBe(2);
 			expect(withVecAndZST.length).toBe(1);
@@ -298,11 +300,11 @@ if (import.meta.vitest) {
 			expect(withoutZST.length).toBe(0);
 			expect(withVecWithoutZST.length).toBe(0);
 
-			world.commands.spawn(); // 1
-			world.commands.spawn().addType(ZST); // 1
-			world.commands.spawn().add(new Vec3()); // 1, 2, 3
-			world.commands.spawn().add(new Vec3()).addType(ZST); // 1, 3
-			applyCommands(world);
+			world.spawn(); // 1
+			world.spawn().addType(ZST); // 1
+			world.spawn().add(new Vec3()); // 1, 2, 3
+			world.spawn().add(new Vec3()).addType(ZST); // 1, 3
+			world.updateEntities();
 
 			expect(withoutZST.length).toBe(2);
 			expect(withVecWithoutZST.length).toBe(1);
@@ -319,12 +321,12 @@ if (import.meta.vitest) {
 			expect(query.length).toBe(0);
 
 			for (let i = 0; i < 5; i++) {
-				world.commands.spawn().add(new Vec3());
+				world.spawn().add(new Vec3());
 			}
 			for (let i = 0; i < 5; i++) {
-				world.commands.spawn().add(new Vec3()).addType(ZST);
+				world.spawn().add(new Vec3()).addType(ZST);
 			}
-			applyCommands(world);
+			world.updateEntities();
 
 			expect(query.length).toBe(10);
 			let j = 0;
@@ -343,9 +345,9 @@ if (import.meta.vitest) {
 
 			expect(query.length).toBe(0);
 			for (let i = 0; i < 10; i++) {
-				world.commands.spawn().add(new Vec3());
+				world.spawn().add(new Vec3());
 			}
-			applyCommands(world);
+			world.updateEntities();
 
 			expect(query.length).toBe(10);
 			let j = 0;
@@ -360,17 +362,17 @@ if (import.meta.vitest) {
 			const world = createWorld(Vec3);
 			const query: Query<Vec3 | undefined> = Query.intoArgument(
 				world,
-				new MaybeModifier(Vec3),
+				Maybe.intoArgument(world, Vec3),
 			);
 
 			expect(query.length).toBe(0);
 			for (let i = 0; i < 5; i++) {
-				world.commands.spawn();
+				world.spawn();
 			}
 			for (let i = 0; i < 5; i++) {
-				world.commands.spawn().add(new Vec3());
+				world.spawn().add(new Vec3());
 			}
-			applyCommands(world);
+			world.updateEntities();
 
 			expect(query.length).toBe(10);
 			let undef = 0;
