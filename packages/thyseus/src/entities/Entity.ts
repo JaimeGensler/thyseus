@@ -5,29 +5,23 @@ import {
 	type TagComponentType,
 } from '../components';
 import { DEV_ASSERT } from '../utils';
-import type { World } from '../world';
+
+import type { Entities } from './Entities';
 
 /**
- * A component that can be used to get the id, index, and generation of an Entity.
+ * A component that can be used to modify an entity.
  * All living entities have the `Entity` component.
  */
 export class Entity {
-	#world: World;
-	#destination: bigint;
-	#added: object[];
+	#entities: Entities;
 
 	#id: number;
-	#table: number;
-	#row: number;
+	#table: number = 0;
+	#row: number = 0;
 
-	constructor(world: World, id: number) {
-		this.#world = world;
-		this.#destination = 1n;
-		this.#added = [];
-
+	constructor(entities: Entities, id: number) {
+		this.#entities = entities;
 		this.#id = id;
-		this.#table = 0;
-		this.#row = 0;
 	}
 
 	/**
@@ -46,12 +40,12 @@ export class Entity {
 	}
 
 	/**
-	 * Determines if this entity is the same as another entity.
-	 * @param other The entity to compare against.
-	 * @returns A boolean indicating if this entity refers to the provided entity.
+	 * Returns if an entity has the provided component or not.
+	 * @param component The component to check presence for.
+	 * @returns `true` if the entity has the component, false otherwise.
 	 */
-	is(other: Readonly<Entity>): boolean {
-		return this.id === other.id;
+	has(component: Class): boolean {
+		return this.#entities.hasComponent(this, component);
 	}
 
 	/**
@@ -69,8 +63,7 @@ export class Entity {
 			isSizedComponent(type),
 			'ZSTs must be added with EntityCommands.addType().',
 		);
-		this.#added.push(component);
-		this.#destination |= 1n << BigInt(this.#world.getComponentId(type));
+		this.#entities.add(this, component);
 		return this;
 	}
 
@@ -84,7 +77,7 @@ export class Entity {
 			isTagComponent(type),
 			'Sized types must be added with EntityCommands.add()',
 		);
-		this.#destination |= 1n << BigInt(this.#world.getComponentId(type));
+		this.#entities.addType(this, type);
 		return this;
 	}
 
@@ -98,34 +91,28 @@ export class Entity {
 			type !== Entity,
 			'Tried to remove Entity component, which is forbidden.',
 		);
-		this.#destination &= ~(1n << BigInt(this.#world.getComponentId(type)));
+		this.#entities.remove(this, type);
 		return this;
 	}
-
 	/**
 	 * Queues this entity to be despawned.
 	 * @returns `void`
 	 */
 	despawn(): void {
-		this.#destination = 0n;
+		this.#entities.remove(this, Entity);
 	}
 
 	/**
-	 * Moves the entity to its target table, updating queries.
+	 * Sets the location of this entity to the provided table and row.
+	 * Unsafe to use alone - use `Entities.p.update()` instead.
 	 */
-	move() {
-		const world = this.#world;
-		const currentTable = world.tables[this.#table];
-		const targetTable = world.getTable(this.#destination);
-		const backfilledEntity =
-			currentTable.move(this.#row, targetTable, this.#added) ?? this;
-		backfilledEntity.#row = this.#row;
-		this.#row = targetTable.length - 1;
-		this.#table = targetTable.id;
+	move(table: number, row: number): void {
+		this.#table = table;
+		this.#row = row;
 	}
 
 	/**
-	 *
+	 * Provides the location of the entity.
 	 * @returns The tableId and row of this entity.
 	 */
 	locate(): [tableId: number, row: number] {
