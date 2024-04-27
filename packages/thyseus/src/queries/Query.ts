@@ -3,7 +3,7 @@ import { DEV_ASSERT } from '../utils';
 import type { Class } from '../components';
 import type { World } from '../world';
 
-import { createArchetypeFilter, type Filter } from './filters';
+import type { Filter } from './filters';
 import { Maybe, type Accessor, type AccessorDescriptor } from './modifiers';
 
 const EMPTY_COLUMN: [] = [];
@@ -23,13 +23,7 @@ export class Query<A extends Accessor | Accessor[], F extends Filter = Filter> {
 		const initial = world.getArchetype(
 			...accessors.filter((x): x is Class => !Maybe.isMaybe(x)),
 		);
-		const filters = filter
-			? createArchetypeFilter(
-					filter,
-					[initial, 0n],
-					world.getArchetype.bind(world),
-			  )
-			: [initial, 0n];
+		const filters = filter ? filter.execute([initial, 0n]) : [initial, 0n];
 		return new Query(world, filters, isIndividual, components);
 	}
 
@@ -235,7 +229,7 @@ if (import.meta.vitest) {
 			world.spawn().addType(ZST); // 1
 			world.spawn().add(new Vec3()); // 1, 2, 3
 			world.spawn().add(new Vec3()).addType(ZST); // 1, 3
-			world.updateEntities();
+			world.entities.update();
 
 			expect(catchAllQuery.length).toBe(4);
 			expect(withVec.length).toBe(2);
@@ -244,31 +238,35 @@ if (import.meta.vitest) {
 		it('matches tables for Maybe<T>', () => {
 			const world = createWorld(ZST, Vec3);
 			const catchAllQuery = Query.intoArgument(world, Entity);
-			const maybeVec = Query.intoArgument(
+			const maybeQuery = Query.intoArgument(
 				world,
 				Maybe.intoArgument(world, Vec3),
 			);
 
 			expect(catchAllQuery.length).toBe(0);
-			expect(maybeVec.length).toBe(0);
+			expect(maybeQuery.length).toBe(0);
 
 			world.spawn(); // 1
 			world.spawn().addType(ZST); // 1
 			world.spawn().add(new Vec3()); // 1, 2, 3
 			world.spawn().add(new Vec3()).addType(ZST); // 1, 3
-			world.updateEntities();
+			world.entities.update();
 
 			expect(catchAllQuery.length).toBe(4);
-			expect(maybeVec.length).toBe(4);
+			expect(maybeQuery.length).toBe(4);
 		});
 
 		it('matches tables for With<T>', () => {
 			const world = createWorld(ZST, Vec3);
-			const withZST = Query.intoArgument(world, Entity, new With(ZST));
+			const withZST = Query.intoArgument(
+				world,
+				Entity,
+				new With(world, [ZST]),
+			);
 			const withVecAndZST = Query.intoArgument(
 				world,
 				Vec3,
-				new With(ZST),
+				new With(world, [ZST]),
 			);
 
 			expect(withZST.length).toBe(0);
@@ -278,7 +276,7 @@ if (import.meta.vitest) {
 			world.spawn().addType(ZST); // 1
 			world.spawn().add(new Vec3()); // 1, 2, 3
 			world.spawn().add(new Vec3()).addType(ZST); // 1, 3
-			world.updateEntities();
+			world.entities.update();
 
 			expect(withZST.length).toBe(2);
 			expect(withVecAndZST.length).toBe(1);
@@ -289,12 +287,12 @@ if (import.meta.vitest) {
 			const withoutZST = Query.intoArgument(
 				world,
 				Entity,
-				new Without(ZST),
+				new Without(world, [ZST]),
 			);
 			const withVecWithoutZST = Query.intoArgument(
 				world,
 				Vec3,
-				new Without(ZST),
+				new Without(world, [ZST]),
 			);
 
 			expect(withoutZST.length).toBe(0);
@@ -304,7 +302,7 @@ if (import.meta.vitest) {
 			world.spawn().addType(ZST); // 1
 			world.spawn().add(new Vec3()); // 1, 2, 3
 			world.spawn().add(new Vec3()).addType(ZST); // 1, 3
-			world.updateEntities();
+			world.entities.update();
 
 			expect(withoutZST.length).toBe(2);
 			expect(withVecWithoutZST.length).toBe(1);
@@ -326,14 +324,14 @@ if (import.meta.vitest) {
 			for (let i = 0; i < 5; i++) {
 				world.spawn().add(new Vec3()).addType(ZST);
 			}
-			world.updateEntities();
+			world.entities.update();
 
 			expect(query.length).toBe(10);
 			let j = 0;
 			for (const [vec, ent] of query) {
 				expect(vec).toBeInstanceOf(Vec3);
 				expect(ent).toBeInstanceOf(Entity);
-				expect(ent.id).toBe(BigInt(j));
+				expect(ent.id).toBe(j);
 				j++;
 			}
 			expect(j).toBe(10);
@@ -347,7 +345,7 @@ if (import.meta.vitest) {
 			for (let i = 0; i < 10; i++) {
 				world.spawn().add(new Vec3());
 			}
-			world.updateEntities();
+			world.entities.update();
 
 			expect(query.length).toBe(10);
 			let j = 0;
@@ -372,7 +370,7 @@ if (import.meta.vitest) {
 			for (let i = 0; i < 5; i++) {
 				world.spawn().add(new Vec3());
 			}
-			world.updateEntities();
+			world.entities.update();
 
 			expect(query.length).toBe(10);
 			let undef = 0;

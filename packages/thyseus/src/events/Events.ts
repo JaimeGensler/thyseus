@@ -1,5 +1,4 @@
 import type { Class } from '../components';
-import type { World } from '../world';
 
 import { EventReader, EventWriter } from './EventQueues';
 
@@ -35,11 +34,10 @@ export class Events {
 		isRead: 'writers',
 	): EventWriter<InstanceType<T>>;
 	#addType(type: Class, accessType: 'readers' | 'writers') {
-		const id = this.readers.length;
 		const eventQueue: object[] = [];
-		this.readers.push(new EventReader(type, eventQueue, id));
-		this.writers.push(new EventWriter(type, eventQueue, id));
-		return this[accessType][id];
+		this.readers.push(new EventReader(type, eventQueue));
+		this.writers.push(new EventWriter(type, eventQueue));
+		return this[accessType][this.readers.length - 1];
 	}
 
 	getReader<T extends Class>(eventType: T): EventReader<InstanceType<T>> {

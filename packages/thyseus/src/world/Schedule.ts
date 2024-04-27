@@ -9,14 +9,12 @@ import type { World } from './World';
  * Can be extended to create custom schedules.
  */
 export class Schedule {
-	#world: World;
-	#systems: System[];
-	#args: Array<any[]>;
+	#systems: System[] = [];
+	#args: Array<any[]> = [];
 
+	#world: World;
 	constructor(world: World) {
 		this.#world = world;
-		this.#systems = [];
-		this.#args = [];
 	}
 
 	/**
