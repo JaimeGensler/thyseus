@@ -3,7 +3,7 @@ export { Tag } from './components';
 export { applyEntityUpdates, Entity } from './entities';
 export { EventReader, Events, EventWriter } from './events';
 export { And, Maybe, Or, Query, With, Without } from './queries';
-export { Res, SystemRes } from './resources';
+export { Res, Local } from './resources';
 export { cloneSystem } from './systems';
 export { expose, Thread, Threads } from './threads';
 export { Schedule, World } from './world';
