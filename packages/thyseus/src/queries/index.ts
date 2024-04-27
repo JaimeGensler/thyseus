@@ -1,3 +1,3 @@
-export { Query } from './Query';
-export { With, Without, Or, And, type Filter } from './filters';
+export { And, Filter, Or, With, Without } from './filters';
 export { Maybe } from './modifiers';
+export { Query } from './Query';
