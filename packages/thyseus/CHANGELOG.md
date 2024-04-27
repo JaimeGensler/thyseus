@@ -1,5 +1,34 @@
 # Thyseus Changelog
 
+## 0.18.0
+
+### Minor Changes
+
+-   Removed `Commands`
+-   Removed `EntityCommands`
+-   Removed `applyCommands`
+-   Removed `Entity.p.index`
+-   Removed `Entity.p.generation`
+-   Changed `Entity.p.id` from `bigint` to `number`
+-   Removed `Entity.p.is()`
+-   Removed `EventReader.p.clear()`, `EventWriter.p.clearImmediate()`
+-   `EventWriter.p.clear()` now immediately clears the queue.
+-   Renamed `SystemRes<T>` to `Local<T>`
+-   Modified `Entities` methods
+
+### Patch Changes
+
+-   Added `World.p.spawn()`
+-   Added `Entity.p.add()` `Entity.p.addType()`, `Entity.p.remove()` and
+    `Entity.p.despawn()` methods
+-   Added `Entity.p.has()`
+-   Added `applyEntityUpdates` system
+-   Added `entityUpdateTiming: 'before' | 'after' | 'custom'` to World config
+-   Added `clearAllEventQueues` system
+-   Classes used with `Res<T>` and `Local<T>` are no longer required to have a
+    static `fromWorld()` property
+-   Unused filters are now tree-shakeable
+
 ## 0.17.0
 
 ### Minor Changes
