@@ -1,1 +1,2 @@
-export { Res, SystemRes } from './Res';
+export { Local } from './Local';
+export { Res } from './Res';
