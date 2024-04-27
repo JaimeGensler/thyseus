@@ -90,6 +90,7 @@ export class Table {
 if (import.meta.vitest) {
 	const { it, expect } = import.meta.vitest;
 	const { Tag } = await import('./Tag');
+	const { World } = await import('../world');
 
 	class Vec3 {
 		x: number;
@@ -117,12 +118,13 @@ if (import.meta.vitest) {
 	};
 
 	it('add() adds an item', async () => {
+		const world = new World();
 		const table = createTable(Entity);
 		const entityColumn = table.getColumn(Entity);
 		expect(table.length).toBe(0);
 
-		const e1 = new Entity(4);
-		const e2 = new Entity(5);
+		const e1 = new Entity(world.entities, 4);
+		const e2 = new Entity(world.entities, 5);
 		addToTable(table, e1);
 		addToTable(table, e2);
 
@@ -131,35 +133,37 @@ if (import.meta.vitest) {
 	});
 
 	it('adds an element', async () => {
+		const world = new World();
 		const table = createTable(Entity);
 		expect(table.length).toBe(0);
 
-		addToTable(table, new Entity(0));
+		addToTable(table, new Entity(world.entities, 0));
 		expect(table.length).toBe(1);
 
 		const entityColumn = table.getColumn(Entity);
-		expect(entityColumn[0].id).toBe(0n);
+		expect(entityColumn[0].id).toBe(0);
 
-		addToTable(table, new Entity(3));
+		addToTable(table, new Entity(world.entities, 3));
 		expect(table.length).toBe(2);
 
-		expect(entityColumn[0].id).toBe(0n);
-		expect(entityColumn[1].id).toBe(3n);
+		expect(entityColumn[0].id).toBe(0);
+		expect(entityColumn[1].id).toBe(3);
 	});
 
 	it('moves elements from one table to another', async () => {
+		const world = new World();
 		const fromTable = createTable(Entity, Vec3);
 		const toTable = createTable(Entity, Vec3);
 
-		addToTable(fromTable, new Entity(3), new Vec3(1, 2, 3));
-		addToTable(fromTable, new Entity(1), new Vec3(7, 8, 9));
-		addToTable(toTable, new Entity(4), new Vec3(0, 0, 0));
+		addToTable(fromTable, new Entity(world.entities, 3), new Vec3(1, 2, 3));
+		addToTable(fromTable, new Entity(world.entities, 1), new Vec3(7, 8, 9));
+		addToTable(toTable, new Entity(world.entities, 4), new Vec3(0, 0, 0));
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
 
 		const fromTableEntityColumn = fromTable.getColumn(Entity);
-		expect(fromTableEntityColumn[0].id).toBe(3n);
+		expect(fromTableEntityColumn[0].id).toBe(3);
 
 		const fromTableVec3Column = fromTable.getColumn(Vec3);
 		const toTableVec3Column = toTable.getColumn(Vec3);
@@ -173,7 +177,7 @@ if (import.meta.vitest) {
 		expect(v3.y).toBe(2);
 		expect(v3.z).toBe(3);
 
-		expect(fromTableEntityColumn[0].id).toBe(1n);
+		expect(fromTableEntityColumn[0].id).toBe(1);
 		v3 = fromTableVec3Column[0];
 		expect(v3.x).toBe(7);
 		expect(v3.y).toBe(8);
@@ -181,12 +185,13 @@ if (import.meta.vitest) {
 	});
 
 	it('deletes elements, swaps in last elements', async () => {
+		const world = new World();
 		const table = createTable(Entity, Vec3);
 
-		addToTable(table, new Entity(1));
-		addToTable(table, new Entity(2));
-		addToTable(table, new Entity(3));
-		addToTable(table, new Entity(4));
+		addToTable(table, new Entity(world.entities, 1));
+		addToTable(table, new Entity(world.entities, 2));
+		addToTable(table, new Entity(world.entities, 3));
+		addToTable(table, new Entity(world.entities, 4));
 		expect(table.length).toBe(4);
 
 		const entityColumn = table.getColumn(Entity);
@@ -200,63 +205,46 @@ if (import.meta.vitest) {
 
 		table.move(1, Table.createEmpty(), []);
 		expect(table.length).toBe(3);
-		expect(entityColumn[0].id).toBe(1n);
+		expect(entityColumn[0].id).toBe(1);
 		expect(vecColumn[0].x).toBe(1);
 		expect(vecColumn[0].y).toBe(2);
 		expect(vecColumn[0].z).toBe(3);
-		expect(entityColumn[1].id).toBe(4n);
+		expect(entityColumn[1].id).toBe(4);
 		expect(vecColumn[1].x).toBe(10);
 		expect(vecColumn[1].y).toBe(11);
 		expect(vecColumn[1].z).toBe(12);
-		expect(entityColumn[2].id).toBe(3n);
+		expect(entityColumn[2].id).toBe(3);
 		expect(vecColumn[2].x).toBe(7);
 		expect(vecColumn[2].y).toBe(8);
 		expect(vecColumn[2].z).toBe(9);
 	});
 
-	it.todo('move() moves entity locations', async () => {
-		const table = createTable(Entity);
-		const empty = Table.createEmpty();
-		expect(table.length).toBe(0);
-
-		const id1 = 4n;
-		const id2 = (1n << 32n) | 5n;
-		const e1 = new Entity(4);
-		const e2 = new Entity(5);
-		addToTable(table, e1);
-		addToTable(table, e2);
-
-		// expect(table.move(0, empty)).toBe(e2);
-		// expect(table.move(0, empty)).toBe(e2);
-	});
-
-	// v0.6 changelog bugfix
 	it('backfills elements for all stores', async () => {
+		const world = new World();
 		const fromTable = createTable(Entity, Vec3);
 		const toTable = createTable(Entity);
 		const fromTableEntityColumn = fromTable.getColumn(Entity);
 		const fromTableVec3Column = fromTable.getColumn(Vec3);
 		const toTableEntityColumn = toTable.getColumn(Entity);
 
-		addToTable(fromTable, new Entity(3));
-		addToTable(fromTable, new Entity(0));
-		addToTable(toTable, new Entity(4));
+		addToTable(fromTable, new Entity(world.entities, 3));
+		addToTable(fromTable, new Entity(world.entities, 0));
+		addToTable(toTable, new Entity(world.entities, 4));
 
 		expect(fromTable.length).toBe(2);
 		expect(toTable.length).toBe(1);
-		expect(fromTableEntityColumn[0].id).toBe(3n);
+		expect(fromTableEntityColumn[0].id).toBe(3);
 
 		fromTableVec3Column.push(new Vec3(1, 2, 3), new Vec3(7, 8, 9));
 		fromTable.move(0, toTable, []);
 
-		expect(toTableEntityColumn[1].id).toBe(3n);
-		expect(fromTableEntityColumn[0].id).toBe(1n);
+		expect(toTableEntityColumn[1].id).toBe(3);
+		expect(fromTableEntityColumn[0].id).toBe(0);
 		expect(fromTableVec3Column[0].x).toBe(7);
 		expect(fromTableVec3Column[0].y).toBe(8);
 		expect(fromTableVec3Column[0].z).toBe(9);
 	});
 
-	// v0.6 changelog bugfix
 	it('does not create columns for ZSTs', async () => {
 		class ZST extends Tag {}
 		const table = createTable(Entity, Vec3, ZST);

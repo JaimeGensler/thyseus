@@ -1,12 +1,13 @@
 import { Table, type Class } from '../components';
 import { Entity } from '../entities';
 import { System } from '../systems';
-import { DEV_ASSERT, DEV_WARN } from '../utils';
+import { DEV_ASSERT } from '../utils';
 
 import { getCompleteConfig, type WorldConfig } from './config';
 import { Schedule, type ScheduleType } from './Schedule';
 import type { Plugin } from './Plugin';
 import type { WorldEventListeners } from './WorldEventListeners';
+import { Entities } from '../entities/Entities';
 
 /**
  * The entry point for a Thyseus application.
@@ -19,58 +20,50 @@ export class World {
 	}
 
 	/**
-	 * The event listeners for this world.
-	 */
-	#listeners: WorldEventListeners;
-	/**
-	 * A lookup for archetypes (`bigint`s) to tables.
-	 */
-	#archetypeToTable: Map<bigint, Table>;
-	/**
 	 * A list of tables in the world.
 	 * Tables group entities with the same components together.
 	 */
-	tables: Table[];
+	tables: Table[] = [Table.createEmpty()];
 	/**
 	 * A list of resources in the world.
 	 */
-	resources: object[];
+	resources: object[] = [];
 	/**
 	 * The schedules that exist in this world.
 	 */
-	schedules: Map<ScheduleType, Schedule>;
+	schedules: Map<ScheduleType, Schedule> = new Map();
 	/**
 	 * A list of components currently used by this world.
 	 */
-	components: Class[];
+	components: Class[] = [Entity];
+	/**
+	 * The entities handler for this world.
+	 */
+	entities: Entities = new Entities(this);
+
 	/**
 	 * A list of async plugins that have been started.
 	 */
-	#pendingPlugins: Promise<any>[];
+	#pendingPlugins: Promise<any>[] = [];
 	/**
-	 * The next entity ID.
+	 * A lookup for archetypes (`bigint`s) to tables.
 	 */
-	#nextId: number;
-	#updatedEntities: Set<Entity> = new Set();
+	#archetypeToTable: Map<bigint, Table> = new Map([[0n, this.tables[0]]]);
+	/**
+	 * The event listeners for this world.
+	 */
+	#listeners: WorldEventListeners = {
+		start: [],
+		stop: [],
+		createTable: [],
+	};
+
 	/**
 	 * The config used to create this world.
 	 */
 	config: Readonly<WorldConfig>;
-
 	constructor(config: Partial<WorldConfig> = {}) {
 		this.config = getCompleteConfig(config);
-		this.#nextId = 0;
-		this.#listeners = {
-			start: [],
-			stop: [],
-			createTable: [],
-		};
-		this.components = [Entity];
-		this.tables = [Table.createEmpty()];
-		this.#archetypeToTable = new Map([[0n, this.tables[0]]]);
-		this.resources = [];
-		this.schedules = new Map();
-		this.#pendingPlugins = [];
 	}
 
 	/**
@@ -126,26 +119,21 @@ export class World {
 				scheduleType.name,
 			)}" in the world!`,
 		);
-		return this.schedules.get(scheduleType)!.run();
+		if (this.config.entityUpdateTiming === 'before') {
+			this.entities.update();
+		}
+		await this.schedules.get(scheduleType)!.run();
+		if (this.config.entityUpdateTiming === 'after') {
+			this.entities.update();
+		}
 	}
 
 	/**
-	 * Spawns a new entity in the world.
-	 * @returns
+	 * Spawns a new entity in the world (alias for `world.entities.spawn()`).
+	 * @returns The newly created `Entity`
 	 */
 	spawn(): Entity {
-		const ent = new Entity(this, this.#nextId++);
-		this.#updatedEntities.add(ent);
-		return ent;
-	}
-
-	/**
-	 * Updates all entities that have been marked as needing update.
-	 */
-	updateEntities(): void {
-		for (const entity of this.#updatedEntities) {
-			entity.move();
-		}
+		return this.entities.spawn();
 	}
 
 	/**
@@ -162,17 +150,16 @@ export class World {
 		if (res) {
 			return res;
 		}
-		DEV_ASSERT(
-			'fromWorld' in resourceType,
-			`Could not construct resource "${resourceType.name}" - resources must either have a static fromWorld() property or be inserted with World.p.insertResource().`,
-		);
-		res = await (resourceType as any).fromWorld(this);
+		res =
+			'fromWorld' in resourceType
+				? await (resourceType as any).fromWorld(this)
+				: new resourceType();
 		DEV_ASSERT(
 			res !== undefined,
 			`${resourceType.name}.fromWorld() returned undefined; expected an object.`,
 		);
-		this.resources.push(res!);
-		return res!;
+		this.resources.push(res);
+		return res;
 	}
 
 	/**
@@ -287,30 +274,9 @@ export class World {
 	 * @param type The type of event to listen to.
 	 * @param listener The callback to be run when the event is emitted.
 	 */
-	addEventListener(type: 'start', listener: (world: World) => void): this;
-	/**
-	 * Adds a listener for a specific event to the world.
-	 * @param type The type of event to listen to.
-	 * @param listener The callback to be run when the event is emitted.
-	 */
-	addEventListener(type: 'stop', listener: (world: World) => void): this;
-	/**
-	 * Adds a listener for a specific event to the world.
-	 * @param type The type of event to listen to.
-	 * @param listener The callback to be run when the event is emitted.
-	 */
-	addEventListener(
-		type: 'createTable',
-		listener: (table: Table) => void,
-	): this;
-	/**
-	 * Adds a listener for a specific event to the world.
-	 * @param type The type of event to listen to.
-	 * @param listener The callback to be run when the event is emitted.
-	 */
-	addEventListener(
-		type: keyof WorldEventListeners,
-		listener: Function,
+	addEventListener<T extends keyof WorldEventListeners>(
+		type: T,
+		listener: WorldEventListeners[T][0],
 	): this {
 		DEV_ASSERT(
 			type in this.#listeners,
@@ -325,9 +291,9 @@ export class World {
 	 * @param type The type of event to remove a listener from.
 	 * @param listener The callback to be removed.
 	 */
-	removeEventListener(
-		type: keyof WorldEventListeners,
-		listener: Function,
+	removeEventListener<T extends keyof WorldEventListeners>(
+		type: T,
+		listener: WorldEventListeners[T][0],
 	): this {
 		DEV_ASSERT(
 			type in this.#listeners,
