@@ -3,16 +3,26 @@ import type { Class } from '../components';
 import type { World } from '../world';
 
 /**
- * The base class for a condition that must be met for a filter to match.
+ * The base class for a condition (or conditions) that entities must satisfy in
+ * order to match a query.
  */
-export class Predicate {
-	static intoArgument(_: World, ...children: Class[]) {
-		return new this(...children);
+export class Filter<T extends object[] = object[]> {
+	static intoArgument<T extends object[]>(
+		world: World,
+		...children: T
+	): Filter<T> {
+		return new this(world, children);
 	}
 
-	children: Class[];
-	constructor(...children: Class[]) {
+	world: World;
+	children: T;
+	constructor(world: World, children: T) {
+		this.world = world;
 		this.children = children;
+	}
+
+	execute(current: bigint[]): bigint[] {
+		return current;
 	}
 }
 /**
@@ -23,9 +33,15 @@ export class With<
 	B extends object = object,
 	C extends object = object,
 	D extends object = object,
-> extends Predicate {
+> extends Filter<Class[]> {
 	#_: [A, B, C, D] = true as any;
+	execute(current: bigint[]): bigint[] {
+		return current.map((val, i) =>
+			i % 2 === 0 ? val | this.world.getArchetype(...this.children) : val,
+		);
+	}
 }
+
 /**
  * A predicate that ensures only entities **without** the specified components will match a query.
  */
@@ -34,21 +50,32 @@ export class Without<
 	B extends object = object,
 	C extends object = object,
 	D extends object = object,
-> extends Predicate {
+> extends Filter<Class[]> {
 	#_: [A, B, C, D] = true as any;
+	execute(current: bigint[]): bigint[] {
+		return current.map((val, i) =>
+			i % 2 === 1
+				? val | (this.world.getArchetype(...this.children) ^ 1n)
+				: val,
+		);
+	}
 }
 
 /**
- * The base class for a logical connection between filter conditions.
+ * A connective that ensures that **all** of the provided conditions must be met for a query to match.
  */
-export class Connective {
-	static intoArgument(_: World, ...children: Filter[]) {
-		return new this(...children);
-	}
-
-	children: Filter[];
-	constructor(...children: Filter[]) {
-		this.children = children;
+export class And<
+	A extends Filter,
+	B extends Filter,
+	C extends Filter = any,
+	D extends Filter = any,
+> extends Filter<Filter[]> {
+	#_: [A, B, C, D] = true as any;
+	execute(current: bigint[]): bigint[] {
+		return this.children.reduce(
+			(acc, filter) => filter.execute(acc),
+			current,
+		);
 	}
 }
 
@@ -60,58 +87,13 @@ export class Or<
 	B extends Filter,
 	C extends Filter = any,
 	D extends Filter = any,
-> extends Connective {
+> extends Filter<Filter[]> {
 	#_: [A, B, C, D] = true as any;
-}
-/**
- * A connective that ensures that **all** of the provided conditions must be met for a query to match.
- */
-export class And<
-	A extends Filter,
-	B extends Filter,
-	C extends Filter = any,
-	D extends Filter = any,
-> extends Connective {
-	#_: [A, B, C, D] = true as any;
-}
-/**
- * A combination of predicates and connectives that entities must satisfy in order to match a query.
- */
-export type Filter = Predicate | Connective;
-
-/**
- * Given a filter, returns a list of archetypes (`bigint`) that could match the filter.
- * Archetypes come in pairs of [with, without]
- * @param filter The filter to compare.
- * @param current The current state of the archetypes.
- * @param getArchetype Returns an archetype given a list of components.
- * @returns The pair of filters that must [match | not-match] for an entity to match a query.
- */
-export function createArchetypeFilter(
-	filter: Filter,
-	current: bigint[],
-	getArchetype: (...components: Class[]) => bigint,
-): bigint[] {
-	if (filter instanceof And) {
-		return filter.children.reduce(
-			(acc, val) => createArchetypeFilter(val, acc, getArchetype),
-			current,
-		);
-	} else if (filter instanceof Or) {
-		return filter.children.flatMap(val =>
-			createArchetypeFilter(val, current, getArchetype),
-		);
-	} else {
-		const remainder = filter instanceof With ? 0 : 1;
-		let archetype = getArchetype(...(filter as Predicate).children);
-		if (filter instanceof Without) {
-			archetype &= ~1n;
-		}
-		return current.map((val, i) =>
-			i % 2 === remainder ? val | archetype : val,
-		);
+	execute(current: bigint[]): bigint[] {
+		return this.children.flatMap(filter => filter.execute(current));
 	}
 }
+
 export function DEV_ASSERT_FILTER_VALID(filters: bigint[]) {
 	DEV_ASSERT(
 		filters.some((f, i) => i % 2 === 0 && (f & filters[i + 1]) === 0n),
@@ -125,124 +107,119 @@ export function DEV_ASSERT_FILTER_VALID(filters: bigint[]) {
 if (import.meta.vitest) {
 	const { describe, it, expect } = import.meta.vitest;
 
-	class Comp {
-		static size = 0;
-		static alignment = 1;
-	}
-	class A extends Comp {}
-	class B extends Comp {}
-	class C extends Comp {}
-	class D extends Comp {}
-	class E extends Comp {}
-	const components: Class[] = [A, B, C, D, E];
+	class _EntityPlaceholder {}
+	class A {}
+	class B {}
+	class C {}
+	class D {}
+	class E {}
+	const components: Class[] = [_EntityPlaceholder, A, B, C, D, E];
 
-	const getArchetype = (...comps: Class[]) =>
-		comps.reduce(
-			(acc, val) => acc | (1n << BigInt(components.indexOf(val))),
-			0n,
-		);
-	const createPlainFilter = (filter: Filter) =>
-		createArchetypeFilter(filter, [0n, 0n], getArchetype);
+	const world = {
+		getArchetype: (...comps: Class[]) =>
+			comps.reduce(
+				(acc, val) => acc | (1n << BigInt(components.indexOf(val))),
+				1n,
+			),
+	};
+	const f = <T extends Class>(filterType: T, ...args: any): InstanceType<T> =>
+		new filterType(world, args) as InstanceType<T>;
 
 	describe('createArchetypeFilter()', () => {
 		it('works with simple With filters', () => {
 			for (let i = 0; i < components.length; i++) {
-				expect(
-					createPlainFilter(new With(components[i])),
-				).toStrictEqual([1n << BigInt(i), 0n]);
+				expect(f(With, components[i]).execute([1n, 0n])).toStrictEqual([
+					1n | (1n << BigInt(i)),
+					0n,
+				]);
 			}
 		});
 
 		it('works with simple Without filters', () => {
-			for (let i = 0; i < components.length; i++) {
+			// Skip Entity placeholder because Without<Entity> is always invalid
+			for (let i = 1; i < components.length; i++) {
 				expect(
-					createPlainFilter(new Without(components[i])),
-				).toStrictEqual([0n, 1n << BigInt(i)]);
+					f(Without, components[i]).execute([1n, 0n]),
+				).toStrictEqual([1n, 1n << BigInt(i)]);
 			}
 		});
 
-		it('works with And filters (tuples)', () => {
+		it('works with And filter', () => {
 			expect(
-				createPlainFilter(
-					new And(new With(A, B, D), new Without(C, E)),
-				),
-			).toStrictEqual([0b01011n, 0b10100n]);
+				f(And, f(With, A, B, D), f(Without, C, E)).execute([1n, 0n]),
+			).toStrictEqual([0b010111n, 0b101000n]);
 		});
 
 		it('works with simple Or filters', () => {
 			expect(
-				createPlainFilter(new Or(new With(A), new With(B))),
-			).toStrictEqual([0b00001n, 0n, 0b00010n, 0n]);
+				f(Or, f(With, A), f(With, B)).execute([1n, 0n]),
+			).toStrictEqual([0b000011n, 0n, 0b000101n, 0n]);
 
 			expect(
-				createPlainFilter(new Or(new With(E), new Without(C))),
-			).toStrictEqual([0b10000n, 0n, 0b0n, 0b00100n]);
+				f(Or, f(With, E), f(Without, C)).execute([1n, 0n]),
+			).toStrictEqual([0b100001n, 0n, 1n, 0b001000n]);
 		});
 
 		it('works with complex Or filters', () => {
 			expect(
-				createPlainFilter(
-					// A && !B && (D || E)
-					new And(
-						new With(A),
-						new Or(new With(D), new With(E)),
-						new Without(B),
-					),
-				),
-			).toStrictEqual([0b01001n, 0b00010n, 0b10001n, 0b00010n]);
+				// A && !B && (D || E)
+				f(
+					And,
+					f(With, A),
+					f(Or, f(With, D), f(With, E)),
+					f(Without, B),
+				).execute([1n, 0n]),
+			).toStrictEqual([0b010011n, 0b000100n, 0b100011n, 0b000100n]);
 
 			expect(
-				createPlainFilter(
+				f(
 					// A || (B || C)
-					new Or(new With(A), new Or(new With(B), new With(C))),
-				),
-			).toStrictEqual([0b001n, 0n, 0b010n, 0n, 0b100n, 0n]);
+					Or,
+					f(With, A),
+					f(Or, f(With, B), f(With, C)),
+				).execute([1n, 0n]),
+			).toStrictEqual([0b0011n, 0n, 0b0101n, 0n, 0b1001n, 0n]);
 
 			expect(
-				createPlainFilter(
+				f(
 					// (A || B) && (!C || !D)
-					new And(
-						new Or(new With(A), new With(B)),
-						new Or(new Without(C), new Without(D)),
-					),
-				),
+					And,
+					f(Or, f(With, A), f(With, B)),
+					f(Or, f(Without, C), f(Without, D)),
+				).execute([1n, 0n]),
 			).toStrictEqual([
-				0b0001n,
-				0b0100n,
-				0b0010n,
-				0b0100n,
-				0b0001n,
-				0b1000n,
-				0b0010n,
-				0b1000n,
+				0b00011n,
+				0b01000n,
+				0b00101n,
+				0b01000n,
+				0b00011n,
+				0b10000n,
+				0b00101n,
+				0b10000n,
 			]);
 		});
 
-		it.only('works with initial values', () => {
+		it('works with initial values', () => {
 			expect(
-				createArchetypeFilter(
-					new And(new With(C), new Without(D)),
-					[0b0001n, 0b0010n],
-					getArchetype,
-				),
-			).toStrictEqual([0b0101n, 0b1010n]);
+				f(And, f(With, C), f(Without, D)).execute([0b00011n, 0b00100n]),
+			).toStrictEqual([0b01011n, 0b10100n]);
 		});
 	});
 
 	it('throws if filters are impossible', () => {
 		expect(() =>
 			DEV_ASSERT_FILTER_VALID(
-				createPlainFilter(new And(new With(A), new Without(B))),
+				f(And, f(With, A), f(Without, B)).execute([1n, 0n]),
 			),
 		).not.toThrow();
 		expect(() =>
 			DEV_ASSERT_FILTER_VALID(
-				createPlainFilter(new Or(new With(A), new Without(A))),
+				f(Or, f(With, A), f(Without, A)).execute([1n, 0n]),
 			),
 		).not.toThrow(/cannot match any entities/);
 		expect(() =>
 			DEV_ASSERT_FILTER_VALID(
-				createPlainFilter(new And(new With(A), new Without(A))),
+				f(And, f(With, A), f(Without, A)).execute([1n, 0n]),
 			),
 		).toThrow(/cannot match any entities/);
 	});
