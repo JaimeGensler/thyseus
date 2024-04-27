@@ -16,7 +16,6 @@ export class EventReader<T extends object> {
 
 	#type: Class;
 	#queue: T[];
-
 	constructor(type: { new (...args: any[]): T }, queue: T[]) {
 		this.#type = type;
 		this.#queue = queue;
