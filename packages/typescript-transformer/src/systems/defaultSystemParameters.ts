@@ -3,7 +3,6 @@ export type SystemParameterMap = Record<string, boolean>;
 export const defaultSystemParameters: SystemParameterMap = {
 	// Parameters
 	World: true,
-	Commands: true,
 	Query: true,
 	Res: true,
 	SystemRes: true,
@@ -17,4 +16,5 @@ export const defaultSystemParameters: SystemParameterMap = {
 	Without: true,
 	Or: true,
 	And: true,
+	Maybe: true,
 };
