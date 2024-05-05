@@ -1,0 +1,46 @@
+{
+	"name": "@thyseus/math",
+	"version": "1.0.0",
+	"description": "Math package for Thyseus",
+	"author": "Jaime Gensler",
+	"license": "MIT",
+	"homepage": "https://github.com/JaimeGensler/thyseus",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/JaimeGensler/thyseus"
+	},
+	"keywords": [
+		"thyseus",
+		"math",
+		"matrix",
+		"vector",
+		"mat4",
+		"vec3",
+		"webgpu",
+		"wgpu"
+	],
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"module": "./dist/index.js",
+	"main": "./dist/index.umd.cjs",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		"./package.json": "./package.json",
+		"./src/*": "./src/*",
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.umd.cjs"
+		}
+	},
+	"scripts": {
+		"dev": "vitest",
+		"test": "vitest",
+		"build": "vite build && tsup src/index.ts --dts-only",
+		"test:coverage": "vitest run --coverage",
+		"typecheck": "tsc --noEmit",
+		"bump": "pnpm build && changeset version"
+	}
+}
