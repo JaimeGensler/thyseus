@@ -40,9 +40,9 @@
 		}
 	},
 	"scripts": {
-		"start": "vite",
-		"build": "vite build && tsup src/index.ts --dts-only",
+		"dev": "vitest",
 		"test": "vitest",
+		"build": "vite build && tsup src/index.ts --dts-only",
 		"test:coverage": "vitest run --coverage",
 		"typecheck": "tsc --noEmit",
 		"bump": "pnpm build && changeset version"
