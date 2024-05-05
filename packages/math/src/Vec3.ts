@@ -12,21 +12,21 @@ export class Vec3 {
 	}
 
 	/**
-	 * The magnitude of this vector.
+	 * The magnitude of this vector
 	 */
 	get magnitude(): number {
 		return Math.sqrt(this.x ** 2 + this.y ** 2 + this.z ** 2);
 	}
 	/**
-	 * The _squared_ magnitude of this vector.
+	 * The _squared_ magnitude of this vector
 	 */
 	get squaredMagnitude(): number {
 		return this.x ** 2 + this.y ** 2 + this.z ** 2;
 	}
 
 	/**
-	 * Clones this `Vec3`, creating a new one with the same values.
-	 * @returns A new `Vec3` with this vector's values.
+	 * Clones this vector, creating a new one with the same values.
+	 * @returns A new vector with this vector's values
 	 */
 	clone(): Vec3 {
 		return new Vec3(this.x, this.y, this.z);
@@ -34,7 +34,7 @@ export class Vec3 {
 
 	/**
 	 * Copies the values from another vector into this vector.
-	 * @param other The `Vec3` to copy from
+	 * @param other The vector to copy from
 	 * @returns `this`
 	 */
 	copy(other: Readonly<Vec3>): this {
@@ -60,7 +60,7 @@ export class Vec3 {
 
 	/**
 	 * Adds another vector to this vector.
-	 * @param other The other vector to add.
+	 * @param other The other vector to add
 	 * @returns `this`
 	 */
 	add(other: Readonly<Vec3>): this {
@@ -72,7 +72,7 @@ export class Vec3 {
 
 	/**
 	 * Subtracts another vector from this vector.
-	 * @param other The other vector to subtract.
+	 * @param other The other vector to subtract
 	 * @returns `this`
 	 */
 	subtract(other: Readonly<Vec3>): this {
@@ -95,8 +95,8 @@ export class Vec3 {
 	}
 	/**
 	 * Adds the scaled components of another vector to this vector.
-	 * @param other The other vector to add.
-	 * @param scalar The factor by which to scale the components.
+	 * @param other The other vector to add
+	 * @param scalar The factor by which to scale the components
 	 * @returns `this`
 	 */
 	addScaled(other: Readonly<Vec3>, scalar: number): this {
@@ -108,7 +108,7 @@ export class Vec3 {
 
 	/**
 	 * Normalizes this vector, setting its magnitude to 1 while maintaining its direction.
-	 * If this vector has a magnitude of 0, does nothing.
+	 * If this vector has a magnitude of 0, does nothing
 	 */
 	normalize(): this {
 		const { magnitude } = this;
@@ -140,7 +140,7 @@ export class Vec3 {
 
 	/**
 	 * Performs a component-wise multiplication of this vector and another vector.
-	 * @param other The vector to multiply with.
+	 * @param other The vector to multiply by
 	 * @returns `this`
 	 */
 	multiply(other: Readonly<Vec3>): this {
@@ -152,8 +152,8 @@ export class Vec3 {
 
 	/**
 	 * Calculates the dot product of this vector and another vector.
-	 * @param other The vector to dot.
-	 * @returns The dot product.
+	 * @param other The vector to calculate the dot product against
+	 * @returns The dot product
 	 */
 	dot(other: Readonly<Vec3>): number {
 		return this.x * other.x + this.y * other.y + this.z * other.z;
@@ -161,7 +161,7 @@ export class Vec3 {
 
 	/**
 	 * Sets this vector to the cross product of this vector and another vector.
-	 * @param other The vector to cross.
+	 * @param other The vector to cross
 	 * @returns `this`
 	 */
 	cross(other: Readonly<Vec3>): this {

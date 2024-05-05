@@ -10,21 +10,21 @@ export class Vec2 {
 	}
 
 	/**
-	 * The magnitude of this vector.
+	 * The magnitude of this vector
 	 */
 	get magnitude(): number {
 		return Math.sqrt(this.x ** 2 + this.y ** 2);
 	}
 	/**
-	 * The _squared_ magnitude of this vector.
+	 * The _squared_ magnitude of this vector
 	 */
 	get squaredMagnitude(): number {
 		return this.x ** 2 + this.y ** 2;
 	}
 
 	/**
-	 * Clones this `Vec3`, creating a new one with the same values.
-	 * @returns A new `Vec3` with this vector's values.
+	 * Clones this vector, creating a new one with the same values.
+	 * @returns A new vector with this vector's values
 	 */
 	clone(): Vec2 {
 		return new Vec2(this.x, this.y);
@@ -32,7 +32,7 @@ export class Vec2 {
 
 	/**
 	 * Copies the values from another vector into this vector.
-	 * @param other The `Vec3` to copy from
+	 * @param other The vector to copy from
 	 * @returns `this`
 	 */
 	copy(other: Readonly<Vec2>): this {
@@ -89,8 +89,8 @@ export class Vec2 {
 
 	/**
 	 * Adds the scaled components of another vector to this vector.
-	 * @param other The other vector to add.
-	 * @param scalar The factor by which to scale the components.
+	 * @param other The other vector to add
+	 * @param scalar The factor by which to scale the components
 	 * @returns `this`
 	 */
 	addScaled(other: Readonly<Vec2>, scalar: number): this {
@@ -113,8 +113,8 @@ export class Vec2 {
 
 	/**
 	 * Gets the distance from this vector to another vector.
-	 * @param other The vector to compare against.
-	 * @returns The distance between these vectors.
+	 * @param other The vector to compare against
+	 * @returns The distance between these vectors
 	 */
 	distanceTo(other: Readonly<Vec2>): number {
 		return Math.sqrt(this.squaredDistanceTo(other));
@@ -122,8 +122,8 @@ export class Vec2 {
 
 	/**
 	 * Gets the _squared_ distance from this vector to another vector.
-	 * @param other The vector to compare against.
-	 * @returns The squared distance between these vectors.
+	 * @param other The vector to compare against
+	 * @returns The squared distance between these vectors
 	 */
 	squaredDistanceTo(other: Readonly<Vec2>): number {
 		const x = this.x - other.x;
@@ -133,7 +133,7 @@ export class Vec2 {
 
 	/**
 	 * Performs a component-wise multiplication of this vector and another vector.
-	 * @param other The vector to multiply with.
+	 * @param other The vector to multiply by
 	 * @returns `this`
 	 */
 	multiply(other: Readonly<Vec2>): this {
@@ -144,8 +144,8 @@ export class Vec2 {
 
 	/**
 	 * Calculates the dot product of this vector and another vector.
-	 * @param other The vector to dot.
-	 * @returns The dot product.
+	 * @param other The vector to calculate the dot product against
+	 * @returns The dot product
 	 */
 	dot(other: Readonly<Vec2>): number {
 		return this.x * other.x + this.y * other.y;
@@ -185,8 +185,8 @@ export class Vec2 {
 
 	/**
 	 * Determines if all components of this vector are identical to all components of another vector.
-	 * @param other The Vec2 to compare against.
-	 * @returns A boolean indicating if these vectors are equivalent.
+	 * @param other The Vec2 to compare against
+	 * @returns A boolean indicating if these vectors are equivalent
 	 */
 	equals(other: Readonly<Vec2>): boolean {
 		return this.x === other.x && this.y === other.y;

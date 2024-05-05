@@ -118,7 +118,7 @@ export class Vec4 {
 
 	/**
 	 * Performs a component-wise multiplication of this vector and another vector.
-	 * @param other The vector to multiply with
+	 * @param other The vector to multiply by
 	 * @returns `this`
 	 */
 	multiply(other: Readonly<Vec4>): this {
@@ -131,7 +131,7 @@ export class Vec4 {
 
 	/**
 	 * Calculates the dot product of this vector and another vector.
-	 * @param other The vector to dot
+	 * @param other The vector to calculate the dot product against
 	 * @returns The dot product
 	 */
 	dot(other: Readonly<Vec4>): number {
