@@ -14,21 +14,21 @@ export class Vec4 {
 	}
 
 	/**
-	 * The magnitude of this vector.
+	 * The magnitude of this vector
 	 */
 	get magnitude(): number {
 		return Math.sqrt(this.x ** 2 + this.y ** 2 + this.z ** 2 + this.w ** 2);
 	}
 	/**
-	 * The _squared_ magnitude of this vector.
+	 * The _squared_ magnitude of this vector
 	 */
 	get squaredMagnitude(): number {
 		return this.x ** 2 + this.y ** 2 + this.z ** 2 + this.w ** 2;
 	}
 
 	/**
-	 * Clones this `Vec4`, creating a new one with the same values.
-	 * @returns A new `Vec4` with this vector's values.
+	 * Clones this vector, creating a new one with the same values.
+	 * @returns A new vector with this vector's values
 	 */
 	clone(): Vec4 {
 		return new Vec4(this.x, this.y, this.z, this.w);
@@ -36,7 +36,7 @@ export class Vec4 {
 
 	/**
 	 * Copies the values from another vector into this vector.
-	 * @param other The `Vec4` to copy from
+	 * @param other The vector to copy from
 	 * @returns `this`
 	 */
 	copy(other: Readonly<Vec4>): this {
@@ -65,7 +65,7 @@ export class Vec4 {
 
 	/**
 	 * Adds another vector to this vector.
-	 * @param other The other vector to add.
+	 * @param other The other vector to add
 	 * @returns `this`
 	 */
 	add(other: Readonly<Vec4>): this {
@@ -78,7 +78,7 @@ export class Vec4 {
 
 	/**
 	 * Subtracts another vector from this vector.
-	 * @param other The other vector to subtract.
+	 * @param other The other vector to subtract
 	 * @returns `this`
 	 */
 	subtract(other: Readonly<Vec4>): this {
@@ -91,7 +91,7 @@ export class Vec4 {
 
 	/**
 	 * Multiplies each component of this vector by the provided value.
-	 * @param scalar The scalar value to multiply components by.
+	 * @param scalar The scalar value to multiply components by
 	 * @returns `this`
 	 */
 	scale(scalar: number): this {
@@ -104,8 +104,8 @@ export class Vec4 {
 
 	/**
 	 * Adds the scaled components of another vector to this vector.
-	 * @param other The other vector to add.
-	 * @param scalar The factor by which to scale the components.
+	 * @param other The other vector to add
+	 * @param scalar The factor by which to scale the components
 	 * @returns `this`
 	 */
 	addScaled(other: Readonly<Vec4>, scalar: number): this {
@@ -118,7 +118,7 @@ export class Vec4 {
 
 	/**
 	 * Performs a component-wise multiplication of this vector and another vector.
-	 * @param other The vector to multiply with.
+	 * @param other The vector to multiply with
 	 * @returns `this`
 	 */
 	multiply(other: Readonly<Vec4>): this {
@@ -131,8 +131,8 @@ export class Vec4 {
 
 	/**
 	 * Calculates the dot product of this vector and another vector.
-	 * @param other The vector to dot.
-	 * @returns The dot product.
+	 * @param other The vector to dot
+	 * @returns The dot product
 	 */
 	dot(other: Readonly<Vec4>): number {
 		return (
@@ -148,7 +148,7 @@ export class Vec4 {
 	 * @param other The vector to compare against
 	 * @returns The distance between these vectors
 	 */
-	distanceTo(other: Readonly<Vec4>) {
+	distanceTo(other: Readonly<Vec4>): number {
 		return Math.sqrt(this.squaredDistanceTo(other));
 	}
 
@@ -157,7 +157,7 @@ export class Vec4 {
 	 * @param other The vector to compare against
 	 * @returns The squared distance between these vectors
 	 */
-	squaredDistanceTo(other: Readonly<Vec4>) {
+	squaredDistanceTo(other: Readonly<Vec4>): number {
 		const x = this.x - other.x;
 		const y = this.y - other.y;
 		const z = this.z - other.z;
@@ -194,7 +194,7 @@ export class Vec4 {
 	/**
 	 * Determines if all components of this vector are identical to all components of another vector.
 	 * @param other The Vec4 to compare against
-	 * @returns A boolean indicating if these vectors are equivalent.
+	 * @returns A boolean indicating if these vectors are equivalent
 	 */
 	equals(other: Readonly<Vec4>): boolean {
 		return (
