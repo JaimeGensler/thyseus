@@ -590,7 +590,7 @@ export class Mat4 extends Float32Array {
 	 * @param axis The axis to rotate this matrix around
 	 * @returns `this`
 	 */
-	rotate(radians: number, axis: Readonly<Vec3>): this {
+	rotateAroundAxis(radians: number, axis: Readonly<Vec3>): this {
 		let { x, y, z } = axis;
 
 		const length = Math.sqrt(x ** 2 + y ** 2 + z ** 2);
