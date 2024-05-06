@@ -1,6 +1,6 @@
 {
 	"name": "@thyseus/math",
-	"version": "1.0.0",
+	"version": "0.1.0",
 	"description": "Math package for Thyseus",
 	"author": "Jaime Gensler",
 	"license": "MIT",
