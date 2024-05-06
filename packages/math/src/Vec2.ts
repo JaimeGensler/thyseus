@@ -136,7 +136,7 @@ export class Vec2 {
 	 * @param other The vector to multiply by
 	 * @returns `this`
 	 */
-	multiply(other: Readonly<Vec2>): this {
+	multiplyComponents(other: Readonly<Vec2>): this {
 		this.x *= other.x;
 		this.y *= other.y;
 		return this;

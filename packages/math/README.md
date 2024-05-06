@@ -13,6 +13,16 @@ This package is essentially a class reimplementation of
 pnpm add @thyseus/math
 ```
 
+## Principles
+
+-   `this` is mutable; arguments are immutable.
+    -   Methods never mutate passed arguments, only `this`!
+-   No hidden object creation.
+    -   Methods other than `clone()` never create objects.
+-   Fully tree-shakeable.
+    -   While some methods assume certain types as arguments, there are no
+        internal dependencies so you only pay for what you use.
+
 ## API
 
 ### Classes

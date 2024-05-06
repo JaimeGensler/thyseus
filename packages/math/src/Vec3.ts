@@ -1,3 +1,5 @@
+import type { Mat4 } from './Mat4';
+
 /**
  * A 3-dimensional vector
  */
@@ -143,7 +145,7 @@ export class Vec3 {
 	 * @param other The vector to multiply by
 	 * @returns `this`
 	 */
-	multiply(other: Readonly<Vec3>): this {
+	multiplyComponents(other: Readonly<Vec3>): this {
 		this.x *= other.x;
 		this.y *= other.y;
 		this.z *= other.z;
@@ -204,6 +206,29 @@ export class Vec3 {
 		this.y = ratioA * this.y + ratioB * target.y;
 		this.z = ratioA * this.z + ratioB * target.z;
 
+		return this;
+	}
+
+	/**
+	 * Sets this vector to be a translation vector for the provided 4x4 matrix.
+	 * @param matrix The matrix to get the translation from
+	 * @returns `this`
+	 */
+	asTranslation(matrix: Readonly<Mat4>): this {
+		this.x = matrix[12];
+		this.y = matrix[13];
+		this.z = matrix[14];
+		return this;
+	}
+	/**
+	 * Sets this vector to be a scale vector for the provided 4x4 matrix.
+	 * @param matrix The matrix to get the scaling from
+	 * @returns `this`
+	 */
+	asScale(matrix: Readonly<Mat4>): this {
+		this.x = Math.sqrt(matrix[0] ** 2 + matrix[1] ** 2 + matrix[2] ** 2);
+		this.y = Math.sqrt(matrix[4] ** 2 + matrix[5] ** 2 + matrix[6] ** 2);
+		this.z = Math.sqrt(matrix[8] ** 2 + matrix[9] ** 2 + matrix[10] ** 2);
 		return this;
 	}
 

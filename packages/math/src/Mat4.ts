@@ -6,7 +6,14 @@ import type { Quat } from './Quat';
  * A 4x4 matrix backed by a `Float32Array`.
  */
 export class Mat4 extends Float32Array {
-	static IDENTITY = new Mat4();
+	//prettier-ignore
+	static IDENTITY = new Mat4([
+		1, 0, 0, 0, 
+		0, 1, 0, 0, 
+		0, 0, 1, 0,
+		 0, 0, 0, 1,
+	]);
+
 	/**
 	 * The size, in bytes, of a single Mat4.
 	 */
@@ -40,7 +47,7 @@ export class Mat4 extends Float32Array {
 
 	/**
 	 * Copies the values from another matrix into this matrix.
-	 * @param other The matrix to copy from.
+	 * @param other The matrix to copy from
 	 * @returns `this`
 	 */
 	copy(other: Readonly<Mat4>): this {
@@ -71,10 +78,10 @@ export class Mat4 extends Float32Array {
 	 * The near/far clip planes correspond to normalized device coordinate Z range of [0, 1],
 	 * matching WebGPU's clip volume.
 	 *
-	 * @param fovy The  vertical field of view (in radians).
-	 * @param aspect The aspect ratio.
-	 * @param near Near bound of the frustum.
-	 * @param far Far bound of the frustum (may be `Infinity`).
+	 * @param fovy The  vertical field of view (in radians)
+	 * @param aspect The aspect ratio
+	 * @param near Near bound of the frustum
+	 * @param far Far bound of the frustum (may be `Infinity`)
 	 * @returns `this`
 	 */
 	perspective(
@@ -105,12 +112,12 @@ export class Mat4 extends Float32Array {
 	 * The near/far clip planes correspond to normalized device coordinate Z range of [0, 1],
 	 * matching WebGPU's clip volume.
 	 *
-	 * @param left - Left bound of the frustum.
-	 * @param right - Right bound of the frustum.
-	 * @param bottom - Bottom bound of the frustum.
-	 * @param top - Top bound of the frustum.
-	 * @param near - Near bound of the frustum.
-	 * @param far - Far bound of the frustum.
+	 * @param left Left bound of the frustum.
+	 * @param right Right bound of the frustum.
+	 * @param bottom Bottom bound of the frustum.
+	 * @param top Top bound of the frustum.
+	 * @param near Near bound of the frustum.
+	 * @param far Far bound of the frustum.
 	 * @returns `this`
 	 */
 	orthographic(
@@ -137,7 +144,7 @@ export class Mat4 extends Float32Array {
 
 	/**
 	 * Adds this matrix to another matrix by components.
-	 * @param other The matrix to add to this matrix.
+	 * @param other The matrix to add to this matrix
 	 * @returns `this`
 	 */
 	add(other: Readonly<Mat4>): this {
@@ -162,7 +169,7 @@ export class Mat4 extends Float32Array {
 
 	/**
 	 * Multiples this matrix by another matrix.
-	 * @param other The matrix to multiply this matrix by.
+	 * @param other The matrix to multiply this matrix by
 	 * @returns `this`
 	 */
 	multiply(other: Readonly<Mat4>): this {
@@ -185,7 +192,6 @@ export class Mat4 extends Float32Array {
 			a33,
 		] = this;
 
-		// Cache only the current line of the second matrix
 		let [b0, b1, b2, b3] = other;
 		this[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
 		this[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
@@ -212,6 +218,10 @@ export class Mat4 extends Float32Array {
 		return this;
 	}
 
+	/**
+	 * Transposes this matrix
+	 * @returns `this`
+	 */
 	transpose(): this {
 		const a01 = this[1];
 		const a02 = this[2];
@@ -234,6 +244,10 @@ export class Mat4 extends Float32Array {
 		return this;
 	}
 
+	/**
+	 * Calculates the determinant of this matrix.
+	 * @returns The determinant
+	 */
 	determinant(): number {
 		const [
 			a00,
@@ -270,7 +284,6 @@ export class Mat4 extends Float32Array {
 
 	/**
 	 * Inverts this matrix.
-	 *
 	 * @returns `this`
 	 */
 	invert(): this {
@@ -341,7 +354,6 @@ export class Mat4 extends Float32Array {
 
 	/**
 	 * Calculates the adjugate of this matrix
-	 *
 	 * @returns `this`
 	 */
 	adjoint(): this {
@@ -398,7 +410,6 @@ export class Mat4 extends Float32Array {
 
 	/**
 	 * Generates a look-at matrix given an eye position, focal point, and up axis.
-	 *
 	 * @param eye The position or eye of the viewer.
 	 * @param focalPoint The point to look at.
 	 * @param up The up direction.
@@ -483,12 +494,11 @@ export class Mat4 extends Float32Array {
 
 	/**
 	 * Translate a matrix by the provided vector.
-	 *
 	 * @param v The vector to translate this matrix by
 	 * @returns `this`
 	 */
-	translate(translation: Readonly<Vec3>): this {
-		const { x, y, z } = translation;
+	translate(vector: Readonly<Vec3>): this {
+		const { x, y, z } = vector;
 		this[12] = this[0] * x + this[4] * y + this[8] * z + this[12];
 		this[13] = this[1] * x + this[5] * y + this[9] * z + this[13];
 		this[14] = this[2] * x + this[6] * y + this[10] * z + this[14];
@@ -498,10 +508,11 @@ export class Mat4 extends Float32Array {
 
 	/**
 	 * Scales this matrix by the provided vector.
-	 * @param param0 The vector to scale this matrix by
+	 * @param vector The vector to scale this matrix by
 	 * @returns `this`
 	 */
-	scale({ x, y, z }: Readonly<Vec3>): this {
+	scale(vector: Readonly<Vec3>): this {
+		const { x, y, z } = vector;
 		this[0] *= x;
 		this[1] *= x;
 		this[2] *= x;
@@ -519,9 +530,9 @@ export class Mat4 extends Float32Array {
 
 	/**
 	 * Sets this matrix to be a composition of the provided translation, rotation, and scale.
-	 * @param translation The translation (position) to set for this matrix.
-	 * @param rotation The rotation to set for this matrix.
-	 * @param scale The scale to set for this matrix.
+	 * @param translation The translation (position) to set for this matrix
+	 * @param rotation The rotation to set for this matrix
+	 * @param scale The scale to set for this matrix
 	 * @returns `this`
 	 */
 	compose(
@@ -575,9 +586,8 @@ export class Mat4 extends Float32Array {
 
 	/**
 	 * Rotates this matrix by the provided angle around the provided axis.
-	 *
-	 * @param radians The angle to rotate this matrix by.
-	 * @param axis The axis to rotate this matrix around.
+	 * @param radians The angle - in radians - to rotate this matrix by
+	 * @param axis The axis to rotate this matrix around
 	 * @returns `this`
 	 */
 	rotate(radians: number, axis: Readonly<Vec3>): this {
@@ -625,8 +635,8 @@ export class Mat4 extends Float32Array {
 
 	/**
 	 * Determines if all components of this matrix are identical to all components of another matrix.
-	 * @param other The matrix to compare against.
-	 * @returns A boolean indicating if these matrices are equivalent.
+	 * @param other The matrix to compare against
+	 * @returns A boolean indicating if these matrices are equivalent
 	 */
 	equals(other: Readonly<Mat4>): boolean {
 		return (
